@@ -1,0 +1,15 @@
+version: 1
+rules:
+  - id: ML-001
+    severity: error
+    assertion: feature_max_source_time_lte_as_of_time
+  - id: ML-002
+    severity: error
+    assertion: training_label_horizon_is_closed
+  - id: ML-003
+    severity: error
+    assertion: prediction_probability_between_zero_and_one
+  - id: ML-004
+    severity: error
+    assertion: no_raw_customer_pii
+

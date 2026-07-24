@@ -1,0 +1,2 @@
+"""Versioned clickstream event collector."""
+

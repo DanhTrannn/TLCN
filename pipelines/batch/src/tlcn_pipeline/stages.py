@@ -1,0 +1,22 @@
+CORE_STAGES = (
+    "check_services",
+    "capture_mysql_high_cursors",
+    "discover_closed_jsonl",
+    "extract_mysql",
+    "ingest_jsonl",
+    "write_bronze",
+    "validate_bronze",
+    "build_silver_domain",
+    "build_silver_events_logs",
+    "run_silver_dq",
+    "build_gold_dimensions",
+    "build_gold_facts",
+    "build_gold_marts",
+    "reconcile_source_to_gold",
+    "publish_analytics_staging",
+    "validate_publish",
+    "swap_or_upsert_analytics",
+    "commit_cursors",
+    "publish_pipeline_audit",
+)
+

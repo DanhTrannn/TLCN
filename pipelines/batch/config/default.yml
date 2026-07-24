@@ -1,0 +1,16 @@
+pipeline_name: tlcn_core_batch
+timezone: UTC
+business_timezone: Asia/Ho_Chi_Minh
+mysql_cursor_lookback_seconds: 300
+event_lookback_days: 3
+session_timeout_minutes: 30
+bronze_root: s3a://lakehouse/bronze
+silver_root: s3a://lakehouse/silver
+gold_root: s3a://lakehouse/gold
+quarantine_root: s3a://lakehouse/quarantine
+manifest_root: s3a://lakehouse/manifests
+partitioning:
+  event: ingest_date
+  log: ingest_date
+  order: created_date
+

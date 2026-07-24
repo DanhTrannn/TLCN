@@ -1,0 +1,18 @@
+scenario_id: medium-repurchase-v1
+dataset_size: medium
+seed: 20260724
+anchor_time: "2026-07-01T00:00:00+00:00"
+history_months: 12
+modes:
+  - seed_master
+  - historical_transactions
+  - behavior_events
+  - repurchase_history
+  - failure_fixtures
+scale:
+  customers: 5000
+  products: 200
+  variants: 1000
+  orders: 30000
+  events: 100000
+

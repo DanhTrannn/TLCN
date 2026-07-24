@@ -1,0 +1,374 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: infrastructure/docker/airflow/Dockerfile
+  image: tlcn-airflow:2.10.5
+  profiles: ["batch"]
+  user: "${AIRFLOW_UID:-50000}:0"
+  environment: &airflow-environment
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-change-me-airflow-db}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-me-airflow-secret}
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    PIPELINE_ENV: ${PIPELINE_ENV:-local}
+    PIPELINE_RUN_DIRECTORY: /data/pipeline-runs
+    PIPELINE_CONFIG_PATH: /opt/project/pipelines/batch/config/default.yml
+    ML_CONFIG_PATH: /opt/project/ml/repurchase/configs/default.yml
+    MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}:${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
+    MYSQL_ANALYTICS_PUBLISH_URL: mysql+pymysql://${MYSQL_ANALYTICS_USER:-analytics_publisher}:${MYSQL_ANALYTICS_PASSWORD:-change-me-analytics}@mysql-analytics:3306/${MYSQL_ANALYTICS_DATABASE:-analytics}
+    MINIO_ENDPOINT: http://minio:9000
+    MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-tlcn_minio}
+    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+    SPARK_MASTER_URL: spark://spark-master:7077
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags:ro
+    - ./airflow/logs:/opt/airflow/logs
+    - event-data:/data/events:ro
+    - pipeline-run-data:/data/pipeline-runs
+  networks: ["tlcn-network"]
+  depends_on:
+    postgres-airflow:
+      condition: service_healthy
+
+x-superset-common: &superset-common
+  build:
+    context: .
+    dockerfile: infrastructure/docker/superset/Dockerfile
+  image: tlcn-superset:4.1.2
+  profiles: ["bi"]
+  environment: &superset-environment
+    SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change-me-superset-secret}
+    SUPERSET_DATABASE_URI: postgresql+psycopg2://${SUPERSET_DB_USER:-superset}:${SUPERSET_DB_PASSWORD:-change-me-superset-db}@postgres-superset:5432/${SUPERSET_DB_NAME:-superset}
+    SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
+  volumes:
+    - ./infrastructure/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    - superset-home:/app/superset_home
+  networks: ["tlcn-network"]
+
+services:
+  mysql-ecommerce:
+    image: mysql:8.4.5
+    profiles: ["core"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
+      MYSQL_USER: ${MYSQL_ECOMMERCE_USER:-ecommerce_app}
+      MYSQL_PASSWORD: ${MYSQL_ECOMMERCE_PASSWORD:-change-me-ecommerce}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ECOMMERCE_ROOT_PASSWORD:-change-me-root}
+      MYSQL_ECOMMERCE_READER_USER: ${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}
+      MYSQL_ECOMMERCE_READER_PASSWORD: ${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    ports:
+      - "${MYSQL_ECOMMERCE_PORT:-3306}:3306"
+    volumes:
+      - mysql-ecommerce-data:/var/lib/mysql
+      - ./infrastructure/mysql-ecommerce/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: ["tlcn-network"]
+
+  ecommerce-api:
+    build:
+      context: .
+      dockerfile: services/ecommerce-api/Dockerfile
+    image: tlcn-ecommerce-api:0.1.0
+    profiles: ["core"]
+    environment:
+      API_DATABASE_URL: mysql+pymysql://${MYSQL_ECOMMERCE_USER:-ecommerce_app}:${MYSQL_ECOMMERCE_PASSWORD:-change-me-ecommerce}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
+      API_SECRET_KEY: ${API_SECRET_KEY:-change-me-with-at-least-32-random-characters}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000}
+      API_COOKIE_SECURE: ${API_COOKIE_SECURE:-false}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      mysql-ecommerce:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: ["tlcn-network"]
+
+  event-collector:
+    build:
+      context: ./services/event-collector
+    image: tlcn-event-collector:0.1.0
+    profiles: ["core"]
+    environment:
+      COLLECTOR_CORS_ORIGINS: ${COLLECTOR_CORS_ORIGINS:-http://localhost:3000}
+      COLLECTOR_EVENT_DIRECTORY: /data/events
+      COLLECTOR_ROTATION_MAX_BYTES: ${COLLECTOR_ROTATION_MAX_BYTES:-10485760}
+      COLLECTOR_ROTATION_MAX_AGE_SECONDS: ${COLLECTOR_ROTATION_MAX_AGE_SECONDS:-300}
+      COLLECTOR_DEDUP_WINDOW_SECONDS: ${COLLECTOR_DEDUP_WINDOW_SECONDS:-3600}
+      COLLECTOR_DEDUP_MAX_ENTRIES: ${COLLECTOR_DEDUP_MAX_ENTRIES:-100000}
+    ports:
+      - "${COLLECTOR_PORT:-8001}:8001"
+    volumes:
+      - event-data:/data/events
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: ["tlcn-network"]
+
+  storefront:
+    build:
+      context: ./apps/storefront
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+        NEXT_PUBLIC_EVENT_COLLECTOR_URL: ${NEXT_PUBLIC_EVENT_COLLECTOR_URL:-http://localhost:8001}
+    image: tlcn-storefront:0.1.0
+    profiles: ["core"]
+    ports:
+      - "${STOREFRONT_PORT:-3000}:3000"
+    depends_on:
+      ecommerce-api:
+        condition: service_healthy
+      event-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: ["tlcn-network"]
+
+  generator:
+    build:
+      context: ./generator
+    image: tlcn-generator:0.1.0
+    profiles: ["tools"]
+    environment:
+      ECOMMERCE_API_URL: http://ecommerce-api:8000
+      EVENT_COLLECTOR_URL: http://event-collector:8001
+    volumes:
+      - generator-data:/data/generator
+    networks: ["tlcn-network"]
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    profiles: ["batch"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-tlcn_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: ["tlcn-network"]
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    profiles: ["batch"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+        mc mb --ignore-existing local/$${MINIO_LAKEHOUSE_BUCKET};
+        mc mb --ignore-existing local/$${MINIO_ML_BUCKET};
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-tlcn_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+      MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
+      MINIO_ML_BUCKET: ${MINIO_ML_BUCKET:-ml-artifacts}
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks: ["tlcn-network"]
+
+  spark-master:
+    image: apache/spark:3.5.5-python3
+    profiles: ["batch"]
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark-master"]
+    ports:
+      - "7077:7077"
+      - "${SPARK_MASTER_UI_PORT:-8082}:8080"
+    volumes:
+      - spark-work:/opt/spark/work-dir
+    networks: ["tlcn-network"]
+
+  spark-worker:
+    image: apache/spark:3.5.5-python3
+    profiles: ["batch"]
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
+    environment:
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    ports:
+      - "${SPARK_WORKER_UI_PORT:-8083}:8081"
+    volumes:
+      - spark-work:/opt/spark/work-dir
+    depends_on:
+      - spark-master
+    networks: ["tlcn-network"]
+
+  postgres-airflow:
+    image: postgres:16.8
+    profiles: ["batch"]
+    environment:
+      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-change-me-airflow-db}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
+    volumes:
+      - postgres-airflow-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: ["tlcn-network"]
+
+  airflow-init:
+    <<: *airflow-common
+    command:
+      - bash
+      - -c
+      - >-
+        airflow db migrate &&
+        (airflow users create
+        --username $${AIRFLOW_ADMIN_USER}
+        --password $${AIRFLOW_ADMIN_PASSWORD}
+        --firstname TLCN
+        --lastname Admin
+        --role Admin
+        --email admin@example.local || true)
+    environment:
+      <<: *airflow-environment
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-change-me-airflow}
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "${AIRFLOW_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $${HOSTNAME}"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  mysql-analytics:
+    image: mysql:8.4.5
+    profiles: ["bi"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_ANALYTICS_DATABASE:-analytics}
+      MYSQL_USER: ${MYSQL_ANALYTICS_USER:-analytics_publisher}
+      MYSQL_PASSWORD: ${MYSQL_ANALYTICS_PASSWORD:-change-me-analytics}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ANALYTICS_ROOT_PASSWORD:-change-me-analytics-root}
+      MYSQL_ANALYTICS_READER_USER: ${MYSQL_ANALYTICS_READER_USER:-analytics_reader}
+      MYSQL_ANALYTICS_READER_PASSWORD: ${MYSQL_ANALYTICS_READER_PASSWORD:-change-me-analytics-reader}
+      TZ: UTC
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    ports:
+      - "${MYSQL_ANALYTICS_PORT:-3307}:3306"
+    volumes:
+      - mysql-analytics-data:/var/lib/mysql
+      - ./infrastructure/mysql-analytics/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: ["tlcn-network"]
+
+  postgres-superset:
+    image: postgres:16.8
+    profiles: ["bi"]
+    environment:
+      POSTGRES_USER: ${SUPERSET_DB_USER:-superset}
+      POSTGRES_PASSWORD: ${SUPERSET_DB_PASSWORD:-change-me-superset-db}
+      POSTGRES_DB: ${SUPERSET_DB_NAME:-superset}
+    volumes:
+      - postgres-superset-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: ["tlcn-network"]
+
+  superset-init:
+    <<: *superset-common
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        superset db upgrade &&
+        (superset fab create-admin
+        --username $${SUPERSET_ADMIN_USER}
+        --password $${SUPERSET_ADMIN_PASSWORD}
+        --firstname TLCN
+        --lastname Admin
+        --email admin@example.local || true) &&
+        superset init
+    environment:
+      <<: *superset-environment
+      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-change-me-superset}
+    depends_on:
+      postgres-superset:
+        condition: service_healthy
+
+  superset:
+    <<: *superset-common
+    command: ["gunicorn", "--bind", "0.0.0.0:8088", "--workers", "2", "--timeout", "120", "superset.app:create_app()"]
+    ports:
+      - "${SUPERSET_PORT:-8088}:8088"
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+      mysql-analytics:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8088/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+networks:
+  tlcn-network:
+    name: tlcn-network
+
+volumes:
+  mysql-ecommerce-data:
+  mysql-analytics-data:
+  event-data:
+  generator-data:
+  minio-data:
+  spark-work:
+  postgres-airflow-data:
+  postgres-superset-data:
+  pipeline-run-data:
+  superset-home:

@@ -1,0 +1,2 @@
+"""Authenticated cart module."""
+

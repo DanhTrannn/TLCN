@@ -1,0 +1,23 @@
+version: 1
+rules:
+  - id: BRONZE-001
+    layer: bronze
+    severity: error
+    assertion: required_envelope_metadata
+  - id: SILVER-ORDER-001
+    layer: silver
+    severity: error
+    assertion: order_subtotal_plus_shipping_equals_total
+  - id: SILVER-INVENTORY-001
+    layer: silver
+    severity: error
+    assertion: opening_on_hand_gte_on_hand_gte_zero
+  - id: GOLD-FACT-001
+    layer: gold
+    severity: error
+    assertion: fact_grain_is_unique
+  - id: GOLD-MART-001
+    layer: gold
+    severity: error
+    assertion: mart_total_equals_fact_total_at_cutoff
+

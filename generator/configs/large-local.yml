@@ -1,0 +1,17 @@
+scenario_id: large-local-repurchase-v1
+dataset_size: large-local
+seed: 20260724
+anchor_time: "2026-07-01T00:00:00+00:00"
+history_months: 12
+modes:
+  - seed_master
+  - historical_transactions
+  - behavior_events
+  - repurchase_history
+scale:
+  customers: 30000
+  products: 500
+  variants: 3000
+  orders: 250000
+  events: 1000000
+

@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+mysql --protocol=socket -uroot -p"${MYSQL_ROOT_PASSWORD}" <<SQL
+CREATE USER IF NOT EXISTS '${MYSQL_ECOMMERCE_READER_USER}'@'%' IDENTIFIED BY '${MYSQL_ECOMMERCE_READER_PASSWORD}';
+FLUSH PRIVILEGES;
+SQL

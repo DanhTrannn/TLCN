@@ -1,0 +1,18 @@
+scenario_id: small-repurchase-v1
+dataset_size: small
+seed: 20260724
+anchor_time: "2026-07-01T00:00:00+00:00"
+history_months: 12
+modes:
+  - seed_master
+  - historical_transactions
+  - behavior_events
+  - repurchase_history
+  - failure_fixtures
+scale:
+  customers: 500
+  products: 60
+  variants: 240
+  orders: 3000
+  events: 10000
+
