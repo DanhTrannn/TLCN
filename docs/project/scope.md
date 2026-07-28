@@ -1,4 +1,4 @@
-# KẾ HOẠCH TIỂU LUẬN CHUYÊN NGÀNH — OLTP-ONLY DATA LAKEHOUSE
+# Phạm vi TLCN — OLTP Batch Data Lakehouse
 
 ## 0. Trạng thái và nguồn yêu cầu
 
@@ -8,9 +8,9 @@ Quyết định scope ngày 2026-07-28:
 
 - TLCN chỉ sử dụng dữ liệu có cấu trúc từ MySQL OLTP của website.
 - Log của API chỉ phục vụ vận hành và debug, không phải nguồn Lakehouse.
-- `schema.md` là logical schema OLTP chi tiết.
-- `web-plan.md` là kế hoạch triển khai source website tạo dữ liệu OLTP.
-- `skills/oltp-design.md` là nguyên tắc thiết kế tham khảo.
+- [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md) là logical schema OLTP chi tiết.
+- [`web-plan.md`](web-plan.md) là kế hoạch triển khai source website tạo dữ liệu OLTP.
+- [`../../skills/oltp-design.md`](../../skills/oltp-design.md) là nguyên tắc thiết kế tham khảo.
 
 ---
 
@@ -241,7 +241,7 @@ Docker profiles:
 
 ## 9. Logical schema OLTP
 
-Logical schema có 13 bảng và được mô tả chi tiết tại `schema.md`.
+Logical schema có 13 bảng và được mô tả chi tiết tại [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md).
 
 | Nhóm | Bảng | Grain chính |
 |---|---|---|
@@ -259,7 +259,7 @@ Logical schema có 13 bảng và được mô tả chi tiết tại `schema.md`.
 | History | `order_status_history` | Một order transition |
 | Inventory | `inventory` | Một balance/variant |
 
-Web transaction, constraint, index và concurrency theo `schema.md`; pipeline không được sửa ngược OLTP.
+Web transaction, constraint, index và concurrency theo [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md); pipeline không được sửa ngược OLTP.
 
 ---
 

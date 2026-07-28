@@ -1,15 +1,15 @@
-# THIẾT KẾ LOGICAL SCHEMA OLTP CHO TLCN
+# Thiết kế logical schema OLTP
 
 ## 0. Phạm vi và trạng thái tài liệu
 
 Tài liệu này thiết kế schema MySQL `ecommerce` cho phần source website của Tiểu luận chuyên ngành (TLCN), dựa trên:
 
-- `remake.md`: nguồn yêu cầu chức năng và phạm vi TLCN;
-- `skills/oltp-design.md`: nguyên tắc correctness, invariant, transaction, concurrency, index và OLAP-readiness.
+- [`../project/scope.md`](../project/scope.md): nguồn yêu cầu chức năng và phạm vi TLCN;
+- [`../../skills/oltp-design.md`](../../skills/oltp-design.md): nguyên tắc correctness, invariant, transaction, concurrency, index và OLAP-readiness.
 
 Đây là **logical design**, chưa phải DDL, migration hoặc code ORM. Tên kiểu dữ liệu và constraint chỉ mô tả ý định triển khai trên MySQL 8.4/InnoDB.
 
-Schema giữ đúng 13 bảng nghiệp vụ đã chốt trong `remake.md`:
+Schema giữ đúng 13 bảng nghiệp vụ đã chốt trong [`../project/scope.md`](../project/scope.md):
 
 1. `customers`;
 2. `customer_credentials`;

@@ -1,4 +1,4 @@
-# PROJECT STRUCTURE — TLCN OLTP BATCH DATA LAKEHOUSE
+# Kiến trúc và cấu trúc repository
 
 ## 1. Mục đích
 
@@ -115,9 +115,11 @@ Nguyên tắc dependency:
 │   ├── spark/                            # Spark assets
 │   └── superset/                         # Superset config
 ├── docs/
-│   ├── architecture/                     # Architecture decisions/diagrams
+│   ├── README.md                         # Documentation index
+│   ├── architecture/                     # Structure, OLTP schema and diagrams
 │   ├── data-dictionary/                  # Source/Silver/Gold definitions
 │   ├── kpi/                              # KPI contracts
+│   ├── project/                          # Scope and implementation plans
 │   ├── runbook/                          # Setup and operation
 │   ├── source-contracts/                 # OLTP extraction contracts
 │   └── thesis/                           # Report/slide/demo artifacts
@@ -127,9 +129,9 @@ Nguyên tắc dependency:
 │   ├── grant_de_reader.sh                # Table-level reader grants
 │   ├── import_generated_sql.sh           # Import generated dataset
 │   └── validate_structure.py             # Repository contract checks
-├── remake.md                             # TLCN requirements and acceptance
-├── schema.md                             # Logical OLTP schema/transactions
-├── web-plan.md                           # Source website implementation plan
+├── tests/                                # Cross-component test suites
+├── .env.example                          # Local configuration template
+├── README.md                             # Entry point and quickstart
 ├── docker-compose.yml                    # Runtime profiles
 ├── pyproject.toml                        # uv workspace
 └── uv.lock                               # Reproducible Python lockfile
@@ -274,8 +276,8 @@ ML không truy cập OLTP trực tiếp. Feature, label, model và score đều 
 
 Thứ tự ưu tiên:
 
-1. `remake.md` — phạm vi và acceptance TLCN;
-2. `schema.md` — logical OLTP schema và transaction catalogue;
-3. `web-plan.md` — kế hoạch source website;
-4. `PROJECT_STRUCTURE.md` — cấu trúc triển khai;
-5. `skills/oltp-design.md` — nguyên tắc thiết kế tham khảo.
+1. [`../project/scope.md`](../project/scope.md) — phạm vi và acceptance TLCN;
+2. [`oltp-schema.md`](oltp-schema.md) — logical OLTP schema và transaction catalogue;
+3. [`../project/web-plan.md`](../project/web-plan.md) — kế hoạch source website;
+4. [`project-structure.md`](project-structure.md) — cấu trúc triển khai;
+5. [`../../skills/oltp-design.md`](../../skills/oltp-design.md) — nguyên tắc thiết kế tham khảo.

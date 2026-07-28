@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -25,7 +26,13 @@ REQUIRED_PATHS = (
     "quality/rules/core.yml",
     "dashboards/business-overview/README.md",
     "docker-compose.yml",
-    "PROJECT_STRUCTURE.md",
+    "docs/README.md",
+    "docs/project/scope.md",
+    "docs/project/web-plan.md",
+    "docs/architecture/oltp-schema.md",
+    "docs/architecture/project-structure.md",
+    "apps/storefront/README.md",
+    "services/ecommerce-api/README.md",
 )
 
 
@@ -44,6 +51,23 @@ def validate_json(errors: list[str]) -> None:
         except Exception as error:
             errors.append(f"invalid JSON {path.relative_to(ROOT)}: {error}")
 
+
+
+def validate_markdown_links(errors: list[str]) -> None:
+    excluded_parts = {".git", "node_modules", ".next"}
+    link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+    for path in ROOT.rglob("*.md"):
+        if any(part in excluded_parts or part.startswith(".venv") for part in path.parts):
+            continue
+        content = path.read_text(encoding="utf-8")
+        for raw_target in link_pattern.findall(content):
+            target = raw_target.split("#", 1)[0]
+            if not target or target.startswith(("http://", "https://", "mailto:")):
+                continue
+            if not (path.parent / target).resolve().exists():
+                errors.append(
+                    f"broken Markdown link in {path.relative_to(ROOT)}: {raw_target}"
+                )
 
 def validate_toml(errors: list[str]) -> None:
     for path in ROOT.rglob("*.toml"):
@@ -118,6 +142,7 @@ def main() -> int:
     errors: list[str] = []
     validate_required_paths(errors)
     validate_json(errors)
+    validate_markdown_links(errors)
     validate_toml(errors)
     validate_uv_workspace(errors)
     validate_python(errors)

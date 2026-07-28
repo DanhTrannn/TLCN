@@ -1,8 +1,8 @@
-# KẾ HOẠCH SOURCE WEBSITE TLCN — OLTP-ONLY
+# Kế hoạch Source Website TLCN
 
 ## 0. Trạng thái tài liệu
 
-Tài liệu này mô tả source website phục vụ TLCN theo `remake.md` và `schema.md`.
+Tài liệu này mô tả source website phục vụ TLCN theo [`scope.md`](scope.md) và [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md).
 
 Quyết định hiện hành:
 

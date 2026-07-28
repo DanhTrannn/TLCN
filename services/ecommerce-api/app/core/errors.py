@@ -18,7 +18,7 @@ class AppError(Exception):
         self.details = details or {}
 
 
-# Stable error codes (see web-plan §7)
+# Stable error codes (see docs/project/web-plan.md §7)
 VALIDATION_ERROR = "VALIDATION_ERROR"
 AUTH_REQUIRED = "AUTH_REQUIRED"
 INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
