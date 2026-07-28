@@ -1,4 +1,3 @@
 # Bronze
 
-Raw append-only writes, transport identity, ingestion metadata và technical ingestion errors nằm tại đây.
-
+Raw MySQL OLTP rows, source/cursor identity, ingestion metadata và technical ingestion errors nằm tại đây.

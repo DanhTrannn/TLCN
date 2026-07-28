@@ -6,7 +6,23 @@
   color-scheme: light;
   background: #f4f1e8;
   color: #13231f;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgba(201, 95, 54, 0.24);
+  color: #13231f;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 * {
@@ -26,3 +42,9 @@ a {
   text-decoration: none;
 }
 
+
+@layer components {
+  .admin-input {
+    @apply mt-1 w-full rounded-lg border border-ink/20 bg-white px-3 py-2 text-ink outline-none transition focus:border-accent;
+  }
+}

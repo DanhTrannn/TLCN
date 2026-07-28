@@ -1,4 +1,3 @@
 # Extract
 
-MySQL initial/incremental extraction, composite cursor, cutoff capture và closed-JSONL discovery nằm tại đây.
-
+MySQL initial/incremental extraction, composite cursor và high-watermark capture nằm tại đây.

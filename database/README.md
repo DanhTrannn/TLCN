@@ -8,4 +8,4 @@ Thư mục này giữ migration, seed và init asset của MySQL ecommerce.
 
 Mọi invariant liên bảng vẫn phải được bảo vệ trong application transaction và reconciliation; migration không thay thế transaction catalogue trong `schema.md`.
 
-DE reader được bootstrap ở trạng thái không có quyền đọc. Sau khi migration tạo đủ bảng, post-migration grant phải cấp `SELECT` theo allowlist từng source table và tuyệt đối không cấp trên `customer_credentials`.
+DE reader được bootstrap ở trạng thái không có quyền đọc. Sau khi migration tạo đủ bảng, chạy `./scripts/grant_de_reader.sh` để cấp `SELECT` theo allowlist 12 source table. Script kiểm tra fail-closed và tuyệt đối không cấp quyền trên `customer_credentials`.

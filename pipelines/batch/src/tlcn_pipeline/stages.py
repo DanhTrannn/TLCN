@@ -1,13 +1,10 @@
 CORE_STAGES = (
     "check_services",
     "capture_mysql_high_cursors",
-    "discover_closed_jsonl",
     "extract_mysql",
-    "ingest_jsonl",
     "write_bronze",
     "validate_bronze",
     "build_silver_domain",
-    "build_silver_events_logs",
     "run_silver_dq",
     "build_gold_dimensions",
     "build_gold_facts",

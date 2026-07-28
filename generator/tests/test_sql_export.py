@@ -1,0 +1,80 @@
+import hashlib
+import tempfile
+import unittest
+from datetime import UTC, datetime
+from pathlib import Path
+
+from argon2 import PasswordHasher
+
+from tlcn_generator.config import GeneratorConfig
+from tlcn_generator.sql_export import DEMO_PASSWORD, export_sql
+
+
+class SqlExportTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.config = GeneratorConfig(
+            scenario_id="unit-sql-v1",
+            dataset_size="unit",
+            seed=42,
+            anchor_time=datetime(2026, 7, 1, tzinfo=UTC),
+            history_months=12,
+            modes=("seed_master", "historical_transactions", "repurchase_history", "failure_fixtures"),
+            scale={"customers": 8, "products": 6, "variants": 18, "orders": 30},
+        )
+
+    def test_export_is_deterministic_and_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            first_path = Path(temporary_directory) / "first.sql"
+            second_path = Path(temporary_directory) / "second.sql"
+            first_summary = export_sql(self.config, first_path)
+            second_summary = export_sql(self.config, second_path)
+
+            first_bytes = first_path.read_bytes()
+            second_bytes = second_path.read_bytes()
+            self.assertEqual(hashlib.sha256(first_bytes).digest(), hashlib.sha256(second_bytes).digest())
+            self.assertEqual(first_summary.generation_run_id, second_summary.generation_run_id)
+
+            sql = first_bytes.decode()
+            for table in (
+                "customers",
+                "customer_credentials",
+                "categories",
+                "products",
+                "product_variants",
+                "wishlist_items",
+                "carts",
+                "cart_items",
+                "orders",
+                "order_items",
+                "payments",
+                "order_status_history",
+                "inventory",
+            ):
+                self.assertIn(f"INSERT INTO `{table}`", sql)
+            self.assertIn("START TRANSACTION;", sql)
+            self.assertIn("COMMIT;", sql)
+            self.assertNotIn("FOREIGN_KEY_CHECKS", sql)
+            self.assertIn(first_summary.demo_email, sql)
+            self.assertEqual(first_summary.demo_password, DEMO_PASSWORD)
+
+            password_hash_start = sql.index("$argon2id$")
+            password_hash_end = sql.index("'", password_hash_start)
+            PasswordHasher().verify(sql[password_hash_start:password_hash_end], DEMO_PASSWORD)
+
+    def test_rejects_invalid_variant_scale(self) -> None:
+        invalid = GeneratorConfig(
+            scenario_id="invalid",
+            dataset_size="unit",
+            seed=1,
+            anchor_time=datetime(2026, 7, 1, tzinfo=UTC),
+            history_months=1,
+            modes=("seed_master",),
+            scale={"customers": 2, "products": 4, "variants": 3, "orders": 0},
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with self.assertRaisesRegex(ValueError, "variants must"):
+                export_sql(invalid, Path(temporary_directory) / "invalid.sql")
+
+
+if __name__ == "__main__":
+    unittest.main()

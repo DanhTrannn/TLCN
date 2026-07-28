@@ -1,31 +1,28 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./globals.css";
 
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
+import { AuthProvider } from "@/lib/auth";
+
 export const metadata: Metadata = {
-  title: "TLCN Commerce Source",
-  description: "Minimal source website for the TLCN batch lakehouse"
+  title: {
+    default: "NÉT Studio | Thời trang nữ",
+    template: "%s | NÉT Studio",
+  },
+  description: "Trang phục nữ tối giản, hiện đại và dễ phối cho phong cách mỗi ngày.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
       <body>
-        <header className="border-b border-ink/10 bg-paper/90 backdrop-blur">
-          <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-            <Link className="font-semibold tracking-tight" href="/">
-              TLCN Commerce
-            </Link>
-            <div className="flex gap-5 text-sm">
-              <Link href="/products">Sản phẩm</Link>
-              <Link href="/cart">Giỏ hàng</Link>
-              <Link href="/orders">Đơn hàng</Link>
-            </div>
-          </nav>
-        </header>
-        {children}
+        <AuthProvider>
+          <Header />
+          {children}
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
 }
-

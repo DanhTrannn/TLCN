@@ -6,7 +6,6 @@ history_months: 12
 modes:
   - seed_master
   - historical_transactions
-  - behavior_events
   - repurchase_history
   - failure_fixtures
 scale:
@@ -14,5 +13,4 @@ scale:
   products: 200
   variants: 1000
   orders: 30000
-  events: 100000
 

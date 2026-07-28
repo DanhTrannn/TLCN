@@ -1,376 +1,281 @@
-# PROJECT STRUCTURE — TLCN BATCH DATA LAKEHOUSE
+# PROJECT STRUCTURE — TLCN OLTP BATCH DATA LAKEHOUSE
 
 ## 1. Mục đích
 
-Tài liệu này mô tả cấu trúc source code và ranh giới kiến trúc của toàn bộ Tiểu luận chuyên ngành. Cấu trúc bám theo `remake.md`, `schema.md` và `web-plan.md`.
+Repository tổ chức toàn bộ Tiểu luận chuyên ngành trong một monorepo, gồm:
 
-Repository là một monorepo vì nhóm chỉ có hai người, tất cả thành phần cùng phục vụ một bài toán và cần thay đổi contract đồng bộ. Monorepo không có nghĩa là các thành phần được phép truy cập dữ liệu của nhau tùy ý.
+- website thương mại điện tử tối giản tạo dữ liệu OLTP;
+- MySQL OLTP làm system of record;
+- pipeline batch Bronze–Silver–Gold;
+- data quality, quarantine, reconciliation và audit;
+- MySQL analytics và Superset;
+- bài toán dự đoán khả năng khách hàng mua lại từ dữ liệu OLTP.
+
+Source phân tích duy nhất là 12 bảng nghiệp vụ được cho phép trong MySQL ecommerce. `customer_credentials` chỉ phục vụ đăng nhập và không được extract.
 
 ## 2. Kiến trúc tổng thể
 
 ```mermaid
 flowchart LR
-    Browser --> Storefront[Next.js Storefront]
-    Storefront --> API[FastAPI Ecommerce API]
-    Storefront --> Collector[FastAPI Event Collector]
+    Browser[Storefront] --> API[Ecommerce API]
     API --> OLTP[(MySQL ecommerce)]
-    Collector --> JSONL[Closed JSONL]
-
-    OLTP --> CoreDAG[Airflow Core DAG]
-    JSONL --> CoreDAG
-    CoreDAG --> Spark[Apache Spark]
-    Spark --> Bronze[(Delta Bronze)]
-    Bronze --> Silver[(Delta Silver)]
-    Silver --> Gold[(Delta Gold)]
-    Bronze --> MinIO[(MinIO)]
-    Silver --> MinIO
-    Gold --> MinIO
-
-    Gold --> Publisher[Analytics Publisher]
-    Publisher --> Analytics[(MySQL analytics)]
-    Analytics --> Superset[Superset]
-
-    Gold --> MLDAG[Airflow Repurchase ML DAG]
-    MLDAG --> Model[scikit-learn Artifact]
-    Model --> MinIO
-    MLDAG --> Scores[Repurchase Scores]
-    Scores --> Analytics
+    Generator[OLTP Generator] --> API
+    OLTP --> Extract[Batch Extract]
+    Extract --> Bronze[Bronze Delta]
+    Bronze --> Silver[Silver Delta]
+    Silver --> Gold[Gold Delta]
+    Gold --> Publish[(MySQL analytics)]
+    Publish --> BI[Superset]
+    Gold --> Features[Repurchase Features and Labels]
+    Features --> Model[Train and Score]
+    Airflow[Airflow] --> Extract
+    Airflow --> Silver
+    Airflow --> Gold
+    Airflow --> Features
+    MinIO[(MinIO)] --- Bronze
+    MinIO --- Silver
+    MinIO --- Gold
+    Spark[Spark] --> Bronze
+    Spark --> Silver
+    Spark --> Gold
 ```
 
-Ba nguồn sự thật được phân biệt rõ:
+Nguyên tắc dependency:
 
-1. MySQL ecommerce là system of record cho giao dịch.
-2. Delta Gold là nguồn phân tích chuẩn đã đối soát.
-3. MySQL analytics chỉ là serving copy cho Superset.
-
-Clickstream là best-effort. JSONL business event không được dùng thay cho order/payment trong OLTP.
+1. Storefront chỉ gọi Ecommerce API.
+2. Ecommerce API chỉ ghi MySQL ecommerce trong transaction ngắn.
+3. Generator tạo dữ liệu thông qua API hoặc source contract đã chốt.
+4. Pipeline dùng DE reader chỉ có `SELECT` trên allowlist 12 bảng.
+5. Airflow orchestration; Spark thực thi transformation.
+6. Superset chỉ đọc MySQL analytics, không đọc primary OLTP.
+7. ML chỉ đọc Gold publication đã reconciliation thành công.
 
 ## 3. Cây thư mục
 
 ```text
 .
 ├── apps/
-│   └── storefront/                       # Next.js source website
+│   └── storefront/                       # Next.js customer/admin UI
 ├── services/
-│   ├── ecommerce-api/                    # FastAPI modular monolith
-│   └── event-collector/                  # Versioned event ingestion + JSONL writer
+│   └── ecommerce-api/                    # FastAPI business API
+│       ├── app/
+│       │   ├── common/                   # Shared pagination/money helpers
+│       │   ├── core/                     # Config, auth, errors, logging
+│       │   ├── db/                       # Session, UoW and DB helpers
+│       │   ├── models/                   # SQLAlchemy OLTP models
+│       │   └── modules/                  # Auth, catalog, wishlist, cart, checkout, order, admin
+│       └── tests/                         # API unit/integration tests
 ├── database/
-│   ├── migrations/                       # 12-table OLTP Alembic versions
-│   ├── seeds/                            # Catalog/opening inventory seed
-│   └── init/                             # First-volume bootstrap assets
+│   ├── migrations/                       # Alembic schema versions
+│   ├── seeds/                            # Deterministic master data
+│   └── README.md                         # Ownership and reader policy
 ├── generator/
-│   ├── configs/                          # small/medium/large-local scenarios
-│   ├── master/                           # Catalog and opening inventory
-│   ├── historical/                       # Customer/order/payment history
-│   ├── behavior/                         # Versioned clickstream
-│   ├── repurchase/                       # Noisy 12-month repurchase histories
-│   └── fixtures/                         # Malformed/late/schema-error inputs
+│   ├── configs/                          # Small/medium/large-local scenarios
+│   ├── tests/                            # SQL export determinism tests
+│   ├── master/                           # Catalog/opening inventory generation
+│   ├── historical/                       # Historical OLTP transactions
+│   ├── repurchase/                       # Repurchase history scenarios
+│   ├── fixtures/                         # Extraction and DQ edge cases
+│   └── src/tlcn_generator/               # Generator CLI
 ├── pipelines/
 │   └── batch/
-│       ├── extract/                      # MySQL cursor + closed-file discovery
-│       ├── bronze/                       # Raw append-only ingestion
-│       ├── silver/                       # Typed, deduped, integrated data
-│       ├── gold/                         # Dimensions, facts, marts, ML inputs
-│       ├── publish/                      # Analytics staging and serving switch
-│       ├── reconcile/                    # Count, amount and inventory checks
-│       ├── backfill/                     # Replay/backfill namespaces
 │       ├── config/                       # Layer paths and batch policy
-│       └── src/tlcn_pipeline/            # Installable pipeline package
+│       ├── extract/                      # Initial/incremental MySQL extract
+│       ├── bronze/                       # Raw rows and ingestion audit
+│       ├── silver/                       # Typed merge, DQ and quarantine
+│       ├── gold/                         # Facts, dimensions and marts
+│       ├── reconcile/                    # Count and amount reconciliation
+│       ├── publish/                      # Analytics staging/publish
+│       ├── backfill/                     # Replay/backfill contracts
+│       └── src/tlcn_pipeline/            # Pipeline CLI/stages
+├── airflow/
+│   ├── dags/                             # Core batch and repurchase ML DAGs
+│   ├── config/                           # Airflow runtime config
+│   └── logs/                             # Local operational logs
 ├── ml/
 │   └── repurchase/
-│       ├── features/                     # Point-in-time feature builders
-│       ├── labels/                       # Closed 30-day labels
-│       ├── training/                     # Baseline/model/evaluation
-│       ├── scoring/                      # Batch prediction
-│       ├── configs/                      # Versioned ML contract
-│       ├── reports/                      # Generated evaluation reports
-│       └── src/repurchase_ml/            # Installable ML package
-├── airflow/
-│   ├── dags/                             # Core DAG and downstream ML DAG
-│   ├── config/                           # Executor and DAG notes
-│   └── logs/                             # Local runtime logs, ignored by Git
-├── quality/
-│   ├── rules/                            # Bronze/Silver/Gold/ML DQ rules
-│   ├── fixtures/                         # DQ input fixtures
-│   └── reports/                          # Generated DQ reports
+│       ├── configs/                      # Training/scoring config
+│       ├── features/                     # Point-in-time features
+│       ├── labels/                       # Closed-horizon labels
+│       ├── training/                     # Temporal training flow
+│       ├── scoring/                      # Batch scores
+│       ├── reports/                      # Evaluation artifacts
+│       └── src/repurchase_ml/            # ML CLI/stages
 ├── dashboards/
-│   └── business-overview/                # Superset export without secrets
+│   └── business-overview/                # Superset assets and exports
+├── quality/
+│   ├── rules/                            # Core and ML DQ rules
+│   ├── fixtures/                         # Negative/edge fixtures
+│   └── reports/                          # Generated quality reports
 ├── infrastructure/
-│   ├── docker/                           # Custom Airflow/Superset images
-│   ├── minio/                            # Bucket/storage conventions
-│   ├── spark/                            # Spark/Delta conventions
-│   ├── airflow/                          # Airflow deployment notes
-│   ├── superset/                         # Superset runtime config
-│   ├── mysql/                            # Source/serving database notes
-│   ├── mysql-ecommerce/                  # DE read-only account init
-│   └── mysql-analytics/                  # BI read-only account init
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── data/
-│   └── e2e/
+│   ├── docker/                           # Airflow/Superset images
+│   ├── mysql-ecommerce/                  # OLTP bootstrap
+│   ├── mysql-analytics/                  # Serving DB bootstrap
+│   ├── minio/                            # Object storage assets
+│   ├── spark/                            # Spark assets
+│   └── superset/                         # Superset config
 ├── docs/
-│   ├── architecture/
-│   ├── source-contracts/
-│   ├── event-catalog/
-│   ├── data-dictionary/
-│   ├── kpi/
-│   ├── runbook/
-│   └── thesis/
-├── scripts/                              # Local structural/automation checks
-├── docker-compose.yml                    # core, batch, bi, tools profiles
-├── .env.example                          # Config contract, no real secret
-├── Makefile                              # Operator entry points
-└── README.md                             # Quick start
+│   ├── architecture/                     # Architecture decisions/diagrams
+│   ├── data-dictionary/                  # Source/Silver/Gold definitions
+│   ├── kpi/                              # KPI contracts
+│   ├── runbook/                          # Setup and operation
+│   ├── source-contracts/                 # OLTP extraction contracts
+│   └── thesis/                           # Report/slide/demo artifacts
+├── skills/
+│   └── oltp-design.md                    # OLTP design principles
+├── scripts/
+│   ├── grant_de_reader.sh                # Table-level reader grants
+│   ├── import_generated_sql.sh           # Import generated dataset
+│   └── validate_structure.py             # Repository contract checks
+├── remake.md                             # TLCN requirements and acceptance
+├── schema.md                             # Logical OLTP schema/transactions
+├── web-plan.md                           # Source website implementation plan
+├── docker-compose.yml                    # Runtime profiles
+├── pyproject.toml                        # uv workspace
+└── uv.lock                               # Reproducible Python lockfile
 ```
 
-## 4. Kiến trúc source application
+## 4. Runtime profiles
 
-### 4.1. Storefront
+| Profile | Thành phần | Vai trò |
+|---|---|---|
+| `core` | MySQL ecommerce, Ecommerce API, Storefront | Tạo dữ liệu OLTP |
+| `tools` | OLTP generator | Sinh dữ liệu có seed/scenario |
+| `batch` | MinIO, Spark, Airflow, PostgreSQL metadata | Bronze–Silver–Gold và ML batch |
+| `bi` | MySQL analytics, Superset, PostgreSQL metadata | Serving và dashboard |
 
-`apps/storefront` chỉ chịu trách nhiệm:
+Thứ tự chạy:
 
-- render public catalog và authenticated commerce pages;
-- gọi Ecommerce API bằng typed client;
-- phát bốn behavior event sang Collector;
-- hiển thị preview amount nhưng không quyết định price/total chính thức.
+```text
+core → grant DE reader → tools (nếu cần) → batch → bi
+```
 
-Storefront không truy cập MySQL, MinIO, Spark hoặc MySQL analytics.
+## 5. Python workspace
 
-### 4.2. Ecommerce API
+Workspace `uv` gồm:
 
-`services/ecommerce-api` là modular monolith, không phải tập microservice. Các module nghiệp vụ:
+- `tlcn-ecommerce-api`;
+- `tlcn-data-generator`;
+- `tlcn-batch-pipeline`;
+- `tlcn-repurchase-ml`.
+
+`uv.lock` là lockfile duy nhất. Mọi Dockerfile Python dùng cùng phiên bản `uv` và cài package theo workspace lock.
+
+## 6. Source application
+
+### 6.1. Storefront
+
+Storefront đảm nhiệm:
+
+- auth UI;
+- catalog search/filter/detail;
+- wishlist;
+- cart;
+- checkout;
+- order history/detail;
+- admin console tối thiểu.
+
+Storefront không truy cập database trực tiếp và không chứa business transaction logic.
+
+### 6.2. Ecommerce API
+
+API tổ chức theo module:
 
 - `auth`;
 - `catalog`;
+- `wishlist`;
 - `cart`;
 - `checkout`;
-- `orders`.
+- `orders`;
+- `admin`.
 
-Dependency trong service:
+Router xử lý HTTP/schema; service xử lý invariant và transaction; model biểu diễn persistence. Checkout kiểm tra tồn kho, tạo order/payment/item/history và giảm stock atomically.
 
-```text
-route/schema
-→ application service
-→ repository/query object
-→ SQLAlchemy Unit of Work
-→ MySQL ecommerce
-```
+## 7. Database ownership
 
-Application service sở hữu transaction boundary. Repository không tự commit. Checkout không gọi Collector hoặc network service trong database transaction.
+MySQL ecommerce có 13 bảng logical. Pipeline chỉ đọc 12 bảng analytical source; `customer_credentials` bị loại khỏi source contract.
 
-### 4.3. Event Collector
+Quyền:
 
-`services/event-collector` chỉ nhận bốn event:
+- Ecommerce API: read/write schema nghiệp vụ;
+- DE reader: table-level `SELECT` trên allowlist 12 bảng;
+- analytics publisher: read/write MySQL analytics;
+- BI reader: chỉ đọc serving schema.
 
-- `session_start`;
-- `view_product`;
-- `add_to_cart`;
-- `begin_checkout`.
+Order, payment, item và status history không hard delete. Customer PII không được publish nguyên bản sang Gold/serving.
 
-Collector validate envelope, thêm received time, deduplicate trong bounded window, ghi `.active`, flush/rotate và atomic rename thành `.jsonl`. Pipeline chỉ đọc closed file. Order/payment event được derive từ OLTP ở Silver.
+## 8. OLTP generator
 
-## 5. Database boundary
+Generator có bốn mode:
 
-`database/migrations` sẽ chứa DDL hiện thực hóa 12 bảng trong `schema.md`. Không tạo star schema tại đây.
+- `seed_master`;
+- `historical_transactions`;
+- `repurchase_history`;
+- `failure_fixtures`.
 
-Runtime roles:
+Mỗi run ghi seed, anchor time, scale, scenario ID và generator version để tái lập logical dataset. Lệnh `export-sql` sinh file MySQL transaction đầy đủ tại `data/generator/`; file giữ nguyên FK/CHECK và có một tài khoản demo.
 
-| Role | Quyền |
-|---|---|
-| Ecommerce API | Read/write đúng các bảng nghiệp vụ cần thiết |
-| Migration | DDL trong MySQL ecommerce |
-| DE reader | Table-level read-only theo allowlist, không đọc `customer_credentials` |
-| Analytics publisher | Write staging/serving trong MySQL analytics |
-| Superset reader | Read-only MySQL analytics |
+## 9. Batch pipeline
 
-MySQL ecommerce và MySQL analytics là hai service/volume riêng để tránh vô tình chạy BI query trên OLTP.
-
-DE reader được tạo fail-closed khi khởi tạo volume. Table-level grants chỉ được áp dụng sau migration, khi danh sách source table đã tồn tại; không cấp `SELECT` rộng trên toàn schema ecommerce.
-
-## 6. Generator boundary
-
-`generator` có năm mode độc lập nhưng dùng chung seed, anchor time, generator version và expected manifest:
-
-1. `seed_master`;
-2. `historical_transactions`;
-3. `behavior_events`;
-4. `failure_fixtures`;
-5. `repurchase_history`.
-
-Normal rows phải đi qua API hoặc shared domain service. Failure fixture dùng namespace riêng. Cùng config phải cho cùng logical identity; `generated_at` không thuộc logical checksum.
-
-## 7. Kiến trúc batch pipeline
-
-### 7.1. Core DAG
+Core DAG:
 
 ```text
-check services
-→ capture MySQL high cursors + discover closed JSONL
-→ extract MySQL + ingest JSONL
-→ Bronze write/validation
-→ Silver domain + events/logs
-→ Silver DQ
-→ Gold dimensions + facts → marts
-→ reconciliation
-→ analytics staging/validation/switch
+capture high cursors
+→ extract MySQL
+→ write/validate Bronze
+→ build/validate Silver
+→ build Gold dimensions/facts/marts
+→ reconcile source-to-Gold
+→ publish analytics
 → commit cursors
-→ audit
+→ publish audit
 ```
 
-Cursor chỉ commit sau Gold reconciliation và serving publish thành công. Task retry không được nhân logical row.
+Các contract quan trọng:
 
-### 7.2. Layer ownership
+- composite cursor `(timestamp, stable_pk)`;
+- source high-watermark cố định theo run;
+- idempotent theo source identity/run input;
+- quarantine tách khỏi trusted Silver/Gold;
+- cursor chỉ commit sau publication thành công;
+- replay từ Bronze không cần đọc lại OLTP;
+- backfill không làm thay đổi grain/KPI ngoài phạm vi chọn.
 
-| Layer | Được làm | Không được làm |
-|---|---|---|
-| Bronze | Raw payload, transport identity, ingestion metadata/error | Join, KPI, sessionization |
-| Silver | Cast, normalize, dedup, merge, history, business event, session, quarantine | Dashboard KPI, ML label/score |
-| Gold | Dimension, fact, mart, point-in-time ML dataset | Ghi ngược OLTP |
-| Serving | Copy mart/score đã validate | Trở thành source phân tích chuẩn |
+## 10. ML boundary
 
-### 7.3. Storage layout
-
-```text
-s3a://lakehouse/bronze/...
-s3a://lakehouse/silver/...
-s3a://lakehouse/gold/...
-s3a://lakehouse/quarantine/...
-s3a://lakehouse/manifests/...
-s3a://ml-artifacts/models/...
-s3a://ml-artifacts/reports/...
-```
-
-Bronze, Silver và Gold dùng Delta Lake trên MinIO. Manifest, reports và artifact cũng nằm trên MinIO nhưng không trộn namespace với table data.
-
-## 8. Data quality, reconciliation và audit
-
-`quality/rules` là rule catalogue dùng chung. Rule execution code thuộc pipeline stage tương ứng.
-
-- Technical parse/framing error vào Bronze ingestion error.
-- Readable row sai semantic vào Silver quarantine.
-- Gold grain/total sai chặn publish.
-- ML DQ sai chặn ML run nhưng không rollback core Gold publication.
-
-Audit phải lưu run ID, cutoff/cursor, input identity, row count, reject/quarantine count, duration, code/config version và publication identity.
-
-## 9. Kiến trúc Machine Learning
-
-`ml/repurchase` là downstream consumer của một Gold publication đã thành công.
+ML repurchase là downstream của Gold:
 
 ```text
-Gold publication
+Gold publication thành công
 → point-in-time features
-→ 30-day closed labels
-→ ML DQ
+→ closed 30-day labels
 → temporal split
-→ Dummy + Logistic Regression
-→ evaluation/calibration
-→ versioned artifact manifest
-→ batch scoring
-→ score DQ
-→ MySQL analytics
+→ train/evaluate
+→ batch score
+→ publish audit/artifacts
 ```
 
-Feature grain là `customer_key × as_of_date × feature_schema_version`. Feature chỉ dùng source time không vượt `as_of_time`; label nằm trong `(as_of_time, as_of_time + 30 ngày]`.
+ML không truy cập OLTP trực tiếp. Feature, label, model và score đều có version, cutoff và lineage.
 
-Model artifact nằm trên MinIO, không commit Git và không dùng MLflow. ML DAG thất bại không chặn hoặc rollback core DE DAG.
+## 11. Testing
 
-## 10. BI serving
+- API unit/schema/security tests.
+- MySQL integration tests cho transaction và constraint.
+- Checkout idempotency/concurrency tests.
+- Generator reproducibility tests.
+- Extraction cursor/high-watermark tests.
+- Bronze/Silver/Gold grain và DQ tests.
+- Reconciliation, rerun, replay và backfill tests.
+- ML point-in-time, closed-horizon và leakage tests.
+- Storefront production build và healthcheck.
+- Docker Compose profile/config validation.
 
-Gold mart được publish qua staging, validation rồi atomic switch hoặc idempotent upsert sang MySQL analytics. Superset chỉ đọc serving database.
+## 12. Tài liệu nguồn
 
-Dashboard gồm:
+Thứ tự ưu tiên:
 
-- Sales overview;
-- Funnel overview;
-- Product performance;
-- Inventory status;
-- Repurchase propensity.
-
-Dashboard export được đặt tại `dashboards/business-overview/exports` và không chứa credential.
-
-## 11. Docker profiles
-
-| Profile | Service | Mục đích |
-|---|---|---|
-| `core` | storefront, Ecommerce API, Collector, MySQL ecommerce | Tạo source data |
-| `batch` | MinIO, Spark master/worker, Airflow, PostgreSQL metadata | Xử lý lakehouse |
-| `bi` | MySQL analytics, Superset, PostgreSQL metadata | Serving và dashboard |
-| `tools` | generator | Seed/history/failure fixtures |
-
-Các profile cho phép chạy riêng từng lớp trên máy cá nhân. Demo end-to-end dùng cả `core`, `batch` và `bi`.
-
-## 12. Dependency rules
-
-Các chiều phụ thuộc hợp lệ:
-
-```text
-Storefront → API / Collector
-API → MySQL ecommerce
-Collector → JSONL volume
-Pipeline → MySQL read-only / JSONL / MinIO / MySQL analytics publisher
-ML → Gold / MinIO artifacts / MySQL analytics publisher
-Superset → MySQL analytics read-only
-```
-
-Các chiều bị cấm:
-
-- Storefront → database trực tiếp;
-- Superset → MySQL ecommerce;
-- ML → MySQL ecommerce để tạo feature;
-- Collector → order/payment table;
-- API transaction → Airflow/Spark/Collector;
-- Silver/Gold/prediction → ghi ngược OLTP;
-- pipeline → `customer_credentials`.
-
-## 13. Config và secret
-
-- `.env.example` là config contract và không chứa secret thật.
-- `.env` bị ignore.
-- Config nghiệp vụ/pipeline/ML có version trong YAML.
-- Runtime secret đi qua environment.
-- Artifact, generated data, logs và reports runtime không commit.
-- Mỗi run phải ghi code/config version vào audit/manifest.
-
-## 14. Testing layout
-
-| Thư mục | Phạm vi |
-|---|---|
-| `tests/unit` | Pure function, schema, amount, feature logic |
-| `tests/integration` | MySQL transaction, Collector file, MinIO/Delta, publish |
-| `tests/data` | Ingestion, DQ, reconciliation, replay, ML leakage |
-| `tests/e2e` | Source → DAG → Gold → Superset/score demo |
-
-Service test nhỏ có thể colocate trong service; cross-component test phải nằm ở root `tests`.
-
-## 15. Trạng thái scaffold
-
-Đã có:
-
-- service/package/Dockerfile boundaries;
-- health endpoint và JSONL writer base;
-- Alembic environment;
-- generator config/manifest shell;
-- core và ML stage registries;
-- Airflow DAG topology;
-- Compose profiles và infrastructure services;
-- DQ rule catalogue base;
-- ML feature contract và model factory;
-- documentation/test layout.
-
-Chưa có và phải triển khai theo roadmap:
-
-- 12 SQLAlchemy models và migration đầu tiên;
-- auth/catalog/cart/checkout/order application services;
-- MySQL/JSONL extraction thực tế;
-- Spark Bronze/Silver/Gold jobs;
-- audit/cursor metadata persistence;
-- DQ/quarantine/reconciliation execution;
-- analytics staging/serving DDL;
-- point-in-time feature/label builders;
-- training/evaluation/artifact/scoring implementation;
-- Superset dataset/chart/dashboard export;
-- integration, replay, backfill và E2E tests.
-
-Việc ghi rõ trạng thái ngăn scaffold audit record bị hiểu nhầm là pipeline đã hoàn thành.
+1. `remake.md` — phạm vi và acceptance TLCN;
+2. `schema.md` — logical OLTP schema và transaction catalogue;
+3. `web-plan.md` — kế hoạch source website;
+4. `PROJECT_STRUCTURE.md` — cấu trúc triển khai;
+5. `skills/oltp-design.md` — nguyên tắc thiết kế tham khảo.

@@ -1,0 +1,14 @@
+<svg width="900" height="1100" viewBox="0 0 900 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1100" rx="56" fill="#D8C7B8"/>
+  <circle cx="736" cy="164" r="210" fill="#C95F36" fill-opacity="0.82"/>
+  <circle cx="144" cy="922" r="260" fill="#42665A" fill-opacity="0.88"/>
+  <path d="M-60 340C154 194 298 224 430 346C576 481 710 472 958 300V816C716 930 536 886 400 774C260 660 120 658-60 778V340Z" fill="#F4F1E8" fill-opacity="0.56"/>
+  <path d="M441 214C441 178.101 470.101 149 506 149C541.899 149 571 178.101 571 214C571 249.899 541.899 279 506 279C470.101 279 441 249.899 441 214Z" fill="#13231F"/>
+  <path d="M423 283C445 270 473 264 506 264C539 264 567 270 589 283L654 438L594 468L558 387V506L682 838C616 878 558 898 506 898C454 898 396 878 330 838L454 506V387L418 468L358 438L423 283Z" fill="#13231F"/>
+  <path d="M454 506H558L682 838C616 878 558 898 506 898C454 898 396 878 330 838L454 506Z" fill="#C95F36"/>
+  <path d="M398 782C465 810 546 814 618 785" stroke="#F4F1E8" stroke-width="10" stroke-linecap="round" stroke-opacity="0.78"/>
+  <path d="M417 438C447 461 476 472 506 472C536 472 565 461 595 438" stroke="#F4F1E8" stroke-width="8" stroke-linecap="round" stroke-opacity="0.54"/>
+  <text x="78" y="128" fill="#13231F" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" letter-spacing="12">NÉT</text>
+  <text x="80" y="172" fill="#13231F" fill-opacity="0.62" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="600" letter-spacing="7">STUDIO / 2026</text>
+  <text x="624" y="1010" fill="#F4F1E8" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="600" letter-spacing="6">YOUR OWN LINE</text>
+</svg>

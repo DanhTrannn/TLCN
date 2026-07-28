@@ -1,2 +1,2 @@
-"""Checkout and local payment simulator module."""
+"""Transactional checkout module."""
 

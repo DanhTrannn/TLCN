@@ -9,7 +9,6 @@ from tlcn_generator.config import GeneratorConfig
 SUPPORTED_MODES = {
     "seed_master",
     "historical_transactions",
-    "behavior_events",
     "failure_fixtures",
     "repurchase_history",
 }
@@ -32,7 +31,7 @@ def run(config: GeneratorConfig, output_directory: Path) -> Path:
         "generator_version": __version__,
         "data_origin": "synthetic",
         "generated_at": datetime.now(UTC).isoformat(),
-        "implementation_status": "scaffold",
+        "implementation_status": "sql_export_available",
     }
     path = output_directory / f"{config.scenario_id}-{config.logical_identity}.manifest.json"
     temporary_path = path.with_suffix(".tmp")

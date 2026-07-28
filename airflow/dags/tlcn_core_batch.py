@@ -25,7 +25,7 @@ default_args = {
 
 with DAG(
     dag_id="tlcn_core_batch",
-    description="MySQL and JSONL to Bronze, Silver, Gold and analytics serving",
+    description="MySQL OLTP to Bronze, Silver, Gold and analytics serving",
     start_date=datetime(2026, 1, 1),
     schedule="0 1 * * *",
     catchup=False,
@@ -36,13 +36,10 @@ with DAG(
     task_names = (
         "check_services",
         "capture_mysql_high_cursors",
-        "discover_closed_jsonl",
         "extract_mysql",
-        "ingest_jsonl",
         "write_bronze",
         "validate_bronze",
         "build_silver_domain",
-        "build_silver_events_logs",
         "run_silver_dq",
         "build_gold_dimensions",
         "build_gold_facts",
@@ -63,19 +60,12 @@ with DAG(
         for name in task_names
     }
 
-    tasks["check_services"] >> [
-        tasks["capture_mysql_high_cursors"],
-        tasks["discover_closed_jsonl"],
-    ]
+    tasks["check_services"] >> tasks["capture_mysql_high_cursors"]
     tasks["capture_mysql_high_cursors"] >> tasks["extract_mysql"]
-    tasks["discover_closed_jsonl"] >> tasks["ingest_jsonl"]
-    [tasks["extract_mysql"], tasks["ingest_jsonl"]] >> tasks["write_bronze"]
+    tasks["extract_mysql"] >> tasks["write_bronze"]
     tasks["write_bronze"] >> tasks["validate_bronze"]
-    tasks["validate_bronze"] >> [
-        tasks["build_silver_domain"],
-        tasks["build_silver_events_logs"],
-    ]
-    [tasks["build_silver_domain"], tasks["build_silver_events_logs"]] >> tasks["run_silver_dq"]
+    tasks["validate_bronze"] >> tasks["build_silver_domain"]
+    tasks["build_silver_domain"] >> tasks["run_silver_dq"]
     tasks["run_silver_dq"] >> [tasks["build_gold_dimensions"], tasks["build_gold_facts"]]
     [tasks["build_gold_dimensions"], tasks["build_gold_facts"]] >> tasks["build_gold_marts"]
     tasks["build_gold_marts"] >> tasks["reconcile_source_to_gold"]

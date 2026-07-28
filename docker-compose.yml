@@ -2,7 +2,7 @@ x-airflow-common: &airflow-common
   build:
     context: .
     dockerfile: infrastructure/docker/airflow/Dockerfile
-  image: tlcn-airflow:2.10.5
+  image: lakehouse-airflow:2.10.5
   profiles: ["batch"]
   user: "${AIRFLOW_UID:-50000}:0"
   environment: &airflow-environment
@@ -27,7 +27,6 @@ x-airflow-common: &airflow-common
   volumes:
     - ./airflow/dags:/opt/airflow/dags:ro
     - ./airflow/logs:/opt/airflow/logs
-    - event-data:/data/events:ro
     - pipeline-run-data:/data/pipeline-runs
   networks: ["tlcn-network"]
   depends_on:
@@ -38,7 +37,7 @@ x-superset-common: &superset-common
   build:
     context: .
     dockerfile: infrastructure/docker/superset/Dockerfile
-  image: tlcn-superset:4.1.2
+  image: lakehouse-superset:4.1.2
   profiles: ["bi"]
   environment: &superset-environment
     SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change-me-superset-secret}
@@ -68,7 +67,7 @@ services:
       - mysql-ecommerce-data:/var/lib/mysql
       - ./infrastructure/mysql-ecommerce/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -P 3306 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --connect-timeout=2 --silent"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -78,13 +77,31 @@ services:
     build:
       context: .
       dockerfile: services/ecommerce-api/Dockerfile
-    image: tlcn-ecommerce-api:0.1.0
+    image: ecommerce-api:0.1.0
     profiles: ["core"]
     environment:
       API_DATABASE_URL: mysql+pymysql://${MYSQL_ECOMMERCE_USER:-ecommerce_app}:${MYSQL_ECOMMERCE_PASSWORD:-change-me-ecommerce}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
       API_SECRET_KEY: ${API_SECRET_KEY:-change-me-with-at-least-32-random-characters}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000}
+      API_ENABLE_DOCS: ${API_ENABLE_DOCS:-true}
+      API_ACCESS_TOKEN_TTL_MINUTES: ${API_ACCESS_TOKEN_TTL_MINUTES:-720}
+      API_AUTH_COOKIE_NAME: ${API_AUTH_COOKIE_NAME:-tlcn_access}
+      API_CSRF_COOKIE_NAME: ${API_CSRF_COOKIE_NAME:-tlcn_csrf}
       API_COOKIE_SECURE: ${API_COOKIE_SECURE:-false}
+      API_COOKIE_SAMESITE: ${API_COOKIE_SAMESITE:-lax}
+      API_COOKIE_DOMAIN: ${API_COOKIE_DOMAIN:-}
+      API_INTERNAL_SECRET: ${API_INTERNAL_SECRET:-change-me-internal-secret}
+      API_DEMO_MODE: ${API_DEMO_MODE:-true}
+      API_BOOTSTRAP_ADMIN_EMAIL: ${API_BOOTSTRAP_ADMIN_EMAIL:-admin@tlcn.local}
+      API_BOOTSTRAP_ADMIN_PASSWORD: ${API_BOOTSTRAP_ADMIN_PASSWORD:-Admin@12345}
+      API_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${API_BOOTSTRAP_ADMIN_DISPLAY_NAME:-TLCN Admin}
+      API_CURRENCY_CODE: ${API_CURRENCY_CODE:-VND}
+      API_SHIPPING_FLAT_FEE_VND: ${API_SHIPPING_FLAT_FEE_VND:-30000}
+      API_FREE_SHIPPING_THRESHOLD_VND: ${API_FREE_SHIPPING_THRESHOLD_VND:-500000}
+      API_CART_ITEM_MAX_QUANTITY: ${API_CART_ITEM_MAX_QUANTITY:-20}
+      API_CATALOG_PAGE_SIZE: ${API_CATALOG_PAGE_SIZE:-12}
+      API_ORDER_PAGE_SIZE: ${API_ORDER_PAGE_SIZE:-10}
+      API_CHECKOUT_MAX_RETRIES: ${API_CHECKOUT_MAX_RETRIES:-3}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -97,46 +114,21 @@ services:
       retries: 20
     networks: ["tlcn-network"]
 
-  event-collector:
-    build:
-      context: ./services/event-collector
-    image: tlcn-event-collector:0.1.0
-    profiles: ["core"]
-    environment:
-      COLLECTOR_CORS_ORIGINS: ${COLLECTOR_CORS_ORIGINS:-http://localhost:3000}
-      COLLECTOR_EVENT_DIRECTORY: /data/events
-      COLLECTOR_ROTATION_MAX_BYTES: ${COLLECTOR_ROTATION_MAX_BYTES:-10485760}
-      COLLECTOR_ROTATION_MAX_AGE_SECONDS: ${COLLECTOR_ROTATION_MAX_AGE_SECONDS:-300}
-      COLLECTOR_DEDUP_WINDOW_SECONDS: ${COLLECTOR_DEDUP_WINDOW_SECONDS:-3600}
-      COLLECTOR_DEDUP_MAX_ENTRIES: ${COLLECTOR_DEDUP_MAX_ENTRIES:-100000}
-    ports:
-      - "${COLLECTOR_PORT:-8001}:8001"
-    volumes:
-      - event-data:/data/events
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/ready')"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks: ["tlcn-network"]
-
   storefront:
     build:
       context: ./apps/storefront
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
-        NEXT_PUBLIC_EVENT_COLLECTOR_URL: ${NEXT_PUBLIC_EVENT_COLLECTOR_URL:-http://localhost:8001}
-    image: tlcn-storefront:0.1.0
+        NEXT_PUBLIC_CSRF_COOKIE_NAME: ${NEXT_PUBLIC_CSRF_COOKIE_NAME:-tlcn_csrf}
+    image: storefront:0.1.0
     profiles: ["core"]
     ports:
       - "${STOREFRONT_PORT:-3000}:3000"
     depends_on:
       ecommerce-api:
         condition: service_healthy
-      event-collector:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -144,14 +136,14 @@ services:
 
   generator:
     build:
-      context: ./generator
-    image: tlcn-generator:0.1.0
+      context: .
+      dockerfile: generator/Dockerfile
+    image: data-generator:0.1.0
     profiles: ["tools"]
     environment:
       ECOMMERCE_API_URL: http://ecommerce-api:8000
-      EVENT_COLLECTOR_URL: http://event-collector:8001
     volumes:
-      - generator-data:/data/generator
+      - ./data/generator:/data/generator
     networks: ["tlcn-network"]
 
   minio:
@@ -297,7 +289,7 @@ services:
       - mysql-analytics-data:/var/lib/mysql
       - ./infrastructure/mysql-analytics/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -P 3306 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --connect-timeout=2 --silent"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -364,8 +356,6 @@ networks:
 volumes:
   mysql-ecommerce-data:
   mysql-analytics-data:
-  event-data:
-  generator-data:
   minio-data:
   spark-work:
   postgres-airflow-data:

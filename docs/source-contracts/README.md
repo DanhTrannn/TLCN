@@ -1,4 +1,5 @@
 # Source contracts
 
-Mỗi source contract phải có owner, grain, key, cursor, mutability, delete semantics, timezone, PII class và schema version.
+TLCN chỉ có source contract cho 12 bảng MySQL OLTP được phép extract. Mỗi contract phải có owner, grain, PK/business key, cursor, mutability, delete/inactive semantics, timezone, PII class, allowed columns và reconciliation rules.
 
+`customer_credentials` bị loại hoàn toàn khỏi extraction.

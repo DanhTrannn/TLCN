@@ -1,4 +1,4 @@
-# Failure fixtures
+# Generator fixtures
 
-Chứa malformed JSON, duplicate, invalid enum, late event và unknown schema version trong namespace tách biệt dữ liệu bình thường.
+Chứa OLTP/extraction/DQ edge cases như same-timestamp cursor, duplicate extraction identity, invalid relationship/amount fixture trong namespace kiểm thử và source boundary cases.
 

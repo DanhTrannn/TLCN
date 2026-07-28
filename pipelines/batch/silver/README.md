@@ -1,4 +1,3 @@
 # Silver
 
-Typed parsing, dedup, current-state merge, business history, sessionization, late data và semantic quarantine nằm tại đây.
-
+Typed parsing, dedup, mutable-state merge, immutable order/payment/history, semantic quarantine và DQ nằm tại đây.

@@ -1,2 +1,0 @@
-"""Atomic JSONL writer."""
-

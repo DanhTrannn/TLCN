@@ -5,11 +5,11 @@
 Tài liệu này thiết kế schema MySQL `ecommerce` cho phần source website của Tiểu luận chuyên ngành (TLCN), dựa trên:
 
 - `remake.md`: nguồn yêu cầu chức năng và phạm vi TLCN;
-- `OLTP.md`: nguyên tắc correctness, invariant, transaction, concurrency, index và OLAP-readiness.
+- `skills/oltp-design.md`: nguyên tắc correctness, invariant, transaction, concurrency, index và OLAP-readiness.
 
 Đây là **logical design**, chưa phải DDL, migration hoặc code ORM. Tên kiểu dữ liệu và constraint chỉ mô tả ý định triển khai trên MySQL 8.4/InnoDB.
 
-Schema giữ đúng 12 bảng nghiệp vụ đã chốt trong `remake.md`:
+Schema giữ đúng 13 bảng nghiệp vụ đã chốt trong `remake.md`:
 
 1. `customers`;
 2. `customer_credentials`;
@@ -22,7 +22,8 @@ Schema giữ đúng 12 bảng nghiệp vụ đã chốt trong `remake.md`:
 9. `order_items`;
 10. `payments`;
 11. `order_status_history`;
-12. `inventory`.
+12. `inventory`;
+13. `wishlist_items`.
 
 Các bảng Airflow, pipeline audit, Bronze, Silver, Gold và MySQL `analytics` không thuộc schema OLTP này.
 
@@ -34,16 +35,18 @@ Các bảng Airflow, pipeline audit, Bronze, Silver, Gold và MySQL `analytics` 
 
 - Customer phải đăng nhập trước khi thao tác cart và checkout.
 - Catalog có category phân cấp, product và variant theo size/color.
+- Catalog hỗ trợ search tên/mô tả và filter category, size, color, khoảng giá, tồn kho mà không tạo search-history table trong OLTP.
+- Mỗi customer có một wishlist mặc định chứa nhiều product; cùng product chỉ có một row/customer.
 - Mỗi variant có SKU và giá riêng.
 - Mỗi customer có tối đa một active cart.
 - Add-to-cart không giữ tồn kho.
-- Checkout dùng local payment simulator với kết quả cuối cùng `succeeded` hoặc `failed`.
+- Storefront checkout không nhận kịch bản payment và không random kết quả.
+- Checkout hợp lệ tạo payment `succeeded`, order `paid` và giảm tồn kho trong cùng transaction.
+- Checkout không hợp lệ rollback, giữ cart active và không tạo order/payment.
 - Một cart chỉ tạo tối đa một order.
 - Một order có đúng một payment row.
-- Payment thành công mới giảm tồn kho trong cùng transaction tạo order.
-- Payment thất bại không thay đổi tồn kho.
 - Paid order có thể chuyển một lần sang `completed`.
-- Inventory chỉ được seed một lần và giảm bởi succeeded checkout; TLCN không có restock/adjustment.
+- Inventory được khởi tạo khi tạo variant và chỉ giảm bởi succeeded checkout; TLCN không có restock/adjustment cho row hiện hữu.
 - Order, order item, payment và status history giữ lịch sử phục vụ DE/OLAP.
 
 ### 1.2. Không có trong TLCN
@@ -107,12 +110,12 @@ Các bảng Airflow, pipeline audit, Bronze, Silver, Gold và MySQL `analytics` 
 
 - `inactive`: master data không còn phục vụ giao dịch mới nhưng vẫn giữ lịch sử.
 - `checked_out`, `payment_failed`, `completed`: trạng thái nghiệp vụ, không phải soft delete.
-- `is_present = false` ở cart item: item bị loại khỏi cart nhưng row được giữ cho CDC.
+- `is_present = false` ở cart item hoặc wishlist item: item bị loại khỏi current state nhưng row được giữ cho extraction.
 - `anonymized_at`: PII customer đã được thay thế; không đồng nghĩa hard delete.
 - Order, order item, payment và status history không hard delete.
 - Mọi FK từ transaction về master data dùng semantics `RESTRICT`, không cascade xóa lịch sử.
 
-### 2.6. CDC/batch extraction metadata
+### 2.6. Batch extraction metadata
 
 - Mutable table có `updated_at` và stable PK.
 - Append-only table có business event time, `created_at` và stable PK.
@@ -126,6 +129,7 @@ Các bảng Airflow, pipeline audit, Bronze, Silver, Gold và MySQL `analytics` 
 ```text
 customers 1 ─── 1 customer_credentials
     │
+    ├── 1 ─── N wishlist_items N ─── 1 products
     ├── 1 ─── N carts 1 ─── N cart_items N ─── 1 product_variants
     │                 │
     │                 └── 0..1 orders
@@ -142,6 +146,8 @@ categories 1 ─── N categories
                                       ├── 1 ─── 1 inventory
                                       ├── 1 ─── N cart_items
                                       └── 1 ─── N order_items
+
+products 1 ─── N wishlist_items N ─── 1 customers
 ```
 
 ### 3.1. Aggregate boundary
@@ -151,8 +157,9 @@ categories 1 ─── N categories
 | Customer identity | `customers` | `customer_credentials` | Một credential/customer, email normalized unique |
 | Catalog product | `products` | `product_variants` | SKU unique và tổ hợp size/color unique/product |
 | Cart | `carts` | `cart_items` | Một active cart/customer, một variant/cart, chỉ sửa active cart |
+| Wishlist | `customers` | `wishlist_items` | Một product/customer, desired-state mutation và logical removal |
 | Order | `orders` | `order_items`, `payments`, `order_status_history` | Một order/cart, một payment/order, snapshot amount và state hợp lệ |
-| Inventory | `inventory` | — | Opening balance immutable; current balance chỉ giảm bởi succeeded checkout |
+| Inventory | `inventory` | — | Opening balance immutable sau khi tạo variant; current balance chỉ giảm bởi succeeded checkout |
 
 Category hierarchy là master-data aggregate nhỏ. Checkout là transaction phối hợp Cart, Order và Inventory nhưng không biến chúng thành một bảng hoặc một aggregate dài hạn.
 
@@ -169,6 +176,7 @@ Category hierarchy là master-data aggregate nhỏ. Checkout là transaction ph�
 | `product_variants` | Một tổ hợp product-size-color | Master/current state | Có | Có |
 | `carts` | Một chu kỳ mua sắm/customer | Transaction/current state | Có | Có |
 | `cart_items` | Một variant từng xuất hiện/cart | Transaction/current state | Có | Có |
+| `wishlist_items` | Một product từng được wishlist/customer | Transaction/current state | Có | Có |
 | `orders` | Một kết quả checkout/cart | Transaction + snapshot | Chỉ status/timestamps | Có |
 | `order_items` | Một variant line/order | Immutable snapshot | Không | Có |
 | `payments` | Một kết quả payment/order | Immutable transaction | Không | Có |
@@ -189,6 +197,7 @@ Category hierarchy là master-data aggregate nhỏ. Checkout là transaction ph�
 |---|---|---:|---|---|
 | `customer_id` | BIGINT UNSIGNED | Không | PK | Internal surrogate key, không lộ ra API |
 | `public_id` | UUID binary | Không | UNIQUE | Public stable identifier |
+| `role` | VARCHAR(16) | Không | CHECK `customer`, `admin` | Phân quyền storefront hoặc admin tối thiểu |
 | `display_name` | VARCHAR(120) | Không | Trimmed, không rỗng | Tên hiển thị tối thiểu |
 | `status` | VARCHAR(16) | Không | CHECK `active`, `inactive` | Khả năng đăng nhập/giao dịch |
 | `data_origin` | VARCHAR(16) | Không | CHECK `manual`, `synthetic` | Phân biệt dữ liệu demo/generator |
@@ -208,6 +217,7 @@ Category hierarchy là master-data aggregate nhỏ. Checkout là transaction ph�
 **Index mục tiêu:**
 
 - unique `public_id`: lookup customer từ API token;
+- `(role, status, customer_id)`: authorization và danh sách vận hành admin;
 - `(updated_at, customer_id)`: incremental extraction.
 
 ---
@@ -310,7 +320,7 @@ Category hierarchy là master-data aggregate nhỏ. Checkout là transaction ph�
 - `(is_active, product_id)` cho listing toàn catalog;
 - `(updated_at, product_id)` cho extraction.
 
-Không index `name`/`description` trong TLCN vì chưa có full-text search requirement.
+Search TLCN dùng bounded `LIKE` trên catalog nhỏ và luôn kết hợp active/category/variant filter. Chưa thêm FULLTEXT; chỉ bổ sung sau `EXPLAIN`/performance experiment chứng minh `LIKE` không đạt latency.
 
 ---
 
@@ -523,7 +533,7 @@ Không index `name`/`description` trong TLCN vì chưa có full-text search requ
 
 ### 5.10. `payments`
 
-**Mục đích:** lưu kết quả cuối cùng của local payment simulator.
+**Mục đích:** lưu payment snapshot gắn với order; runtime storefront chỉ tạo payment thành công sau khi checkout validation đạt.
 
 **Grain:** một row đại diện cho một payment outcome của một order.
 
@@ -532,13 +542,12 @@ Không index `name`/`description` trong TLCN vì chưa có full-text search requ
 | `payment_id` | BIGINT UNSIGNED | Không | PK | Internal payment key |
 | `payment_reference` | VARCHAR(64) | Không | UNIQUE | Public payment identifier |
 | `order_id` | BIGINT UNSIGNED | Không | UNIQUE, FK → `orders` | Đúng một payment/order |
-| `payment_idempotency_key` | VARCHAR(64) | Không | UNIQUE | Stable simulator request identity |
+| `payment_idempotency_key` | VARCHAR(64) | Không | UNIQUE | Stable identity của payment tạo bởi checkout |
 | `status` | VARCHAR(16) | Không | CHECK `succeeded`, `failed` | Final payment outcome |
 | `currency_code` | CHAR(3) | Không | CHECK `VND` | Currency snapshot |
 | `amount_vnd` | BIGINT UNSIGNED | Không | CHECK `>= 0` | Amount attempted/collected |
-| `simulator_scenario` | VARCHAR(32) | Không | Bounded application code | Forced/seeded scenario dùng tái lập demo |
 | `failure_code` | VARCHAR(64) | Có | Status invariant | Lý do failure machine-readable |
-| `attempted_at` | DATETIME(6) UTC | Không | Business event time | Thời điểm simulator outcome có hiệu lực |
+| `attempted_at` | DATETIME(6) UTC | Không | Business event time | Thời điểm payment outcome có hiệu lực |
 | `created_at` | DATETIME(6) UTC | Không | Immutable | Commit time ghi payment |
 
 **Business key:** `payment_reference`.
@@ -548,9 +557,9 @@ Không index `name`/`description` trong TLCN vì chưa có full-text search requ
 - Unique `order_id`: một order đúng một payment row.
 - Payment row là immutable/final, không có pending state trong TLCN.
 - `amount_vnd = orders.total_vnd` và currency bằng order; bảo vệ trong checkout transaction/reconciliation.
-- `succeeded` tương ứng order initial status `paid` và `failure_code = null`.
-- `failed` tương ứng order initial status `payment_failed`; `failure_code` bắt buộc có.
-- Local simulator không có side effect ngoài database và outcome phải xác định trước khi giữ database lock.
+- Runtime storefront chỉ insert `succeeded`, tương ứng order initial status `paid` và `failure_code = null`.
+- `failed`/`payment_failed` chỉ phục vụ dữ liệu synthetic có chủ đích hoặc lịch sử cũ; `failure_code` bắt buộc có.
+- Checkout không gọi payment service, không nhận scenario và không random outcome.
 
 **Index mục tiêu:**
 
@@ -572,7 +581,7 @@ Không index `name`/`description` trong TLCN vì chưa có full-text search requ
 | `order_id` | BIGINT UNSIGNED | Không | FK → `orders`, RESTRICT | Order được chuyển trạng thái |
 | `from_status` | VARCHAR(24) | Có | Transition CHECK | Null cho initial state |
 | `to_status` | VARCHAR(24) | Không | Transition CHECK | State sau transition |
-| `transition_source` | VARCHAR(32) | Không | Bounded code | `checkout`, `internal_endpoint`, `generator`, `system` |
+| `transition_source` | VARCHAR(32) | Không | Bounded code | `checkout`, `internal_endpoint`, `generator`, `system`, `admin` |
 | `reason` | VARCHAR(500) | Có | — | Mô tả bổ sung nếu có |
 | `transition_idempotency_key` | VARCHAR(64) | Không | UNIQUE | Deduplicate transition request |
 | `transitioned_at` | DATETIME(6) UTC | Không | Business event time | Thời điểm transition có hiệu lực |
@@ -626,8 +635,8 @@ paid             → completed
 - `opening_on_hand` không được sửa sau seed.
 - `0 <= on_hand <= opening_on_hand` trong mọi committed state.
 - Không có `reserved`; available trong TLCN chính là `on_hand`.
-- Chỉ succeeded checkout được giảm `on_hand`; failed checkout không thay đổi balance.
-- TLCN không hỗ trợ restock hoặc adjustment; muốn thay seed inventory phải reset/reseed môi trường demo.
+- Chỉ checkout hợp lệ với payment `succeeded` được giảm `on_hand`; checkout bị validation từ chối không thay đổi balance.
+- TLCN không hỗ trợ restock hoặc adjustment cho inventory hiện hữu; admin chỉ xem tồn và đặt trạng thái bán.
 - Pipeline đối soát `opening_on_hand - SUM(order_items.quantity của succeeded payments) = on_hand` theo variant.
 
 **Index mục tiêu:**
@@ -635,6 +644,43 @@ paid             → completed
 - PK `variant_id` phục vụ checkout point lookup;
 - `(updated_at, variant_id)` cho mutable extraction;
 - không index `on_hand` trên OLTP chỉ để low-stock dashboard.
+
+---
+
+### 5.13. `wishlist_items`
+
+**Mục đích:** lưu current wishlist của customer và giữ logical removal cho incremental extraction.
+
+**Grain:** một row đại diện cho một product từng được một customer thêm vào wishlist.
+
+| Cột | Kiểu logical | Null | Key/constraint | Ý nghĩa nghiệp vụ |
+|---|---|---:|---|---|
+| `wishlist_item_id` | BIGINT UNSIGNED | Không | PK | Stable internal/extraction key |
+| `customer_id` | BIGINT UNSIGNED | Không | FK → `customers`, RESTRICT | Owner đã đăng nhập |
+| `product_id` | BIGINT UNSIGNED | Không | FK → `products`, RESTRICT | Product được yêu thích; không khóa variant |
+| `is_present` | BOOLEAN | Không | CHECK với `removed_at` | Có đang nằm trong wishlist hay không |
+| `first_added_at` | DATETIME(6) UTC | Không | Immutable | Lần đầu customer thêm product |
+| `last_added_at` | DATETIME(6) UTC | Không | CHECK `>= first_added_at` | Lần add/re-add gần nhất |
+| `removed_at` | DATETIME(6) UTC | Có | CHECK state/time | Lần remove gần nhất |
+| `updated_at` | DATETIME(6) UTC | Không | Monotonic theo mutation | Cursor incremental extraction |
+
+**Business key:** unique `(customer_id, product_id)`.
+
+**Invariant:**
+
+- Một customer có một wishlist mặc định nhưng có thể có nhiều product khác nhau.
+- Cùng product chỉ có một row/customer; re-add cập nhật row cũ.
+- `is_present = true` tương ứng `removed_at = null`; false tương ứng removed time có giá trị.
+- PUT add và DELETE remove biểu diễn desired state, retry không đảo trạng thái.
+- Chỉ add product/category active; remove vẫn được phép khi product đã inactive.
+- Product/customer không hard delete; anonymization không xóa quan hệ phục vụ lineage.
+
+**Index mục tiêu:**
+
+- unique `(customer_id, product_id)` bảo vệ grain;
+- `(customer_id, is_present, last_added_at DESC, wishlist_item_id DESC)` cho wishlist listing;
+- `(product_id, wishlist_item_id)` cho FK/reverse lookup;
+- `(updated_at, wishlist_item_id)` cho mutable extraction.
 
 ---
 
@@ -647,29 +693,32 @@ active ──checkout──> checked_out
 ```
 
 - Không có transition ngược.
-- Payment success hay failure đều đóng cart vì mỗi checkout tạo một order outcome.
-- Customer muốn thử lại sau failure phải tạo active cart mới.
+- Runtime chỉ đóng cart sau khi toàn bộ checkout validation đạt và order/payment đã được tạo.
+- Checkout bị từ chối giữ cart `active` để customer sửa dữ liệu hoặc tồn kho rồi thử lại.
 
 ### 6.2. Order
 
+Runtime storefront:
+
 ```text
-             ┌──> paid ──complete──> completed
-checkout ────┤
-             └──> payment_failed
+checkout ──> paid ──complete──> completed
 ```
 
-- Order được tạo trực tiếp ở final payment outcome vì simulator local không có asynchronous pending state.
-- `payment_failed` và `completed` là terminal trong TLCN.
+Synthetic fixture có thể tạo trực tiếp `payment_failed` để kiểm thử pipeline, nhưng runtime storefront không đi vào nhánh này.
+
+- Order được tạo trực tiếp ở `paid` vì scope không có asynchronous payment provider.
+- `payment_failed` synthetic và `completed` là terminal trong TLCN.
 - Không cho `payment_failed → paid`, `completed → paid` hoặc completion lặp.
 
 ### 6.3. Payment
 
+Runtime storefront:
+
 ```text
 succeeded
-failed
 ```
 
-Payment row được tạo với final outcome và không update state.
+`failed` chỉ dành cho synthetic fixture/lịch sử cũ. Payment row được tạo với final outcome và không update state.
 
 ---
 
@@ -695,11 +744,13 @@ Payment row được tạo với final outcome và không update state.
 | INV-16 | Order transition hợp lệ | Row lock + transition map | History transition CHECK |
 | INV-17 | Không duplicate transition | UNIQUE order/to-state + idempotency | Return committed result khi retry |
 | INV-18 | `0 <= on_hand <= opening_on_hand` | CHECK + locked/conditional update | Last-item concurrency test |
-| INV-19 | `opening_on_hand` immutable sau seed | Không có update path + runtime privilege | Reset/reseed nếu cần đổi baseline |
+| INV-19 | `opening_on_hand` immutable sau khi tạo variant | Không có update path + runtime privilege | Reset/reseed nếu cần đổi baseline |
 | INV-20 | Opening trừ succeeded sold units bằng current balance | Checkout transaction | Pipeline reconciliation theo variant |
 | INV-21 | Transaction snapshot immutable | Runtime grants/repository policy | No update endpoint; audit tests |
 | INV-22 | Extracted delete không bị mất | Không hard delete; logical removal/inactive | Initial snapshot + lookback extraction |
 | INV-23 | Synthetic/manual phân biệt được | `data_origin` + run ID | Generator contract và DQ rule |
+| INV-24 | Một product/customer trong wishlist | UNIQUE `(customer_id, product_id)` | Customer row lock + desired-state API |
+| INV-25 | Wishlist presence/time nhất quán | CHECK | Logical removal và DB timestamp |
 
 Các invariant liên bảng như tổng order item, payment/order match và `opening_on_hand - succeeded sold units = on_hand` không thể được bảo vệ hoàn toàn bằng `CHECK`; chúng phải được duy trì trong cùng checkout transaction và được pipeline reconciliation kiểm tra độc lập.
 
@@ -743,36 +794,34 @@ API nên biểu diễn desired state bằng absolute quantity:
 
 **Concurrency:** lock cart root trước item để checkout không chạy song song với mutation. Việc serial hóa mutation trong cùng cart là chấp nhận được vì cart nhỏ và transaction ngắn.
 
-**Idempotency:** set absolute quantity làm retry tự nhiên idempotent. Clickstream `add_to_cart` có event ID riêng và không được dùng làm nguồn quyết định cart state.
+**Idempotency:** set absolute quantity làm retry tự nhiên idempotent; MySQL cart state là nguồn quyết định duy nhất trong TLCN.
 
 **Failure:** rollback toàn bộ; không có inventory side effect.
 
 ### 8.3. TX-03 — Checkout
 
-Local payment outcome phải được tính **trước khi mở database transaction** bằng pure deterministic simulator dựa trên scenario/seed/idempotency key. Không gọi external API và không chờ network trong transaction.
+Runtime checkout không nhận payment scenario và không tính random outcome. Payment `succeeded` chỉ được ghi sau khi toàn bộ precondition đã được kiểm tra trong transaction. Không gọi external API và không chờ network trong transaction.
 
 **Boundary và thứ tự khóa:**
 
 1. Nhận `checkout_idempotency_key` và request fingerprint.
-2. Tính simulator outcome ngoài transaction.
-3. Begin `READ COMMITTED`.
-4. Lookup order theo idempotency key:
+2. Begin `READ COMMITTED`.
+3. Lookup order theo idempotency key:
    - nếu tồn tại và cùng customer/cart/request semantics, trả committed result;
    - nếu cùng key nhưng khác request semantics, trả idempotency conflict.
-5. Lock cart row theo `cart_id`; xác nhận owner và state `active`.
-6. Nếu cart đã checked out, lookup order theo unique `cart_id` và trả existing result hoặc conflict; không tạo order mới.
-7. Lock các present cart item.
-8. Đọc/khóa product, category và variant cần snapshot theo thứ tự key tăng dần; validate active và cart không rỗng.
-9. Lock inventory row theo `variant_id` tăng dần.
-10. Validate `on_hand >= quantity` cho mọi line.
-11. Tính `order_items`, subtotal, shipping fee và total bằng integer từ dữ liệu server.
-12. Insert `orders`, toàn bộ `order_items`, một `payments` row và initial `order_status_history`.
-13. Nếu payment `succeeded`, với từng variant theo thứ tự tăng dần:
+4. Lock cart row theo `cart_id`; xác nhận owner và state `active`.
+5. Nếu cart đã checked out, lookup order theo unique `cart_id` và trả existing result hoặc conflict; không tạo order mới.
+6. Lock các present cart item; reject nếu cart rỗng.
+7. Đọc/khóa category, product và variant cần snapshot theo thứ tự key tăng dần; validate active.
+8. Lock inventory row theo `variant_id` tăng dần.
+9. Validate `on_hand >= quantity` cho mọi line.
+10. Tính `order_items`, subtotal, shipping fee và total bằng integer từ dữ liệu server.
+11. Insert order `paid`, toàn bộ `order_items`, payment `succeeded` và initial `order_status_history`.
+12. Với từng variant theo thứ tự tăng dần:
     - giảm `inventory.on_hand` bằng locked/conditional update;
     - tăng `version` và `updated_at`.
-14. Nếu payment `failed`, không update inventory.
-15. Chuyển cart sang `checked_out`, set `checked_out_at` và `updated_at`.
-16. Commit.
+13. Chuyển cart sang `checked_out`, set `checked_out_at` và `updated_at`.
+14. Commit.
 
 **Atomicity:** order, items, payment, initial history, cart closing và inventory decrement phải cùng commit hoặc cùng rollback.
 
@@ -802,6 +851,22 @@ Local payment outcome phải được tính **trước khi mở database transac
 
 ---
 
+### 8.5. TX-05 — Add/remove wishlist product
+
+| Thuộc tính | Thiết kế |
+|---|---|
+| Trigger | `PUT` hoặc `DELETE /wishlist/products/{product_public_id}` |
+| Đọc | Customer, product/category và wishlist item theo business key |
+| Ghi | Insert hoặc update `wishlist_items` current state |
+| Boundary | Begin trước customer lock; commit sau desired state được flush |
+| Isolation | `READ COMMITTED` |
+| Concurrency | Lock customer rồi wishlist row; UNIQUE là arbiter cuối cùng |
+| Idempotency | PUT-present và DELETE-absent là no-op; retry không đổi timestamps lần nữa |
+| Delete semantics | Remove set `is_present=false`, `removed_at=database_now`; không hard delete |
+| OLAP | Current/logical state từ OLTP; TLCN không bảo tồn mọi add/remove trung gian giữa hai batch |
+
+---
+
 ## 9. Isolation và concurrency analysis
 
 ### 9.1. Isolation decision matrix
@@ -811,6 +876,7 @@ Local payment outcome phải được tính **trước khi mở database transac
 | Login/catalog/order history read | Autocommit `READ COMMITTED` | Dirty read | MVCC | Không ra quyết định trên tập thay đổi nhiều row |
 | Registration | `READ COMMITTED` | Duplicate email | UNIQUE | Serializable không tốt hơn unique arbiter |
 | Cart mutation | `READ COMMITTED` | Lost update, mutation vs checkout | Lock cart/item, absolute quantity | Transaction chỉ chạm một cart nhỏ |
+| Wishlist mutation | `READ COMMITTED` | Duplicate row/lost desired state | Customer + item lock, UNIQUE, PUT/DELETE desired state | Transaction chạm một customer/product |
 | Checkout | `READ COMMITTED` | Oversell, duplicate checkout, inconsistent snapshot | Explicit row locks, conditional update, UNIQUE, lock order cố định | Invariant không dựa trên predicate rộng |
 | Complete order | `READ COMMITTED` | Duplicate transition/lost update | Lock order, unique history | Một aggregate root |
 | Category re-parent | `READ COMMITTED` với path locks; nâng cục bộ nếu cần | Cycle/write skew | Ancestor validation và serialize admin operation | Không phải hot path; không đặt global Serializable |
@@ -846,7 +912,7 @@ customer (nếu cần)
 ```
 
 - Không lock inventory theo thứ tự item từ request.
-- Không gọi simulator/network/email/log collector trong transaction.
+- Không gọi network/email/log collector trong transaction.
 - Không chạy Spark/extraction query bên trong application transaction.
 - Giữ transaction ngắn và không chờ user.
 - Bắt MySQL deadlock/lock-timeout rõ ràng; retry toàn transaction tối đa 3 lần với exponential backoff + jitter.
@@ -901,6 +967,10 @@ customer (nếu cần)
 | `cart_items` | UQ `(cart_id, variant_id)` | Item read/upsert/invariant | Index prefix phục vụ cart items |
 | `cart_items` | `(variant_id, cart_item_id)` | FK/reverse reference lookup | Bắt buộc do composite UQ không bắt đầu bằng variant |
 | `cart_items` | `(updated_at, cart_item_id)` | Extraction | Hot-table write amplification; cần cho DE scope |
+| `wishlist_items` | UQ `(customer_id, product_id)` | Grain + idempotent desired state | Customer prefix phục vụ point lookup |
+| `wishlist_items` | `(customer_id, is_present, last_added_at, wishlist_item_id)` | Wishlist listing/keyset | Low-write per customer |
+| `wishlist_items` | `(product_id, wishlist_item_id)` | FK/reverse lookup | Master reference safety |
+| `wishlist_items` | `(updated_at, wishlist_item_id)` | Incremental extraction | Mutation write cost chấp nhận được |
 | `orders` | UQ `order_number`, UQ `cart_id`, UQ `checkout_idempotency_key` | Lookup + correctness | Ba unique path nhưng đều bắt buộc |
 | `orders` | `(customer_id, created_at DESC, order_id DESC)` | Order history | Web read quan trọng |
 | `orders` | `(status, created_at, order_id)` | Completion generator lookup | Dataset nhỏ; bỏ nếu execution plan không dùng |
@@ -922,28 +992,28 @@ customer (nếu cần)
 - `orders.total_vnd`, `payments.amount_vnd` cho báo cáo.
 - `inventory.on_hand` cho dashboard low-stock.
 - `order_items.category_name_snapshot` hoặc product name cho BI.
-- JSON/text/full-text index.
+- JSON index và generic attribute index. FULLTEXT chỉ thêm nếu performance experiment chứng minh bounded `LIKE` không đủ.
 - Mọi status boolean riêng lẻ khi không đi cùng query pattern có selectivity/sort phù hợp.
 
 Các truy vấn trên thuộc tính này phải chạy ở Gold/MySQL `analytics`, không chạy trên OLTP primary.
 
 ---
 
-## 11. OLAP và CDC readiness
+## 11. OLAP và batch-extraction readiness
 
 ### 11.1. Current state, snapshot và immutable history
 
 | Nhóm | Bảng | Cách downstream xử lý |
 |---|---|---|
 | Current master | customers, categories, products, variants | Silver merge current state theo stable key; Gold dimension hiện hành |
-| Current transaction | carts, cart_items, orders, inventory | Silver merge theo `updated_at`/PK; order status history bổ sung lifecycle |
+| Current transaction | carts, cart_items, wishlist_items, orders, inventory | Silver merge theo `updated_at`/PK; order status history bổ sung lifecycle |
 | Immutable snapshot | order_items, payments | Append/deduplicate theo PK/business key |
-| Immutable history/event | order_status_history | Append/deduplicate; không overwrite transition cũ |
+| Immutable history | order_status_history | Append/deduplicate; không overwrite transition cũ |
 | Security-only | customer_credentials | Không extract |
 
 ### 11.2. Snapshot đủ cho Gold
 
-- `fact_order`: `orders` cung cấp one-row/order, status, customer, subtotal, shipping, total và event times.
+- `fact_order`: `orders` cung cấp one-row/order, status, customer, subtotal, shipping, total và business timestamps.
 - `fact_order_item`: `order_items` cung cấp one-row/order/variant, exact price, quantity, line total và catalog snapshot.
 - `fact_payment`: `payments` cung cấp one-row/order, outcome, amount và attempted time.
 - `fact_inventory_daily_snapshot`: chụp `opening_on_hand`/`on_hand` từ `inventory` tại cutoff; sold units trong kỳ được tổng hợp từ order items có succeeded payment.
@@ -976,18 +1046,19 @@ Nếu cùng mutable row thay đổi nhiều lần giữa hai batch, extraction c
 - customer profile;
 - category/product/variant current attributes;
 - current cart/cart item state;
+- current wishlist item state;
 - current inventory balance.
 
-Một cart item bị remove rồi re-add giữa hai batch sẽ xuất hiện ở trạng thái cuối `is_present = true`; full mutation history của cart thuộc clickstream, không thuộc guarantee của mutable OLTP extraction.
+Một cart hoặc wishlist item bị remove rồi re-add giữa hai batch có thể chỉ xuất hiện ở trạng thái cuối `is_present = true`; schema chỉ bảo đảm trạng thái cuối được extract tại batch cutoff.
 
 Các thay đổi cần lịch sử chính xác không dựa riêng vào `updated_at`:
 
 - order state dùng `order_status_history`;
 - payment và order item là immutable rows;
 - sales-driven inventory history được suy ra từ succeeded payment + immutable order items; không có restock/adjustment trong TLCN;
-- behavioral cart/view funnel dùng clickstream event riêng, best-effort.
+- cart abandonment chỉ dùng cart/order state tại batch cutoff.
 
-Vì vậy schema không giả vờ cung cấp full CDC history cho mọi mutable field nhưng vẫn đủ rebuild các fact/KPI đã chốt.
+Vì vậy schema không giả vờ cung cấp full mutation history cho mọi mutable field nhưng vẫn đủ rebuild các fact/KPI OLTP-only đã chốt.
 
 ### 11.5. Reconciliation rules từ schema
 
@@ -1008,8 +1079,9 @@ Vì vậy schema không giả vờ cung cấp full CDC history cho mọi mutable
 | Flow | Read pattern | Write pattern | Consistency/latency | Contention |
 |---|---|---|---|---|
 | Login | Point lookup email | Không hoặc security timestamp ngoài hot path | Strong auth decision, thấp | Thấp |
-| Product listing | Category/active range + keyset | Không | Read committed, thấp | Thấp |
+| Product listing/search/filter | Product/category + matching active variant range + keyset | Không | Read committed, thấp | Thấp; bounded catalog query |
 | Product detail | Slug/SKU + variants + inventory | Không | Current state đủ | Thấp |
+| Wishlist view/mutation | Customer + present items/product | Desired-state insert/update | Strong mutation, thấp | Theo một customer/product |
 | Cart view | Public cart/customer + items + variant | Không | Current committed | Theo một customer |
 | Cart mutation | Point lock cart/item | Upsert logical state | Strong, thấp | Cùng cart |
 | Checkout | Cart/items/catalog/inventory point locks | Order graph + optional inventory decrement | Correctness-critical | Last-item/variant |
@@ -1034,7 +1106,7 @@ Extraction phải chạy theo batch nhỏ, dùng index cursor và không giữ c
 ### 13.2. Durability
 
 - API chỉ trả success sau database commit.
-- Local payment simulator không có external side effect nên không tạo distributed consistency gap.
+- Runtime checkout không gọi payment service bên ngoài nên không tạo distributed consistency gap.
 - InnoDB redo/undo/binlog configuration phải ưu tiên durability phù hợp môi trường demo.
 - Persistent Docker volume không thay thế backup.
 - Trước final demo cần có logical backup và test restore tối thiểu.
@@ -1065,11 +1137,11 @@ Extraction phải chạy theo batch nhỏ, dùng index cursor và không giữ c
 ## 15. Những kỹ thuật chưa nên triển khai
 
 - Kafka/CDC connector: batch incremental đã đủ cho TLCN.
-- Transactional outbox: business events được derive từ OLTP; clickstream là best-effort.
-- Reservation table: simulator local cho final outcome trong checkout và scope không có external payment wait.
+- Reservation table: checkout hoàn tất đồng bộ trong một transaction ngắn và scope không có external payment wait.
 - Multi-warehouse/stock allocation: một kho, một row/variant.
 - Redis cart/cache: workload nhỏ, MySQL đủ và cache làm phức tạp consistency.
-- Elasticsearch/full-text: không có search requirement.
+- Elasticsearch: search/filter bounded trên catalog nhỏ chưa chứng minh cần search engine riêng; MySQL query hiện tại đủ.
+- MySQL FULLTEXT: là bước tối ưu có điều kiện sau `EXPLAIN`/performance report, không phải yêu cầu schema ban đầu.
 - Partitioning/sharding/read replica: chưa có workload chứng minh.
 - Event sourcing/CQRS: current-state relational model + immutable transaction snapshots + order status history đã đủ.
 - Generic status/config tables: state set nhỏ, bounded CHECK rõ ràng hơn.
@@ -1100,7 +1172,7 @@ Extraction phải chạy theo batch nhỏ, dùng index cursor và không giữ c
 
 ### Structure
 
-- [ ] Đúng 12 bảng nghiệp vụ; không lẫn table Gold/analytics vào OLTP.
+- [ ] Đúng 13 bảng nghiệp vụ; không lẫn table Gold/analytics vào OLTP.
 - [ ] Mỗi bảng có grain, PK và business key rõ.
 - [ ] Mọi FK có delete semantics rõ; transaction history không cascade delete.
 - [ ] Public/API key không dùng PII.
@@ -1123,11 +1195,11 @@ Extraction phải chạy theo batch nhỏ, dùng index cursor và không giữ c
 - [ ] Duplicate completion không tạo transition thứ hai.
 - [ ] Mọi multi-row lock theo thứ tự ổn định.
 
-### DE/OLAP readiness
+### DE/OLAP batch readiness
 
 - [ ] Credential không được extract.
 - [ ] Mutable source có `updated_at` + stable tie-breaker.
-- [ ] Append-only source có event/created time + stable PK.
+- [ ] Append-only source có business/created time + stable PK.
 - [ ] Cart item removal và catalog deactivation nhìn thấy qua incremental extract.
 - [ ] Order item giữ exact price, quantity và catalog snapshot.
 - [ ] Order status history append-only.
