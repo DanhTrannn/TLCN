@@ -13,4 +13,26 @@ scale:
   products: 60
   variants: 240
   orders: 3000
+distributions:
+  day_of_week: [0.9, 0.95, 1.0, 1.05, 1.2, 1.5, 1.4]
+  hour_of_day: [0.05, 0.02, 0.02, 0.02, 0.03, 0.05, 0.09, 0.14, 0.18, 0.2, 0.22, 0.26, 0.28, 0.26, 0.24, 0.24, 0.27, 0.34, 0.5, 0.72, 0.95, 1.1, 1.0, 0.6]
+  seasonality:
+    tet: {month_start: 1, day_start: 25, month_end: 2, day_end: 18, peak: 2.8}
+    sales:
+      - {name: "11-11", month: 11, day: 11, boost: 2.5, after_days: 4}
+      - {name: "12-12", month: 12, day: 12, boost: 2.5, after_days: 4}
+      - {name: "6-6", month: 6, day: 6, boost: 2.2, after_days: 3}
+      - {name: black_friday, month: 11, weekday: 4, week_index: 4, boost: 2.2, after_days: 3}
+  categories: {ao: 22, dam: 18, vay: 15, quan: 14, khoac: 12, phu-kien: 9, giay: 5, tui-xach: 5}
+  price_bands:
+    - {min_vnd: 79000, max_vnd: 199000, weight: 30}
+    - {min_vnd: 199000, max_vnd: 399000, weight: 40}
+    - {min_vnd: 399000, max_vnd: 699000, weight: 20}
+    - {min_vnd: 699000, max_vnd: 2500000, weight: 10}
+  order_size: [55, 30, 12, 3]
+  quantity_per_item: [70, 25, 5]
+  customers:
+    loyal: {share: 0.15, orders_per_year: [4, 10], interval_days: [20, 60]}
+    regular: {share: 0.35, orders_per_year: [2, 4], interval_days: [45, 120]}
+    one_off: {share: 0.5, orders_per_year: [1, 1]}
 
