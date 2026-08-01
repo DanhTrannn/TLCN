@@ -2,6 +2,7 @@ import hashlib
 import re
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -112,22 +113,24 @@ class SqlExportTest(unittest.TestCase):
             self.assertEqual(_count_rows(sql, "orders"), summary.orders)
 
     def test_export_order_times_within_history(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            path = Path(temporary_directory) / "orders.sql"
-            summary = export_sql(self.config, path)
-            sql = path.read_text()
-            marker = "INSERT INTO `orders`"
-            start = sql.index(marker)
-            end = sql.index("\n\n", start)
-            block = sql[start:end]
-            datetimes = re.findall(r"'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)'", block)
-            history_start = self.config.anchor_time - timedelta(days=12 * 30)
-            history_end = self.config.anchor_time
-            self.assertGreaterEqual(len(datetimes), summary.orders)
-            for raw in datetimes:
-                parsed = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC)
-                self.assertGreaterEqual(parsed, history_start)
-                self.assertLessEqual(parsed, history_end)
+        for seed in range(60):
+            with tempfile.TemporaryDirectory() as temporary_directory:
+                config = replace(self.config, seed=seed)
+                path = Path(temporary_directory) / "orders.sql"
+                summary = export_sql(config, path)
+                sql = path.read_text()
+                marker = "INSERT INTO `orders`"
+                start = sql.index(marker)
+                end = sql.index("\n\n", start)
+                block = sql[start:end]
+                datetimes = re.findall(r"'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)'", block)
+                history_start = self.config.anchor_time - timedelta(days=12 * 30)
+                history_end = self.config.anchor_time
+                self.assertGreaterEqual(len(datetimes), summary.orders)
+                for raw in datetimes:
+                    parsed = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC)
+                    self.assertGreaterEqual(parsed, history_start)
+                    self.assertLessEqual(parsed, history_end)
 
     def test_export_every_order_has_items(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

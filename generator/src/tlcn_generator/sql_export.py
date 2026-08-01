@@ -282,8 +282,11 @@ def _pick_base_datetime(
     day = days[_weighted_index(randomizer, day_weights)]
     hour = _weighted_index(randomizer, hour_of_day)
     minute = randomizer.randrange(60)
-    return history_start.replace(
-        year=day.year, month=day.month, day=day.day, hour=hour, minute=minute, second=0, microsecond=0
+    return min(
+        history_start.replace(
+            year=day.year, month=day.month, day=day.day, hour=hour, minute=minute, second=0, microsecond=0
+        ),
+        history_end,
     )
 
 
@@ -658,12 +661,15 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     available_days = max(0, (history_end - base_times[-1]).days)
                     interval_cap = available_days // max(1, remaining_orders)
                     interval = randomizer.randint(class_.interval_min or 1, class_.interval_max or 1)
-                    interval = min(interval, max(1, interval_cap))
+                    next_base = min(base_times[-1] + timedelta(days=min(interval, interval_cap)), history_end)
                     base_times.append(
-                        _shape_hour(
-                            randomizer,
-                            base_times[-1] + timedelta(days=interval),
-                            distribution.hour_of_day,
+                        min(
+                            _shape_hour(
+                                randomizer,
+                                next_base,
+                                distribution.hour_of_day,
+                            ),
+                            history_end,
                         )
                     )
 
