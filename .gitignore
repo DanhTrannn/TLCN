@@ -36,3 +36,5 @@ airflow/standalone_admin_password.txt
 .idea/
 .vscode/
 
+docs/superpowers/
+
