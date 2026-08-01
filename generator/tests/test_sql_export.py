@@ -1,7 +1,8 @@
 import hashlib
+import re
 import tempfile
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from argon2 import PasswordHasher
@@ -74,6 +75,24 @@ class SqlExportTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             with self.assertRaisesRegex(ValueError, "variants must"):
                 export_sql(invalid, Path(temporary_directory) / "invalid.sql")
+
+    def test_variant_prices_within_band_union(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "prices.sql"
+            export_sql(self.config, path)
+            sql = path.read_text()
+            marker = "INSERT INTO `product_variants`"
+            start = sql.index(marker)
+            end = sql.index("\n\n", start)
+            block = sql[start:end]
+            prices = re.findall(
+                r"^\s+\(\d+, UNHEX\('[0-9a-f]+'\), \d+, '[^']+', '[^']+', '[^']+', (\d+),",
+                block,
+                re.MULTILINE,
+            )
+            self.assertEqual(len(prices), self.config.scale["variants"])
+            for raw in prices:
+                self.assertTrue(79000 <= int(raw) <= 2500000)
 
 
 if __name__ == "__main__":

@@ -334,6 +334,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     demo_email = f"demo.{config.logical_identity[:8]}@tlcn.local"
     history_end = config.anchor_time.astimezone(UTC)
     history_start = history_end - timedelta(days=max(1, config.history_months) * 30)
+    distribution = config.distributions
+    max_price_vnd = max(band.max_vnd for band in distribution.price_bands)
     master_created_at = history_start - timedelta(days=30)
 
     block = 10_000_000 + (int(config.logical_identity[:8], 16) % 10_000) * 10_000_000
@@ -416,10 +418,20 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         for index, category in enumerate(category_records)
     )
 
+    category_by_code = {
+        category.code.removeprefix(f"{root_category.code}-"): category for category in category_records
+    }
     product_records: list[ProductRecord] = []
     product_rows: list[Sequence[SqlValue]] = []
+    base_variants_per_product, extra_variants = divmod(variant_count, product_count)
+    variant_records: list[VariantRecord] = []
+    variant_rows: list[Sequence[SqlValue]] = []
+    variant_index = 0
+    combinations = [(size, color) for size in SIZES for color in COLORS]
     for product_index in range(product_count):
-        category = category_records[product_index % len(category_records)]
+        category_code = _pick_category(randomizer, distribution.categories)
+        category = category_by_code[category_code]
+        product_price_vnd = _pick_product_price(randomizer, distribution.price_bands)
         product = ProductRecord(
             product_id=product_base + product_index + 1,
             public_id=_entity_uuid(namespace, "product", product_index),
@@ -442,15 +454,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 master_created_at,
             )
         )
-
-    base_variants_per_product, extra_variants = divmod(variant_count, product_count)
-    variant_records: list[VariantRecord] = []
-    variant_rows: list[Sequence[SqlValue]] = []
-    variant_index = 0
-    combinations = [(size, color) for size in SIZES for color in COLORS]
-    for product_index, product in enumerate(product_records):
         product_variant_count = base_variants_per_product + (1 if product_index < extra_variants else 0)
-        base_price = 149_000 + (product_index % 12) * 35_000
         for combination_index in range(product_variant_count):
             size_code, color_code = combinations[combination_index]
             variant = VariantRecord(
@@ -460,7 +464,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 sku=f"SYN-{config.logical_identity[:8].upper()}-{product_index + 1:05d}-{combination_index + 1:02d}",
                 size_code=size_code,
                 color_code=color_code,
-                price_vnd=base_price + combination_index * 10_000,
+                price_vnd=min(product_price_vnd + combination_index * 5_000, max_price_vnd),
             )
             variant_records.append(variant)
             variant_rows.append(
