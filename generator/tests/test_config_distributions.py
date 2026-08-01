@@ -28,8 +28,10 @@ def _valid_distributions() -> dict:
     return {
         "day_of_week": [1.0] * 7,
         "hour_of_day": [0.1] * 24,
-        "tet": {"month_start": 1, "day_start": 25, "month_end": 2, "day_end": 18, "peak": 2.5},
-        "sales": [],
+        "seasonality": {
+            "tet": {"month_start": 1, "day_start": 25, "month_end": 2, "day_end": 18, "peak": 2.5},
+            "sales": [],
+        },
         "categories": {code: 1.0 for code in ("ao", "quan", "vay", "dam", "khoac", "phu-kien", "giay", "tui-xach")},
         "price_bands": [{"min_vnd": 50000, "max_vnd": 100000, "weight": 1}],
         "order_size": [60, 30, 10, 0],
@@ -101,7 +103,7 @@ class LoadConfigDistributionTest(unittest.TestCase):
     def test_rejects_sale_without_date(self) -> None:
         body = _base_body()
         body["distributions"] = _valid_distributions()
-        body["distributions"]["sales"] = [{"name": "x", "month": 11, "boost": 2.0, "after_days": 1}]
+        body["distributions"]["seasonality"]["sales"] = [{"name": "x", "month": 11, "boost": 2.0, "after_days": 1}]
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "day or weekday"):
                 load_config(_write_yaml(Path(directory) / "bad.yml", body))

@@ -119,8 +119,9 @@ def _parse_sale(raw_sale: dict[str, Any]) -> SaleEvent:
 
 
 def _parse_distributions(raw: dict[str, Any]) -> DistributionConfig:
-    raw_tet = raw["tet"]
-    raw_sales = raw["sales"]
+    raw_seasonality = raw["seasonality"]
+    raw_tet = raw_seasonality["tet"]
+    raw_sales = raw_seasonality["sales"]
     raw_categories = raw["categories"]
     raw_bands = raw["price_bands"]
     raw_classes = raw["customers"]
