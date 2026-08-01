@@ -110,9 +110,9 @@ def _parse_sale(raw_sale: dict[str, Any]) -> SaleEvent:
     return SaleEvent(
         name=str(raw_sale["name"]),
         month=int(raw_sale["month"]),
-        day=int(raw_sale["day"]) if "day" in raw_sale else None,
-        weekday=int(raw_sale["weekday"]) if "weekday" in raw_sale else None,
-        week_index=int(raw_sale["week_index"]) if "week_index" in raw_sale else None,
+        day=int(raw_sale["day"]) if raw_sale.get("day") is not None else None,
+        weekday=int(raw_sale["weekday"]) if raw_sale.get("weekday") is not None else None,
+        week_index=int(raw_sale["week_index"]) if raw_sale.get("week_index") is not None else None,
         boost=float(raw_sale["boost"]),
         after_days=int(raw_sale["after_days"]),
     )

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from argon2 import PasswordHasher
 
-from tlcn_generator.config import GeneratorConfig
+from tlcn_generator.config import DEFAULT_DISTRIBUTIONS, GeneratorConfig, PriceBand
 from tlcn_generator.sql_export import DEMO_PASSWORD, export_sql
 
 
@@ -104,6 +104,26 @@ class SqlExportTest(unittest.TestCase):
             self.assertEqual(len(prices), self.config.scale["variants"])
             for raw in prices:
                 self.assertTrue(79000 <= int(raw) <= 2500000)
+
+    def test_variant_prices_stay_within_single_narrow_band(self) -> None:
+        narrow = replace(DEFAULT_DISTRIBUTIONS, price_bands=(PriceBand(100_000, 150_000, 1),))
+        config = replace(self.config, distributions=narrow)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "narrow.sql"
+            export_sql(config, path)
+            sql = path.read_text()
+            marker = "INSERT INTO `product_variants`"
+            start = sql.index(marker)
+            end = sql.index("\n\n", start)
+            block = sql[start:end]
+            prices = re.findall(
+                r"^\s+\(\d+, UNHEX\('[0-9a-f]+'\), \d+, '[^']+', '[^']+', '[^']+', (\d+),",
+                block,
+                re.MULTILINE,
+            )
+            self.assertEqual(len(prices), config.scale["variants"])
+            for raw in prices:
+                self.assertTrue(100_000 <= int(raw) <= 150_000)
 
     def test_export_order_count_matches_scale(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

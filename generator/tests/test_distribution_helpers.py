@@ -1,8 +1,8 @@
 import random
 import unittest
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 
-from tlcn_generator.config import DEFAULT_DISTRIBUTIONS, PriceBand, TetWindow
+from tlcn_generator.config import DEFAULT_DISTRIBUTIONS
 from tlcn_generator.sql_export import (
     _build_day_weights,
     _class_assignment,

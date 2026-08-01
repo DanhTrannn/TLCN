@@ -108,6 +108,63 @@ class LoadConfigDistributionTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "day or weekday"):
                 load_config(_write_yaml(Path(directory) / "bad.yml", body))
 
+    def test_rejects_tet_peak_of_one(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["seasonality"]["tet"]["peak"] = 1
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "peak"):
+                load_config(_write_yaml(Path(directory) / "bad.yml", body))
+
+    def test_rejects_empty_price_bands(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["price_bands"] = []
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "price_bands"):
+                load_config(_write_yaml(Path(directory) / "bad.yml", body))
+
+    def test_rejects_quantity_per_item_sum_not_100(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["quantity_per_item"] = [70, 20, 0]
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "quantity_per_item"):
+                load_config(_write_yaml(Path(directory) / "bad.yml", body))
+
+    def test_rejects_sale_weekday_without_week_index(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["seasonality"]["sales"] = [
+            {"name": "bf", "month": 11, "weekday": 4, "boost": 2.0, "after_days": 1}
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "week_index"):
+                load_config(_write_yaml(Path(directory) / "bad.yml", body))
+
+    def test_accepts_null_day_with_weekday_and_week_index(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["seasonality"]["sales"] = [
+            {"name": "bf", "month": 11, "day": None, "weekday": 4, "week_index": 4, "boost": 2.0, "after_days": 1}
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            config = load_config(_write_yaml(Path(directory) / "ok.yml", body))
+        sale = config.distributions.sales[0]
+        self.assertIsNone(sale.day)
+        self.assertEqual(sale.weekday, 4)
+        self.assertEqual(sale.week_index, 4)
+
+    def test_rejects_null_day_without_weekday(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["seasonality"]["sales"] = [
+            {"name": "x", "month": 11, "day": None, "boost": 2.0, "after_days": 1}
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "day or weekday"):
+                load_config(_write_yaml(Path(directory) / "bad.yml", body))
+
 
 if __name__ == "__main__":
     unittest.main()
