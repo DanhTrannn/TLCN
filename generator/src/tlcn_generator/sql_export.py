@@ -3,11 +3,9 @@ from __future__ import annotations
 import hashlib
 import random
 import uuid
-from bisect import bisect_left
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from itertools import accumulate
 from pathlib import Path
 from typing import TextIO, TypeAlias
 
@@ -513,12 +511,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
 
     sold_quantities = {variant.variant_id: 0 for variant in variant_records}
     inventory_versions = {variant.variant_id: 0 for variant in variant_records}
-    customer_weights = [
-        9.0 if index < max(1, customer_count // 5) else 2.5 if index < max(2, customer_count * 3 // 5) else 0.5
-        for index in range(customer_count)
-    ]
-    cumulative_customer_weights = list(accumulate(customer_weights))
-    total_customer_weight = cumulative_customer_weights[-1]
+    class_by_name = {class_.name: class_ for class_ in distribution.customer_classes}
+    assignment = _class_assignment(customer_count, distribution.customer_classes, randomizer)
+    days, day_weights = _build_day_weights(history_start.date(), history_end.date(), distribution)
 
     temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
     with temporary_path.open("w", encoding="utf-8", newline="\n") as stream:
@@ -635,160 +630,191 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             payment_rows.clear()
             history_rows.clear()
 
-        for order_index in range(order_count):
-            if order_index < demo_order_target:
-                customer_index = 0
-                span_seconds = max(1, int((history_end - history_start).total_seconds()))
-                order_time = history_start + timedelta(seconds=span_seconds * (order_index + 1) // (demo_order_target + 1))
-            else:
-                customer_index = bisect_left(cumulative_customer_weights, randomizer.random() * total_customer_weight)
-                order_time = _timestamp_between(randomizer, history_start, history_end)
+        targets = _order_targets(assignment, class_by_name, demo_order_target, order_count, randomizer)
+        order_index = 0
+        for customer_index, order_target in enumerate(targets):
+            if order_target <= 0:
+                continue
             customer_id = customer_ids[customer_index]
-            cart_id = cart_base + order_index + 1
-            order_id = order_base + order_index + 1
-            cart_created_at = order_time - timedelta(minutes=randomizer.randint(5, 10_080))
-            item_count = randomizer.randint(1, min(4, variant_count))
-            selected_variants = randomizer.sample(variant_records, item_count)
-            selected_variants.sort(key=lambda variant: variant.variant_id)
+            if customer_index == 0:
+                span_seconds = max(1, int((history_end - history_start).total_seconds()))
+                base_times = [
+                    _shape_hour(
+                        randomizer,
+                        history_start + timedelta(seconds=span_seconds * (position + 1) // (order_target + 1)),
+                        distribution.hour_of_day,
+                    )
+                    for position in range(order_target)
+                ]
+            else:
+                class_ = class_by_name[assignment[customer_index]]
+                base_times = [
+                    _pick_base_datetime(
+                        randomizer, history_start, history_end, days, day_weights, distribution.hour_of_day
+                    )
+                ]
+                for position in range(1, order_target):
+                    remaining_orders = order_target - position
+                    available_days = max(0, (history_end - base_times[-1]).days)
+                    interval_cap = available_days // max(1, remaining_orders)
+                    interval = randomizer.randint(class_.interval_min or 1, class_.interval_max or 1)
+                    interval = min(interval, max(1, interval_cap))
+                    base_times.append(
+                        _shape_hour(
+                            randomizer,
+                            base_times[-1] + timedelta(days=interval),
+                            distribution.hour_of_day,
+                        )
+                    )
 
-            item_details: list[tuple[VariantRecord, int, int]] = []
-            subtotal_vnd = 0
-            for variant in selected_variants:
-                quantity = randomizer.randint(1, 3)
-                line_total_vnd = variant.price_vnd * quantity
-                subtotal_vnd += line_total_vnd
-                item_details.append((variant, quantity, line_total_vnd))
-            shipping_fee_vnd = 0 if subtotal_vnd >= 500_000 else 30_000
-            total_vnd = subtotal_vnd + shipping_fee_vnd
+            for base_time in base_times:
+                order_time = base_time
+                cart_id = cart_base + order_index + 1
+                order_id = order_base + order_index + 1
+                cart_created_at = order_time - timedelta(minutes=randomizer.randint(5, 10_080))
+                item_count = 1 + _weighted_index(randomizer, distribution.order_size)
+                selected_variants = randomizer.sample(variant_records, min(item_count, variant_count))
+                selected_variants.sort(key=lambda variant: variant.variant_id)
 
-            failed = failure_enabled and randomizer.random() < 0.04
-            can_complete = order_time <= history_end - timedelta(days=4)
-            completed = not failed and can_complete and randomizer.random() < 0.78
-            status = "payment_failed" if failed else "completed" if completed else "paid"
-            paid_at = None if failed else order_time
-            completed_at = None
-            if completed:
-                completed_at = min(history_end - timedelta(minutes=1), order_time + timedelta(hours=randomizer.randint(24, 96)))
-            updated_at = completed_at or order_time
-            checkout_key = f"sql:{config.logical_identity}:{order_index + 1}:checkout"
+                item_details: list[tuple[VariantRecord, int, int]] = []
+                subtotal_vnd = 0
+                for variant in selected_variants:
+                    quantity = 1 + _weighted_index(randomizer, distribution.quantity_per_item)
+                    line_total_vnd = variant.price_vnd * quantity
+                    subtotal_vnd += line_total_vnd
+                    item_details.append((variant, quantity, line_total_vnd))
+                shipping_fee_vnd = 0 if subtotal_vnd >= 500_000 else 30_000
+                total_vnd = subtotal_vnd + shipping_fee_vnd
 
-            cart_rows.append(
-                (
-                    cart_id,
-                    _binary_uuid(_entity_uuid(namespace, "cart", order_index)),
-                    customer_id,
-                    "checked_out",
-                    cart_created_at,
-                    order_time,
-                    order_time,
-                )
-            )
-            for variant, quantity, line_total_vnd in item_details:
-                cart_item_index += 1
-                cart_item_rows.append(
+                failed = failure_enabled and randomizer.random() < 0.04
+                can_complete = order_time <= history_end - timedelta(days=4)
+                completed = not failed and can_complete and randomizer.random() < 0.78
+                status = "payment_failed" if failed else "completed" if completed else "paid"
+                paid_at = None if failed else order_time
+                completed_at = None
+                if completed:
+                    completed_at = min(history_end - timedelta(minutes=1), order_time + timedelta(hours=randomizer.randint(24, 96)))
+                updated_at = completed_at or order_time
+                checkout_key = f"sql:{config.logical_identity}:{order_index + 1}:checkout"
+
+                cart_rows.append(
                     (
-                        cart_item_base + cart_item_index,
                         cart_id,
-                        variant.variant_id,
-                        quantity,
-                        True,
+                        _binary_uuid(_entity_uuid(namespace, "cart", order_index)),
+                        customer_id,
+                        "checked_out",
                         cart_created_at,
-                        None,
+                        order_time,
                         order_time,
                     )
                 )
-                order_item_index += 1
-                order_item_rows.append(
-                    (
-                        order_item_base + order_item_index,
-                        order_id,
-                        variant.variant_id,
-                        _binary_uuid(variant.product.public_id),
-                        variant.product.category.code,
-                        variant.product.category.name,
-                        variant.product.name,
-                        variant.sku,
-                        variant.size_code,
-                        variant.color_code,
-                        variant.price_vnd,
-                        quantity,
-                        line_total_vnd,
-                        order_time,
+                for variant, quantity, line_total_vnd in item_details:
+                    cart_item_index += 1
+                    cart_item_rows.append(
+                        (
+                            cart_item_base + cart_item_index,
+                            cart_id,
+                            variant.variant_id,
+                            quantity,
+                            True,
+                            cart_created_at,
+                            None,
+                            order_time,
+                        )
                     )
-                )
-                if not failed:
-                    sold_quantities[variant.variant_id] += quantity
-                    inventory_versions[variant.variant_id] += 1
+                    order_item_index += 1
+                    order_item_rows.append(
+                        (
+                            order_item_base + order_item_index,
+                            order_id,
+                            variant.variant_id,
+                            _binary_uuid(variant.product.public_id),
+                            variant.product.category.code,
+                            variant.product.category.name,
+                            variant.product.name,
+                            variant.sku,
+                            variant.size_code,
+                            variant.color_code,
+                            variant.price_vnd,
+                            quantity,
+                            line_total_vnd,
+                            order_time,
+                        )
+                    )
+                    if not failed:
+                        sold_quantities[variant.variant_id] += quantity
+                        inventory_versions[variant.variant_id] += 1
 
-            order_rows.append(
-                (
-                    order_id,
-                    f"SYN{config.logical_identity[:8].upper()}{order_index + 1:08d}",
-                    cart_id,
-                    customer_id,
-                    checkout_key,
-                    status,
-                    "VND",
-                    subtotal_vnd,
-                    shipping_fee_vnd,
-                    total_vnd,
-                    f"Khách hàng tổng hợp {customer_index + 1:05d}",
-                    f"09{(customer_index + 1) % 100_000_000:08d}",
-                    f"Số {customer_index % 300 + 1}, đường Dữ Liệu, phường Mẫu, TP. Hồ Chí Minh",
-                    "synthetic",
-                    generation_run_id,
-                    order_time,
-                    updated_at,
-                    paid_at,
-                    completed_at,
+                order_rows.append(
+                    (
+                        order_id,
+                        f"SYN{config.logical_identity[:8].upper()}{order_index + 1:08d}",
+                        cart_id,
+                        customer_id,
+                        checkout_key,
+                        status,
+                        "VND",
+                        subtotal_vnd,
+                        shipping_fee_vnd,
+                        total_vnd,
+                        f"Khách hàng tổng hợp {customer_index + 1:05d}",
+                        f"09{(customer_index + 1) % 100_000_000:08d}",
+                        f"Số {customer_index % 300 + 1}, đường Dữ Liệu, phường Mẫu, TP. Hồ Chí Minh",
+                        "synthetic",
+                        generation_run_id,
+                        order_time,
+                        updated_at,
+                        paid_at,
+                        completed_at,
+                    )
                 )
-            )
-            payment_rows.append(
-                (
-                    payment_base + order_index + 1,
-                    f"PAYSYN{config.logical_identity[:8].upper()}{order_index + 1:08d}",
-                    order_id,
-                    f"{checkout_key}:pay",
-                    "failed" if failed else "succeeded",
-                    "VND",
-                    total_vnd,
-                    "SYNTHETIC_DECLINED" if failed else None,
-                    order_time,
-                    order_time,
+                payment_rows.append(
+                    (
+                        payment_base + order_index + 1,
+                        f"PAYSYN{config.logical_identity[:8].upper()}{order_index + 1:08d}",
+                        order_id,
+                        f"{checkout_key}:pay",
+                        "failed" if failed else "succeeded",
+                        "VND",
+                        total_vnd,
+                        "SYNTHETIC_DECLINED" if failed else None,
+                        order_time,
+                        order_time,
+                    )
                 )
-            )
-            history_index += 1
-            history_rows.append(
-                (
-                    history_base + history_index,
-                    order_id,
-                    None,
-                    "payment_failed" if failed else "paid",
-                    "generator",
-                    "Synthetic failure fixture" if failed else None,
-                    f"{checkout_key}:initial",
-                    order_time,
-                    order_time,
-                )
-            )
-            if completed and completed_at is not None:
                 history_index += 1
                 history_rows.append(
                     (
                         history_base + history_index,
                         order_id,
-                        "paid",
-                        "completed",
-                        "generator",
                         None,
-                        f"{checkout_key}:completed",
-                        completed_at,
-                        completed_at,
+                        "payment_failed" if failed else "paid",
+                        "generator",
+                        "Synthetic failure fixture" if failed else None,
+                        f"{checkout_key}:initial",
+                        order_time,
+                        order_time,
                     )
                 )
+                if completed and completed_at is not None:
+                    history_index += 1
+                    history_rows.append(
+                        (
+                            history_base + history_index,
+                            order_id,
+                            "paid",
+                            "completed",
+                            "generator",
+                            None,
+                            f"{checkout_key}:completed",
+                            completed_at,
+                            completed_at,
+                        )
+                    )
 
-            if len(order_rows) >= INSERT_BATCH_SIZE:
-                flush_orders()
+                order_index += 1
+                if len(order_rows) >= INSERT_BATCH_SIZE:
+                    flush_orders()
 
         flush_orders()
 

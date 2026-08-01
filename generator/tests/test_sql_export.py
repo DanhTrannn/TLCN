@@ -11,6 +11,16 @@ from tlcn_generator.config import GeneratorConfig
 from tlcn_generator.sql_export import DEMO_PASSWORD, export_sql
 
 
+def _count_rows(sql: str, table: str) -> int:
+    marker = f"INSERT INTO `{table}`"
+    if marker not in sql:
+        return 0
+    start = sql.index(marker)
+    end = sql.index("\n\n", start)
+    block = sql[start:end]
+    return block.count(",\n  (") + 1
+
+
 class SqlExportTest(unittest.TestCase):
     def setUp(self) -> None:
         self.config = GeneratorConfig(
@@ -93,6 +103,56 @@ class SqlExportTest(unittest.TestCase):
             self.assertEqual(len(prices), self.config.scale["variants"])
             for raw in prices:
                 self.assertTrue(79000 <= int(raw) <= 2500000)
+
+    def test_export_order_count_matches_scale(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "orders.sql"
+            summary = export_sql(self.config, path)
+            sql = path.read_text()
+            self.assertEqual(_count_rows(sql, "orders"), summary.orders)
+
+    def test_export_order_times_within_history(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "orders.sql"
+            summary = export_sql(self.config, path)
+            sql = path.read_text()
+            marker = "INSERT INTO `orders`"
+            start = sql.index(marker)
+            end = sql.index("\n\n", start)
+            block = sql[start:end]
+            datetimes = re.findall(r"'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)'", block)
+            history_start = self.config.anchor_time - timedelta(days=12 * 30)
+            history_end = self.config.anchor_time
+            self.assertGreaterEqual(len(datetimes), summary.orders)
+            for raw in datetimes:
+                parsed = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC)
+                self.assertGreaterEqual(parsed, history_start)
+                self.assertLessEqual(parsed, history_end)
+
+    def test_export_every_order_has_items(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "orders.sql"
+            summary = export_sql(self.config, path)
+            sql = path.read_text()
+            marker = "INSERT INTO `order_items`"
+            start = sql.index(marker)
+            end = sql.index("\n\n", start)
+            block = sql[start:end]
+            order_ids = re.findall(r"^  \(\d+, (\d+),", block, re.MULTILINE)
+            self.assertEqual(len(set(order_ids)), summary.orders)
+
+    def test_export_evening_hour_share(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "orders.sql"
+            summary = export_sql(self.config, path)
+            sql = path.read_text()
+            marker = "INSERT INTO `orders`"
+            start = sql.index(marker)
+            end = sql.index("\n\n", start)
+            block = sql[start:end]
+            hours = [int(raw[11:13]) for raw in re.findall(r"'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)'", block)]
+            evening = sum(1 for hour in hours if hour in (19, 20, 21, 22))
+            self.assertGreater(evening / len(hours), 0.25)
 
 
 if __name__ == "__main__":
