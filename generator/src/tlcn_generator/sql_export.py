@@ -6,7 +6,7 @@ import uuid
 from bisect import bisect_left
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from itertools import accumulate
 from pathlib import Path
 from typing import TextIO, TypeAlias
@@ -14,21 +14,14 @@ from typing import TextIO, TypeAlias
 from argon2.low_level import Type, hash_secret
 
 from tlcn_generator import __version__
-from tlcn_generator.config import GeneratorConfig
+from tlcn_generator.config import CATEGORY_NAMES, CustomerClass, DistributionConfig, GeneratorConfig, PriceBand, SaleEvent, TetWindow
 
 
 DEMO_PASSWORD = "Demo@12345"
 INSERT_BATCH_SIZE = 250
 SIZES = ("XS", "S", "M", "L", "XL")
-COLORS = ("DEN", "TRANG", "DO", "XANH", "BE", "NAU", "HONG", "XAM")
-LEAF_CATEGORIES = (
-    ("ao", "Áo nữ"),
-    ("quan", "Quần nữ"),
-    ("vay", "Váy"),
-    ("dam", "Đầm"),
-    ("khoac", "Áo khoác"),
-    ("phu-kien", "Phụ kiện"),
-)
+COLORS = ("BLACK", "WHITE", "RED", "GREEN", "BLUE", "YELLOW", "PINK", "PURPLE", "ORANGE", "BROWN", "GRAY", "BEIGE")
+LEAF_CATEGORIES = tuple((code, name) for code, name in CATEGORY_NAMES.items())
 
 
 @dataclass(frozen=True)
@@ -167,6 +160,147 @@ def _validate_scale(config: GeneratorConfig) -> tuple[int, int, int, int]:
 def _timestamp_between(randomizer: random.Random, start: datetime, end: datetime) -> datetime:
     span_seconds = max(1, int((end - start).total_seconds()))
     return start + timedelta(seconds=randomizer.randrange(span_seconds))
+
+
+def _weighted_index(randomizer: random.Random, weights: Sequence[int | float]) -> int:
+    total = sum(weights)
+    target = randomizer.random() * total
+    cumulative = 0.0
+    for index, weight in enumerate(weights):
+        cumulative += weight
+        if target < cumulative:
+            return index
+    return len(weights) - 1
+
+
+def _largest_remainder(values: Sequence[float], total: int) -> list[int]:
+    floors = [int(value) for value in values]
+    remainder = total - sum(floors)
+    ordered = sorted(range(len(values)), key=lambda i: values[i] - floors[i], reverse=True)
+    for position in range(remainder):
+        floors[ordered[position % len(ordered)]] += 1
+    return floors
+
+
+def _class_assignment(customer_count: int, classes: Sequence[CustomerClass], randomizer: random.Random) -> list[str]:
+    counts = _largest_remainder([class_.share * customer_count for class_ in classes], customer_count)
+    assignment: list[str] = []
+    for class_, count in zip(classes, counts):
+        assignment.extend([class_.name] * count)
+    return assignment
+
+
+def _order_targets(
+    assignment: Sequence[str],
+    class_by_name: dict[str, CustomerClass],
+    demo_target: int,
+    total_orders: int,
+    randomizer: random.Random,
+) -> list[int]:
+    if len(assignment) == 1:
+        return [total_orders]
+    demo = min(demo_target, total_orders)
+    remaining = total_orders - demo
+    raw = []
+    for name in assignment[1:]:
+        class_ = class_by_name[name]
+        raw.append(randomizer.randint(class_.orders_min, class_.orders_max))
+    if remaining == 0:
+        return [demo] + [0] * len(raw)
+    raw_sum = sum(raw)
+    scaled = [value * remaining / raw_sum for value in raw]
+    return [demo] + _largest_remainder(scaled, remaining)
+
+
+def _nth_weekday(year: int, month: int, weekday: int, week_index: int) -> date:
+    first = date(year, month, 1)
+    offset = (weekday - first.weekday()) % 7
+    return first + timedelta(days=offset + 7 * (week_index - 1))
+
+
+def _event_day(event: SaleEvent, year: int) -> date | None:
+    if event.day is not None:
+        try:
+            return date(year, event.month, event.day)
+        except ValueError:
+            return None
+    if event.weekday is not None and event.week_index is not None:
+        return _nth_weekday(year, event.month, event.weekday, event.week_index)
+    return None
+
+
+def _tet_factor(day: date, tet: TetWindow) -> float:
+    start = date(day.year, tet.month_start, tet.day_start)
+    end = (
+        date(day.year + 1, tet.month_end, tet.day_end)
+        if tet.month_end < tet.month_start
+        else date(day.year, tet.month_end, tet.day_end)
+    )
+    if not (start <= day <= end):
+        return 1.0
+    center = start + (end - start) / 2
+    half_span = max(1, (end - start).days // 2)
+    distance = abs((day - center).days) / half_span
+    return 1.0 + (tet.peak - 1.0) * max(0.0, 1.0 - distance)
+
+
+def _sale_boost(day: date, distributions: DistributionConfig) -> float:
+    boost = 1.0
+    for event in distributions.sales:
+        event_day = _event_day(event, day.year)
+        if event_day is None:
+            continue
+        if event_day <= day <= event_day + timedelta(days=event.after_days):
+            boost *= event.boost
+    return boost
+
+
+def _build_day_weights(
+    history_start: date,
+    history_end: date,
+    distributions: DistributionConfig,
+) -> tuple[list[date], list[float]]:
+    days: list[date] = []
+    weights: list[float] = []
+    current = history_start
+    while current <= history_end:
+        days.append(current)
+        weight = distributions.day_of_week[current.weekday()]
+        weight *= _tet_factor(current, distributions.tet)
+        weight *= _sale_boost(current, distributions)
+        weights.append(weight)
+        current += timedelta(days=1)
+    return days, weights
+
+
+def _pick_base_datetime(
+    randomizer: random.Random,
+    history_start: datetime,
+    history_end: datetime,
+    days: Sequence[date],
+    day_weights: Sequence[float],
+    hour_of_day: Sequence[float],
+) -> datetime:
+    day = days[_weighted_index(randomizer, day_weights)]
+    hour = _weighted_index(randomizer, hour_of_day)
+    minute = randomizer.randrange(60)
+    return history_start.replace(
+        year=day.year, month=day.month, day=day.day, hour=hour, minute=minute, second=0, microsecond=0
+    )
+
+
+def _shape_hour(randomizer: random.Random, moment: datetime, hour_of_day: Sequence[float]) -> datetime:
+    hour = _weighted_index(randomizer, hour_of_day)
+    return moment.replace(hour=hour, minute=randomizer.randrange(60), second=0, microsecond=0)
+
+
+def _pick_product_price(randomizer: random.Random, bands: Sequence[PriceBand]) -> int:
+    band = bands[_weighted_index(randomizer, [band.weight for band in bands])]
+    return randomizer.randrange(band.min_vnd, band.max_vnd + 1, 1000)
+
+
+def _pick_category(randomizer: random.Random, categories: Sequence[tuple[str, float]]) -> str:
+    return categories[_weighted_index(randomizer, [weight for _, weight in categories])][0]
 
 
 def _write_header(
