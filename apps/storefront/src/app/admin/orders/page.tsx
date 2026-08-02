@@ -3,44 +3,98 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError, completeAdminOrder, formatVnd, getAdminOrders, type AdminOrder } from "@/lib/api";
-
-const labels: Record<string, string> = { paid: "Đã thanh toán", payment_failed: "Thanh toán lỗi", completed: "Hoàn tất" };
+import { OrderStatusBadge } from "@/components/OrderStatusBadge";
+import { Icon } from "@/components/ui/Icon";
+import { ApiError, formatVnd, getAdminOrders, type AdminOrder } from "@/lib/api";
+import { cancelAdminOrder, confirmAdminOrder } from "@/lib/commerce";
+import { formatVietnamDateTime } from "@/lib/datetime";
 
 export default function AdminOrdersPage() {
   const [status, setStatus] = useState("");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("Cửa hàng không thể xử lý đơn");
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null);
-    try { setOrders(await getAdminOrders(status || undefined)); }
-    catch (err) { setError(err instanceof ApiError ? err.message : "Không tải được đơn hàng"); }
-    finally { setLoading(false); }
+    setLoading(true);
+    setError(null);
+    try {
+      setOrders(await getAdminOrders(status || undefined));
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : "Không tải được đơn hàng");
+    } finally {
+      setLoading(false);
+    }
   }, [status]);
 
   useEffect(() => { void load(); }, [load]);
 
-  async function complete(orderNumber: string) {
-    setBusyOrder(orderNumber); setError(null);
-    try { await completeAdminOrder(orderNumber); await load(); }
-    catch (err) { setError(err instanceof ApiError ? err.message : "Không hoàn tất được đơn hàng"); }
-    finally { setBusyOrder(null); }
+  async function mutate(orderNumber: string, action: () => Promise<unknown>, fallbackMessage: string) {
+    setBusyOrder(orderNumber);
+    setError(null);
+    try {
+      await action();
+      setCancellingOrder(null);
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : fallbackMessage);
+    } finally {
+      setBusyOrder(null);
+    }
+  }
+
+  function submitCancel() {
+    if (!cancellingOrder || cancelReason.trim().length < 3) return;
+    void mutate(cancellingOrder, () => cancelAdminOrder(cancellingOrder, cancelReason.trim()), "Không hủy được đơn hàng");
   }
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div><h2 className="text-xl font-semibold">Đơn hàng</h2><p className="mt-1 text-sm text-ink/60">Theo dõi và xác nhận hoàn tất đơn đã thanh toán.</p></div>
-        <label className="text-sm">Trạng thái<select className="admin-input min-w-48" onChange={(e) => setStatus(e.target.value)} value={status}><option value="">Tất cả</option><option value="paid">Đã thanh toán</option><option value="payment_failed">Thanh toán lỗi</option><option value="completed">Hoàn tất</option></select></label>
-      </div>
-      {error ? <p className="mt-5 text-sm text-accent">{error}</p> : null}
-      {loading ? <p className="mt-8 text-ink/60">Đang tải…</p> : (
-        <div className="mt-6 overflow-x-auto rounded-3xl border border-ink/10 bg-white/70">
-          <table className="min-w-full text-left text-sm"><thead className="border-b border-ink/10 text-ink/55"><tr><th className="p-4">Đơn hàng</th><th className="p-4">Khách hàng</th><th className="p-4">Tổng tiền</th><th className="p-4">Trạng thái</th><th className="p-4"></th></tr></thead><tbody className="divide-y divide-ink/10">{orders.map((order) => <tr key={order.order_number}><td className="p-4"><Link className="font-medium hover:text-accent" href={`/admin/orders/${order.order_number}`}>{order.order_number}</Link><p className="text-xs text-ink/50">{new Date(order.created_at).toLocaleString("vi-VN")} · {order.item_count} món</p></td><td className="p-4">{order.customer_name}<p className="text-xs text-ink/50">{order.customer_email}</p></td><td className="p-4 font-medium">{formatVnd(order.total_vnd)}</td><td className="p-4">{labels[order.status] ?? order.status}</td><td className="p-4 text-right">{order.status === "paid" ? <button className="rounded-full bg-ink px-4 py-2 text-xs text-paper disabled:opacity-50" disabled={busyOrder === order.order_number} onClick={() => complete(order.order_number)} type="button">{busyOrder === order.order_number ? "Đang xử lý…" : "Hoàn tất"}</button> : null}</td></tr>)}</tbody></table>
-          {orders.length === 0 ? <p className="p-8 text-center text-ink/55">Không có đơn hàng phù hợp.</p> : null}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="eyebrow">Order operations</p><h1 className="admin-heading mt-2">Đơn hàng</h1><p className="mt-2 text-sm leading-6 text-muted">Xác nhận đơn đã thanh toán; khách hàng sẽ hoàn tất sau khi nhận hàng.</p></div>
+        <label className="field-label min-w-52" htmlFor="admin-order-status">Trạng thái
+          <select className="admin-input" id="admin-order-status" onChange={(event) => setStatus(event.target.value)} value={status}>
+            <option value="">Tất cả</option><option value="paid">Chờ xác nhận</option><option value="payment_failed">Thanh toán lỗi</option><option value="confirmed">Đã xác nhận</option><option value="completed">Hoàn tất</option><option value="cancelled">Đã hủy</option>
+          </select>
+        </label>
+      </header>
+
+      {error ? <div className="feedback-error mt-5">{error}</div> : null}
+      {cancellingOrder ? (
+        <section className="mt-5 rounded-2xl border border-danger/20 bg-danger/5 p-5">
+          <div className="flex items-center gap-3"><Icon className="text-danger" name="alert" /><div><h2 className="font-semibold">Hủy đơn {cancellingOrder}</h2><p className="text-sm text-muted">Thao tác sẽ hoàn tiền và cập nhật tồn kho theo trạng thái thực tế.</p></div></div>
+          <label className="field-label mt-4" htmlFor="admin-cancel-reason">Lý do hủy<input autoFocus className="form-control" id="admin-cancel-reason" maxLength={500} onChange={(event) => setCancelReason(event.target.value)} value={cancelReason} /></label>
+          <div className="mt-4 flex justify-end gap-2"><button className="button-ghost" onClick={() => setCancellingOrder(null)} type="button">Bỏ qua</button><button className="button-accent" disabled={cancelReason.trim().length < 3 || busyOrder === cancellingOrder} onClick={submitCancel} type="button">Xác nhận hủy</button></div>
+        </section>
+      ) : null}
+
+      {loading ? (
+        <div className="mt-6 h-72 animate-pulse rounded-2xl bg-sand/60" />
+      ) : (
+        <div className="admin-table-shell mt-6">
+          <table>
+            <thead><tr><th>Đơn hàng</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody>
+              {orders.map((order) => (
+                <tr key={order.order_number}>
+                  <td><Link className="font-semibold hover:text-accent" href={`/admin/orders/${order.order_number}`}>{order.order_number}</Link><p className="mt-1 text-xs text-muted">{formatVietnamDateTime(order.created_at)} · {order.item_count} món</p></td>
+                  <td><p className="font-medium">{order.customer_name}</p><p className="text-xs text-muted">{order.customer_email}</p></td>
+                  <td className="font-semibold">{formatVnd(order.total_vnd)}</td>
+                  <td><OrderStatusBadge status={order.status} /></td>
+                  <td>
+                    <div className="flex justify-end gap-2">
+                      {order.status === "paid" ? <><button className="button-secondary px-4 text-danger" disabled={busyOrder === order.order_number} onClick={() => { setCancellingOrder(order.order_number); setCancelReason("Cửa hàng không thể xử lý đơn"); }} type="button">Hủy</button><button className="button-primary px-4" disabled={busyOrder === order.order_number} onClick={() => void mutate(order.order_number, () => confirmAdminOrder(order.order_number), "Không xác nhận được đơn hàng")} type="button"><Icon name="check" size={16} />Xác nhận</button></> : null}
+                      {order.status !== "paid" ? <Link className="button-secondary px-4" href={`/admin/orders/${order.order_number}`}>Chi tiết</Link> : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {orders.length === 0 ? <div className="p-10 text-center"><Icon className="mx-auto text-moss" name="receipt" size={24} /><p className="mt-3 text-muted">Không có đơn hàng phù hợp.</p></div> : null}
         </div>
       )}
     </section>

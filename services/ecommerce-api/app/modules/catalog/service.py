@@ -277,6 +277,7 @@ def get_product_detail(db: Session, slug: str) -> ProductDetailResponse:
             size_code=variant.size_code,
             color_code=variant.color_code,
             price_vnd=variant.price_vnd,
+            stock_quantity=int(on_hand or 0),
             in_stock=int(on_hand or 0) > 0,
         )
         for variant, on_hand in variant_rows

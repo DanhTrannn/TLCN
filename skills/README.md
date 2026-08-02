@@ -4,6 +4,6 @@ Thư mục này chứa các nguyên tắc và blueprint có thể tái sử dụ
 
 ## Danh mục
 
-- [`oltp-design.md`](oltp-design.md): invariant, transaction boundary, concurrency, index và OLAP-readiness cho hệ thống OLTP.
+- [`oltp-design/SKILL.md`](oltp-design/SKILL.md): invariant, transaction boundary, concurrency, index và OLAP-readiness cho hệ thống OLTP.
 
 Tài liệu đặc thù của đề tài được quản lý trong [`../docs/project/`](../docs/project/) và [`../docs/architecture/`](../docs/architecture/), không đặt trong thư mục skills.

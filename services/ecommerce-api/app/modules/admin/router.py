@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
+from app.core.errors import VALIDATION_ERROR, AppError
 from app.db.deps import get_current_admin, get_db, verify_csrf
 from app.models.customer import Customer
 from app.modules.admin.schemas import (
@@ -24,10 +25,25 @@ from app.modules.admin.service import (
     update_product,
     update_variant,
 )
-from app.modules.orders.schemas import OrderDetailResponse
-from app.modules.orders.service import complete_order
+from app.modules.orders.schemas import (
+    CancelOrderRequest,
+    OrderDetailResponse,
+    OrderTransitionResponse,
+)
+from app.modules.orders.service import cancel_order, confirm_order
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+def _require_idempotency_key(value: str | None) -> str:
+    key = value.strip() if value else ""
+    if not key or len(key) > 64:
+        raise AppError(
+            VALIDATION_ERROR,
+            "Idempotency-Key phải có từ 1 đến 64 ký tự.",
+            status_code=400,
+        )
+    return key
 
 
 @router.get("/overview", response_model=AdminOverviewResponse)
@@ -40,10 +56,11 @@ def overview(
 
 @router.get("/products", response_model=list[AdminProductResponse])
 def products(
+    search: str | None = Query(default=None, max_length=200),
     _: Customer = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> list[AdminProductResponse]:
-    return list_products(db)
+    return list_products(db, search)
 
 
 @router.post("/products", response_model=AdminProductResponse, status_code=201)
@@ -79,7 +96,10 @@ def patch_variant(
 
 @router.get("/orders", response_model=list[AdminOrderResponse])
 def orders(
-    status: str | None = Query(default=None, pattern=r"^(paid|payment_failed|completed)$"),
+    status: str | None = Query(
+        default=None,
+        pattern=r"^(paid|payment_failed|confirmed|completed|cancelled)$",
+    ),
     _: Customer = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> list[AdminOrderResponse]:
@@ -95,14 +115,36 @@ def order_detail(
     return get_admin_order_detail(db, order_number)
 
 
-@router.post("/orders/{order_number}/complete")
-def mark_order_complete(
+@router.post("/orders/{order_number}/confirm", response_model=OrderTransitionResponse)
+def confirm_admin_order(
     order_number: str,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     _: Customer = Depends(get_current_admin),
     __: None = Depends(verify_csrf),
-) -> dict:
-    return complete_order(order_number, idempotency_key, transition_source="admin")
+) -> OrderTransitionResponse:
+    return confirm_order(
+        order_number,
+        _require_idempotency_key(idempotency_key),
+        transition_source="admin",
+    )
+
+
+@router.post("/orders/{order_number}/cancel", response_model=OrderTransitionResponse)
+def cancel_admin_order(
+    order_number: str,
+    payload: CancelOrderRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    admin: Customer = Depends(get_current_admin),
+    _: None = Depends(verify_csrf),
+) -> OrderTransitionResponse:
+    return cancel_order(
+        order_number,
+        actor_customer_id=admin.customer_id,
+        owner_customer_id=None,
+        reason=payload.reason,
+        idempotency_key=_require_idempotency_key(idempotency_key),
+        transition_source="admin",
+    )
 
 
 @router.get("/customers", response_model=list[AdminCustomerResponse])

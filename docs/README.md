@@ -10,7 +10,7 @@ Tài liệu được tổ chức theo mục đích thay vì đặt rải rác �
 2. [`architecture/oltp-schema.md`](architecture/oltp-schema.md) — logical schema và transaction catalogue;
 3. [`project/web-plan.md`](project/web-plan.md) — kế hoạch source website;
 4. [`architecture/project-structure.md`](architecture/project-structure.md) — kiến trúc triển khai;
-5. [`../skills/oltp-design.md`](../skills/oltp-design.md) — nguyên tắc thiết kế tham khảo.
+5. [`../skills/oltp-design/SKILL.md`](../skills/oltp-design/SKILL.md) — nguyên tắc thiết kế tham khảo.
 
 Khi tài liệu xung đột, `project/scope.md` được ưu tiên.
 

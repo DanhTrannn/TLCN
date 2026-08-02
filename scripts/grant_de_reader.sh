@@ -18,17 +18,18 @@ while :; do
             AND table_name IN (
               'customers', 'categories', 'products', 'product_variants',
               'inventory', 'carts', 'cart_items', 'wishlist_items',
-              'orders', 'order_items', 'payments', 'order_status_history'
+              'orders', 'order_items', 'payments', 'order_status_history',
+              'coupons', 'coupon_redemptions', 'refunds', 'product_reviews'
             );" 2>/dev/null || true
   )"
 
-  if [ "${required_table_count:-0}" -eq 12 ]; then
+  if [ "${required_table_count:-0}" -eq 16 ]; then
     break
   fi
 
   attempt=$((attempt + 1))
   if [ "${attempt}" -ge 60 ]; then
-    echo "Timed out waiting for the 12 OLTP source tables." >&2
+    echo "Timed out waiting for the 16 OLTP source tables." >&2
     exit 1
   fi
   sleep 2
@@ -61,6 +62,14 @@ GRANT SELECT ON \`${MYSQL_DATABASE}\`.\`payments\`
   TO '${MYSQL_ECOMMERCE_READER_USER}'@'%';
 GRANT SELECT ON \`${MYSQL_DATABASE}\`.\`order_status_history\`
   TO '${MYSQL_ECOMMERCE_READER_USER}'@'%';
+GRANT SELECT ON \`${MYSQL_DATABASE}\`.\`coupons\`
+  TO '${MYSQL_ECOMMERCE_READER_USER}'@'%';
+GRANT SELECT ON \`${MYSQL_DATABASE}\`.\`coupon_redemptions\`
+  TO '${MYSQL_ECOMMERCE_READER_USER}'@'%';
+GRANT SELECT ON \`${MYSQL_DATABASE}\`.\`refunds\`
+  TO '${MYSQL_ECOMMERCE_READER_USER}'@'%';
+GRANT SELECT ON \`${MYSQL_DATABASE}\`.\`product_reviews\`
+  TO '${MYSQL_ECOMMERCE_READER_USER}'@'%';
 FLUSH PRIVILEGES;
 SQL
 
@@ -72,8 +81,8 @@ allowed_count="$(
           AND privilege_type = 'SELECT';"
 )"
 
-if [ "${allowed_count}" -ne 12 ]; then
-  echo "Expected 12 table-level SELECT grants, found ${allowed_count}." >&2
+if [ "${allowed_count}" -ne 16 ]; then
+  echo "Expected 16 table-level SELECT grants, found ${allowed_count}." >&2
   exit 1
 fi
 
@@ -90,5 +99,5 @@ if [ "${credential_grant_count}" -ne 0 ]; then
   exit 1
 fi
 
-echo "Granted read-only access to 12 OLTP source tables."
+echo "Granted read-only access to 16 OLTP source tables."
 CONTAINER_SCRIPT

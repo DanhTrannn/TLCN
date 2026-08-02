@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { AdminModal } from "@/components/admin/AdminModal";
+import { Icon } from "@/components/ui/Icon";
 import {
   ApiError,
   createAdminProduct,
@@ -68,15 +70,15 @@ function VariantEditor({ variant, onSaved }: { variant: AdminVariant; onSaved: (
   }
 
   return (
-    <div className="rounded-2xl border border-ink/10 bg-paper/60 p-4">
+    <div className="rounded-2xl border border-line bg-paper p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-medium">{variant.sku}</p>
-          <p className="text-xs text-ink/55">{variant.size_code} / {variant.color_code} · tồn {variant.on_hand}</p>
+          <p className="text-xs text-muted">{variant.size_code} / {variant.color_code} · tồn {variant.on_hand}</p>
         </div>
         <button
-          className={`rounded-full px-3 py-1 text-xs ${
-            variant.is_active ? "bg-moss/15 text-moss" : "bg-ink/10 text-ink/55"
+          className={`min-h-11 rounded-full border px-4 text-xs font-semibold ${
+            variant.is_active ? "border-success/20 bg-success/10 text-success" : "border-line bg-paper text-muted"
           }`}
           disabled={busy}
           onClick={toggleActive}
@@ -86,11 +88,11 @@ function VariantEditor({ variant, onSaved }: { variant: AdminVariant; onSaved: (
         </button>
       </div>
       <div className="mt-3">
-        <label className="text-xs text-ink/60">
+        <label className="text-xs text-muted">
           Giá bán
           <div className="mt-1 flex gap-2">
-            <input className="min-w-0 flex-1 rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm text-ink" inputMode="numeric" onChange={(event) => setPrice(event.target.value)} value={price} />
-            <button className="rounded-lg border border-ink/20 px-3 text-sm" disabled={busy} onClick={savePrice} type="button">Lưu giá</button>
+            <input className="min-w-0 flex-1 form-control mt-0 min-h-11" inputMode="numeric" onChange={(event) => setPrice(event.target.value)} value={price} />
+            <button className="button-secondary min-h-11 rounded-xl px-3" disabled={busy} onClick={savePrice} type="button">Lưu giá</button>
           </div>
         </label>
       </div>
@@ -147,18 +149,18 @@ function ProductEditor({
   }
 
   return (
-    <article className="rounded-3xl border border-ink/10 bg-white/70 p-5">
+    <article className="admin-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wider text-ink/50">{product.slug}</p>
+          <p className="text-xs uppercase tracking-wider text-muted">{product.slug}</p>
           <h3 className="mt-1 text-xl font-semibold">{product.name}</h3>
-          <p className="mt-1 text-sm text-ink/60">
+          <p className="mt-1 text-sm text-muted">
             {product.variants.length} biến thể · từ {formatVnd(Math.min(...product.variants.map((item) => item.price_vnd)))}
           </p>
         </div>
         <button
-          className={`rounded-full px-4 py-2 text-sm ${
-            product.is_active ? "bg-moss/15 text-moss" : "bg-ink/10 text-ink/55"
+          className={`min-h-11 rounded-full border px-4 text-sm font-semibold ${
+            product.is_active ? "border-success/20 bg-success/10 text-success" : "border-line bg-paper text-muted"
           }`}
           disabled={busy}
           onClick={toggleActive}
@@ -169,20 +171,23 @@ function ProductEditor({
       </div>
 
       <details className="mt-5">
-        <summary className="cursor-pointer text-sm font-medium">Sửa thông tin chung</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold"><Icon name="chevron-right" size={16} />Sửa thông tin chung</summary>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-sm">Tên<input className="admin-input" onChange={(e) => setName(e.target.value)} value={name} /></label>
           <label className="text-sm">Danh mục<select className="admin-input" onChange={(e) => setCategory(e.target.value)} value={category}>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
           <label className="text-sm md:col-span-2">URL ảnh<input className="admin-input" onChange={(e) => setImageUrl(e.target.value)} value={imageUrl} /></label>
           <label className="text-sm md:col-span-2">Mô tả<textarea className="admin-input" onChange={(e) => setDescription(e.target.value)} rows={3} value={description} /></label>
         </div>
-        <button className="mt-3 rounded-full bg-ink px-5 py-2 text-sm text-paper" disabled={busy} onClick={saveProduct} type="button">Lưu sản phẩm</button>
+        <button className="mt-3 button-primary" disabled={busy} onClick={saveProduct} type="button">Lưu sản phẩm</button>
       </details>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
-        {product.variants.map((variant) => <VariantEditor key={variant.public_id} onSaved={onSaved} variant={variant} />)}
-      </div>
-      {error ? <p className="mt-3 text-sm text-accent">{error}</p> : null}
+      <details className="mt-5 border-t border-line pt-4">
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-muted"><Icon name="chevron-right" size={16} />Quản lý {product.variants.length} biến thể</summary>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {product.variants.map((variant) => <VariantEditor key={variant.public_id} onSaved={onSaved} variant={variant} />)}
+        </div>
+      </details>
+      {error ? <p className="mt-3 text-sm font-semibold text-accent">{error}</p> : null}
     </article>
   );
 }
@@ -192,7 +197,11 @@ export default function AdminProductsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [category, setCategory] = useState("");
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
@@ -200,30 +209,48 @@ export default function AdminProductsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [variants, setVariants] = useState<DraftVariant[]>([emptyVariant()]);
 
-  const load = useCallback(async () => {
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
-      const [productData, categoryData] = await Promise.all([getAdminProducts(), getCategories()]);
-      setProducts(productData);
-      setCategories(categoryData);
-      setCategory((current) => current || categoryData[0]?.code || "");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Không tải được sản phẩm");
+      setProducts(await getAdminProducts(debouncedSearch || undefined));
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : "Không tải được sản phẩm");
     } finally {
       setLoading(false);
     }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    getCategories()
+      .then((categoryData) => {
+        setCategories(categoryData);
+        setCategory((current) => current || categoryData[0]?.code || "");
+      })
+      .catch((requestError) =>
+        setError(requestError instanceof ApiError ? requestError.message : "Không tải được danh mục")
+      );
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
 
   function updateDraft(index: number, field: keyof DraftVariant, value: string) {
-    setVariants((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+    setVariants((current) =>
+      current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item)
+    );
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setCreating(true);
-    setError(null);
+    setCreateError(null);
     try {
       await createAdminProduct({
         category_code: category,
@@ -239,10 +266,15 @@ export default function AdminProductsPage() {
           opening_on_hand: Number(item.opening_on_hand),
         })),
       });
-      setSlug(""); setName(""); setDescription(""); setImageUrl(""); setVariants([emptyVariant()]);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Không tạo được sản phẩm");
+      setSlug("");
+      setName("");
+      setDescription("");
+      setImageUrl("");
+      setVariants([emptyVariant()]);
+      await loadProducts();
+      setCreateOpen(false);
+    } catch (requestError) {
+      setCreateError(requestError instanceof ApiError ? requestError.message : "Không tạo được sản phẩm");
     } finally {
       setCreating(false);
     }
@@ -250,37 +282,116 @@ export default function AdminProductsPage() {
 
   return (
     <section>
-      <details className="rounded-3xl border border-ink/10 bg-white/70 p-5">
-        <summary className="cursor-pointer text-lg font-semibold">Thêm sản phẩm mới</summary>
-        <form className="mt-5 space-y-4" onSubmit={submit}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="eyebrow">Catalog operations</p>
+          <h1 className="admin-heading mt-2">Quản lý sản phẩm</h1>
+          <p className="mt-2 text-sm text-muted">Tìm theo tên, slug hoặc SKU rồi mở đúng sản phẩm cần chỉnh sửa.</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <button
+            className="button-primary"
+            onClick={() => {
+              setCreateError(null);
+              setCreateOpen(true);
+            }}
+            type="button"
+          >
+            <Icon name="plus" size={17} />
+            Thêm sản phẩm
+          </button>
+          <p className="text-xs text-muted">Tối đa 100 kết quả mỗi lần tìm</p>
+        </div>
+      </div>
+
+      <div className="mt-6 admin-panel">
+        <label className="block text-sm font-medium" htmlFor="admin-product-search">Tìm sản phẩm</label>
+        <div className="mt-2 flex gap-2">
+          <input
+            autoComplete="off"
+            className="min-w-0 flex-1 form-control mt-0 rounded-2xl px-4 py-3"
+            id="admin-product-search"
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Ví dụ: đầm linen, dam-linen hoặc NET-DAM-001"
+            type="search"
+            value={search}
+          />
+          {search ? (
+            <button
+              className="button-secondary rounded-2xl px-4"
+              onClick={() => setSearch("")}
+              type="button"
+            >
+              Xóa
+            </button>
+          ) : null}
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          {loading ? "Đang tìm…" : `${products.length.toLocaleString("vi-VN")} sản phẩm phù hợp`}
+        </p>
+      </div>
+
+      <AdminModal
+        busy={creating}
+        description="Nhập thông tin chung và ít nhất một biến thể ban đầu."
+        onClose={() => setCreateOpen(false)}
+        open={createOpen}
+        title="Thêm sản phẩm mới"
+      >
+        <form className="space-y-5" onSubmit={submit}>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="text-sm">Tên sản phẩm<input className="admin-input" onChange={(e) => setName(e.target.value)} required value={name} /></label>
-            <label className="text-sm">Slug<input className="admin-input" onChange={(e) => setSlug(e.target.value.toLowerCase())} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required value={slug} /></label>
-            <label className="text-sm">Danh mục<select className="admin-input" onChange={(e) => setCategory(e.target.value)} required value={category}>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
-            <label className="text-sm">URL ảnh<input className="admin-input" onChange={(e) => setImageUrl(e.target.value)} type="url" value={imageUrl} /></label>
-            <label className="text-sm md:col-span-2">Mô tả<textarea className="admin-input" onChange={(e) => setDescription(e.target.value)} rows={3} value={description} /></label>
+            <label className="field-label">Tên sản phẩm<input className="admin-input" onChange={(event) => setName(event.target.value)} required value={name} /></label>
+            <label className="field-label">Slug<input className="admin-input" onChange={(event) => setSlug(event.target.value.toLowerCase())} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" required value={slug} /></label>
+            <label className="field-label">Danh mục<select className="admin-input" onChange={(event) => setCategory(event.target.value)} required value={category}>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+            <label className="field-label">URL ảnh<input className="admin-input" onChange={(event) => setImageUrl(event.target.value)} type="url" value={imageUrl} /></label>
+            <label className="field-label md:col-span-2">Mô tả<textarea className="admin-input" onChange={(event) => setDescription(event.target.value)} rows={3} value={description} /></label>
           </div>
           <div>
-            <div className="flex items-center justify-between"><h3 className="font-medium">Biến thể ban đầu</h3><button className="text-sm text-accent" onClick={() => setVariants((current) => [...current, emptyVariant()])} type="button">+ Thêm biến thể</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-semibold">Biến thể ban đầu</h3>
+              <button className="button-ghost px-3 text-accent" onClick={() => setVariants((current) => [...current, emptyVariant()])} type="button"><Icon name="plus" size={16} />Thêm biến thể</button>
+            </div>
             <div className="mt-3 space-y-3">
               {variants.map((item, index) => (
-                <div className="grid gap-2 rounded-2xl border border-ink/10 p-3 sm:grid-cols-5" key={index}>
-                  <input aria-label="SKU" className="admin-input mt-0" onChange={(e) => updateDraft(index, "sku", e.target.value)} placeholder="SKU" required value={item.sku} />
-                  <input aria-label="Size" className="admin-input mt-0" onChange={(e) => updateDraft(index, "size_code", e.target.value)} placeholder="Size" required value={item.size_code} />
-                  <input aria-label="Màu" className="admin-input mt-0" onChange={(e) => updateDraft(index, "color_code", e.target.value)} placeholder="Màu" required value={item.color_code} />
-                  <input aria-label="Giá" className="admin-input mt-0" min={0} onChange={(e) => updateDraft(index, "price_vnd", e.target.value)} placeholder="Giá VND" required type="number" value={item.price_vnd} />
-                  <div className="flex gap-2"><input aria-label="Tồn đầu" className="admin-input mt-0 min-w-0" min={0} onChange={(e) => updateDraft(index, "opening_on_hand", e.target.value)} placeholder="Tồn" required type="number" value={item.opening_on_hand} />{variants.length > 1 ? <button className="text-accent" onClick={() => setVariants((current) => current.filter((_, i) => i !== index))} type="button">×</button> : null}</div>
+                <div className="grid gap-2 rounded-2xl border border-line bg-paper p-3 lg:grid-cols-5" key={index}>
+                  <input aria-label="SKU" className="admin-input mt-0" onChange={(event) => updateDraft(index, "sku", event.target.value)} placeholder="SKU" required value={item.sku} />
+                  <input aria-label="Size" className="admin-input mt-0" onChange={(event) => updateDraft(index, "size_code", event.target.value)} placeholder="Size" required value={item.size_code} />
+                  <input aria-label="Màu" className="admin-input mt-0" onChange={(event) => updateDraft(index, "color_code", event.target.value)} placeholder="Màu" required value={item.color_code} />
+                  <input aria-label="Giá" className="admin-input mt-0" min={0} onChange={(event) => updateDraft(index, "price_vnd", event.target.value)} placeholder="Giá VND" required type="number" value={item.price_vnd} />
+                  <div className="flex gap-2">
+                    <input aria-label="Tồn đầu" className="admin-input mt-0 min-w-0" min={0} onChange={(event) => updateDraft(index, "opening_on_hand", event.target.value)} placeholder="Tồn" required type="number" value={item.opening_on_hand} />
+                    {variants.length > 1 ? <button aria-label="Xóa biến thể" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-danger hover:bg-danger/5" onClick={() => setVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))} type="button"><Icon name="close" size={17} /></button> : null}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <button className="rounded-full bg-accent px-6 py-3 text-paper disabled:opacity-50" disabled={creating} type="submit">{creating ? "Đang tạo…" : "Tạo sản phẩm"}</button>
+          {createError ? <div className="feedback-error">{createError}</div> : null}
+          <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <button className="button-secondary" disabled={creating} onClick={() => setCreateOpen(false)} type="button">Hủy</button>
+            <button className="button-accent" disabled={creating} type="submit">
+              {creating ? "Đang tạo…" : "Tạo sản phẩm"}
+            </button>
+          </div>
         </form>
-      </details>
+      </AdminModal>
 
-      {error ? <p className="mt-5 text-sm text-accent">{error}</p> : null}
-      {loading ? <p className="mt-8 text-ink/60">Đang tải…</p> : (
-        <div className="mt-8 space-y-5">{products.map((product) => <ProductEditor categories={categories} key={product.public_id} onSaved={load} product={product} />)}</div>
+      {error ? <p className="mt-5 text-sm font-semibold text-accent">{error}</p> : null}
+      {loading ? (
+        <div className="mt-8 space-y-3">
+          {[0, 1, 2].map((item) => <div className="h-28 animate-pulse rounded-2xl bg-sand/60" key={item} />)}
+        </div>
+      ) : products.length > 0 ? (
+        <div className="mt-8 space-y-4">
+          {products.map((product) => (
+            <ProductEditor categories={categories} key={product.public_id} onSaved={loadProducts} product={product} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-8 rounded-2xl border border-dashed border-line bg-surface px-6 py-12 text-center">
+          <p className="font-medium">Không tìm thấy sản phẩm</p>
+          <p className="mt-2 text-sm text-muted">Thử tên, slug hoặc SKU khác.</p>
+        </div>
       )}
     </section>
   );

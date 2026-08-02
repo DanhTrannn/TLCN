@@ -1,6 +1,6 @@
 # TLCN E-commerce Data Platform
 
-Monorepo cho đề tài **Data Lakehouse xử lý theo lô từ dữ liệu MySQL OLTP và dự đoán khả năng khách hàng mua lại**. Website **NÉT Studio** đóng vai trò hệ thống nguồn, tạo dữ liệu giao dịch có kiểm soát cho phần Data Engineering, BI và ML.
+Monorepo cho đề tài **Data Lakehouse xử lý theo lô từ dữ liệu MySQL OLTP và dự đoán khả năng khách hàng mua lại**. Website **D&K** đóng vai trò hệ thống nguồn, tạo dữ liệu giao dịch có kiểm soát cho phần Data Engineering, BI và ML.
 
 ## Phạm vi
 
@@ -11,9 +11,10 @@ Hệ thống nguồn đã hỗ trợ:
 - đăng ký, đăng nhập và phân quyền customer/admin;
 - catalog theo product/variant, search, filter và sort;
 - wishlist và anonymous/customer cart;
-- checkout có kiểm tra tồn kho và ghi order/payment atomically;
-- lịch sử đơn hàng và chuyển trạng thái fulfillment tối giản;
-- admin quản lý customer, product, variant, inventory và order;
+- checkout có kiểm tra tồn kho, coupon và ghi order/payment atomically;
+- lifecycle `paid → confirmed → completed`, hủy order `paid`, full refund và hoàn tồn kho;
+- review sau mua với moderation, cùng wishlist/search/filter;
+- admin có dashboard vận hành riêng; quản lý/search catalog, inventory, coupon, review, customer và order;
 - seed catalog và generator xuất bộ dữ liệu SQL deterministic.
 
 Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope.md`](docs/project/scope.md).
@@ -145,7 +146,7 @@ Import vào chính MySQL mà API đang sử dụng:
 ./scripts/import_generated_sql.sh data/generator/small.sql
 ```
 
-`small.yml` tạo 500 customer, 60 product, 240 variant và 3.000 order trong 12 tháng. File SQL chạy trong một transaction, giữ nguyên FK/CHECK và không được import lặp lại trên cùng database. Chi tiết tại [`generator/README.md`](generator/README.md).
+`small.yml` tạo 500 customer, 60 product, 240 variant và 3.000 order trong 12 tháng. Profile có mùa vụ Tết/ngày đôi, peak 0h theo giờ Việt Nam, coupon theo campaign, review, cancellation và wishlist conversion có quan hệ phân tích. File SQL chạy trong một transaction, giữ nguyên FK/CHECK và không được import lặp lại trên cùng database. Chi tiết tại [`generator/README.md`](generator/README.md).
 
 ## Lệnh vận hành
 
@@ -248,6 +249,6 @@ npm --prefix apps/storefront run build
 | [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md) | Kiến trúc monorepo và dependency boundary |
 | [`docs/runbook/README.md`](docs/runbook/README.md) | Setup, vận hành và xử lý sự cố |
 | [`docs/source-contracts/README.md`](docs/source-contracts/README.md) | Contract trích xuất MySQL OLTP |
-| [`skills/oltp-design.md`](skills/oltp-design.md) | Nguyên tắc thiết kế OLTP tái sử dụng |
+| [`skills/oltp-design/SKILL.md`](skills/oltp-design/SKILL.md) | Nguyên tắc thiết kế OLTP tái sử dụng |
 
 Mục lục đầy đủ: [`docs/README.md`](docs/README.md).

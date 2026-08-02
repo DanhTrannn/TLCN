@@ -1,4 +1,4 @@
-"""Seed catalog: categories, products, variants and opening inventory.
+"""Seed catalogue, opening inventory, bootstrap admin, and demo coupon.
 
 Idempotent (skips when categories already exist) and deterministic (public_id
 derived via uuid5) so seed/scenario/manifest stay reproducible. Seed only holds
@@ -6,6 +6,7 @@ manual catalog + opening balance; historical data is produced by the generator (
 """
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select
 
@@ -15,6 +16,7 @@ from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.inventory import Inventory
+from app.models.promotion import Coupon
 from app.models.customer import Customer, CustomerCredential
 
 _NS = uuid.uuid5(uuid.NAMESPACE_URL, "tlcn:catalog")
@@ -85,10 +87,34 @@ def _seed_admin(session) -> None:
     print(f"[seed_catalog] bootstrap admin ready: {email}")
 
 
+def _seed_coupons(session) -> None:
+    existing = session.execute(
+        select(Coupon).where(Coupon.code_normalized == "WELCOME10")
+    ).scalar_one_or_none()
+    if existing is not None:
+        return
+    session.add(
+        Coupon(
+            public_id=_pid("coupon", "WELCOME10"),
+            code_normalized="WELCOME10",
+            discount_type="percentage",
+            discount_value=10,
+            minimum_subtotal_vnd=100_000,
+            starts_at=datetime(2025, 1, 1),
+            ends_at=datetime(2035, 1, 1),
+            is_active=True,
+            total_usage_limit=10_000,
+            per_customer_usage_limit=1,
+            used_count=0,
+        )
+    )
+
+
 def seed() -> None:
     session = SessionLocal()
     try:
         _seed_admin(session)
+        _seed_coupons(session)
 
         exists = session.execute(select(Category.category_id).limit(1)).first()
         if exists is not None:

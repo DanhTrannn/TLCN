@@ -4,9 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tlcn-data-generator"
-version = "0.1.0"
+version = "0.3.0"
 requires-python = ">=3.11,<3.12"
 dependencies = ["argon2-cffi==25.1.0", "PyYAML==6.0.2"]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.1"]
 
 [project.scripts]
 tlcn-generator = "tlcn_generator.cli:main"

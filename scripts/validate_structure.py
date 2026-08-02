@@ -33,6 +33,8 @@ REQUIRED_PATHS = (
     "docs/architecture/project-structure.md",
     "apps/storefront/README.md",
     "services/ecommerce-api/README.md",
+    "skills/create-readme/SKILL.md",
+    "skills/oltp-design/SKILL.md",
 )
 
 

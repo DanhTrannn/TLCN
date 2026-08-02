@@ -17,27 +17,35 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [customer, loading, router]);
 
   if (loading || !customer) {
-    return <main className="mx-auto max-w-6xl px-6 py-14 text-ink/60">Đang kiểm tra quyền truy cập…</main>;
+    return (
+      <main className="mx-auto max-w-7xl px-5 py-12 sm:px-6">
+        <div className="admin-panel animate-pulse text-muted">Đang kiểm tra quyền truy cập…</div>
+      </main>
+    );
   }
+
   if (customer.role !== "admin") {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-14">
-        <h1 className="text-3xl font-semibold">Không có quyền truy cập</h1>
-        <p className="mt-3 text-ink/65">Khu vực này chỉ dành cho quản trị viên.</p>
+      <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
+        <section className="surface-card p-8 text-center">
+          <h1 className="admin-heading">Không có quyền truy cập</h1>
+          <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên.</p>
+        </section>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-12">
-      <div className="mb-8 flex flex-col gap-5 border-b border-ink/10 pb-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Admin console</p>
-          <h1 className="mt-2 text-3xl font-semibold">Quản lý website</h1>
-        </div>
-        <AdminNav />
+    <div className="mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+      <div className="grid items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <aside className="sticky top-16 z-30 -mx-1 rounded-2xl border border-line bg-surface/95 shadow-admin backdrop-blur lg:top-24 lg:mx-0">
+          <div className="hidden border-b border-line px-5 py-4 lg:block">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Không gian quản trị</p>
+          </div>
+          <AdminNav />
+        </aside>
+        <main className="min-w-0 pb-8">{children}</main>
       </div>
-      {children}
-    </main>
+    </div>
   );
 }

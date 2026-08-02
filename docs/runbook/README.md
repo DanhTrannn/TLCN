@@ -14,7 +14,7 @@ python3 scripts/validate_structure.py
 ```
 
 Profile `core` chỉ gồm MySQL ecommerce, Ecommerce API và Storefront.
-Script grant chạy sau migration, cấp `SELECT` theo allowlist 12 bảng OLTP và
+Script grant chạy sau migration, cấp `SELECT` theo allowlist 16 bảng OLTP và
 không cấp quyền đọc `customer_credentials`.
 
 ## Generator OLTP

@@ -5,20 +5,31 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
+import { Icon } from "@/components/ui/Icon";
 import { ApiError, formatVnd, getOrders, type OrderListItem } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { createVietnamDateTimeFormatter, parseApiDateTime } from "@/lib/datetime";
 
-const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
+const dateFormatter = createVietnamDateTimeFormatter({
   dateStyle: "medium",
   timeStyle: "short",
 });
 
 function OrderSkeleton() {
   return (
-    <div className="animate-pulse rounded-3xl border border-ink/10 bg-white/70 p-5 sm:p-6">
-      <div className="h-5 w-36 rounded-full bg-ink/10" />
-      <div className="mt-4 h-4 w-64 max-w-full rounded-full bg-ink/10" />
-      <div className="mt-6 h-7 w-28 rounded-full bg-ink/10 sm:ml-auto" />
+    <div className="animate-pulse rounded-3xl border border-line bg-surface p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-4">
+        <div><div className="h-5 w-36 rounded-full bg-ink/10" /><div className="mt-2 h-3 w-44 rounded-full bg-ink/10" /></div>
+        <div className="h-7 w-24 rounded-full bg-ink/10" />
+      </div>
+      <div className="mt-5 flex gap-4 rounded-2xl bg-paper p-3">
+        <div className="h-16 w-16 shrink-0 rounded-xl bg-ink/10" />
+        <div className="flex-1"><div className="h-4 w-48 max-w-full rounded-full bg-ink/10" /><div className="mt-3 h-3 w-64 max-w-full rounded-full bg-ink/10" /></div>
+      </div>
+      <div className="mt-5 flex items-center justify-between border-t border-line pt-5">
+        <div className="h-7 w-32 rounded-full bg-ink/10" />
+        <div className="h-11 w-32 rounded-full bg-ink/10" />
+      </div>
     </div>
   );
 }
@@ -66,7 +77,7 @@ export default function OrdersPage() {
       <header className="max-w-2xl">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Tài khoản</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Đơn hàng của tôi</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/60 sm:text-base">
+        <p className="mt-3 text-sm leading-6 text-muted sm:text-base">
           Theo dõi trạng thái, tổng tiền và xem lại chi tiết những đơn hàng đã đặt.
         </p>
       </header>
@@ -87,12 +98,12 @@ export default function OrdersPage() {
           <OrderSkeleton />
         </div>
       ) : !loading && items.length === 0 ? (
-        <section className="mt-8 rounded-3xl border border-dashed border-ink/25 bg-white/50 px-6 py-12 text-center sm:px-10">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-2xl text-paper" aria-hidden="true">
-            ◇
+        <section className="mt-8 rounded-3xl border border-dashed border-ink/25 bg-surface px-6 py-12 text-center sm:px-10">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ink text-paper" aria-hidden="true">
+            <Icon name="receipt" size={24} />
           </div>
           <h2 className="mt-5 text-xl font-semibold">Bạn chưa có đơn hàng</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink/60">
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
             Khám phá danh mục sản phẩm và hoàn tất đơn hàng đầu tiên của bạn.
           </p>
           <Link className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-paper transition hover:bg-moss" href="/products">
@@ -100,51 +111,78 @@ export default function OrdersPage() {
           </Link>
         </section>
       ) : (
-        <ul className="mt-8 space-y-4">
-          {items.map((order) => (
-            <li key={order.order_number}>
-              <Link
-                href={`/orders/${order.order_number}`}
-                className="group block rounded-3xl border border-ink/10 bg-white/80 p-5 shadow-[0_12px_36px_rgba(19,35,31,0.06)] transition duration-200 hover:-translate-y-0.5 hover:border-accent/35 hover:bg-white hover:shadow-[0_18px_48px_rgba(19,35,31,0.11)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-4 focus-visible:ring-offset-paper sm:p-6"
-              >
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-moss/10 font-semibold text-moss" aria-hidden="true">
-                      #
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="truncate text-base font-semibold tracking-tight sm:text-lg">{order.order_number}</h2>
-                        <OrderStatusBadge status={order.status} />
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink/55">
-                        <span>{dateFormatter.format(new Date(order.created_at))}</span>
-                        <span className="hidden sm:inline" aria-hidden="true">•</span>
-                        <span>{order.item_count} sản phẩm</span>
-                      </div>
-                    </div>
-                  </div>
+        <ul className="mt-8 space-y-5">
+          {items.map((order) => {
+            const previewItems = order.preview_items ?? [];
+            const remainingItems = Math.max(order.item_count - previewItems.length, 0);
 
-                  <div className="flex items-end justify-between gap-6 border-t border-ink/10 pt-4 sm:block sm:border-0 sm:pt-0 sm:text-right">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-ink/45">Tổng thanh toán</p>
-                      <p className="mt-1 text-xl font-semibold text-ink">{formatVnd(order.total_vnd)}</p>
+            return (
+              <li key={order.order_number}>
+                <article className="rounded-3xl border border-line bg-surface p-5 shadow-[0_12px_36px_rgba(19,35,31,0.06)] sm:p-6">
+                  <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-moss/10 text-moss" aria-hidden="true">
+                        <Icon name="receipt" size={20} />
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="break-all text-base font-semibold tracking-tight sm:text-lg">{order.order_number}</h2>
+                        <p className="mt-1 text-sm text-muted">{dateFormatter.format(parseApiDateTime(order.created_at))}</p>
+                      </div>
                     </div>
-                    <span className="text-sm font-semibold text-accent transition group-hover:translate-x-1 sm:mt-3 sm:inline-flex">
-                      Xem chi tiết →
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </li>
-          ))}
+                    <OrderStatusBadge status={order.status} />
+                  </header>
+
+                  <ul className="mt-5 space-y-3" aria-label={`Sản phẩm trong đơn ${order.order_number}`}>
+                    {previewItems.map((item) => (
+                      <li className="flex min-w-0 gap-3 rounded-2xl border border-line bg-paper p-3 sm:items-center sm:gap-4" key={item.sku}>
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted sm:h-20 sm:w-20">
+                          {item.image_url ? (
+                            <img alt={item.product_name} className="h-full w-full object-cover" loading="lazy" src={item.image_url} />
+                          ) : (
+                            <Icon name="package" size={21} />
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="line-clamp-2 font-semibold text-ink">{item.product_name}</p>
+                            <p className="mt-1 text-xs leading-5 text-muted">
+                              {item.sku} · Size {item.size_code} · {item.color_code} · SL {item.quantity}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-sm font-semibold tabular-nums sm:text-right">{formatVnd(item.line_total_vnd)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {remainingItems > 0 ? (
+                    <p className="mt-3 text-sm font-medium text-muted">+ {remainingItems} sản phẩm khác</p>
+                  ) : null}
+
+                  <footer className="mt-5 flex flex-col gap-4 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted">Tổng thanh toán</p>
+                      <p className="mt-1 max-w-full text-xl font-semibold tabular-nums [overflow-wrap:anywhere]">{formatVnd(order.total_vnd)}</p>
+                    </div>
+                    <Link
+                      className="button-secondary group w-full sm:w-auto"
+                      href={`/orders/${order.order_number}`}
+                    >
+                      Xem chi tiết
+                      <Icon className="transition group-hover:translate-x-1" name="arrow-right" size={17} />
+                    </Link>
+                  </footer>
+                </article>
+              </li>
+            );
+          })}
         </ul>
       )}
 
       {cursor ? (
         <div className="mt-9 flex justify-center">
           <button
-            className="rounded-full border border-ink/20 bg-white/70 px-7 py-3 text-sm font-medium shadow-sm transition hover:border-ink/40 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full border border-ink/20 bg-surface px-7 py-3 text-sm font-medium shadow-sm transition hover:border-ink/40 hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
             onClick={() => void load(cursor)}
             type="button"
             disabled={loading}

@@ -7,8 +7,8 @@ import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: {
-    default: "NÉT Studio | Thời trang nữ",
-    template: "%s | NÉT Studio",
+    default: "D&K | Thời trang nữ",
+    template: "%s | D&K",
   },
   description: "Trang phục nữ tối giản, hiện đại và dễ phối cho phong cách mỗi ngày.",
 };

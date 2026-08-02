@@ -1,38 +1,258 @@
-scenario_id: small-repurchase-v1
+scenario_id: small-repurchase-v2
 dataset_size: small
 seed: 20260724
-anchor_time: "2026-07-01T00:00:00+00:00"
+anchor_time: '2026-07-01T00:00:00+00:00'
 history_months: 12
 modes:
-  - seed_master
-  - historical_transactions
-  - repurchase_history
-  - failure_fixtures
+- seed_master
+- historical_transactions
+- repurchase_history
 scale:
   customers: 500
   products: 60
   variants: 240
   orders: 3000
 distributions:
-  day_of_week: [0.9, 0.95, 1.0, 1.05, 1.2, 1.5, 1.4]
-  hour_of_day: [0.05, 0.02, 0.02, 0.02, 0.03, 0.05, 0.09, 0.14, 0.18, 0.2, 0.22, 0.26, 0.28, 0.26, 0.24, 0.24, 0.27, 0.34, 0.5, 0.72, 0.95, 1.1, 1.0, 0.6]
+  business_timezone: Asia/Ho_Chi_Minh
+  day_of_week:
+  - 0.9
+  - 0.95
+  - 1.0
+  - 1.05
+  - 1.2
+  - 1.5
+  - 1.4
+  hour_of_day:
+  - 0.05
+  - 0.02
+  - 0.02
+  - 0.02
+  - 0.03
+  - 0.05
+  - 0.09
+  - 0.14
+  - 0.18
+  - 0.2
+  - 0.22
+  - 0.26
+  - 0.28
+  - 0.26
+  - 0.24
+  - 0.24
+  - 0.27
+  - 0.34
+  - 0.5
+  - 0.72
+  - 0.95
+  - 1.1
+  - 1.0
+  - 0.6
   seasonality:
-    tet: {month_start: 1, day_start: 25, month_end: 2, day_end: 18, peak: 2.8}
+    tet:
+      month_start: 1
+      day_start: 25
+      month_end: 2
+      day_end: 18
+      peak: 2.8
     sales:
-      - {name: "11-11", month: 11, day: 11, boost: 2.5, after_days: 4}
-      - {name: "12-12", month: 12, day: 12, boost: 2.5, after_days: 4}
-      - {name: "6-6", month: 6, day: 6, boost: 2.2, after_days: 3}
-      - {name: black_friday, month: 11, weekday: 4, week_index: 4, boost: 2.2, after_days: 3}
-  categories: {ao: 22, dam: 18, vay: 15, quan: 14, khoac: 12, phu-kien: 9, giay: 5, tui-xach: 5}
+    - name: 1-1
+      month: 1
+      day: 1
+      boost: 4.0
+      after_days: 0
+    - name: 2-2
+      month: 2
+      day: 2
+      boost: 4.0
+      after_days: 0
+    - name: 3-3
+      month: 3
+      day: 3
+      boost: 4.0
+      after_days: 0
+    - name: 4-4
+      month: 4
+      day: 4
+      boost: 4.0
+      after_days: 0
+    - name: 5-5
+      month: 5
+      day: 5
+      boost: 4.0
+      after_days: 0
+    - name: 6-6
+      month: 6
+      day: 6
+      boost: 4.0
+      after_days: 0
+    - name: 7-7
+      month: 7
+      day: 7
+      boost: 4.0
+      after_days: 0
+    - name: 8-8
+      month: 8
+      day: 8
+      boost: 4.0
+      after_days: 0
+    - name: 9-9
+      month: 9
+      day: 9
+      boost: 4.8
+      after_days: 0
+    - name: 10-10
+      month: 10
+      day: 10
+      boost: 4.8
+      after_days: 0
+    - name: 11-11
+      month: 11
+      day: 11
+      boost: 4.8
+      after_days: 0
+    - name: 12-12
+      month: 12
+      day: 12
+      boost: 4.8
+      after_days: 0
+    - name: black_friday
+      month: 11
+      day: null
+      weekday: 4
+      week_index: 4
+      boost: 3.2
+      after_days: 2
+  categories:
+    ao: 22
+    dam: 18
+    vay: 15
+    quan: 14
+    khoac: 12
+    phu-kien: 9
+    giay: 5
+    tui-xach: 5
   price_bands:
-    - {min_vnd: 79000, max_vnd: 199000, weight: 30}
-    - {min_vnd: 199000, max_vnd: 399000, weight: 40}
-    - {min_vnd: 399000, max_vnd: 699000, weight: 20}
-    - {min_vnd: 699000, max_vnd: 2500000, weight: 10}
-  order_size: [55, 30, 12, 3]
-  quantity_per_item: [70, 25, 5]
+  - min_vnd: 79000
+    max_vnd: 199000
+    weight: 30
+  - min_vnd: 199000
+    max_vnd: 399000
+    weight: 40
+  - min_vnd: 399000
+    max_vnd: 699000
+    weight: 20
+  - min_vnd: 699000
+    max_vnd: 2500000
+    weight: 10
+  order_size:
+  - 55
+  - 30
+  - 12
+  - 3
+  quantity_per_item:
+  - 70
+  - 25
+  - 5
   customers:
-    loyal: {share: 0.15, orders_per_year: [4, 10], interval_days: [20, 60]}
-    regular: {share: 0.35, orders_per_year: [2, 4], interval_days: [45, 120]}
-    one_off: {share: 0.5, orders_per_year: [1, 1]}
-
+    loyal:
+      share: 0.15
+      orders_per_year:
+      - 4
+      - 10
+      interval_days:
+      - 20
+      - 60
+      campaign_affinity: 0.72
+    regular:
+      share: 0.35
+      orders_per_year:
+      - 2
+      - 4
+      interval_days:
+      - 45
+      - 120
+      campaign_affinity: 0.48
+    one_off:
+      share: 0.5
+      orders_per_year:
+      - 1
+      - 1
+      campaign_affinity: 0.38
+  campaign_hour_of_day:
+  - 2.8
+  - 1.2
+  - 0.22
+  - 0.08
+  - 0.05
+  - 0.06
+  - 0.1
+  - 0.16
+  - 0.22
+  - 0.28
+  - 0.34
+  - 0.55
+  - 1.35
+  - 0.72
+  - 0.36
+  - 0.3
+  - 0.36
+  - 0.48
+  - 0.72
+  - 1.1
+  - 1.65
+  - 2.05
+  - 1.8
+  - 1.3
+  coupons:
+    base_usage_rate: 0.14
+    campaign_usage_rate: 0.64
+    midnight_usage_rate: 0.82
+    first_order_usage_rate: 0.42
+    customer_multipliers:
+      loyal: 1.25
+      regular: 1.0
+      one_off: 0.8
+    campaign_percentage_values:
+    - 10
+    - 12
+    - 15
+    midnight_fixed_values_vnd:
+    - 30000
+    - 50000
+    - 70000
+    everyday_percentage: 8
+    welcome_fixed_vnd: 50000
+    everyday_minimum_subtotal_vnd: 299000
+    campaign_minimum_subtotal_vnd: 199000
+  reviews:
+    completed_order_rates:
+      loyal: 0.58
+      regular: 0.38
+      one_off: 0.24
+    rating_weights:
+    - 2
+    - 5
+    - 13
+    - 38
+    - 42
+    status_weights:
+      pending: 12
+      approved: 82
+      rejected: 6
+    delay_days:
+    - 1
+    - 14
+  cancellations:
+    base_rate: 0.035
+    campaign_rate: 0.065
+    coupon_addon: 0.012
+    customer_addons:
+      loyal: -0.012
+      regular: 0.0
+      one_off: 0.018
+    reasons:
+      Đặt nhầm size hoặc màu: 28
+      Muốn thay đổi địa chỉ nhận hàng: 18
+      Tìm thấy lựa chọn phù hợp hơn: 18
+      Áp nhầm mã giảm giá: 14
+      Không còn nhu cầu mua: 22

@@ -21,10 +21,11 @@ Quyết định hiện hành:
 4. Customer quản lý wishlist mặc định chứa nhiều product.
 5. Customer quản lý active cart.
 6. Customer checkout với thông tin giao hàng.
-7. Checkout hợp lệ luôn tạo order `paid`, payment `succeeded` và giảm inventory atomically.
-8. Customer xem order history/detail.
-9. Admin quản lý catalog tối thiểu, xem inventory, hoàn tất order và quản lý customer status.
-10. Website tạo source rows đủ cho batch DE, dashboard và ML mua lại dựa trên OLTP.
+7. Checkout hợp lệ có thể áp dụng một coupon, tạo order `paid`, payment `succeeded` và giảm inventory atomically.
+8. Customer xem order, hủy order còn `paid` và review item của order `completed`.
+9. Admin quản lý catalog, inventory, coupon, review moderation, customer status và xác nhận/hoàn tất/hủy order.
+10. Hủy order `paid` hoàn inventory, full refund và release coupon trong một transaction.
+16. Website tạo source rows đủ cho batch DE, dashboard và ML mua lại dựa trên OLTP.
 
 ### 1.2. Mục tiêu kỹ thuật
 
@@ -40,8 +41,8 @@ Quyết định hiện hành:
 ### 1.3. Ngoài phạm vi
 
 - Anonymous cart, cart merge và guest checkout.
-- Coupon, promotion, tax module.
-- External payment, refund, return, review, shipment.
+- Promotion engine tổng quát, stacking coupon và tax module.
+- External payment, partial refund, return và shipment.
 - Reservation, restock, multi-warehouse.
 - Recommendation/ML inference trên storefront.
 - Redis, Kafka, Elasticsearch và microservices.
@@ -52,12 +53,12 @@ Quyết định hiện hành:
 
 Source website hoàn thành khi:
 
-- migration khớp logical schema 13 bảng;
+- migration khớp logical schema 17 bảng;
 - các page/API bắt buộc hoạt động;
 - checkout valid/rejected, idempotency và last-item concurrency pass;
 - profile `core` chỉ cần MySQL, Ecommerce API và Storefront;
 - generator tạo OLTP master/history/repurchase data reproducibly;
-- MySQL reader chỉ được cấp quyền trên 12 bảng analytical source;
+- MySQL reader chỉ được cấp quyền trên 16 bảng analytical source;
 - source catalogue/data dictionary đủ để bàn giao batch extraction;
 - web không phụ thuộc Airflow, Spark, MinIO hoặc analytics database.
 
@@ -321,21 +322,39 @@ Không có event ingestion endpoint trong API TLCN.
 7. Lock category/product/variant theo stable order; validate active.
 8. Lock inventory theo variant ID.
 9. Validate `on_hand >= quantity` cho mọi line.
-10. Tính snapshots/subtotal/shipping/total từ dữ liệu server.
-11. Insert paid order, items, succeeded payment và initial history.
-12. Conditional decrement inventory và tăng version.
-13. Close cart.
-14. Commit.
+10. UI checkout có popup liệt kê coupon đang khả dụng theo subtotal và usage limit; quote/checkout vẫn kiểm tra lại ở server.
+11. Nếu có coupon: khóa coupon, kiểm tra window/subtotal/limit và tính discount.
+12. Tính snapshots/subtotal/discount/shipping/total từ dữ liệu server.
+13. Insert paid order, items, succeeded payment, initial history và coupon redemption.
+14. Conditional decrement inventory và tăng version.
+15. Close cart.
+16. Commit.
 
 Mọi write cùng commit/rollback. Không gọi external API, email hoặc analytics service trong transaction.
 
-### TX-WEB-05 — Complete order
+### TX-WEB-05 — Confirm/complete order
 
-1. Validate admin/internal auth và idempotency.
+1. Validate admin auth và idempotency.
 2. Lock order.
-3. Chỉ cho `paid → completed`.
-4. Update order + insert immutable history.
+3. Chỉ cho `paid → confirmed` hoặc `confirmed → completed`.
+4. Update order timestamp + insert immutable history.
 5. Commit.
+
+### TX-WEB-06 — Cancel paid order
+
+1. Lock order và xác minh customer ownership hoặc admin role.
+2. Chỉ cho `paid → cancelled`; replay theo idempotency key.
+3. Lock payment, inventory, coupon redemption/coupon theo thứ tự ổn định.
+4. Hoàn inventory, insert full refund, release coupon usage.
+5. Update order + insert immutable history kèm actor/reason.
+6. Commit atomically.
+
+### TX-WEB-07 — Review sau mua
+
+1. Customer chỉ review order item thuộc order `completed` của mình.
+2. Unique `order_item_id` bảo đảm tối đa một review/item.
+3. Review mới ở `pending`; admin chuyển sang `approved` hoặc `rejected`.
+4. Public product page chỉ hiển thị review `approved`.
 
 ---
 
@@ -370,7 +389,7 @@ opening_on_hand - sold units từ succeeded payments = on_hand
 
 ### 12.1. Analytical source tables
 
-Pipeline đọc 12 bảng:
+Pipeline đọc 16 bảng:
 
 - customers;
 - categories;
@@ -383,7 +402,11 @@ Pipeline đọc 12 bảng:
 - order_items;
 - payments;
 - order_status_history;
-- inventory.
+- inventory;
+- coupons;
+- coupon_redemptions;
+- refunds;
+- product_reviews.
 
 Pipeline không đọc `customer_credentials`.
 
@@ -418,7 +441,6 @@ Modes TLCN:
 - `seed_master`;
 - `historical_transactions`;
 - `repurchase_history`;
-- `failure_fixtures` cho OLTP extraction/DQ/concurrency boundary.
 
 
 Generator phải:

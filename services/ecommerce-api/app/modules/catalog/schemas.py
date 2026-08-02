@@ -18,6 +18,7 @@ class VariantResponse(BaseModel):
     size_code: str
     color_code: str
     price_vnd: int
+    stock_quantity: int
     in_stock: bool
 
 

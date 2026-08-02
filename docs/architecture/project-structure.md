@@ -11,7 +11,7 @@ Repository tổ chức toàn bộ Tiểu luận chuyên ngành trong một monor
 - MySQL analytics và Superset;
 - bài toán dự đoán khả năng khách hàng mua lại từ dữ liệu OLTP.
 
-Source phân tích duy nhất là 12 bảng nghiệp vụ được cho phép trong MySQL ecommerce. `customer_credentials` chỉ phục vụ đăng nhập và không được extract.
+Source phân tích duy nhất là 16 bảng nghiệp vụ được cho phép trong MySQL ecommerce. `customer_credentials` chỉ phục vụ đăng nhập và không được extract.
 
 ## 2. Kiến trúc tổng thể
 
@@ -45,7 +45,7 @@ Nguyên tắc dependency:
 1. Storefront chỉ gọi Ecommerce API.
 2. Ecommerce API chỉ ghi MySQL ecommerce trong transaction ngắn.
 3. Generator tạo dữ liệu thông qua API hoặc source contract đã chốt.
-4. Pipeline dùng DE reader chỉ có `SELECT` trên allowlist 12 bảng.
+4. Pipeline dùng DE reader chỉ có `SELECT` trên allowlist 16 bảng.
 5. Airflow orchestration; Spark thực thi transformation.
 6. Superset chỉ đọc MySQL analytics, không đọc primary OLTP.
 7. ML chỉ đọc Gold publication đã reconciliation thành công.
@@ -124,7 +124,7 @@ Nguyên tắc dependency:
 │   ├── source-contracts/                 # OLTP extraction contracts
 │   └── thesis/                           # Report/slide/demo artifacts
 ├── skills/
-│   └── oltp-design.md                    # OLTP design principles
+│   └── oltp-design/SKILL.md              # OLTP design principles
 ├── scripts/
 │   ├── grant_de_reader.sh                # Table-level reader grants
 │   ├── import_generated_sql.sh           # Import generated dataset
@@ -189,18 +189,20 @@ API tổ chức theo module:
 - `cart`;
 - `checkout`;
 - `orders`;
+- `coupons`;
+- `reviews`;
 - `admin`.
 
-Router xử lý HTTP/schema; service xử lý invariant và transaction; model biểu diễn persistence. Checkout kiểm tra tồn kho, tạo order/payment/item/history và giảm stock atomically.
+Router xử lý HTTP/schema; service xử lý invariant và transaction; model biểu diễn persistence. Checkout kiểm tra tồn kho/coupon, tạo order/payment/item/history/redemption và giảm stock atomically. Cancel order hoàn stock, full refund và release coupon trong cùng transaction.
 
 ## 7. Database ownership
 
-MySQL ecommerce có 13 bảng logical. Pipeline chỉ đọc 12 bảng analytical source; `customer_credentials` bị loại khỏi source contract.
+MySQL ecommerce có 17 bảng logical. Pipeline chỉ đọc 16 bảng analytical source; `customer_credentials` bị loại khỏi source contract.
 
 Quyền:
 
 - Ecommerce API: read/write schema nghiệp vụ;
-- DE reader: table-level `SELECT` trên allowlist 12 bảng;
+- DE reader: table-level `SELECT` trên allowlist 16 bảng;
 - analytics publisher: read/write MySQL analytics;
 - BI reader: chỉ đọc serving schema.
 
@@ -213,7 +215,6 @@ Generator có bốn mode:
 - `seed_master`;
 - `historical_transactions`;
 - `repurchase_history`;
-- `failure_fixtures`.
 
 Mỗi run ghi seed, anchor time, scale, scenario ID và generator version để tái lập logical dataset. Lệnh `export-sql` sinh file MySQL transaction đầy đủ tại `data/generator/`; file giữ nguyên FK/CHECK và có một tài khoản demo.
 
@@ -280,4 +281,4 @@ Thứ tự ưu tiên:
 2. [`oltp-schema.md`](oltp-schema.md) — logical OLTP schema và transaction catalogue;
 3. [`../project/web-plan.md`](../project/web-plan.md) — kế hoạch source website;
 4. [`project-structure.md`](project-structure.md) — cấu trúc triển khai;
-5. [`../../skills/oltp-design.md`](../../skills/oltp-design.md) — nguyên tắc thiết kế tham khảo.
+5. [`../../skills/oltp-design/SKILL.md`](../../skills/oltp-design/SKILL.md) — nguyên tắc thiết kế tham khảo.

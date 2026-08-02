@@ -47,6 +47,7 @@ export interface Variant {
   size_code: string;
   color_code: string;
   price_vnd: number;
+  stock_quantity: number;
   in_stock: boolean;
 }
 
@@ -110,12 +111,23 @@ export interface CheckoutResult {
   total_vnd: number;
 }
 
+export interface OrderListPreviewItem {
+  product_name: string;
+  image_url: string | null;
+  sku: string;
+  size_code: string;
+  color_code: string;
+  quantity: number;
+  line_total_vnd: number;
+}
+
 export interface OrderListItem {
   order_number: string;
   status: string;
   total_vnd: number;
   item_count: number;
   created_at: string;
+  preview_items: OrderListPreviewItem[];
 }
 
 export interface OrderListResponse {
@@ -172,7 +184,14 @@ export interface AdminOverview {
   low_stock_variants: number;
   customers: number;
   paid_orders: number;
-  recognized_revenue_vnd: number;
+  confirmed_orders: number;
+  completed_orders: number;
+  cancelled_orders: number;
+  pending_reviews: number;
+  active_coupons: number;
+  gross_revenue_vnd: number;
+  refunded_amount_vnd: number;
+  net_revenue_vnd: number;
 }
 
 export interface AdminVariant {
@@ -372,8 +391,9 @@ export function getAdminOverview() {
   return apiFetch<AdminOverview>("/api/v1/admin/overview");
 }
 
-export function getAdminProducts() {
-  return apiFetch<AdminProduct[]>("/api/v1/admin/products");
+export function getAdminProducts(search?: string) {
+  const query = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
+  return apiFetch<AdminProduct[]>(`/api/v1/admin/products${query}`);
 }
 
 export function createAdminProduct(input: CreateAdminProductInput) {
@@ -413,16 +433,6 @@ export function getAdminOrders(status?: string) {
 
 export function getAdminOrder(orderNumber: string) {
   return apiFetch<OrderDetail>(`/api/v1/admin/orders/${encodeURIComponent(orderNumber)}`);
-}
-
-export function completeAdminOrder(orderNumber: string) {
-  return apiFetch<{ order_number: string; status: string }>(
-    `/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/complete`,
-    {
-      method: "POST",
-      headers: csrfHeaders({ "Idempotency-Key": crypto.randomUUID() }),
-    }
-  );
 }
 
 export function getAdminCustomers() {

@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import (
+    ACCOUNT_LOCKED,
     EMAIL_ALREADY_EXISTS,
     INVALID_CREDENTIALS,
     AppError,
@@ -54,8 +55,23 @@ def register_customer(email: str, password: str, display_name: str) -> Customer:
         ) from error
 
 
+def _validate_credentials(
+    customer: Customer,
+    credential: CustomerCredential,
+    password: str,
+) -> None:
+    if not verify_password(credential.password_hash, password):
+        raise AppError(INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng.", status_code=401)
+    if not credential.is_enabled or customer.status != "active":
+        raise AppError(
+            ACCOUNT_LOCKED,
+            "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+            status_code=403,
+        )
+
+
 def authenticate(email: str, password: str) -> tuple[Customer, str]:
-    """Return (customer, email_normalized) on success, else raise INVALID_CREDENTIALS."""
+    """Return (customer, email_normalized) after validating password and account state."""
     email_normalized = normalize_email(email)
 
     def _work(db: Session) -> tuple[Customer, CustomerCredential]:
@@ -67,10 +83,7 @@ def authenticate(email: str, password: str) -> tuple[Customer, str]:
         if row is None:
             raise AppError(INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng.", status_code=401)
         customer, credential = row
-        if not credential.is_enabled or customer.status != "active":
-            raise AppError(INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng.", status_code=401)
-        if not verify_password(credential.password_hash, password):
-            raise AppError(INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng.", status_code=401)
+        _validate_credentials(customer, credential, password)
         if needs_rehash(credential.password_hash):
             credential.password_hash = hash_password(password)
             credential.password_changed_at = datetime.now(UTC)

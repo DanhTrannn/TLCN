@@ -17,15 +17,21 @@ def shipping_fee_vnd(subtotal_vnd: int) -> int:
 @dataclass(frozen=True)
 class AmountBreakdown:
     subtotal_vnd: int
+    discount_amount_vnd: int
     shipping_fee_vnd: int
     total_vnd: int
 
 
-def compute_amounts(line_totals: list[int]) -> AmountBreakdown:
+def compute_amounts(
+    line_totals: list[int], discount_amount_vnd: int = 0
+) -> AmountBreakdown:
     subtotal = sum(line_totals)
+    if discount_amount_vnd < 0 or discount_amount_vnd > subtotal:
+        raise ValueError("discount_amount_vnd must be between zero and subtotal")
     shipping = shipping_fee_vnd(subtotal)
     return AmountBreakdown(
         subtotal_vnd=subtotal,
+        discount_amount_vnd=discount_amount_vnd,
         shipping_fee_vnd=shipping,
-        total_vnd=subtotal + shipping,
+        total_vnd=subtotal - discount_amount_vnd + shipping,
     )

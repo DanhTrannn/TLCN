@@ -1,4 +1,4 @@
-# NÉT Studio Storefront
+# D&K Storefront
 
 Next.js application cung cấp giao diện customer và admin cho hệ thống nguồn OLTP.
 

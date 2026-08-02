@@ -11,7 +11,7 @@ settings = get_settings()
 configure_logging(settings.service_name, settings.service_version)
 
 app = FastAPI(
-    title="TLCN Ecommerce API",
+    title="D&K Ecommerce API",
     version=settings.service_version,
     docs_url="/docs" if settings.enable_docs else None,
     redoc_url=None,

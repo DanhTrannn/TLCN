@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,9 @@ from app.db.uow import run_in_transaction
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer, CustomerCredential
 from app.models.inventory import Inventory
-from app.models.order import Order, OrderItem
+from app.models.order import Order, OrderItem, Payment, Refund
+from app.models.promotion import Coupon
+from app.models.review import ProductReview
 from app.modules.orders.schemas import OrderDetailResponse
 from app.modules.orders.service import get_order_detail
 from app.modules.admin.schemas import (
@@ -34,9 +36,13 @@ def _parse_public_id(value: str, label: str) -> UUID:
 
 
 def get_overview(db: Session) -> AdminOverviewResponse:
-    active_products = db.scalar(select(func.count()).select_from(Product).where(Product.is_active.is_(True))) or 0
+    active_products = db.scalar(
+        select(func.count()).select_from(Product).where(Product.is_active.is_(True))
+    ) or 0
     active_variants = db.scalar(
-        select(func.count()).select_from(ProductVariant).where(ProductVariant.is_active.is_(True))
+        select(func.count())
+        .select_from(ProductVariant)
+        .where(ProductVariant.is_active.is_(True))
     ) or 0
     low_stock_variants = db.scalar(
         select(func.count())
@@ -44,28 +50,81 @@ def get_overview(db: Session) -> AdminOverviewResponse:
         .join(ProductVariant, ProductVariant.variant_id == Inventory.variant_id)
         .where(ProductVariant.is_active.is_(True), Inventory.on_hand <= 5)
     ) or 0
-    customers = db.scalar(select(func.count()).select_from(Customer).where(Customer.role == "customer")) or 0
-    paid_orders = db.scalar(
-        select(func.count()).select_from(Order).where(Order.status.in_(("paid", "completed")))
+    customers = db.scalar(
+        select(func.count()).select_from(Customer).where(Customer.role == "customer")
     ) or 0
-    revenue = db.scalar(
-        select(func.coalesce(func.sum(Order.total_vnd), 0)).where(Order.status.in_(("paid", "completed")))
+    order_counts = {
+        status: int(count)
+        for status, count in db.execute(
+            select(Order.status, func.count()).group_by(Order.status)
+        ).all()
+    }
+    pending_reviews = db.scalar(
+        select(func.count())
+        .select_from(ProductReview)
+        .where(ProductReview.status == "pending")
     ) or 0
+    now = datetime.now(UTC).replace(tzinfo=None)
+    active_coupons = db.scalar(
+        select(func.count())
+        .select_from(Coupon)
+        .where(
+            Coupon.is_active.is_(True),
+            Coupon.starts_at <= now,
+            Coupon.ends_at > now,
+        )
+    ) or 0
+    gross_revenue = db.scalar(
+        select(func.coalesce(func.sum(Payment.amount_vnd), 0)).where(
+            Payment.status == "succeeded"
+        )
+    ) or 0
+    refunded_amount = db.scalar(
+        select(func.coalesce(func.sum(Refund.amount_vnd), 0)).where(
+            Refund.status == "succeeded"
+        )
+    ) or 0
+
     return AdminOverviewResponse(
         active_products=int(active_products),
         active_variants=int(active_variants),
         low_stock_variants=int(low_stock_variants),
         customers=int(customers),
-        paid_orders=int(paid_orders),
-        recognized_revenue_vnd=int(revenue),
+        paid_orders=order_counts.get("paid", 0),
+        confirmed_orders=order_counts.get("confirmed", 0),
+        completed_orders=order_counts.get("completed", 0),
+        cancelled_orders=order_counts.get("cancelled", 0),
+        pending_reviews=int(pending_reviews),
+        active_coupons=int(active_coupons),
+        gross_revenue_vnd=int(gross_revenue),
+        refunded_amount_vnd=int(refunded_amount),
+        net_revenue_vnd=int(gross_revenue) - int(refunded_amount),
     )
 
 
-def list_products(db: Session) -> list[AdminProductResponse]:
+def list_products(db: Session, search: str | None = None) -> list[AdminProductResponse]:
+    stmt = select(Product, Category.code).join(
+        Category, Category.category_id == Product.category_id
+    )
+    normalized_search = (search or "").strip()
+    if normalized_search:
+        variant_match = (
+            select(ProductVariant.variant_id)
+            .where(
+                ProductVariant.product_id == Product.product_id,
+                ProductVariant.sku.contains(normalized_search, autoescape=True),
+            )
+            .exists()
+        )
+        stmt = stmt.where(
+            or_(
+                Product.name.contains(normalized_search, autoescape=True),
+                Product.slug.contains(normalized_search, autoescape=True),
+                variant_match,
+            )
+        )
     product_rows = db.execute(
-        select(Product, Category.code)
-        .join(Category, Category.category_id == Product.category_id)
-        .order_by(Product.created_at.desc(), Product.product_id.desc())
+        stmt.order_by(Product.created_at.desc(), Product.product_id.desc()).limit(100)
     ).all()
     product_ids = [product.product_id for product, _ in product_rows]
     variants_by_product: dict[int, list[AdminVariantResponse]] = {product_id: [] for product_id in product_ids}

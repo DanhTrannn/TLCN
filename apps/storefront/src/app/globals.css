@@ -4,25 +4,13 @@
 
 :root {
   color-scheme: light;
-  background: #f4f1e8;
-  color: #13231f;
-  font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+  background: #f7f4ee;
+  color: #152722;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 html {
   scroll-behavior: smooth;
-}
-
-::selection {
-  background: rgba(201, 95, 54, 0.24);
-  color: #13231f;
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
 }
 
 * {
@@ -33,8 +21,19 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(201, 95, 54, 0.14), transparent 32rem),
-    #f4f1e8;
+    radial-gradient(circle at 88% -8%, rgba(169, 71, 40, 0.11), transparent 29rem),
+    radial-gradient(circle at 4% 28%, rgba(49, 91, 79, 0.08), transparent 24rem),
+    #f7f4ee;
+  color: #152722;
+  font-size: 16px;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(169, 71, 40, 0.2);
+  color: #152722;
 }
 
 a {
@@ -42,9 +41,146 @@ a {
   text-decoration: none;
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid #a94728;
+  outline-offset: 3px;
+}
 
 @layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-5 py-10 sm:px-6 sm:py-14;
+  }
+
+  .page-heading {
+    @apply font-serif text-4xl leading-tight tracking-[-0.035em] text-ink sm:text-5xl;
+  }
+
+  .admin-heading {
+    @apply text-3xl font-semibold tracking-[-0.025em] text-ink sm:text-4xl;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-accent;
+  }
+
+  .body-muted {
+    @apply leading-7 text-muted;
+  }
+
+  .surface-card {
+    @apply rounded-3xl border border-line bg-surface shadow-soft;
+  }
+
+  .surface-flat {
+    @apply rounded-3xl border border-line bg-surface;
+  }
+
+  .surface-muted {
+    @apply rounded-2xl border border-line bg-paper;
+  }
+
+  .field-label {
+    @apply block text-sm font-semibold text-ink;
+  }
+
+  .form-control,
   .admin-input {
-    @apply mt-1 w-full rounded-lg border border-ink/20 bg-white px-3 py-2 text-ink outline-none transition focus:border-accent;
+    @apply mt-2 min-h-11 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:bg-sand/60 disabled:text-muted;
+  }
+
+  .button-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper shadow-sm transition duration-200 hover:bg-moss disabled:opacity-50;
+  }
+
+  .button-accent {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-danger disabled:opacity-50;
+  }
+
+  .button-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-ink transition duration-200 hover:border-ink/30 hover:bg-paper disabled:opacity-50;
+  }
+
+  .button-ghost {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-muted transition duration-200 hover:bg-sand/60 hover:text-ink disabled:opacity-50;
+  }
+
+  .feedback-error {
+    @apply rounded-2xl border border-danger/25 bg-danger/5 px-4 py-3 text-sm font-medium text-danger;
+  }
+
+  .feedback-success {
+    @apply rounded-2xl border border-success/25 bg-success/5 px-4 py-3 text-sm font-medium text-success;
+  }
+
+  .admin-panel {
+    @apply rounded-2xl border border-line bg-surface p-5 shadow-admin sm:p-6;
+  }
+
+  .admin-table-shell {
+    @apply overflow-x-auto rounded-2xl border border-line bg-surface shadow-admin;
+  }
+
+  .admin-table-shell table {
+    @apply min-w-full text-left text-sm;
+  }
+
+  .admin-table-shell thead {
+    @apply border-b border-line bg-paper text-muted;
+  }
+
+  .admin-table-shell th {
+    @apply whitespace-nowrap px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.1em];
+  }
+
+  .admin-table-shell td {
+    @apply px-5 py-4 align-middle;
+  }
+
+  .admin-table-shell tbody {
+    @apply divide-y divide-line;
+  }
+
+  .admin-table-shell tbody tr {
+    @apply transition hover:bg-paper/70;
+  }
+}
+
+@media (max-width: 639px) {
+  body {
+    padding-bottom: 4.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

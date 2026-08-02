@@ -785,18 +785,25 @@ requires-dist = [
 
 [[package]]
 name = "tlcn-data-generator"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "generator" }
 dependencies = [
     { name = "argon2-cffi" },
     { name = "pyyaml" },
 ]
 
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "argon2-cffi", specifier = "==25.1.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = "==8.4.1" },
     { name = "pyyaml", specifier = "==6.0.2" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "tlcn-ecommerce-api"

@@ -9,7 +9,14 @@ class AdminOverviewResponse(BaseModel):
     low_stock_variants: int
     customers: int
     paid_orders: int
-    recognized_revenue_vnd: int
+    confirmed_orders: int
+    completed_orders: int
+    cancelled_orders: int
+    pending_reviews: int
+    active_coupons: int
+    gross_revenue_vnd: int
+    refunded_amount_vnd: int
+    net_revenue_vnd: int
 
 
 class AdminVariantResponse(BaseModel):

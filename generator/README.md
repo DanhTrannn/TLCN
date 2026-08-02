@@ -16,12 +16,13 @@ File xuất hiện trên host tại `data/generator/small.sql`.
 Config `small.yml` tạo:
 
 - 500 customer;
-- 60 product;
+- 60 product có tên, mô tả và mã mẫu thời trang thực tế theo từng category;
 - 240 variant;
 - 3.000 order trong 12 tháng;
 - wishlist, checked-out cart, active/abandoned cart;
-- order item, succeeded/failed payment, status history;
-- inventory đã đối soát với lượng bán thành công.
+- order item, payment, lifecycle `paid/confirmed/completed/cancelled` và status history;
+- coupon/redemption, full refund của đơn hủy và review sau mua;
+- inventory đã đối soát với đơn không bị hủy.
 
 ## Import MySQL
 
@@ -33,14 +34,11 @@ Sau khi profile `core` healthy và Alembic đã migrate:
 
 SQL không tắt FK/CHECK, chạy trong một transaction và fail-fast nếu vi phạm invariant. Cùng một file không được import hai lần; muốn thêm dataset khác, thay `scenario_id` hoặc `seed` để có logical identity mới rồi export lại.
 
-CLI in tài khoản demo sau khi export. Với `small.yml` hiện tại:
+CLI in tài khoản demo sau mỗi lần export. Email chứa tám ký tự đầu của
+`logical_identity`; mật khẩu local cố định là `Demo@12345`. Luôn lấy email từ
+output của CLI hoặc phần header của file SQL thay vì hard-code identity cũ.
 
-```text
-Email: demo.bce4c219@tlcn.local
-Password: Demo@12345
-```
-
-Tài khoản này có nhiều đơn hàng trải đều trong lịch sử để kiểm tra Storefront.
+Tài khoản demo có nhiều đơn hàng trải đều trong lịch sử để kiểm tra Storefront.
 
 ## Chạy trực tiếp bằng uv
 
@@ -52,22 +50,73 @@ UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked \
   --output data/generator/small.sql
 ```
 
-## Phân phối dữ liệu theo thị trường VN (`distributions`)
+## Kiểm tra
 
-Mỗi config có thể khai báo khối `distributions` để mô phỏng đặc điểm mua hàng thời trang online tại Việt Nam. Nếu không khai báo, generator dùng bộ mặc định (profile VN) trong `src/tlcn_generator/config.py`.
+```bash
+UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked \
+  --package tlcn-data-generator --extra dev -- \
+  pytest generator/tests
+```
+
+## Phân phối dữ liệu TMĐT Việt Nam (`distributions`)
+
+Các profile trong `configs/` mô phỏng hành vi phổ biến của sàn TMĐT Việt Nam theo
+quy tắc có kiểm soát, không sao chép dữ liệu hay thuật toán nội bộ của một sàn cụ
+thể. Nếu config không khai báo `distributions`, generator dùng profile mặc định
+trong `src/tlcn_generator/config.py`.
 
 | Tham số | Ý nghĩa |
 |---|---|
-| `day_of_week` | 7 hệ số cho Thứ 2..Chủ nhật (cuối tuần cao hơn) |
-| `hour_of_day` | 24 hệ số cho 0h..23h (peak tối 19h-22h) |
-| `seasonality.tet` | Cửa sổ xấp xỉ Tết (mặc định 25/1–18/2), `peak` = hệ số nhân doanh số tại đỉnh |
-| `seasonality.sales` | Sự kiện sale: ngày cố định (`month`+`day`) hoặc Black Friday (`weekday`+`week_index`); `boost` áp cho ngày sự kiện và `after_days` ngày sau |
-| `categories` | Trọng số 8 danh mục (ao, dam, vay, quan, khoac, phu-kien, giay, tui-xach) |
-| `price_bands` | Histogram giá sản phẩm (min/max/weight); giá làm tròn tới 1.000đ |
-| `order_size` | Phần trăm đơn có 1/2/3/4 món (tổng = 100) |
-| `quantity_per_item` | Phần trăm số lượng 1/2/3 mỗi món (tổng = 100) |
-| `customers` | 3 nhóm khách: `loyal` (mua lại nhanh, tạo tín hiệu repurchase 30 ngày), `regular`, `one_off` (mua 1 lần); `share` cộng = 1 |
+| `business_timezone` | Múi giờ nghiệp vụ, chốt là `Asia/Ho_Chi_Minh`; SQL vẫn lưu UTC |
+| `day_of_week` | 7 hệ số Thứ 2..Chủ nhật, cuối tuần cao hơn |
+| `hour_of_day` | 24 hệ số giờ địa phương, peak thường ngày 19h–22h |
+| `campaign_hour_of_day` | Phân phối riêng cho ngày campaign, có spike 0h–2h, 12h và 20h–23h |
+| `seasonality.tet` | Cửa sổ Tết, `peak` là hệ số nhân nhu cầu ở trung tâm mùa vụ |
+| `seasonality.sales` | Sale ngày đôi 1/1..12/12 và Black Friday; 9/9..12/12 có boost cao hơn |
+| `categories` | Trọng số 8 danh mục thời trang nữ |
+| `price_bands` | Histogram giá VND; giá variant làm tròn tới 1.000đ |
+| `order_size` | Tỷ lệ đơn có 1/2/3/4 dòng hàng |
+| `quantity_per_item` | Tỷ lệ quantity 1/2/3 trên mỗi dòng hàng |
+| `customers` | Nhóm `loyal`, `regular`, `one_off`; có tần suất mua và `campaign_affinity` riêng |
+| `coupons` | Tỷ lệ dùng coupon thường/campaign/0h/đơn đầu, hệ số theo nhóm khách và mệnh giá |
+| `reviews` | Tỷ lệ review theo nhóm khách, phân phối rating, moderation status và độ trễ sau mua |
+| `cancellations` | Tỷ lệ hủy thường/campaign, phần tăng khi dùng coupon, hệ số nhóm khách và lý do VN |
+
+### Quan hệ dữ liệu có chủ đích
+
+- Order tăng vào cuối tuần, mùa Tết, ngày đôi và Black Friday; ngày campaign ưu tiên các khung 0h, 12h và buổi tối theo giờ Việt Nam.
+- Khách loyal/regular/one-off khác nhau về số lần mua, khoảng cách giữa đơn, khả năng bám campaign, dùng coupon, review và hủy đơn.
+- Coupon 0h chỉ hiệu lực 00:00–02:00 giờ Việt Nam; coupon campaign theo ngày đôi; welcome ưu tiên đơn đầu; coupon thường có ngưỡng subtotal cao hơn.
+- Đơn campaign, đơn dùng coupon và khách one-off có xác suất hủy cao hơn; lý do hủy dùng nội dung nghiệp vụ tiếng Việt. Đơn hủy tạo full refund và release redemption.
+- Review chỉ phát sinh từ item thuộc order `completed`; rating và nội dung tiếng Việt luôn khớp nhau, có độ trễ sau giao hàng và ba trạng thái moderation.
+- Một phần wishlist được tạo trước lần mua đầu của cùng sản phẩm rồi đánh dấu removed tại lúc mua; phần còn lại vẫn present hoặc bị gỡ không chuyển đổi. Nhờ đó có thể tính wishlist-to-purchase conversion.
+
+Các pattern trên tạo được câu hỏi phân tích rõ ràng: revenue lift ngày sale, hiệu quả
+coupon theo khung giờ/segment, chi phí discount, cancellation rate, review rate/rating,
+wishlist conversion và repurchase propensity. Đây là dữ liệu synthetic có giả định,
+không được diễn giải như thống kê thực tế của thị trường.
 
 Lưu ý:
-- `logical_identity` phụ thuộc vào `distributions` — thay đổi phân phối tạo ra dataset mới; không import trùng vào database đã chứa dataset cũ cùng `scenario_id` (hãy đổi `scenario_id`/`seed` hoặc reset DB).
+
+- Mốc 0h Việt Nam được chuyển thành UTC trước khi ghi `DATETIME(6)`; dashboard phải chuyển lại `Asia/Ho_Chi_Minh` khi phân tích giờ/ngày nghiệp vụ.
+- `logical_identity` phụ thuộc generator version và toàn bộ `distributions`; thay đổi phân phối tạo dataset mới. Hãy đổi `scenario_id`/`seed` hoặc reset DB trước khi import lại.
 - Sau khi sửa config phải build lại image: `docker compose --profile tools build generator`.
+
+## Chiến lược import theo quy mô
+
+Exporter hiện gom tối đa 1.000 dòng trong mỗi multi-row `INSERT` và giữ toàn bộ
+dataset trong một transaction. Cách này phù hợp cho `small.yml` và `medium.yml`
+vì đơn giản, giữ FK/CHECK và rollback toàn bộ khi lỗi.
+
+Với `large-local.yml` hoặc `large-10m.yml`, nên bổ sung một export mode riêng:
+
+1. xuất CSV/TSV theo từng bảng theo đúng thứ tự parent trước child;
+2. dùng `LOAD DATA LOCAL INFILE` vào staging tables;
+3. kiểm tra count, FK, amount và inventory tại staging;
+4. promote sang OLTP theo batch có checkpoint và `generation_run_id`;
+5. chỉ đánh dấu generation run hoàn tất sau reconciliation.
+
+`mysqlsh util.loadDump()` với nhiều thread là phương án thay thế nếu generator
+xuất MySQL dump directory. Không nên tắt `FOREIGN_KEY_CHECKS` trên bảng OLTP chỉ
+để tăng tốc; nếu cần tối ưu local, hãy thực hiện ở staging và validate trước khi
+promote.

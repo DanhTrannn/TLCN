@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from bisect import bisect_left, bisect_right
 import random
 import uuid
 from collections.abc import Iterable, Sequence
@@ -8,18 +9,161 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import TextIO, TypeAlias
+from zoneinfo import ZoneInfo
 
 from argon2.low_level import Type, hash_secret
 
 from tlcn_generator import __version__
-from tlcn_generator.config import CATEGORY_NAMES, CustomerClass, DistributionConfig, GeneratorConfig, PriceBand, SaleEvent, TetWindow
+from tlcn_generator.config import (
+    CATEGORY_NAMES,
+    CustomerClass,
+    DistributionConfig,
+    GeneratorConfig,
+    PriceBand,
+    SaleEvent,
+    TetWindow,
+)
 
 
 DEMO_PASSWORD = "Demo@12345"
-INSERT_BATCH_SIZE = 250
+INSERT_BATCH_SIZE = 1_000
 SIZES = ("XS", "S", "M", "L", "XL")
 COLORS = ("BLACK", "WHITE", "RED", "GREEN", "BLUE", "YELLOW", "PINK", "PURPLE", "ORANGE", "BROWN", "GRAY", "BEIGE")
 LEAF_CATEGORIES = tuple((code, name) for code, name in CATEGORY_NAMES.items())
+
+PRODUCT_NAME_TEMPLATES: dict[str, tuple[str, ...]] = {
+    "ao": (
+        "Áo thun nữ cổ tròn form rộng",
+        "Áo sơ mi nữ tay dài form suông",
+        "Áo kiểu nữ cổ vuông tay phồng",
+        "Áo croptop nữ dáng ôm",
+        "Áo polo nữ dệt kim",
+        "Áo blouse nữ tay bồng",
+        "Áo len nữ cổ lọ dệt gân",
+        "Áo cardigan nữ dáng ngắn",
+        "Áo hai dây nữ chất satin",
+        "Áo peplum nữ chiết eo",
+        "Áo hoodie nữ form rộng",
+        "Áo thun nữ cổ tim dáng ôm",
+    ),
+    "quan": (
+        "Quần jeans nữ ống rộng lưng cao",
+        "Quần tây nữ ống suông công sở",
+        "Quần culottes nữ cạp cao",
+        "Quần short nữ lưng cao",
+        "Quần jogger nữ form thoải mái",
+        "Quần legging nữ co giãn",
+        "Quần kaki nữ ống đứng",
+        "Quần jeans nữ ống loe",
+        "Quần linen nữ ống rộng",
+        "Quần baggy nữ lưng cao",
+    ),
+    "vay": (
+        "Chân váy chữ A lưng cao",
+        "Chân váy xếp ly dáng midi",
+        "Chân váy satin dáng dài",
+        "Chân váy jeans chữ A",
+        "Chân váy tennis xếp ly",
+        "Chân váy bút chì công sở",
+        "Chân váy maxi hoa nhí",
+        "Chân váy đuôi cá nữ",
+        "Chân váy cargo túi hộp",
+        "Chân váy midi xẻ tà",
+    ),
+    "dam": (
+        "Đầm midi hoa nhí cổ vuông",
+        "Đầm suông nữ cổ tròn",
+        "Đầm body nữ tay dài",
+        "Đầm dự tiệc nữ chiết eo",
+        "Đầm sơ mi nữ dáng midi",
+        "Đầm babydoll nữ tay phồng",
+        "Đầm hai dây nữ chất satin",
+        "Đầm wrap nữ cổ chữ V",
+        "Đầm maxi nữ dáng xòe",
+        "Đầm công sở nữ cổ vest",
+    ),
+    "khoac": (
+        "Áo blazer nữ dáng suông",
+        "Áo khoác denim nữ form rộng",
+        "Áo bomber nữ dáng ngắn",
+        "Áo trench coat nữ thắt eo",
+        "Áo khoác dạ nữ dáng dài",
+        "Áo khoác chống nắng nữ",
+        "Áo phao nữ dáng ngắn",
+        "Áo khoác tweed nữ cổ tròn",
+        "Áo gile nữ phong cách công sở",
+        "Áo khoác kaki nữ túi hộp",
+    ),
+    "phu-kien": (
+        "Thắt lưng nữ bản nhỏ",
+        "Mũ bucket nữ vành mềm",
+        "Khăn lụa nữ họa tiết thanh lịch",
+        "Kính mát nữ gọng vuông",
+        "Bông tai nữ dáng tròn",
+        "Vòng cổ nữ dây mảnh",
+        "Kẹp tóc nữ bản lớn",
+        "Tất nữ cổ cao phong cách Hàn Quốc",
+        "Mũ lưỡi trai nữ tối giản",
+        "Khăn choàng nữ chất mềm",
+    ),
+    "giay": (
+        "Giày sneaker nữ đế nhẹ",
+        "Sandal nữ quai mảnh",
+        "Giày cao gót nữ mũi nhọn",
+        "Giày loafer nữ đế thấp",
+        "Giày búp bê nữ đính nơ",
+        "Giày mule nữ mũi vuông",
+        "Boot nữ cổ thấp",
+        "Dép nữ quai ngang đế mềm",
+        "Giày thể thao nữ đế tăng chiều cao",
+        "Sandal nữ đế xuồng",
+    ),
+    "tui-xach": (
+        "Túi đeo vai nữ dáng hộp",
+        "Túi tote nữ cỡ lớn",
+        "Túi baguette nữ dáng dài",
+        "Túi đeo chéo nữ mini",
+        "Túi xách nữ khóa kim loại",
+        "Túi bucket nữ dây rút",
+        "Ví cầm tay nữ dáng mỏng",
+        "Túi laptop nữ chống sốc",
+        "Túi hobo nữ dáng mềm",
+        "Túi hộp nữ quai xách",
+    ),
+}
+
+PRODUCT_MODEL_CODES = {
+    "ao": "AO",
+    "quan": "QU",
+    "vay": "CV",
+    "dam": "DM",
+    "khoac": "AK",
+    "phu-kien": "PK",
+    "giay": "GI",
+    "tui-xach": "TX",
+}
+
+PRODUCT_COLLECTIONS = (
+    "Everyday",
+    "Modern Office",
+    "Weekend",
+    "Minimal",
+    "Urban Muse",
+    "Soft Feminine",
+    "Holiday",
+    "Essential",
+)
+
+PRODUCT_DESCRIPTION_BY_CATEGORY = {
+    "ao": "Thiết kế dễ phối cùng quần hoặc chân váy cho nhiều hoàn cảnh.",
+    "quan": "Phom quần cân đối, phù hợp phong cách đi làm và dạo phố.",
+    "vay": "Dáng váy tôn tỷ lệ cơ thể và dễ kết hợp với nhiều kiểu áo.",
+    "dam": "Thiết kế nữ tính, phù hợp đi làm, đi chơi hoặc dự tiệc tùy kiểu dáng.",
+    "khoac": "Lớp khoác hoàn thiện trang phục và phù hợp nhiều điều kiện thời tiết.",
+    "phu-kien": "Phụ kiện tạo điểm nhấn và hoàn thiện phong cách hằng ngày.",
+    "giay": "Thiết kế cân bằng giữa thẩm mỹ và sự thoải mái khi di chuyển.",
+    "tui-xach": "Kiểu túi tiện dụng, phù hợp mang theo các vật dụng cá nhân thiết yếu.",
+}
 
 
 @dataclass(frozen=True)
@@ -55,6 +199,49 @@ class VariantRecord:
     size_code: str
     color_code: str
     price_vnd: int
+
+
+@dataclass(frozen=True)
+class CouponRecord:
+    coupon_id: int
+    code: str
+    discount_type: str
+    discount_value: int
+    minimum_subtotal_vnd: int
+    starts_at: datetime
+    ends_at: datetime
+    kind: str
+    campaign_day: date | None = None
+
+
+REVIEW_CONTENT_BY_RATING: dict[int, tuple[str, ...]] = {
+    1: (
+        "Sản phẩm khác mô tả, chất liệu không như mong đợi.",
+        "Form không phù hợp và màu thực tế lệch khá nhiều.",
+    ),
+    2: (
+        "Đóng gói ổn nhưng form hơi khó mặc, cần cải thiện chất liệu.",
+        "Giao đúng mẫu nhưng đường may chưa tốt như kỳ vọng.",
+    ),
+    3: (
+        "Sản phẩm dùng ổn trong tầm giá, form hơi rộng một chút.",
+        "Màu đẹp, chất liệu ở mức khá và giao hàng đúng hẹn.",
+    ),
+    4: (
+        "Form đẹp, màu giống ảnh và chất vải khá thoải mái.",
+        "Đóng gói cẩn thận, mặc vừa và sẽ cân nhắc mua thêm màu khác.",
+    ),
+    5: (
+        "Rất ưng form và chất liệu, màu lên đẹp như hình.",
+        "Sản phẩm đẹp, giao nhanh, đóng gói kỹ và đúng size đã chọn.",
+    ),
+}
+
+REVIEW_REJECTION_REASONS = (
+    "Nội dung không liên quan đến sản phẩm",
+    "Nội dung lặp hoặc không cung cấp thông tin hữu ích",
+    "Ngôn từ không phù hợp quy định cộng đồng",
+)
 
 
 @dataclass(frozen=True)
@@ -180,11 +367,21 @@ def _largest_remainder(values: Sequence[float], total: int) -> list[int]:
     return floors
 
 
-def _class_assignment(customer_count: int, classes: Sequence[CustomerClass], randomizer: random.Random) -> list[str]:
-    counts = _largest_remainder([class_.share * customer_count for class_ in classes], customer_count)
+def _class_assignment(
+    customer_count: int,
+    classes: Sequence[CustomerClass],
+    randomizer: random.Random,
+) -> list[str]:
+    counts = _largest_remainder(
+        [class_.share * customer_count for class_ in classes], customer_count
+    )
     assignment: list[str] = []
     for class_, count in zip(classes, counts):
         assignment.extend([class_.name] * count)
+    randomizer.shuffle(assignment)
+    if "loyal" in assignment and assignment[0] != "loyal":
+        loyal_index = assignment.index("loyal")
+        assignment[0], assignment[loyal_index] = assignment[loyal_index], assignment[0]
     return assignment
 
 
@@ -271,28 +468,206 @@ def _build_day_weights(
     return days, weights
 
 
+def _hour_weights_for_day(
+    day: date,
+    distributions: DistributionConfig,
+) -> Sequence[float]:
+    if _sale_boost(day, distributions) > 1:
+        return distributions.campaign_hour_of_day
+    return distributions.hour_of_day
+
+
 def _pick_base_datetime(
     randomizer: random.Random,
     history_start: datetime,
     history_end: datetime,
     days: Sequence[date],
     day_weights: Sequence[float],
-    hour_of_day: Sequence[float],
+    distributions: DistributionConfig,
 ) -> datetime:
     day = days[_weighted_index(randomizer, day_weights)]
-    hour = _weighted_index(randomizer, hour_of_day)
+    hour = _weighted_index(randomizer, _hour_weights_for_day(day, distributions))
     minute = randomizer.randrange(60)
-    return min(
-        history_start.replace(
-            year=day.year, month=day.month, day=day.day, hour=hour, minute=minute, second=0, microsecond=0
-        ),
-        history_end,
+    business_zone = ZoneInfo(distributions.business_timezone)
+    local_candidate = datetime(
+        day.year,
+        day.month,
+        day.day,
+        hour,
+        minute,
+        tzinfo=business_zone,
     )
+    return min(max(local_candidate.astimezone(UTC), history_start), history_end)
 
 
-def _shape_hour(randomizer: random.Random, moment: datetime, hour_of_day: Sequence[float]) -> datetime:
-    hour = _weighted_index(randomizer, hour_of_day)
-    return moment.replace(hour=hour, minute=randomizer.randrange(60), second=0, microsecond=0)
+def _shape_hour(
+    randomizer: random.Random,
+    moment: datetime,
+    distributions: DistributionConfig,
+) -> datetime:
+    business_zone = ZoneInfo(distributions.business_timezone)
+    local_moment = moment.astimezone(business_zone)
+    weights = _hour_weights_for_day(local_moment.date(), distributions)
+    hour = _weighted_index(randomizer, weights)
+    return local_moment.replace(
+        hour=hour,
+        minute=randomizer.randrange(60),
+        second=0,
+        microsecond=0,
+    ).astimezone(UTC)
+
+
+def _campaign_instances(
+    history_start: datetime,
+    history_end: datetime,
+    distributions: DistributionConfig,
+) -> list[tuple[SaleEvent, datetime]]:
+    business_zone = ZoneInfo(distributions.business_timezone)
+    local_start = history_start.astimezone(business_zone)
+    local_end = history_end.astimezone(business_zone)
+    instances: list[tuple[SaleEvent, datetime]] = []
+    for year in range(local_start.year, local_end.year + 1):
+        for event in distributions.sales:
+            event_date = _event_day(event, year)
+            if event_date is None:
+                continue
+            moment = datetime(
+                event_date.year,
+                event_date.month,
+                event_date.day,
+                tzinfo=business_zone,
+            ).astimezone(UTC)
+            if history_start <= moment < history_end:
+                instances.append((event, moment))
+    return sorted(instances, key=lambda item: (item[1], item[0].name))
+
+
+def _snap_to_campaign(
+    randomizer: random.Random,
+    tentative: datetime,
+    previous: datetime,
+    history_end: datetime,
+    campaign_days: Sequence[date],
+    affinity: float,
+    distributions: DistributionConfig,
+) -> datetime:
+    if randomizer.random() >= affinity or not campaign_days:
+        return _shape_hour(randomizer, tentative, distributions)
+    business_zone = ZoneInfo(distributions.business_timezone)
+    local_previous = previous.astimezone(business_zone)
+    local_tentative = tentative.astimezone(business_zone)
+    local_history_end = history_end.astimezone(business_zone)
+    window_start = max(local_previous.date(), local_tentative.date() - timedelta(days=7))
+    window_end = min(local_history_end.date(), local_tentative.date() + timedelta(days=7))
+    left = bisect_left(campaign_days, window_start)
+    right = bisect_right(campaign_days, window_end)
+    if left >= right:
+        return _shape_hour(randomizer, tentative, distributions)
+    selected_day = campaign_days[randomizer.randrange(left, right)]
+    snapped = local_tentative.replace(
+        year=selected_day.year,
+        month=selected_day.month,
+        day=selected_day.day,
+    ).astimezone(UTC)
+    if snapped < previous:
+        return _shape_hour(randomizer, tentative, distributions)
+    return _shape_hour(randomizer, min(snapped, history_end), distributions)
+
+
+def _mapping_value(values: Sequence[tuple[str, float]], key: str) -> float:
+    return dict(values)[key]
+
+
+def _weighted_pair(
+    randomizer: random.Random,
+    values: Sequence[tuple[str, int | float]],
+) -> str:
+    return values[_weighted_index(randomizer, [weight for _, weight in values])][0]
+
+
+def _coupon_discount(coupon: CouponRecord, subtotal_vnd: int) -> int:
+    if coupon.discount_type == "percentage":
+        return subtotal_vnd * coupon.discount_value // 100
+    return min(coupon.discount_value, subtotal_vnd)
+
+
+def _select_coupon(
+    randomizer: random.Random,
+    coupons: Sequence[CouponRecord],
+    order_time: datetime,
+    subtotal_vnd: int,
+    customer_class: str,
+    is_first_order: bool,
+    distributions: DistributionConfig,
+) -> CouponRecord | None:
+    eligible = [
+        coupon
+        for coupon in coupons
+        if coupon.starts_at <= order_time < coupon.ends_at
+        and subtotal_vnd >= coupon.minimum_subtotal_vnd
+    ]
+    if not eligible:
+        return None
+
+    behavior = distributions.coupons
+    multiplier = _mapping_value(behavior.customer_multipliers, customer_class)
+    midnight = [coupon for coupon in eligible if coupon.kind == "midnight"]
+    campaign = [coupon for coupon in eligible if coupon.kind == "campaign"]
+    welcome = [coupon for coupon in eligible if coupon.kind == "welcome"]
+    everyday = [coupon for coupon in eligible if coupon.kind == "everyday"]
+
+    candidates: Sequence[CouponRecord]
+    rate: float
+    local_hour = order_time.astimezone(
+        ZoneInfo(distributions.business_timezone)
+    ).hour
+    if midnight and local_hour in (0, 1):
+        candidates = midnight
+        rate = behavior.midnight_usage_rate
+    elif campaign:
+        candidates = campaign
+        rate = behavior.campaign_usage_rate
+    elif is_first_order and welcome:
+        candidates = welcome
+        rate = behavior.first_order_usage_rate
+    else:
+        candidates = everyday
+        rate = behavior.base_usage_rate
+    if not candidates or randomizer.random() >= min(1.0, rate * multiplier):
+        return None
+    return candidates[randomizer.randrange(len(candidates))]
+
+
+def _review_content(
+    randomizer: random.Random,
+    rating: int,
+    product_name: str,
+    coupon_code: str | None,
+) -> str:
+    message = randomizer.choice(REVIEW_CONTENT_BY_RATING[rating])
+    prefix = f"Mua {product_name}"
+    if coupon_code:
+        prefix += f" trong đợt dùng mã {coupon_code}"
+    return f"{prefix}. {message}"
+
+
+def _product_copy(category_code: str, category_sequence: int) -> tuple[str, str]:
+    templates = PRODUCT_NAME_TEMPLATES[category_code]
+    base_name = templates[category_sequence % len(templates)]
+    collection_index = (category_sequence // len(templates)) % len(
+        PRODUCT_COLLECTIONS
+    )
+    collection = PRODUCT_COLLECTIONS[collection_index]
+    model_code = (
+        f"DK-{PRODUCT_MODEL_CODES[category_code]}-{category_sequence + 1:05d}"
+    )
+    name = f"{base_name} - {model_code}"
+    description = (
+        f"{base_name} thuộc bộ sưu tập {collection} của D&K. "
+        f"{PRODUCT_DESCRIPTION_BY_CATEGORY[category_code]} "
+        "Size và màu sắc được quản lý theo từng phiên bản sản phẩm."
+    )
+    return name, description
 
 
 def _pick_product_price(randomizer: random.Random, bands: Sequence[PriceBand]) -> int:
@@ -316,7 +691,7 @@ def _write_header(
         f"-- seed: {config.seed}\n"
         f"-- anchor_time: {config.anchor_time.isoformat()}\n"
         f"-- demo_login: {demo_email} / {DEMO_PASSWORD}\n"
-        "-- Prerequisite: run Alembic migrations through revision 0004.\n"
+        "-- Prerequisite: run Alembic migrations through revision 0005_order_lifecycle.\n"
         "-- Import is fail-fast; importing the same dataset twice is rejected by unique keys.\n\n"
         "SET NAMES utf8mb4;\n"
         "SET time_zone = '+00:00';\n"
@@ -349,8 +724,12 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     wishlist_base = block
     order_base = block
     order_item_base = block
+    coupon_base = block
+    redemption_base = block
     payment_base = block
+    refund_base = block
     history_base = block
+    review_base = block
 
     customer_ids = [customer_base + index + 1 for index in range(customer_count)]
     active_customer_indices: list[int] = []
@@ -375,6 +754,22 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 updated_at,
             )
         )
+
+    moderator_customer_id = customer_base + customer_count + 1
+    customer_rows.append(
+        (
+            moderator_customer_id,
+            _binary_uuid(_entity_uuid(namespace, "review-moderator", 0)),
+            "admin",
+            "Kiểm duyệt viên dữ liệu tổng hợp",
+            "active",
+            "synthetic",
+            None,
+            None,
+            master_created_at,
+            master_created_at,
+        )
+    )
 
     credential_rows: list[Sequence[SqlValue]] = [
         (
@@ -429,16 +824,25 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     variant_rows: list[Sequence[SqlValue]] = []
     variant_index = 0
     combinations = [(size, color) for size in SIZES for color in COLORS]
+    category_sequences = {code: 0 for code in CATEGORY_NAMES}
     for product_index in range(product_count):
         category_code = _pick_category(randomizer, distribution.categories)
         category = category_by_code[category_code]
+        category_sequence = category_sequences[category_code]
+        category_sequences[category_code] += 1
+        product_name, product_description = _product_copy(
+            category_code, category_sequence
+        )
         product_price_vnd = _pick_product_price(randomizer, distribution.price_bands)
         product = ProductRecord(
             product_id=product_base + product_index + 1,
             public_id=_entity_uuid(namespace, "product", product_index),
             category=category,
-            slug=f"syn-{config.logical_identity[:8]}-product-{product_index + 1:05d}",
-            name=f"Sản phẩm tổng hợp {product_index + 1:05d}",
+            slug=(
+                f"syn-{config.logical_identity[:8]}-{category_code}-"
+                f"{category_sequence + 1:05d}"
+            ),
+            name=product_name,
         )
         product_records.append(product)
         product_rows.append(
@@ -448,7 +852,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 category.category_id,
                 product.slug,
                 product.name,
-                f"Dữ liệu tổng hợp cho kịch bản {config.scenario_id}.",
+                product_description,
                 f"https://picsum.photos/seed/{product.slug}/600/600",
                 True,
                 master_created_at,
@@ -484,39 +888,80 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             )
             variant_index += 1
 
-    wishlist_rows: list[Sequence[SqlValue]] = []
-    wishlist_index = 0
-    for customer_index, customer_id in enumerate(customer_ids):
-        if randomizer.random() >= 0.55:
-            continue
-        wishlist_count = randomizer.randint(1, min(5, product_count))
-        selected_products = randomizer.sample(product_records, wishlist_count)
-        for product in selected_products:
-            first_added_at = _timestamp_between(randomizer, history_start, history_end)
-            last_added_at = first_added_at + timedelta(days=randomizer.randrange(0, 30))
-            if last_added_at > history_end:
-                last_added_at = history_end
-            is_present = randomizer.random() >= 0.18
-            removed_at = None if is_present else min(history_end, last_added_at + timedelta(days=randomizer.randrange(0, 15)))
-            wishlist_rows.append(
-                (
-                    wishlist_base + wishlist_index + 1,
-                    customer_id,
-                    product.product_id,
-                    is_present,
-                    first_added_at,
-                    last_added_at,
-                    removed_at,
-                    removed_at or last_added_at,
-                )
-            )
-            wishlist_index += 1
-
+    purchased_products_by_customer: dict[int, dict[int, datetime]] = {
+        customer_id: {} for customer_id in customer_ids
+    }
     sold_quantities = {variant.variant_id: 0 for variant in variant_records}
     inventory_versions = {variant.variant_id: 0 for variant in variant_records}
     class_by_name = {class_.name: class_ for class_ in distribution.customer_classes}
     assignment = _class_assignment(customer_count, distribution.customer_classes, randomizer)
-    days, day_weights = _build_day_weights(history_start.date(), history_end.date(), distribution)
+    business_zone = ZoneInfo(distribution.business_timezone)
+    days, day_weights = _build_day_weights(
+        history_start.astimezone(business_zone).date(),
+        history_end.astimezone(business_zone).date(),
+        distribution,
+    )
+    campaign_days = tuple(
+        day for day in days if _sale_boost(day, distribution) > 1
+    )
+
+    coupon_records: list[CouponRecord] = [
+        CouponRecord(
+            coupon_id=coupon_base + 1,
+            code=f"EVERYDAY{distribution.coupons.everyday_percentage}-{config.logical_identity[:4].upper()}",
+            discount_type="percentage",
+            discount_value=distribution.coupons.everyday_percentage,
+            minimum_subtotal_vnd=distribution.coupons.everyday_minimum_subtotal_vnd,
+            starts_at=history_start - timedelta(days=1),
+            ends_at=history_end + timedelta(days=365),
+            kind="everyday",
+        ),
+        CouponRecord(
+            coupon_id=coupon_base + 2,
+            code=f"WELCOME{distribution.coupons.welcome_fixed_vnd // 1000}K-{config.logical_identity[:4].upper()}",
+            discount_type="fixed_amount",
+            discount_value=distribution.coupons.welcome_fixed_vnd,
+            minimum_subtotal_vnd=distribution.coupons.campaign_minimum_subtotal_vnd,
+            starts_at=history_start - timedelta(days=1),
+            ends_at=history_end + timedelta(days=365),
+            kind="welcome",
+        ),
+    ]
+    for campaign_index, (event, event_time) in enumerate(
+        _campaign_instances(history_start, history_end, distribution)
+    ):
+        token = "".join(character for character in event.name.upper() if character.isalnum())[:16]
+        percentage_values = distribution.coupons.campaign_percentage_values
+        fixed_values = distribution.coupons.midnight_fixed_values_vnd
+        campaign_code = (
+            f"SALE{token}{event_time.year % 100:02d}-{config.logical_identity[:4].upper()}"
+        )
+        coupon_records.append(
+            CouponRecord(
+                coupon_id=coupon_base + len(coupon_records) + 1,
+                code=campaign_code,
+                discount_type="percentage",
+                discount_value=percentage_values[campaign_index % len(percentage_values)],
+                minimum_subtotal_vnd=distribution.coupons.campaign_minimum_subtotal_vnd,
+                starts_at=event_time,
+                ends_at=event_time + timedelta(days=event.after_days + 1),
+                kind="campaign",
+                campaign_day=event_time.date(),
+            )
+        )
+        coupon_records.append(
+            CouponRecord(
+                coupon_id=coupon_base + len(coupon_records) + 1,
+                code=f"0H{token}{event_time.year % 100:02d}-{config.logical_identity[:4].upper()}",
+                discount_type="fixed_amount",
+                discount_value=fixed_values[campaign_index % len(fixed_values)],
+                minimum_subtotal_vnd=distribution.coupons.campaign_minimum_subtotal_vnd,
+                starts_at=event_time,
+                ends_at=event_time + timedelta(hours=2),
+                kind="midnight",
+                campaign_day=event_time.date(),
+            )
+        )
 
     temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
     with temporary_path.open("w", encoding="utf-8", newline="\n") as stream:
@@ -570,18 +1015,52 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             ("variant_id", "public_id", "product_id", "sku", "size_code", "color_code", "price_vnd", "is_active", "created_at", "updated_at"),
             variant_rows,
         )
+        coupon_rows: list[Sequence[SqlValue]] = []
+        for coupon_index, coupon in enumerate(coupon_records):
+            coupon_rows.append(
+                (
+                    coupon.coupon_id,
+                    _binary_uuid(_entity_uuid(namespace, "coupon", coupon_index)),
+                    coupon.code,
+                    coupon.discount_type,
+                    coupon.discount_value,
+                    coupon.minimum_subtotal_vnd,
+                    coupon.starts_at,
+                    coupon.ends_at,
+                    True,
+                    max(100, order_count + 100),
+                    1 if coupon.kind in ("welcome", "campaign", "midnight") else 10,
+                    0,
+                    master_created_at,
+                    master_created_at,
+                )
+            )
         _write_batched(
             stream,
-            "wishlist_items",
-            ("wishlist_item_id", "customer_id", "product_id", "is_present", "first_added_at", "last_added_at", "removed_at", "updated_at"),
-            wishlist_rows,
+            "coupons",
+            (
+                "coupon_id",
+                "public_id",
+                "code_normalized",
+                "discount_type",
+                "discount_value",
+                "minimum_subtotal_vnd",
+                "starts_at",
+                "ends_at",
+                "is_active",
+                "total_usage_limit",
+                "per_customer_usage_limit",
+                "used_count",
+                "created_at",
+                "updated_at",
+            ),
+            coupon_rows,
         )
-
         cart_item_index = 0
         order_item_index = 0
         history_index = 0
+        review_index = 0
         demo_order_target = min(24, order_count)
-        failure_enabled = "failure_fixtures" in config.modes
 
         cart_rows: list[Sequence[SqlValue]] = []
         cart_item_rows: list[Sequence[SqlValue]] = []
@@ -589,6 +1068,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         order_item_rows: list[Sequence[SqlValue]] = []
         payment_rows: list[Sequence[SqlValue]] = []
         history_rows: list[Sequence[SqlValue]] = []
+        redemption_rows: list[Sequence[SqlValue]] = []
+        refund_rows: list[Sequence[SqlValue]] = []
+        review_rows: list[Sequence[SqlValue]] = []
 
         def flush_orders() -> None:
             _write_insert(stream, "carts", ("cart_id", "public_id", "customer_id", "status", "created_at", "updated_at", "checked_out_at"), cart_rows)
@@ -600,7 +1082,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     "order_id", "order_number", "cart_id", "customer_id", "checkout_idempotency_key", "status",
                     "currency_code", "subtotal_vnd", "shipping_fee_vnd", "total_vnd", "receiver_name",
                     "receiver_phone", "shipping_address_text", "data_origin", "generation_run_id", "created_at",
-                    "updated_at", "paid_at", "completed_at",
+                    "updated_at", "paid_at", "completed_at", "coupon_id", "coupon_code_snapshot",
+                    "coupon_type_snapshot", "coupon_value_snapshot", "discount_amount_vnd",
+                    "confirmed_at", "cancelled_at",
                 ),
                 order_rows,
             )
@@ -608,7 +1092,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 stream,
                 "order_items",
                 (
-                    "order_item_id", "order_id", "variant_id", "product_public_id_snapshot",
+                    "order_item_id", "public_id", "order_id", "variant_id", "product_public_id_snapshot",
                     "category_code_snapshot", "category_name_snapshot", "product_name_snapshot", "sku_snapshot",
                     "size_code_snapshot", "color_code_snapshot", "unit_price_vnd", "quantity", "line_total_vnd", "created_at",
                 ),
@@ -626,82 +1110,231 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 ("order_status_history_id", "order_id", "from_status", "to_status", "transition_source", "reason", "transition_idempotency_key", "transitioned_at", "created_at"),
                 history_rows,
             )
+            _write_insert(
+                stream,
+                "coupon_redemptions",
+                (
+                    "coupon_redemption_id", "coupon_id", "order_id", "customer_id", "status",
+                    "redeemed_at", "released_at", "created_at", "updated_at",
+                ),
+                redemption_rows,
+            )
+            _write_insert(
+                stream,
+                "refunds",
+                (
+                    "refund_id", "public_id", "payment_id", "refund_idempotency_key", "status",
+                    "currency_code", "amount_vnd", "reason", "requested_by_customer_id",
+                    "created_at", "completed_at",
+                ),
+                refund_rows,
+            )
+            _write_insert(
+                stream,
+                "product_reviews",
+                (
+                    "review_id", "public_id", "order_item_id", "customer_id", "product_id",
+                    "rating", "content", "status", "moderation_reason", "moderated_by_customer_id",
+                    "moderated_at", "created_at", "updated_at",
+                ),
+                review_rows,
+            )
             cart_rows.clear()
             cart_item_rows.clear()
             order_rows.clear()
             order_item_rows.clear()
             payment_rows.clear()
             history_rows.clear()
+            redemption_rows.clear()
+            refund_rows.clear()
+            review_rows.clear()
 
-        targets = _order_targets(assignment, class_by_name, demo_order_target, order_count, randomizer)
+        targets = _order_targets(
+            assignment,
+            class_by_name,
+            demo_order_target,
+            order_count,
+            randomizer,
+        )
         order_index = 0
         for customer_index, order_target in enumerate(targets):
             if order_target <= 0:
                 continue
             customer_id = customer_ids[customer_index]
+            customer_class = assignment[customer_index]
+            class_ = class_by_name[customer_class]
             if customer_index == 0:
-                span_seconds = max(1, int((history_end - history_start).total_seconds()))
+                span_seconds = max(
+                    1, int((history_end - history_start).total_seconds())
+                )
                 base_times = [
                     _shape_hour(
                         randomizer,
-                        history_start + timedelta(seconds=span_seconds * (position + 1) // (order_target + 1)),
-                        distribution.hour_of_day,
+                        history_start
+                        + timedelta(
+                            seconds=span_seconds
+                            * (position + 1)
+                            // (order_target + 1)
+                        ),
+                        distribution,
                     )
                     for position in range(order_target)
                 ]
             else:
-                class_ = class_by_name[assignment[customer_index]]
                 base_times = [
                     _pick_base_datetime(
-                        randomizer, history_start, history_end, days, day_weights, distribution.hour_of_day
+                        randomizer,
+                        history_start,
+                        history_end,
+                        days,
+                        day_weights,
+                        distribution,
                     )
                 ]
                 for position in range(1, order_target):
                     remaining_orders = order_target - position
                     available_days = max(0, (history_end - base_times[-1]).days)
                     interval_cap = available_days // max(1, remaining_orders)
-                    interval = randomizer.randint(class_.interval_min or 1, class_.interval_max or 1)
-                    next_base = min(base_times[-1] + timedelta(days=min(interval, interval_cap)), history_end)
+                    interval = randomizer.randint(
+                        class_.interval_min or 1,
+                        class_.interval_max or 1,
+                    )
+                    next_base = min(
+                        base_times[-1]
+                        + timedelta(days=min(interval, interval_cap)),
+                        history_end,
+                    )
                     base_times.append(
                         min(
-                            _shape_hour(
+                            _snap_to_campaign(
                                 randomizer,
                                 next_base,
-                                distribution.hour_of_day,
+                                base_times[-1],
+                                history_end,
+                                campaign_days,
+                                class_.campaign_affinity,
+                                distribution,
                             ),
                             history_end,
                         )
                     )
 
-            for base_time in base_times:
+            for customer_order_position, base_time in enumerate(base_times):
                 order_time = base_time
                 cart_id = cart_base + order_index + 1
                 order_id = order_base + order_index + 1
-                cart_created_at = order_time - timedelta(minutes=randomizer.randint(5, 10_080))
-                item_count = 1 + _weighted_index(randomizer, distribution.order_size)
-                selected_variants = randomizer.sample(variant_records, min(item_count, variant_count))
+                cart_created_at = order_time - timedelta(
+                    minutes=randomizer.randint(5, 10_080)
+                )
+                item_count = 1 + _weighted_index(
+                    randomizer, distribution.order_size
+                )
+                selected_variants = randomizer.sample(
+                    variant_records, min(item_count, variant_count)
+                )
                 selected_variants.sort(key=lambda variant: variant.variant_id)
 
                 item_details: list[tuple[VariantRecord, int, int]] = []
                 subtotal_vnd = 0
                 for variant in selected_variants:
-                    quantity = 1 + _weighted_index(randomizer, distribution.quantity_per_item)
+                    quantity = 1 + _weighted_index(
+                        randomizer, distribution.quantity_per_item
+                    )
                     line_total_vnd = variant.price_vnd * quantity
                     subtotal_vnd += line_total_vnd
                     item_details.append((variant, quantity, line_total_vnd))
-                shipping_fee_vnd = 0 if subtotal_vnd >= 500_000 else 30_000
-                total_vnd = subtotal_vnd + shipping_fee_vnd
 
-                failed = failure_enabled and randomizer.random() < 0.04
-                can_complete = order_time <= history_end - timedelta(days=4)
-                completed = not failed and can_complete and randomizer.random() < 0.78
-                status = "payment_failed" if failed else "completed" if completed else "paid"
-                paid_at = None if failed else order_time
+                selected_coupon = _select_coupon(
+                    randomizer,
+                    coupon_records,
+                    order_time,
+                    subtotal_vnd,
+                    customer_class,
+                    customer_order_position == 0,
+                    distribution,
+                )
+                discount_amount_vnd = (
+                    _coupon_discount(selected_coupon, subtotal_vnd)
+                    if selected_coupon
+                    else 0
+                )
+                shipping_fee_vnd = 0 if subtotal_vnd >= 500_000 else 30_000
+                total_vnd = (
+                    subtotal_vnd - discount_amount_vnd + shipping_fee_vnd
+                )
+
+                is_campaign_order = _sale_boost(
+                    order_time.astimezone(business_zone).date(), distribution
+                ) > 1
+                cancellation = distribution.cancellations
+                cancellation_rate = (
+                    cancellation.campaign_rate
+                    if is_campaign_order
+                    else cancellation.base_rate
+                )
+                cancellation_rate += _mapping_value(
+                    cancellation.customer_addons, customer_class
+                )
+                if selected_coupon is not None:
+                    cancellation_rate += cancellation.coupon_addon
+                order_age = history_end - order_time
+                cancelled = (
+                    order_age >= timedelta(hours=2)
+                    and randomizer.random()
+                    < max(0.0, min(1.0, cancellation_rate))
+                )
+                completed = (
+                    not cancelled
+                    and order_age >= timedelta(days=5)
+                    and randomizer.random() < 0.97
+                )
+                confirmed = (
+                    not cancelled
+                    and not completed
+                    and order_age >= timedelta(hours=8)
+                )
+                status = (
+                    "cancelled"
+                    if cancelled
+                    else "completed"
+                    if completed
+                    else "confirmed"
+                    if confirmed
+                    else "paid"
+                )
+                cancellation_reason = (
+                    _weighted_pair(randomizer, cancellation.reasons)
+                    if cancelled
+                    else None
+                )
+                paid_at = order_time
+                confirmed_at = None
                 completed_at = None
-                if completed:
-                    completed_at = min(history_end - timedelta(minutes=1), order_time + timedelta(hours=randomizer.randint(24, 96)))
-                updated_at = completed_at or order_time
-                checkout_key = f"sql:{config.logical_identity}:{order_index + 1}:checkout"
+                cancelled_at = None
+                if completed or confirmed:
+                    confirmed_at = min(
+                        history_end - timedelta(minutes=2),
+                        order_time
+                        + timedelta(hours=randomizer.randint(2, 18)),
+                    )
+                if completed and confirmed_at is not None:
+                    completed_at = min(
+                        history_end - timedelta(minutes=1),
+                        confirmed_at
+                        + timedelta(hours=randomizer.randint(24, 96)),
+                    )
+                if cancelled:
+                    cancelled_at = min(
+                        history_end - timedelta(minutes=1),
+                        order_time
+                        + timedelta(minutes=randomizer.randint(15, 480)),
+                    )
+                updated_at = (
+                    cancelled_at or completed_at or confirmed_at or order_time
+                )
+                checkout_key = (
+                    f"sql:{config.logical_identity}:{order_index + 1}:checkout"
+                )
 
                 cart_rows.append(
                     (
@@ -732,6 +1365,13 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     order_item_rows.append(
                         (
                             order_item_base + order_item_index,
+                            _binary_uuid(
+                                _entity_uuid(
+                                    namespace,
+                                    "order-item",
+                                    order_item_index,
+                                )
+                            ),
                             order_id,
                             variant.variant_id,
                             _binary_uuid(variant.product.public_id),
@@ -747,9 +1387,91 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             order_time,
                         )
                     )
-                    if not failed:
+                    if not cancelled:
                         sold_quantities[variant.variant_id] += quantity
                         inventory_versions[variant.variant_id] += 1
+                        first_purchase = purchased_products_by_customer[customer_id].get(
+                            variant.product.product_id
+                        )
+                        if first_purchase is None or order_time < first_purchase:
+                            purchased_products_by_customer[customer_id][
+                                variant.product.product_id
+                            ] = order_time
+                    else:
+                        inventory_versions[variant.variant_id] += 2
+
+                    review_rate = _mapping_value(
+                        distribution.reviews.completed_order_rates,
+                        customer_class,
+                    )
+                    if completed and randomizer.random() < review_rate:
+                        review_time = (completed_at or order_time) + timedelta(
+                            days=randomizer.randint(
+                                distribution.reviews.delay_days_min,
+                                distribution.reviews.delay_days_max,
+                            ),
+                            hours=randomizer.randint(0, 23),
+                        )
+                        if review_time <= history_end:
+                            review_index += 1
+                            rating = 1 + _weighted_index(
+                                randomizer,
+                                distribution.reviews.rating_weights,
+                            )
+                            review_status = _weighted_pair(
+                                randomizer,
+                                distribution.reviews.status_weights,
+                            )
+                            moderated_at = None
+                            moderated_by_customer_id = None
+                            moderation_reason = None
+                            if review_status != "pending":
+                                moderated_at = min(
+                                    history_end,
+                                    review_time
+                                    + timedelta(
+                                        hours=randomizer.randint(1, 48)
+                                    ),
+                                )
+                                moderated_by_customer_id = (
+                                    moderator_customer_id
+                                )
+                                if review_status == "rejected":
+                                    moderation_reason = randomizer.choice(
+                                        REVIEW_REJECTION_REASONS
+                                    )
+                            review_rows.append(
+                                (
+                                    review_base + review_index,
+                                    _binary_uuid(
+                                        _entity_uuid(
+                                            namespace,
+                                            "review",
+                                            review_index,
+                                        )
+                                    ),
+                                    order_item_base + order_item_index,
+                                    customer_id,
+                                    variant.product.product_id,
+                                    rating,
+                                    _review_content(
+                                        randomizer,
+                                        rating,
+                                        variant.product.name,
+                                        (
+                                            selected_coupon.code
+                                            if selected_coupon
+                                            else None
+                                        ),
+                                    ),
+                                    review_status,
+                                    moderation_reason,
+                                    moderated_by_customer_id,
+                                    moderated_at,
+                                    review_time,
+                                    moderated_at or review_time,
+                                )
+                            )
 
                 order_rows.append(
                     (
@@ -772,6 +1494,21 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         updated_at,
                         paid_at,
                         completed_at,
+                        selected_coupon.coupon_id if selected_coupon else None,
+                        selected_coupon.code if selected_coupon else None,
+                        (
+                            selected_coupon.discount_type
+                            if selected_coupon
+                            else None
+                        ),
+                        (
+                            selected_coupon.discount_value
+                            if selected_coupon
+                            else None
+                        ),
+                        discount_amount_vnd,
+                        confirmed_at,
+                        cancelled_at,
                     )
                 )
                 payment_rows.append(
@@ -780,10 +1517,10 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         f"PAYSYN{config.logical_identity[:8].upper()}{order_index + 1:08d}",
                         order_id,
                         f"{checkout_key}:pay",
-                        "failed" if failed else "succeeded",
+                        "succeeded",
                         "VND",
                         total_vnd,
-                        "SYNTHETIC_DECLINED" if failed else None,
+                        None,
                         order_time,
                         order_time,
                     )
@@ -794,21 +1531,36 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         history_base + history_index,
                         order_id,
                         None,
-                        "payment_failed" if failed else "paid",
+                        "paid",
                         "generator",
-                        "Synthetic failure fixture" if failed else None,
+                        None,
                         f"{checkout_key}:initial",
                         order_time,
                         order_time,
                     )
                 )
-                if completed and completed_at is not None:
+                if confirmed_at is not None:
                     history_index += 1
                     history_rows.append(
                         (
                             history_base + history_index,
                             order_id,
                             "paid",
+                            "confirmed",
+                            "generator",
+                            None,
+                            f"{checkout_key}:confirmed",
+                            confirmed_at,
+                            confirmed_at,
+                        )
+                    )
+                if completed and completed_at is not None:
+                    history_index += 1
+                    history_rows.append(
+                        (
+                            history_base + history_index,
+                            order_id,
+                            "confirmed",
                             "completed",
                             "generator",
                             None,
@@ -817,12 +1569,163 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             completed_at,
                         )
                     )
+                if cancelled and cancelled_at is not None:
+                    history_index += 1
+                    history_rows.append(
+                        (
+                            history_base + history_index,
+                            order_id,
+                            "paid",
+                            "cancelled",
+                            "generator",
+                            cancellation_reason,
+                            f"{checkout_key}:cancelled",
+                            cancelled_at,
+                            cancelled_at,
+                        )
+                    )
+                    refund_rows.append(
+                        (
+                            refund_base + order_index + 1,
+                            _binary_uuid(
+                                _entity_uuid(
+                                    namespace,
+                                    "refund",
+                                    order_index,
+                                )
+                            ),
+                            payment_base + order_index + 1,
+                            f"{checkout_key}:refund",
+                            "succeeded",
+                            "VND",
+                            total_vnd,
+                            cancellation_reason,
+                            customer_id,
+                            cancelled_at,
+                            cancelled_at,
+                        )
+                    )
+                if selected_coupon is not None:
+                    redemption_rows.append(
+                        (
+                            redemption_base + order_index + 1,
+                            selected_coupon.coupon_id,
+                            order_id,
+                            customer_id,
+                            "released" if cancelled else "redeemed",
+                            order_time,
+                            cancelled_at if cancelled else None,
+                            order_time,
+                            cancelled_at or order_time,
+                        )
+                    )
 
                 order_index += 1
                 if len(order_rows) >= INSERT_BATCH_SIZE:
                     flush_orders()
 
         flush_orders()
+        for coupon in coupon_records:
+            stream.write(
+                "UPDATE `coupons` SET `used_count` = "
+                "(SELECT COUNT(*) FROM `coupon_redemptions` "
+                f"WHERE `coupon_id` = {coupon.coupon_id} "
+                "AND `status` = 'redeemed'), "
+                f"`updated_at` = {_sql_literal(history_end)} "
+                f"WHERE `coupon_id` = {coupon.coupon_id};\n"
+            )
+        stream.write("\n")
+
+        wishlist_rows: list[Sequence[SqlValue]] = []
+        wishlist_index = 0
+        product_by_id = {product.product_id: product for product in product_records}
+        for customer_id in customer_ids:
+            if randomizer.random() >= 0.55:
+                continue
+            wishlist_count = randomizer.randint(1, min(5, product_count))
+            purchased = purchased_products_by_customer[customer_id]
+            converted_count = min(
+                len(purchased),
+                max(1, round(wishlist_count * 0.4)) if purchased else 0,
+            )
+            converted_ids = (
+                randomizer.sample(sorted(purchased), converted_count)
+                if converted_count
+                else []
+            )
+            remaining_candidates = [
+                product.product_id
+                for product in product_records
+                if product.product_id not in converted_ids
+            ]
+            other_ids = randomizer.sample(
+                remaining_candidates,
+                wishlist_count - converted_count,
+            )
+            for product_id in converted_ids + other_ids:
+                converted_at = purchased.get(product_id)
+                if converted_at is not None:
+                    first_added_at = max(
+                        history_start,
+                        converted_at
+                        - timedelta(
+                            days=randomizer.randint(1, 30),
+                            hours=randomizer.randint(0, 23),
+                        ),
+                    )
+                    last_added_at = min(
+                        converted_at,
+                        first_added_at + timedelta(days=randomizer.randint(0, 7)),
+                    )
+                    is_present = False
+                    removed_at = converted_at
+                else:
+                    first_added_at = _timestamp_between(
+                        randomizer, history_start, history_end
+                    )
+                    last_added_at = min(
+                        history_end,
+                        first_added_at
+                        + timedelta(days=randomizer.randrange(0, 30)),
+                    )
+                    is_present = randomizer.random() >= 0.18
+                    removed_at = (
+                        None
+                        if is_present
+                        else min(
+                            history_end,
+                            last_added_at
+                            + timedelta(days=randomizer.randrange(0, 15)),
+                        )
+                    )
+                wishlist_rows.append(
+                    (
+                        wishlist_base + wishlist_index + 1,
+                        customer_id,
+                        product_by_id[product_id].product_id,
+                        is_present,
+                        first_added_at,
+                        last_added_at,
+                        removed_at,
+                        removed_at or last_added_at,
+                    )
+                )
+                wishlist_index += 1
+        _write_batched(
+            stream,
+            "wishlist_items",
+            (
+                "wishlist_item_id",
+                "customer_id",
+                "product_id",
+                "is_present",
+                "first_added_at",
+                "last_added_at",
+                "removed_at",
+                "updated_at",
+            ),
+            wishlist_rows,
+        )
 
         active_cart_rows: list[Sequence[SqlValue]] = []
         active_cart_item_rows: list[Sequence[SqlValue]] = []

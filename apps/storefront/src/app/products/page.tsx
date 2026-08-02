@@ -19,6 +19,7 @@ import {
   type ProductQuery,
   type ProductSort,
 } from "@/lib/api";
+import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
 
 interface AppliedFilters {
@@ -79,6 +80,7 @@ export default function ProductsPage() {
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
   const [wishlistBusy, setWishlistBusy] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -145,6 +147,7 @@ export default function ProductsPage() {
       inStock,
       sort,
     });
+    setFiltersOpen(false);
   }
 
   function resetFilters() {
@@ -195,114 +198,161 @@ export default function ProductsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-14">
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Catalog</p>
-      <h1 className="mt-3 text-4xl font-semibold">Sản phẩm</h1>
-
-      <form
-        className="mt-8 grid gap-4 rounded-3xl border border-ink/10 bg-white/60 p-5 md:grid-cols-4"
-        onSubmit={applyFilters}
-      >
-        <label className="text-sm md:col-span-2">
-          Tìm kiếm
-          <input
-            className="admin-input"
-            maxLength={100}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tên hoặc mô tả sản phẩm"
-            value={query}
-          />
-        </label>
-        <label className="text-sm">
-          Danh mục
-          <select className="admin-input" onChange={(event) => setCategory(event.target.value)} value={category}>
-            <option value="">Tất cả</option>
-            {categories.map((item) => (
-              <option key={item.code} value={item.code}>{item.name}</option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          Sắp xếp
-          <select className="admin-input" onChange={(event) => setSort(event.target.value as ProductSort)} value={sort}>
-            <option value="newest">Mới nhất</option>
-            <option value="price_asc">Giá tăng dần</option>
-            <option value="price_desc">Giá giảm dần</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          Size
-          <select className="admin-input" onChange={(event) => setSize(event.target.value)} value={size}>
-            <option value="">Tất cả</option>
-            {facets.sizes.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">
-          Màu
-          <select className="admin-input" onChange={(event) => setColor(event.target.value)} value={color}>
-            <option value="">Tất cả</option>
-            {facets.colors.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">
-          Giá từ
-          <input className="admin-input" min={0} onChange={(event) => setMinPrice(event.target.value)} placeholder={facets.min_price_vnd?.toString()} type="number" value={minPrice} />
-        </label>
-        <label className="text-sm">
-          Giá đến
-          <input className="admin-input" min={0} onChange={(event) => setMaxPrice(event.target.value)} placeholder={facets.max_price_vnd?.toString()} type="number" value={maxPrice} />
-        </label>
-        <label className="flex items-center gap-2 text-sm md:col-span-2">
-          <input checked={inStock} onChange={(event) => setInStock(event.target.checked)} type="checkbox" />
-          Chỉ hiển thị sản phẩm còn hàng
-        </label>
-        <div className="flex gap-3 md:col-span-2 md:justify-end">
-          <button className="rounded-full border border-ink/20 px-5 py-2 text-sm" onClick={resetFilters} type="button">Đặt lại</button>
-          <button className="rounded-full bg-ink px-5 py-2 text-sm text-paper" type="submit">Áp dụng</button>
+    <main className="page-shell">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">D&K Catalog</p>
+          <h1 className="page-heading mt-3">Sản phẩm</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted sm:text-base">
+            Tìm phom dáng, màu sắc và mức giá phù hợp với phong cách của bạn.
+          </p>
         </div>
-      </form>
-
-      {error ? <p className="mt-6 text-sm text-accent">{error}</p> : null}
-
-      <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((product) => {
-          const wishlisted = wishlistIds.has(product.public_id);
-          return (
-            <article key={product.public_id} className="relative rounded-3xl border border-ink/10 bg-white/60 p-5 transition hover:border-ink/30">
-              <button
-                aria-label={wishlisted ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích"}
-                className={`absolute right-8 top-8 z-10 grid h-10 w-10 place-items-center rounded-full border bg-paper/90 text-xl ${wishlisted ? "border-accent text-accent" : "border-ink/20"}`}
-                disabled={wishlistBusy.has(product.public_id)}
-                onClick={() => void toggleWishlist(product)}
-                type="button"
-              >
-                {wishlisted ? "♥" : "♡"}
-              </button>
-              <Link href={`/products/${product.slug}`}>
-                <div className="aspect-square overflow-hidden rounded-2xl bg-ink/5">
-                  {product.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
-                  ) : null}
-                </div>
-                <h2 className="mt-4 font-medium">{product.name}</h2>
-                <p className="mt-1 text-sm text-ink/60">{formatVnd(product.min_price_vnd)}</p>
-                {product.in_stock ? null : <p className="mt-1 text-xs text-accent">Tạm hết hàng</p>}
-              </Link>
-            </article>
-          );
-        })}
-      </div>
-
-      {!loading && items.length === 0 ? <p className="mt-10 text-ink/60">Không tìm thấy sản phẩm phù hợp.</p> : null}
-
-      {cursor ? (
-        <div className="mt-10 flex justify-center">
-          <button className="rounded-full border border-ink/20 px-6 py-2 text-sm disabled:opacity-60" disabled={loading} onClick={() => void load(applied, cursor)} type="button">
-            {loading ? "Đang tải…" : "Tải thêm"}
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-medium text-muted" aria-live="polite">
+            {loading && items.length === 0 ? "Đang tìm sản phẩm…" : `${items.length.toLocaleString("vi-VN")} sản phẩm`}
+          </p>
+          <button
+            aria-expanded={filtersOpen}
+            className="button-secondary px-4 lg:hidden"
+            onClick={() => setFiltersOpen((current) => !current)}
+            type="button"
+          >
+            <Icon name={filtersOpen ? "close" : "search"} size={17} />
+            {filtersOpen ? "Đóng bộ lọc" : "Bộ lọc"}
           </button>
         </div>
-      ) : null}
+      </header>
+
+      <div className="mt-9 grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+        <form className={`${filtersOpen ? "block" : "hidden"} surface-flat p-5 lg:sticky lg:top-24 lg:block`} onSubmit={applyFilters}>
+          <div className="flex items-center justify-between border-b border-line pb-4">
+            <div className="flex items-center gap-2">
+              <Icon className="text-moss" name="search" size={18} />
+              <h2 className="font-semibold">Tìm và lọc</h2>
+            </div>
+            <button className="min-h-11 px-2 text-sm font-semibold text-accent hover:underline" onClick={resetFilters} type="button">
+              Đặt lại
+            </button>
+          </div>
+
+          <div className="mt-5 space-y-4">
+            <label className="field-label" htmlFor="catalog-search">Tìm kiếm
+              <input className="form-control" id="catalog-search" maxLength={100} onChange={(event) => setQuery(event.target.value)} placeholder="Tên hoặc mô tả" type="search" value={query} />
+            </label>
+            <label className="field-label" htmlFor="catalog-category">Danh mục
+              <select className="form-control" id="catalog-category" onChange={(event) => setCategory(event.target.value)} value={category}>
+                <option value="">Tất cả danh mục</option>
+                {categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
+              <label className="field-label" htmlFor="catalog-size">Size
+                <select className="form-control" id="catalog-size" onChange={(event) => setSize(event.target.value)} value={size}>
+                  <option value="">Tất cả</option>
+                  {facets.sizes.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+              <label className="field-label" htmlFor="catalog-color">Màu
+                <select className="form-control" id="catalog-color" onChange={(event) => setColor(event.target.value)} value={color}>
+                  <option value="">Tất cả</option>
+                  {facets.colors.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="field-label" htmlFor="catalog-min-price">Giá từ
+                <input className="form-control" id="catalog-min-price" min={0} onChange={(event) => setMinPrice(event.target.value)} placeholder={facets.min_price_vnd?.toString()} type="number" value={minPrice} />
+              </label>
+              <label className="field-label" htmlFor="catalog-max-price">Giá đến
+                <input className="form-control" id="catalog-max-price" min={0} onChange={(event) => setMaxPrice(event.target.value)} placeholder={facets.max_price_vnd?.toString()} type="number" value={maxPrice} />
+              </label>
+            </div>
+            <label className="field-label" htmlFor="catalog-sort">Sắp xếp
+              <select className="form-control" id="catalog-sort" onChange={(event) => setSort(event.target.value as ProductSort)} value={sort}>
+                <option value="newest">Mới nhất</option>
+                <option value="price_asc">Giá tăng dần</option>
+                <option value="price_desc">Giá giảm dần</option>
+              </select>
+            </label>
+            <label className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-paper px-3.5 text-sm font-medium text-ink">
+              <input checked={inStock} className="h-4 w-4 accent-accent" onChange={(event) => setInStock(event.target.checked)} type="checkbox" />
+              Chỉ sản phẩm còn hàng
+            </label>
+          </div>
+          <button className="button-primary mt-5 w-full" type="submit">
+            <Icon name="search" size={17} />
+            Áp dụng bộ lọc
+          </button>
+        </form>
+
+        <section className="min-w-0" aria-label="Danh sách sản phẩm">
+          {error ? <div className="feedback-error mb-5" role="alert">{error}</div> : null}
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {items.map((product) => {
+              const wishlisted = wishlistIds.has(product.public_id);
+              return (
+                <article key={product.public_id} className="group relative overflow-hidden rounded-3xl border border-line bg-surface shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-soft">
+                  <button
+                    aria-label={wishlisted ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích"}
+                    className={`absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur transition ${wishlisted ? "border-accent/25 bg-surface text-accent" : "border-white/70 bg-surface/90 text-ink hover:text-accent"}`}
+                    disabled={wishlistBusy.has(product.public_id)}
+                    onClick={() => void toggleWishlist(product)}
+                    type="button"
+                  >
+                    <Icon filled={wishlisted} name="heart" size={19} />
+                  </button>
+                  <Link className="block" href={`/products/${product.slug}`}>
+                    <div className="aspect-[4/5] overflow-hidden bg-sand/55">
+                      {product.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={product.image_url} alt={product.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-sm text-muted">Chưa có ảnh</span>
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="font-serif text-xl leading-6 text-ink">{product.name}</h2>
+                          <p className="mt-2 font-semibold text-ink">{formatVnd(product.min_price_vnd)}</p>
+                        </div>
+                        <Icon className="mt-1 shrink-0 text-muted transition group-hover:translate-x-1 group-hover:text-accent" name="arrow-right" size={18} />
+                      </div>
+                      <span className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${product.in_stock ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
+                        {product.in_stock ? "Sẵn hàng" : "Tạm hết hàng"}
+                      </span>
+                    </div>
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+
+          {loading && items.length === 0 ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-label="Đang tải sản phẩm">
+              {[0, 1, 2, 3, 4, 5].map((item) => <div className="aspect-[4/5] animate-pulse rounded-3xl border border-line bg-sand/60" key={item} />)}
+            </div>
+          ) : null}
+
+          {!loading && items.length === 0 ? (
+            <div className="surface-flat p-10 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-paper text-moss"><Icon name="search" size={24} /></span>
+              <h2 className="mt-5 text-xl font-semibold">Không tìm thấy sản phẩm</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">Thử bỏ bớt điều kiện hoặc thay đổi khoảng giá để xem thêm lựa chọn.</p>
+              <button className="button-secondary mt-6" onClick={resetFilters} type="button">Xóa bộ lọc</button>
+            </div>
+          ) : null}
+
+          {cursor ? (
+            <div className="mt-9 flex justify-center">
+              <button className="button-secondary" disabled={loading} onClick={() => void load(applied, cursor)} type="button">
+                {loading ? "Đang tải…" : "Xem thêm sản phẩm"}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      </div>
     </main>
   );
 }

@@ -10,7 +10,7 @@ Quyết định scope ngày 2026-07-28:
 - Log của API chỉ phục vụ vận hành và debug, không phải nguồn Lakehouse.
 - [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md) là logical schema OLTP chi tiết.
 - [`web-plan.md`](web-plan.md) là kế hoạch triển khai source website tạo dữ liệu OLTP.
-- [`../../skills/oltp-design.md`](../../skills/oltp-design.md) là nguyên tắc thiết kế tham khảo.
+- [`../../skills/oltp-design/SKILL.md`](../../skills/oltp-design/SKILL.md) là nguyên tắc thiết kế tham khảo.
 
 ---
 
@@ -80,7 +80,7 @@ Xây dựng hệ thống Data Lakehouse xử lý theo lô, chỉ dùng nguồn M
 7. Pipeline idempotent theo run/input identity.
 8. Reconciliation kiểm tra exact count và VND amount.
 9. Dữ liệu ML point-in-time không dùng tương lai.
-10. Toàn bộ dashboard và ML phải truy vết được về 12 bảng nguồn OLTP.
+10. Toàn bộ dashboard và ML phải truy vết được về 16 bảng nguồn OLTP.
 
 ---
 
@@ -96,9 +96,10 @@ Website tối giản hỗ trợ:
 4. Customer quản lý một wishlist mặc định chứa nhiều product.
 5. Customer quản lý active cart.
 6. Checkout với địa chỉ nhập trực tiếp.
-7. Checkout hợp lệ tạo order `paid`, payment `succeeded` và giảm inventory atomically.
-8. Xem order history/detail.
-9. Admin tối thiểu quản lý catalog, variant, inventory view, order completion và customer status.
+7. Checkout hợp lệ có thể áp dụng một coupon, tạo order `paid`, payment `succeeded` và giảm inventory atomically.
+8. Customer xem order history/detail, hủy order còn `paid` và review item của order `completed`.
+9. Admin quản lý catalog, variant, inventory, coupon, review moderation, customer status và lifecycle `paid → confirmed → completed`.
+10. Customer/admin hủy order `paid`; hệ thống hoàn inventory, full refund và release coupon atomically.
 
 ### 5.2. Nguồn dữ liệu TLCN
 
@@ -117,7 +118,11 @@ Các bảng được phép extract:
 9. `order_items`;
 10. `payments`;
 11. `order_status_history`;
-12. `inventory`.
+12. `inventory`;
+13. `coupons`;
+14. `coupon_redemptions`;
+15. `refunds`;
+16. `product_reviews`.
 
 `customer_credentials` thuộc OLTP nhưng bị loại hoàn toàn khỏi extraction vì chứa email đăng nhập/password hash và không có giá trị phân tích cần thiết.
 
@@ -144,7 +149,7 @@ TLCN bao gồm:
 Dashboard ưu tiên:
 
 - gross collected revenue;
-- paid/completed order count;
+- paid/confirmed/completed/cancelled order count;
 - average order value;
 - units sold;
 - doanh thu theo ngày/category/product;
@@ -241,7 +246,7 @@ Docker profiles:
 
 ## 9. Logical schema OLTP
 
-Logical schema có 13 bảng và được mô tả chi tiết tại [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md).
+Logical schema có 17 bảng và được mô tả chi tiết tại [`../architecture/oltp-schema.md`](../architecture/oltp-schema.md).
 
 | Nhóm | Bảng | Grain chính |
 |---|---|---|
@@ -256,6 +261,10 @@ Logical schema có 13 bảng và được mô tả chi tiết tại [`../archite
 | Order | `orders` | Một checkout result |
 | Order | `order_items` | Một variant line/order |
 | Payment | `payments` | Một payment/order |
+| Refund | `refunds` | Một full refund/payment |
+| Promotion | `coupons` | Một coupon code |
+| Promotion | `coupon_redemptions` | Một redemption/order |
+| Review | `product_reviews` | Một review/order item |
 | History | `order_status_history` | Một order transition |
 | Inventory | `inventory` | Một balance/variant |
 
@@ -276,11 +285,15 @@ Web transaction, constraint, index và concurrency theo [`../architecture/oltp-s
 | `carts` | Mutable | `(updated_at, cart_id)` | Merge current state, derive lifecycle fields |
 | `cart_items` | Mutable/logical removal | `(updated_at, cart_item_id)` | Merge current state |
 | `wishlist_items` | Mutable/logical removal | `(updated_at, wishlist_item_id)` | Merge current state |
-| `orders` | Mutable paid→completed | `(updated_at, order_id)` | Merge current state, preserve timestamps |
+| `orders` | Mutable paid→confirmed→completed hoặc paid→cancelled | `(updated_at, order_id)` | Merge current state, preserve timestamps |
 | `order_items` | Append-only | `(created_at, order_item_id)` | Insert/dedup |
 | `payments` | Append-only | `(created_at, payment_id)` | Insert/dedup |
 | `order_status_history` | Append-only | `(created_at, order_status_history_id)` | Insert/dedup |
 | `inventory` | Mutable | `(updated_at, variant_id)` | Merge current balance, snapshot downstream |
+| `coupons` | Mutable | `(updated_at, coupon_id)` | Merge current configuration/counter |
+| `coupon_redemptions` | Mutable | `(updated_at, coupon_redemption_id)` | Merge redeemed/released state |
+| `refunds` | Append-only | `(created_at, refund_id)` | Insert/dedup |
+| `product_reviews` | Mutable | `(updated_at, review_id)` | Merge moderation state |
 
 ### 10.2. Composite cursor
 
@@ -330,10 +343,9 @@ Modes TLCN:
 - `seed_master`: category, product, variant, opening inventory.
 - `historical_transactions`: customer, cart, order, order item, payment, status history, inventory change.
 - `repurchase_history`: lịch sử tối thiểu 12 tháng và rolling customer behavior từ OLTP.
-- `failure_fixtures`: source rows/batch conditions phục vụ DQ, cursor, duplicate extraction và constraint boundary.
 
 
-Mỗi run có `scenario_id`, seed, anchor time, scale, generator version và logical identity. Cùng config/seed phải tạo cùng logical dataset. Generator phải xuất được file SQL import trực tiếp vào MySQL trong một transaction, giữ FK/CHECK và fail-fast khi import trùng.
+Mỗi run có `scenario_id`, seed, anchor time, scale, generator version và logical identity. Cùng config/seed phải tạo cùng logical dataset. Generator phải xuất được file SQL import trực tiếp vào MySQL trong một transaction, giữ FK/CHECK và fail-fast khi import trùng. Phân phối dùng múi giờ nghiệp vụ `Asia/Ho_Chi_Minh` nhưng lưu UTC; dữ liệu có quan hệ giữa ngày sale/khung giờ 0h, segment khách, coupon, cancellation, review và wishlist conversion thay vì random độc lập.
 
 ---
 
@@ -780,7 +792,7 @@ Publish BI dùng staging + validate + atomic switch/upsert strategy. Dashboard c
 
 ### Pipeline
 
-- Chỉ extract 12 bảng phân tích cho phép; không extract credentials.
+- Chỉ extract 16 bảng phân tích cho phép; không extract credentials.
 - Initial/incremental không miss same-timestamp rows.
 - Rerun không nhân logical rows.
 - Bronze giữ raw row và metadata đủ replay.
