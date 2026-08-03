@@ -98,6 +98,7 @@ export interface Cart {
   items: CartItem[];
   subtotal_vnd: number;
   shipping_fee_vnd: number;
+  free_shipping_threshold_vnd: number;
   total_vnd: number;
 }
 

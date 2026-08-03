@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -67,8 +68,14 @@ export default function HomePage() {
           <div className="absolute -left-10 top-12 hidden h-40 w-40 rounded-full border border-accent/15 bg-accent/10 sm:block" />
           <div className="absolute -right-12 bottom-8 hidden h-48 w-48 rounded-full border border-moss/15 bg-moss/10 sm:block" />
           <div className="relative overflow-hidden rounded-[2.5rem] border border-line bg-surface p-3 shadow-lift">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="aspect-[4/5] w-full rounded-[2rem] object-cover" src="/dk-hero.svg" alt="Bộ sưu tập thời trang nữ tối giản của D&K" />
+            <Image
+              alt="Bộ sưu tập thời trang nữ tối giản của D&K"
+              className="aspect-[4/5] w-full rounded-[2rem] object-cover"
+              height={800}
+              priority
+              src="/dk-hero.svg"
+              width={640}
+            />
             <div className="absolute bottom-7 left-7 rounded-2xl border border-white/60 bg-surface/95 px-4 py-3 shadow-soft backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Selected look</p>
               <p className="mt-1 font-serif text-xl">The Signature Line</p>

@@ -26,4 +26,5 @@ class CartResponse(BaseModel):
     items: list[CartItemResponse]
     subtotal_vnd: int
     shipping_fee_vnd: int
+    free_shipping_threshold_vnd: int
     total_vnd: int

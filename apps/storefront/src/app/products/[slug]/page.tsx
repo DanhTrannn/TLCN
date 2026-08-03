@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -118,10 +119,16 @@ export default function ProductDetailPage() {
 
       <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
         <section className="overflow-hidden rounded-[2rem] border border-line bg-surface p-3 shadow-soft" aria-label="Ảnh sản phẩm">
-          <div className="aspect-[4/5] overflow-hidden rounded-[1.5rem] bg-sand/50">
+          <div className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] bg-sand/50">
             {product.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+              <Image
+                alt={product.name}
+                className="object-cover"
+                fill
+                priority
+                sizes="(min-width: 1024px) 52vw, 100vw"
+                src={product.image_url}
+              />
             ) : (
               <span className="flex h-full items-center justify-center text-muted">Sản phẩm chưa có ảnh</span>
             )}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -135,9 +136,9 @@ export default function OrdersPage() {
                   <ul className="mt-5 space-y-3" aria-label={`Sản phẩm trong đơn ${order.order_number}`}>
                     {previewItems.map((item) => (
                       <li className="flex min-w-0 gap-3 rounded-2xl border border-line bg-paper p-3 sm:items-center sm:gap-4" key={item.sku}>
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted sm:h-20 sm:w-20">
+                        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted sm:h-20 sm:w-20">
                           {item.image_url ? (
-                            <img alt={item.product_name} className="h-full w-full object-cover" loading="lazy" src={item.image_url} />
+                            <Image alt={item.product_name} className="object-cover" fill sizes="80px" src={item.image_url} />
                           ) : (
                             <Icon name="package" size={21} />
                           )}

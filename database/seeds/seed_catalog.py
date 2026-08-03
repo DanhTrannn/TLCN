@@ -20,6 +20,7 @@ from app.models.promotion import Coupon
 from app.models.customer import Customer, CustomerCredential
 
 _NS = uuid.uuid5(uuid.NAMESPACE_URL, "tlcn:catalog")
+PRODUCT_IMAGE_URL = "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp"
 
 
 def _pid(kind: str, key: str) -> uuid.UUID:
@@ -141,7 +142,7 @@ def seed() -> None:
                 slug=slug,
                 name=name,
                 description=description,
-                image_url=f"https://picsum.photos/seed/{slug}/600/600",
+                image_url=PRODUCT_IMAGE_URL,
                 is_active=True,
             )
             session.add(product)

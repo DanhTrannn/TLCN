@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -36,7 +37,7 @@ export default function AdminOrderDetailPage() {
           <article className="admin-panel">
             <div className="flex items-center justify-between border-b border-line pb-4"><div className="flex items-center gap-3"><Icon className="text-moss" name="package" /><h2 className="font-semibold">Sản phẩm</h2></div><span className="text-sm text-muted">{order.items.length} dòng</span></div>
             <ul className="mt-2 divide-y divide-line">
-              {order.items.map((item) => <li className="flex items-center justify-between gap-4 py-4 text-sm" key={item.public_id}><span className="flex min-w-0 items-center gap-3"><span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted">{item.image_url ? <img alt={item.product_name} className="h-full w-full object-cover" src={item.image_url} /> : <Icon name="package" size={18} />}</span><span className="min-w-0"><strong className="font-semibold">{item.product_name}</strong><span className="mt-1 block text-xs text-muted">{item.sku} · {item.size_code}/{item.color_code} · SL {item.quantity}</span></span></span><span className="shrink-0 font-semibold">{formatVnd(item.line_total_vnd)}</span></li>)}
+              {order.items.map((item) => <li className="flex items-center justify-between gap-4 py-4 text-sm" key={item.public_id}><span className="flex min-w-0 items-center gap-3"><span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted">{item.image_url ? <Image alt={item.product_name} className="object-cover" fill sizes="56px" src={item.image_url} /> : <Icon name="package" size={18} />}</span><span className="min-w-0"><strong className="font-semibold">{item.product_name}</strong><span className="mt-1 block text-xs text-muted">{item.sku} · {item.size_code}/{item.color_code} · SL {item.quantity}</span></span></span><span className="shrink-0 font-semibold">{formatVnd(item.line_total_vnd)}</span></li>)}
             </ul>
             <dl className="ml-auto mt-3 max-w-sm space-y-2 border-t border-line pt-4 text-sm"><div className="flex justify-between"><dt className="text-muted">Tạm tính</dt><dd>{formatVnd(order.subtotal_vnd)}</dd></div>{order.discount_amount_vnd > 0 ? <div className="flex justify-between text-success"><dt>Giảm giá {order.coupon_code}</dt><dd>−{formatVnd(order.discount_amount_vnd)}</dd></div> : null}<div className="flex justify-between"><dt className="text-muted">Vận chuyển</dt><dd>{formatVnd(order.shipping_fee_vnd)}</dd></div><div className="flex justify-between border-t border-line pt-3 text-lg font-semibold"><dt>Tổng</dt><dd>{formatVnd(order.total_vnd)}</dd></div></dl>
           </article>

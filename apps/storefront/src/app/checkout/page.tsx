@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const idempotencyKey = useRef<string>("");
+  const receiverNamePrefilled = useRef(false);
 
   const refreshAvailableCoupons = useCallback(async () => {
     setCouponListLoading(true);
@@ -89,6 +90,10 @@ export default function CheckoutPage() {
     if (!customer) {
       router.push("/login?returnTo=/checkout");
       return;
+    }
+    if (!receiverNamePrefilled.current) {
+      setReceiverName(customer.display_name);
+      receiverNamePrefilled.current = true;
     }
     if (!idempotencyKey.current) {
       idempotencyKey.current = crypto.randomUUID();

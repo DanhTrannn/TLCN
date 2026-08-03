@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from argon2 import PasswordHasher
 
 from tlcn_generator.config import DEFAULT_DISTRIBUTIONS, GeneratorConfig, PriceBand
-from tlcn_generator.sql_export import DEMO_PASSWORD, export_sql
+from tlcn_generator.sql_export import DEMO_PASSWORD, PRODUCT_IMAGE_URL, export_sql
 
 
 def _table_blocks(sql: str, table: str) -> list[str]:
@@ -81,6 +81,7 @@ class SqlExportTest(unittest.TestCase):
             self.assertNotIn("SYNTHETIC_DECLINED", sql)
             self.assertNotIn("Sản phẩm tổng hợp", sql)
             self.assertIn("D&K", sql)
+            self.assertEqual(sql.count(PRODUCT_IMAGE_URL), self.config.scale["products"])
             self.assertRegex(sql, r"DK-(AO|QU|CV|DM|AK|PK|GI|TX)-\d{5}")
 
             password_hash_start = sql.index("$argon2id$")

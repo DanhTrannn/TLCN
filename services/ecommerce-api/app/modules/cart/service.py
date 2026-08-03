@@ -24,7 +24,15 @@ from app.modules.cart.schemas import CartItemResponse, CartResponse
 
 
 def _empty_cart() -> CartResponse:
-    return CartResponse(public_id=None, items=[], subtotal_vnd=0, shipping_fee_vnd=0, total_vnd=0)
+    settings = get_settings()
+    return CartResponse(
+        public_id=None,
+        items=[],
+        subtotal_vnd=0,
+        shipping_fee_vnd=0,
+        free_shipping_threshold_vnd=settings.free_shipping_threshold_vnd,
+        total_vnd=0,
+    )
 
 def _lock_active_customer(db: Session, customer_id: int) -> None:
     customer = db.execute(
@@ -36,6 +44,7 @@ def _lock_active_customer(db: Session, customer_id: int) -> None:
 
 
 def _load_cart_response(db: Session, cart: Cart) -> CartResponse:
+    settings = get_settings()
     rows = db.execute(
         select(
             ProductVariant.public_id,
@@ -92,6 +101,7 @@ def _load_cart_response(db: Session, cart: Cart) -> CartResponse:
         items=items,
         subtotal_vnd=amounts.subtotal_vnd,
         shipping_fee_vnd=amounts.shipping_fee_vnd,
+        free_shipping_threshold_vnd=settings.free_shipping_threshold_vnd,
         total_vnd=amounts.total_vnd,
     )
 

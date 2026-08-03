@@ -26,6 +26,7 @@ from tlcn_generator.config import (
 
 
 DEMO_PASSWORD = "Demo@12345"
+PRODUCT_IMAGE_URL = "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp"
 INSERT_BATCH_SIZE = 1_000
 SIZES = ("XS", "S", "M", "L", "XL")
 COLORS = ("BLACK", "WHITE", "RED", "GREEN", "BLUE", "YELLOW", "PINK", "PURPLE", "ORANGE", "BROWN", "GRAY", "BEIGE")
@@ -853,7 +854,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 product.slug,
                 product.name,
                 product_description,
-                f"https://picsum.photos/seed/{product.slug}/600/600",
+                PRODUCT_IMAGE_URL,
                 True,
                 master_created_at,
                 master_created_at,

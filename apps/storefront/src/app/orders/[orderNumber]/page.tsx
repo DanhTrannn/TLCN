@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -290,10 +291,15 @@ export default function OrderDetailPage() {
             {order.items.map((item) => (
               <li key={item.public_id} className="rounded-2xl border border-line bg-paper p-3 sm:p-4">
                 <div className="flex min-w-0 gap-3 sm:items-center sm:gap-4">
-                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted sm:h-24 sm:w-24">
+                  <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-sand text-muted sm:h-24 sm:w-24">
                     {item.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img alt={item.product_name} className="h-full w-full object-cover" src={item.image_url} />
+                      <Image
+                        alt={item.product_name}
+                        className="object-cover"
+                        fill
+                        sizes="96px"
+                        src={item.image_url}
+                      />
                     ) : (
                       <Icon name="package" size={22} />
                     )}

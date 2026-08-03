@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -77,10 +78,15 @@ export default function WishlistPage() {
           {items.map((item) => (
             <article key={item.product_public_id} className="group overflow-hidden rounded-3xl border border-line bg-surface shadow-sm transition hover:-translate-y-1 hover:shadow-soft">
               <Link href={`/products/${item.slug}`}>
-                <div className="aspect-[4/5] overflow-hidden bg-sand/50">
+                <div className="relative aspect-[4/5] overflow-hidden bg-sand/50">
                   {item.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.image_url} alt={item.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" />
+                    <Image
+                      alt={item.name}
+                      className="object-cover transition duration-300 group-hover:scale-[1.025]"
+                      fill
+                      sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
+                      src={item.image_url}
+                    />
                   ) : <span className="flex h-full items-center justify-center text-muted">Chưa có ảnh</span>}
                 </div>
                 <div className="p-5">

@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ApiError,
@@ -33,14 +34,41 @@ interface AppliedFilters {
   sort: ProductSort;
 }
 
-const EMPTY_FILTERS: AppliedFilters = {
-  q: "",
-  category: "",
-  size: "",
-  color: "",
-  inStock: false,
-  sort: "newest",
-};
+function filtersFromSearchParams(searchParams: Pick<URLSearchParams, "get">): AppliedFilters {
+  const parsePrice = (value: string | null) => {
+    if (!value) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  };
+  const requestedSort = searchParams.get("sort");
+  const sort: ProductSort = requestedSort === "price_asc" || requestedSort === "price_desc"
+    ? requestedSort
+    : "newest";
+
+  return {
+    q: searchParams.get("q")?.trim() ?? "",
+    category: searchParams.get("category") ?? "",
+    size: searchParams.get("size") ?? "",
+    color: searchParams.get("color") ?? "",
+    minPrice: parsePrice(searchParams.get("min_price")),
+    maxPrice: parsePrice(searchParams.get("max_price")),
+    inStock: searchParams.get("in_stock") === "true",
+    sort,
+  };
+}
+
+function filtersToSearchParams(filters: AppliedFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  if (filters.category) params.set("category", filters.category);
+  if (filters.size) params.set("size", filters.size);
+  if (filters.color) params.set("color", filters.color);
+  if (filters.minPrice !== undefined) params.set("min_price", String(filters.minPrice));
+  if (filters.maxPrice !== undefined) params.set("max_price", String(filters.maxPrice));
+  if (filters.inStock) params.set("in_stock", "true");
+  if (filters.sort !== "newest") params.set("sort", filters.sort);
+  return params;
+}
 
 function toProductQuery(filters: AppliedFilters, cursor?: string): ProductQuery {
   return {
@@ -56,8 +84,10 @@ function toProductQuery(filters: AppliedFilters, cursor?: string): ProductQuery 
   };
 }
 
-export default function ProductsPage() {
+function ProductsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const applied = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
   const { customer } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [facets, setFacets] = useState<CatalogFacets>({
@@ -66,15 +96,14 @@ export default function ProductsPage() {
     min_price_vnd: null,
     max_price_vnd: null,
   });
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("");
-  const [size, setSize] = useState("");
-  const [color, setColor] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [inStock, setInStock] = useState(false);
-  const [sort, setSort] = useState<ProductSort>("newest");
-  const [applied, setApplied] = useState<AppliedFilters>(EMPTY_FILTERS);
+  const [query, setQuery] = useState(applied.q);
+  const [category, setCategory] = useState(applied.category);
+  const [size, setSize] = useState(applied.size);
+  const [color, setColor] = useState(applied.color);
+  const [minPrice, setMinPrice] = useState(applied.minPrice?.toString() ?? "");
+  const [maxPrice, setMaxPrice] = useState(applied.maxPrice?.toString() ?? "");
+  const [inStock, setInStock] = useState(applied.inStock);
+  const [sort, setSort] = useState<ProductSort>(applied.sort);
   const [items, setItems] = useState<ProductListItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
@@ -82,14 +111,22 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [facetsError, setFacetsError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([getCategories(), getCatalogFacets()])
       .then(([categoryRows, facetData]) => {
         setCategories(categoryRows);
         setFacets(facetData);
+        setFacetsError(null);
       })
-      .catch(() => undefined);
+      .catch((requestError) => {
+        setFacetsError(
+          requestError instanceof ApiError
+            ? requestError.message
+            : "Không tải được danh mục và bộ lọc sản phẩm"
+        );
+      });
   }, []);
 
   useEffect(() => {
@@ -101,8 +138,25 @@ export default function ProductsPage() {
       .then((wishlist) => {
         setWishlistIds(new Set(wishlist.items.map((item) => item.product_public_id)));
       })
-      .catch(() => undefined);
+      .catch((requestError) => {
+        setError(
+          requestError instanceof ApiError
+            ? requestError.message
+            : "Không tải được danh sách yêu thích"
+        );
+      });
   }, [customer]);
+
+  useEffect(() => {
+    setQuery(applied.q);
+    setCategory(applied.category);
+    setSize(applied.size);
+    setColor(applied.color);
+    setMinPrice(applied.minPrice?.toString() ?? "");
+    setMaxPrice(applied.maxPrice?.toString() ?? "");
+    setInStock(applied.inStock);
+    setSort(applied.sort);
+  }, [applied]);
 
   const load = useCallback(
     async (filters: AppliedFilters, nextCursor?: string) => {
@@ -137,7 +191,7 @@ export default function ProductsPage() {
       setError("Giá tối thiểu không được lớn hơn giá tối đa.");
       return;
     }
-    setApplied({
+    const nextFilters = {
       q: query.trim(),
       category,
       size,
@@ -146,7 +200,9 @@ export default function ProductsPage() {
       maxPrice: parsedMax,
       inStock,
       sort,
-    });
+    };
+    const params = filtersToSearchParams(nextFilters);
+    router.replace(params.size > 0 ? `/products?${params.toString()}` : "/products", { scroll: false });
     setFiltersOpen(false);
   }
 
@@ -159,7 +215,7 @@ export default function ProductsPage() {
     setMaxPrice("");
     setInStock(false);
     setSort("newest");
-    setApplied({ ...EMPTY_FILTERS });
+    router.replace("/products", { scroll: false });
   }
 
   async function toggleWishlist(product: ProductListItem) {
@@ -209,7 +265,7 @@ export default function ProductsPage() {
         </div>
         <div className="flex items-center gap-3">
           <p className="text-sm font-medium text-muted" aria-live="polite">
-            {loading && items.length === 0 ? "Đang tìm sản phẩm…" : `${items.length.toLocaleString("vi-VN")} sản phẩm`}
+            {loading && items.length === 0 ? "Đang tìm sản phẩm…" : `${items.length.toLocaleString("vi-VN")} sản phẩm đã tải`}
           </p>
           <button
             aria-expanded={filtersOpen}
@@ -286,6 +342,7 @@ export default function ProductsPage() {
         </form>
 
         <section className="min-w-0" aria-label="Danh sách sản phẩm">
+          {facetsError ? <div className="feedback-error mb-5" role="alert">{facetsError}</div> : null}
           {error ? <div className="feedback-error mb-5" role="alert">{error}</div> : null}
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -303,10 +360,15 @@ export default function ProductsPage() {
                     <Icon filled={wishlisted} name="heart" size={19} />
                   </button>
                   <Link className="block" href={`/products/${product.slug}`}>
-                    <div className="aspect-[4/5] overflow-hidden bg-sand/55">
+                    <div className="relative aspect-[4/5] overflow-hidden bg-sand/55">
                       {product.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={product.image_url} alt={product.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" />
+                        <Image
+                          alt={product.name}
+                          className="object-cover transition duration-300 group-hover:scale-[1.025]"
+                          fill
+                          sizes="(min-width: 1280px) 25vw, (min-width: 640px) 45vw, 100vw"
+                          src={product.image_url}
+                        />
                       ) : (
                         <span className="flex h-full items-center justify-center text-sm text-muted">Chưa có ảnh</span>
                       )}
@@ -354,5 +416,14 @@ export default function ProductsPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<main className="page-shell"><div className="surface-card h-80 animate-pulse" /></main>}>
+      <ProductsContent />
+    </Suspense>
   );
 }

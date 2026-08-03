@@ -17,6 +17,9 @@ import {
   type Category,
 } from "@/lib/api";
 
+const DEFAULT_PRODUCT_IMAGE_URL =
+  "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp";
+
 interface DraftVariant {
   sku: string;
   size_code: string;
@@ -206,7 +209,7 @@ export default function AdminProductsPage() {
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState(DEFAULT_PRODUCT_IMAGE_URL);
   const [variants, setVariants] = useState<DraftVariant[]>([emptyVariant()]);
 
   const loadProducts = useCallback(async () => {
@@ -269,7 +272,7 @@ export default function AdminProductsPage() {
       setSlug("");
       setName("");
       setDescription("");
-      setImageUrl("");
+      setImageUrl(DEFAULT_PRODUCT_IMAGE_URL);
       setVariants([emptyVariant()]);
       await loadProducts();
       setCreateOpen(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -14,8 +15,6 @@ import {
 } from "@/lib/api";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
-
-const FREE_SHIPPING_THRESHOLD_VND = 500_000;
 
 export default function CartPage() {
   const { customer, loading: authLoading } = useAuth();
@@ -87,8 +86,11 @@ export default function CartPage() {
 
   const items = cart?.items ?? [];
   const subtotal = cart?.subtotal_vnd ?? 0;
-  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD_VND - subtotal);
-  const shippingProgress = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD_VND) * 100);
+  const freeShippingThreshold = cart?.free_shipping_threshold_vnd ?? 0;
+  const remainingForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
+  const shippingProgress = freeShippingThreshold > 0
+    ? Math.min(100, (subtotal / freeShippingThreshold) * 100)
+    : 100;
   const canCheckout = items.length > 0 && items.every((item) => item.in_stock);
 
   return (
@@ -145,12 +147,17 @@ export default function CartPage() {
                 >
                   <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[6rem_minmax(0,1fr)]">
                     <Link
-                      className="h-24 overflow-hidden rounded-2xl border border-line bg-surface"
+                      className="relative h-24 overflow-hidden rounded-2xl border border-line bg-surface"
                       href={`/products/${item.slug}`}
                     >
                       {item.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.image_url} alt={item.product_name} className="h-full w-full object-cover" />
+                        <Image
+                          alt={item.product_name}
+                          className="object-cover"
+                          fill
+                          sizes="96px"
+                          src={item.image_url}
+                        />
                       ) : (
                         <span className="flex h-full items-center justify-center text-xs text-ink/35">Không có ảnh</span>
                       )}

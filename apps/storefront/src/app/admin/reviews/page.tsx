@@ -66,16 +66,20 @@ export default function AdminReviewsPage() {
               </div>
               {review.content ? <blockquote className="mt-4 rounded-2xl border border-line bg-paper p-4 text-sm leading-6">{review.content}</blockquote> : <p className="mt-4 text-sm italic text-muted">Không có nội dung nhận xét.</p>}
               {review.moderation_reason ? <p className="feedback-error mt-4">Lý do: {review.moderation_reason}</p> : null}
-              {rejecting ? (
-                <div className="mt-4 rounded-2xl border border-danger/20 bg-danger/5 p-4">
-                  <label className="field-label" htmlFor={`reject-${review.public_id}`}>Lý do từ chối<input autoFocus className="form-control" id={`reject-${review.public_id}`} maxLength={500} onChange={(event) => setRejectReason(event.target.value)} value={rejectReason} /></label>
-                  <div className="mt-3 flex justify-end gap-2"><button className="button-ghost" onClick={() => { setRejectingId(null); setRejectReason(""); }} type="button">Bỏ qua</button><button className="button-accent" disabled={!rejectReason.trim() || busy === review.public_id} onClick={() => void moderate(review, "rejected")} type="button">Xác nhận từ chối</button></div>
-                </div>
+              {review.status === "pending" ? (
+                rejecting ? (
+                  <div className="mt-4 rounded-2xl border border-danger/20 bg-danger/5 p-4">
+                    <label className="field-label" htmlFor={`reject-${review.public_id}`}>Lý do từ chối<input autoFocus className="form-control" id={`reject-${review.public_id}`} maxLength={500} onChange={(event) => setRejectReason(event.target.value)} value={rejectReason} /></label>
+                    <div className="mt-3 flex justify-end gap-2"><button className="button-ghost" onClick={() => { setRejectingId(null); setRejectReason(""); }} type="button">Bỏ qua</button><button className="button-accent" disabled={!rejectReason.trim() || busy === review.public_id} onClick={() => void moderate(review, "rejected")} type="button">Xác nhận từ chối</button></div>
+                  </div>
+                ) : (
+                  <div className="mt-5 flex flex-wrap justify-end gap-2">
+                    <button className="button-secondary text-danger" disabled={busy === review.public_id} onClick={() => { setRejectingId(review.public_id); setRejectReason(""); }} type="button">Từ chối</button>
+                    <button className="button-primary" disabled={busy === review.public_id} onClick={() => void moderate(review, "approved")} type="button"><Icon name="check" size={17} />Duyệt đánh giá</button>
+                  </div>
+                )
               ) : (
-                <div className="mt-5 flex flex-wrap justify-end gap-2">
-                  <button className="button-secondary text-danger" disabled={busy === review.public_id} onClick={() => { setRejectingId(review.public_id); setRejectReason(""); }} type="button">Từ chối</button>
-                  <button className="button-primary" disabled={busy === review.public_id} onClick={() => void moderate(review, "approved")} type="button"><Icon name="check" size={17} />Duyệt đánh giá</button>
-                </div>
+                <p className="mt-4 text-right text-xs font-medium text-muted">Đánh giá đã được xử lý.</p>
               )}
             </article>
           );
