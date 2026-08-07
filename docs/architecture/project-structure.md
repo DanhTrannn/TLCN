@@ -88,36 +88,10 @@ Dependency rules:
 ├── generator/
 │   ├── configs/                          # Dataset scale/scenario
 │   ├── tests/                            # SQL export determinism tests
-│   ├── master/                           # Catalog/opening inventory generation
-│   ├── historical/                       # Historical OLTP transactions
-│   ├── repurchase/                       # Repurchase history scenarios
-│   ├── fixtures/                         # Extraction/DQ/log edge cases
 │   └── src/tlcn_generator/               # Generator CLI
-├── pipelines/
-│   └── batch/
-│       ├── config/                       # Layer, catalog, thresholds and retention
-│       ├── extract/                      # Initial/incremental MySQL extract
-│       ├── ingest_logs/                  # Log discovery, checksum and parsing
-│       ├── landing/                      # Manifest and immutable input contracts
-│       ├── bronze/                       # Raw Iceberg append and technical errors
-│       ├── silver/                       # OLTP merge, log parse, DQ, quarantine
-│       ├── gold/                         # Facts, dimensions and marts
-│       ├── reconcile/                    # OLTP/log source-to-Gold reconciliation
-│       ├── maintenance/                  # Iceberg file/manifest/snapshot maintenance
-│       ├── backfill/                     # Replay/backfill contracts
-│       └── src/tlcn_pipeline/            # Pipeline CLI/stages
 ├── airflow/
-│   ├── dags/                             # OLTP, log, Gold, maintenance and ML DAGs
-│   ├── config/                           # Airflow runtime config
+│   ├── dags/                             # Orchestration DAGs
 │   └── logs/                             # Airflow operational logs only
-├── ml/
-│   └── repurchase/                       # Point-in-time batch ML downstream from Gold
-├── dashboards/
-│   └── business-overview/                # Superset assets and exports
-├── quality/
-│   ├── rules/                            # OLTP/log/Iceberg/ML DQ rules
-│   ├── fixtures/                         # Negative/edge fixtures
-│   └── reports/                          # Generated quality reports
 ├── infrastructure/
 │   ├── docker/                           # Custom images
 │   ├── mysql-ecommerce/                  # OLTP bootstrap
@@ -128,18 +102,13 @@ Dependency rules:
 │   └── superset/                         # Superset config
 ├── docs/
 │   ├── architecture/                     # Structure, OLTP schema and diagrams
-│   ├── data-dictionary/                  # Source/Bronze/Silver/Gold definitions
-│   ├── kpi/                              # KPI contracts
 │   ├── project/                          # Scope and plans
-│   ├── runbook/                          # Setup and operation
-│   ├── source-contracts/                 # MySQL and access-log contracts
-│   └── thesis/                           # Report/slide/demo artifacts
+│   └── runbook/                          # Setup and operation
 ├── skills/
 │   └── oltp-design/SKILL.md              # OLTP design principles
 ├── scripts/
 │   ├── grant_de_reader.sh                # Table-level reader grants
-│   ├── import_generated_sql.sh           # Import generated dataset
-│   └── validate_structure.py             # Repository contract checks
+│   └── import_generated_sql.sh           # Import generated dataset
 ├── tests/                                # Cross-component tests
 ├── .env.example
 ├── README.md
@@ -148,7 +117,7 @@ Dependency rules:
 └── uv.lock
 ```
 
-Đây là cấu trúc mục tiêu. Thư mục cho Polaris, Trino, log ingestion và Iceberg maintenance chỉ được tạo khi bắt đầu implementation tương ứng; không tạo placeholder rỗng chỉ để khớp sơ đồ.
+Đây là cấu trúc mục tiêu. Thư mục cho pipeline batch, Airflow DAG, ML và dashboard chỉ được tạo khi bắt đầu implementation tương ứng; không tạo placeholder rỗng chỉ để khớp sơ đồ.
 
 ## 4. Runtime profiles mục tiêu
 
@@ -172,9 +141,7 @@ core → grant DE reader → tools (nếu cần)
 Workspace `uv` gồm:
 
 - `tlcn-ecommerce-api`;
-- `tlcn-data-generator`;
-- `tlcn-batch-pipeline`;
-- `tlcn-repurchase-ml`.
+- `tlcn-data-generator`.
 
 `uv.lock` là lockfile duy nhất. Dockerfile Python dùng cùng phiên bản `uv` và cài package theo workspace lock. Trino, Polaris, MinIO và Superset được pin bằng container image/config riêng, không đưa vào Python workspace.
 

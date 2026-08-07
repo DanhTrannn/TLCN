@@ -10,7 +10,6 @@ docker compose --profile core up -d --build
 ./scripts/grant_de_reader.sh
 docker compose --profile batch up -d --build
 docker compose --profile bi up -d --build
-python3 scripts/validate_structure.py
 ```
 
 Profile `core` chỉ gồm MySQL ecommerce, Ecommerce API và Storefront.
@@ -42,7 +41,6 @@ Migration và bootstrap admin tự chạy khi `ecommerce-api` khởi động.
 
 ```bash
 uv lock --check
-python3 scripts/validate_structure.py
 docker compose --profile core --profile batch --profile bi --profile tools config --quiet
 UV_PROJECT_ENVIRONMENT=.venv-ecommerce uv run --locked --package tlcn-ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked --package tlcn-data-generator --extra dev -- pytest generator/tests

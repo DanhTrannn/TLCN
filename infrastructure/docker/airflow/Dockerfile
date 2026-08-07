@@ -14,14 +14,10 @@ WORKDIR /opt/project
 COPY --chown=airflow:root pyproject.toml uv.lock .python-version ./
 COPY --chown=airflow:root services/ecommerce-api/pyproject.toml services/ecommerce-api/pyproject.toml
 COPY --chown=airflow:root generator/pyproject.toml generator/pyproject.toml
-COPY --chown=airflow:root pipelines/batch pipelines/batch
-COPY --chown=airflow:root ml/repurchase ml/repurchase
 USER airflow
 RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000,gid=0 \
-    uv export --frozen --extra airflow-runtime --no-dev \
+    uv export --frozen --no-dev \
         --no-emit-project --no-emit-workspace --no-hashes \
         --output-file /tmp/airflow-requirements.txt \
     && uv pip install --requirement /tmp/airflow-requirements.txt \
-    && uv pip install --no-deps \
-        /opt/project/pipelines/batch /opt/project/ml/repurchase \
     && rm /tmp/airflow-requirements.txt

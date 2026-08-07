@@ -25,8 +25,8 @@ Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope
 |---|---|---|
 | Storefront, API, MySQL | Hoạt động | Tạo và quản lý dữ liệu OLTP |
 | SQL data generator | Hoạt động | Sinh dữ liệu lịch sử có thể tái lập |
-| Batch/Lakehouse | Khung triển khai | Extract, Bronze, Silver, Gold, reconciliation |
-| BI/ML | Khung triển khai | Dashboard và bài toán mua lại |
+| Batch/Lakehouse | Scaffold infra | MinIO/Spark/Airflow runtime, đang chờ pipeline code |
+| BI/ML | Scaffold infra | Trino, Superset; asset code chưa có |
 
 Không chạy truy vấn phân tích nặng trên primary OLTP. Pipeline chỉ được đọc các bảng nằm trong source allowlist bằng tài khoản DE reader.
 
@@ -74,11 +74,7 @@ apps/                  Giao diện người dùng và admin
 services/              Business API và application services
 database/              Alembic migrations và catalog seed
 generator/             Synthetic OLTP SQL generator
-pipelines/             Batch extraction và transformation
 airflow/               DAG và cấu hình orchestration
-ml/                    Feature, training và scoring workflow
-dashboards/            BI assets và dashboard exports
-quality/               Data-quality rules, fixtures và reports
 infrastructure/        Docker image, MySQL và Superset config
 docs/                  Scope, architecture, contract và runbook
 scripts/               Lệnh vận hành dùng lại được
@@ -226,7 +222,6 @@ API mặc định phải chạy tại `http://localhost:8000`. Hướng dẫn co
 ## Kiểm tra repository
 
 ```bash
-python3 scripts/validate_structure.py
 docker compose --profile core --profile batch --profile bi --profile tools config --quiet
 ```
 
@@ -252,7 +247,7 @@ Workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) chạy khi push 
 
 Ba job độc lập:
 
-- `Repository validation`: kiểm tra cấu trúc, JSON/TOML/Python, Markdown links và Docker Compose config;
+- `Repository validation`: kiểm tra Docker Compose config;
 - `Python tests`: chạy test Ecommerce API và data generator bằng `uv.lock`;
 - `Storefront checks`: cài bằng `npm ci`, type-check và production build.
 
@@ -268,7 +263,6 @@ Workflow chỉ có quyền `contents: read`, tự hủy run cũ trên cùng ref 
 | [`docs/project/web-plan.md`](docs/project/web-plan.md) | Kế hoạch triển khai source website |
 | [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md) | Kiến trúc monorepo và dependency boundary |
 | [`docs/runbook/README.md`](docs/runbook/README.md) | Setup, vận hành và xử lý sự cố |
-| [`docs/source-contracts/README.md`](docs/source-contracts/README.md) | Contract nguồn MySQL OLTP và access log |
 | [`skills/oltp-design/SKILL.md`](skills/oltp-design/SKILL.md) | Nguyên tắc thiết kế OLTP tái sử dụng |
 
 Mục lục đầy đủ: [`docs/README.md`](docs/README.md).

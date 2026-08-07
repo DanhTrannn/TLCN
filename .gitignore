@@ -25,9 +25,8 @@ data/pipeline-runs/
 artifacts/
 reports/generated/
 
-airflow/logs/
-airflow/airflow.cfg
-airflow/standalone_admin_password.txt
+airflow/logs/*
+!airflow/logs/.gitkeep
 
 *.log
 *.pid

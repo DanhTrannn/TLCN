@@ -5,10 +5,6 @@ requires-python = ">=3.11,<3.12"
 dependencies = []
 
 [project.optional-dependencies]
-airflow-runtime = [
-  "tlcn-batch-pipeline",
-  "tlcn-repurchase-ml",
-]
 superset-runtime = [
   "PyMySQL[rsa]==1.1.1",
 ]
@@ -16,14 +12,8 @@ superset-runtime = [
 [tool.uv]
 package = false
 
-[tool.uv.sources]
-tlcn-batch-pipeline = { workspace = true }
-tlcn-repurchase-ml = { workspace = true }
-
 [tool.uv.workspace]
 members = [
   "services/ecommerce-api",
   "generator",
-  "pipelines/batch",
-  "ml/repurchase",
 ]

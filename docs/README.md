@@ -25,10 +25,6 @@ Khi tài liệu xung đột, `project/scope.md` được ưu tiên.
 |---|---|
 | [`project/`](project/) | Scope, roadmap và implementation plan |
 | [`architecture/`](architecture/) | System boundary, project structure và OLTP schema |
-| [`source-contracts/`](source-contracts/) | Contract cho nguồn MySQL được phép extract |
-| [`data-dictionary/`](data-dictionary/) | Grain và định nghĩa trường dữ liệu |
-| [`kpi/`](kpi/) | Công thức, cutoff và reconciliation của KPI |
 | [`runbook/`](runbook/) | Setup, operation, recovery và teardown |
-| [`thesis/`](thesis/) | Outline, hình vẽ, bảng thực nghiệm và demo script |
 
 Tài liệu phải dùng đường dẫn tương đối, không chứa secret và không commit output được sinh tự động.

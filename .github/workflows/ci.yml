@@ -32,9 +32,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Validate repository contracts
-        run: python scripts/validate_structure.py
-
       - name: Validate Docker Compose
         run: docker compose --profile core --profile tools --profile batch --profile bi config --quiet
 

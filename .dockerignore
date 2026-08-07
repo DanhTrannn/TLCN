@@ -19,5 +19,5 @@ data/generator
 data/pipeline-runs
 artifacts
 reports/generated
-airflow/logs
+./airflow/logs
 *.log

@@ -10,8 +10,6 @@ WORKDIR /tmp/uv-workspace
 COPY pyproject.toml uv.lock .python-version ./
 COPY services/ecommerce-api/pyproject.toml services/ecommerce-api/pyproject.toml
 COPY generator/pyproject.toml generator/pyproject.toml
-COPY pipelines/batch/pyproject.toml pipelines/batch/pyproject.toml
-COPY ml/repurchase/pyproject.toml ml/repurchase/pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv export --frozen --extra superset-runtime --no-dev \
         --no-emit-project --no-emit-workspace --no-hashes \
