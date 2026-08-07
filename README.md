@@ -1,10 +1,10 @@
 # TLCN E-commerce Data Platform
 
-Monorepo cho đề tài **Data Lakehouse xử lý theo lô từ dữ liệu MySQL OLTP và dự đoán khả năng khách hàng mua lại**. Website **D&K** đóng vai trò hệ thống nguồn, tạo dữ liệu giao dịch có kiểm soát cho phần Data Engineering, BI và ML.
+Monorepo cho đề tài **Data Lakehouse xử lý theo lô từ MySQL OLTP và structured web access log, phục vụ BI và dự đoán khả năng khách hàng mua lại**. Website **D&K** đóng vai trò hệ thống nguồn, tạo dữ liệu có kiểm soát cho phần Data Engineering, BI và ML.
 
 ## Phạm vi
 
-Nguồn dữ liệu chính thức của TLCN là MySQL OLTP. Clickstream, analytics session và application log không được dùng làm nguồn phân tích trong giai đoạn này.
+Nguồn dữ liệu chính thức của TLCN gồm 16 bảng MySQL OLTP và structured web access log được rotate/nén theo micro-batch. Clickstream frontend/mobile, analytics session, Kafka và streaming nằm ngoài giai đoạn này.
 
 Hệ thống nguồn đã hỗ trợ:
 
@@ -17,7 +17,7 @@ Hệ thống nguồn đã hỗ trợ:
 - admin có dashboard vận hành riêng; quản lý/search catalog, inventory, coupon, review, customer và order;
 - seed catalog và generator xuất bộ dữ liệu SQL deterministic.
 
-Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope.md`](docs/project/scope.md).
+Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope.md`](docs/project/scope.md); kiến trúc Lakehouse mục tiêu nằm tại [`docs/project/lakehouse-plan.md`](docs/project/lakehouse-plan.md).
 
 ## Trạng thái triển khai
 
@@ -41,12 +41,14 @@ Next.js Storefront ──HTTP──▶ FastAPI Ecommerce API
                               short transaction
                                    │
                                    ▼
-                              MySQL OLTP
-                                   │
-                           read-only DE account
-                                   │
-                                   ▼
-                    Batch pipeline → Lakehouse → BI/ML
+                              MySQL OLTP ───────┐
+                                               │
+Structured access log ──15-minute files───────┤
+                                               ▼
+                         MinIO Landing → Spark → Iceberg
+                                               │
+                                  Polaris → Trino → Superset
+                                               └──────→ ML
 
 SQL Generator ──file .sql──▶ MySQL OLTP
 ```
@@ -61,8 +63,8 @@ Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/pro
 | API | FastAPI, SQLAlchemy 2, Alembic, Pydantic |
 | OLTP | MySQL 8.4, InnoDB, UTC, VND |
 | Python workspace | Python 3.11, uv |
-| Data platform | Airflow, Spark, Delta Lake, MinIO |
-| Serving/BI | MySQL Analytics, Apache Superset |
+| Data platform mục tiêu | Airflow, Spark, Apache Iceberg, Apache Polaris, MinIO |
+| Serving/BI mục tiêu | Trino, Apache Superset |
 | Local runtime | Docker Engine, Docker Compose v2 |
 
 ## Cấu trúc repository
@@ -154,8 +156,8 @@ Import vào chính MySQL mà API đang sử dụng:
 |---|---|
 | `core` | MySQL ecommerce, Ecommerce API, Storefront |
 | `tools` | SQL data generator |
-| `batch` | MinIO, Spark, Airflow và metadata database |
-| `bi` | MySQL Analytics, Superset và metadata database |
+| `batch` | Hiện là scaffold MinIO/Spark/Airflow; mục tiêu bổ sung Iceberg và Polaris |
+| `bi` | Hiện là scaffold; mục tiêu Trino và Superset |
 
 Xem log core:
 
@@ -244,11 +246,12 @@ npm --prefix apps/storefront run build
 | Tài liệu | Mục đích |
 |---|---|
 | [`docs/project/scope.md`](docs/project/scope.md) | Nguồn yêu cầu và acceptance ưu tiên cao nhất |
+| [`docs/project/lakehouse-plan.md`](docs/project/lakehouse-plan.md) | Kế hoạch Iceberg, Polaris, Trino, Medallion, DQ và maintenance |
 | [`docs/architecture/oltp-schema.md`](docs/architecture/oltp-schema.md) | Logical schema, invariant, transaction và index |
 | [`docs/project/web-plan.md`](docs/project/web-plan.md) | Kế hoạch triển khai source website |
 | [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md) | Kiến trúc monorepo và dependency boundary |
 | [`docs/runbook/README.md`](docs/runbook/README.md) | Setup, vận hành và xử lý sự cố |
-| [`docs/source-contracts/README.md`](docs/source-contracts/README.md) | Contract trích xuất MySQL OLTP |
+| [`docs/source-contracts/README.md`](docs/source-contracts/README.md) | Contract nguồn MySQL OLTP và access log |
 | [`skills/oltp-design/SKILL.md`](skills/oltp-design/SKILL.md) | Nguyên tắc thiết kế OLTP tái sử dụng |
 
 Mục lục đầy đủ: [`docs/README.md`](docs/README.md).

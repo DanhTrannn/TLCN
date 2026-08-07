@@ -6,8 +6,9 @@ Tài liệu này mô tả source website phục vụ TLCN theo [`scope.md`](scop
 
 Quyết định hiện hành:
 
-- Website chỉ tạo dữ liệu nghiệp vụ trong MySQL OLTP.
-- Search/filter vẫn là chức năng web nhưng search query không được lưu cho phân tích TLCN.
+- Website tạo dữ liệu nghiệp vụ trong MySQL OLTP và structured access log cho mỗi completed HTTP request.
+- Search/filter không tạo OLTP history hoặc clickstream event; metadata đã sanitize có thể xuất hiện trong access log.
+- Log rotate/nén theo interval 15 phút để batch pipeline ingest; frontend analytics SDK/event emitter vẫn ngoài TLCN.
 
 ---
 
@@ -25,7 +26,8 @@ Quyết định hiện hành:
 8. Customer xem order, hủy order còn `paid` và review item của order `completed`.
 9. Admin quản lý catalog, inventory, coupon, review moderation, customer status và xác nhận/hoàn tất/hủy order.
 10. Hủy order `paid` hoàn inventory, full refund và release coupon trong một transaction.
-16. Website tạo source rows đủ cho batch DE, dashboard và ML mua lại dựa trên OLTP.
+11. Website tạo OLTP rows đủ cho dashboard/ML mua lại.
+12. Web/API tạo structured access log đủ cho traffic, error, latency, route và search/filter analysis.
 
 ### 1.2. Mục tiêu kỹ thuật
 
@@ -36,7 +38,8 @@ Quyết định hiện hành:
 - Mutable source có stable key và `updated_at`.
 - Amount dùng integer VND.
 - PII được giới hạn và không extract credential.
-- Source contract phù hợp initial/incremental batch extraction.
+- Source contract phù hợp initial/incremental OLTP extraction.
+- Structured access log có stable `request_id`, schema version, UTC time và privacy allowlist.
 
 ### 1.3. Ngoài phạm vi
 
@@ -60,7 +63,8 @@ Source website hoàn thành khi:
 - generator tạo OLTP master/history/repurchase data reproducibly;
 - MySQL reader chỉ được cấp quyền trên 16 bảng analytical source;
 - source catalogue/data dictionary đủ để bàn giao batch extraction;
-- web không phụ thuộc Airflow, Spark, MinIO hoặc analytics database.
+- web không phụ thuộc Airflow, Spark, MinIO, Polaris hoặc Trino;
+- access log rotate thành closed `jsonl.gz` file theo interval 15 phút và không chứa secret/PII cấm.
 
 ---
 
@@ -88,9 +92,9 @@ Next.js Storefront
   ↓ HTTP/JSON + cookie/CSRF
 FastAPI Ecommerce API
   ↓ short transaction
-MySQL ecommerce
-  ↓ read-only extraction
-TLCN Batch Pipeline
+MySQL ecommerce ──read-only extraction──┐
+                                          ├──▶ TLCN Batch Pipeline
+Structured access log ──15-minute files───┘
 ```
 
 Ranh giới bắt buộc:
@@ -121,7 +125,7 @@ app routes/components
 → Ecommerce API
 ```
 
-Không có analytics SDK hoặc event emitter trong runtime TLCN.
+Không có analytics SDK hoặc clickstream event emitter trong runtime TLCN. Access log được phát tại web/API request boundary.
 
 ---
 
@@ -130,7 +134,7 @@ Không có analytics SDK hoặc event emitter trong runtime TLCN.
 | Module | Đọc | Ghi | Không được làm |
 |---|---|---|---|
 | Auth | customer/credential | customer/credential | Trả password hash |
-| Catalog | category/product/variant/inventory | Admin catalog | Tạo analytical search history |
+| Catalog | category/product/variant/inventory | Admin catalog + access-log request metadata | Tạo OLTP search-history table hoặc clickstream event |
 | Wishlist | customer/product/wishlist | wishlist | Hard delete wishlist history |
 | Cart | cart/item/catalog/inventory | cart/item | Reserve inventory |
 | Checkout | customer/cart/catalog/inventory | order/item/payment/history/cart/inventory | Random payment, external call |
@@ -167,7 +171,7 @@ Không có analytics SDK hoặc event emitter trong runtime TLCN.
 - Sort newest/price.
 - Keyset cursor, không offset lớn.
 - Một matching variant phải thỏa đồng thời variant-level filter.
-- Search/filter không ghi table history hoặc event trong TLCN.
+- Search/filter không ghi OLTP history hoặc clickstream event; request metadata đã sanitize được ghi trong access log.
 
 ### 6.2. Wishlist
 
@@ -216,7 +220,7 @@ Không có analytics SDK hoặc event emitter trong runtime TLCN.
 - Mutation cần CSRF.
 - Checkout/internal completion cần idempotency key.
 - Domain error có stable `error_code`.
-- Structured log không chứa password, token hoặc shipping address.
+- Structured log không chứa password, token, cookie, authorization header, checkout body, email, phone hoặc shipping address nguyên bản.
 
 ---
 
@@ -453,19 +457,31 @@ Generator phải:
 
 ---
 
-## 14. Logging
+## 14. Structured access logging
 
-API và web vẫn có operational logging để debug:
+API và web phát một JSONL record cho mỗi completed HTTP request:
 
-- request ID;
-- method/normalized route;
-- status;
-- latency;
+- unique `request_id`;
+- `occurred_at_utc` và `emitted_at_utc`;
 - service/version;
-- error code;
-- sanitized message.
+- method và canonical route;
+- status và latency;
+- actor type/reference nullable;
+- product/search/filter metadata nullable;
+- user-agent/client metadata;
+- error code và schema version.
 
-Operational log không được ingest vào Lakehouse, không phải deliverable dữ liệu và không được dùng làm dashboard/ML TLCN.
+Yêu cầu vận hành:
+
+- rotate mỗi 15 phút;
+- chỉ ship file đã đóng;
+- nén `gzip`;
+- source file có checksum và line count;
+- retry không tạo thêm logical file/request;
+- raw IP/actor reference phải pseudonymize trước trusted Silver;
+- không ghi password, token, cookie, authorization header, checkout body hoặc customer PII nguyên bản.
+
+Access log là source TLCN cho traffic/error/latency/route/search analysis. Nó không phải clickstream event system và không thay thế MySQL cho KPI nghiệp vụ.
 
 ---
 
@@ -504,7 +520,8 @@ Operational log không được ingest vào Lakehouse, không phải deliverable
 - reader không đọc credential;
 - cursor columns/index tồn tại;
 - source count/amount reconciliation query chạy được;
-- clean migration/seed/generator.
+- clean migration/seed/generator;
+- log schema, rotation, privacy và duplicate-file fixtures.
 
 ---
 
@@ -514,8 +531,8 @@ Operational log không được ingest vào Lakehouse, không phải deliverable
 |---|---|
 | `core` | MySQL ecommerce, Ecommerce API, Storefront |
 | `tools` | OLTP data generator |
-| `batch` | MinIO, Spark, Airflow, PostgreSQL metadata |
-| `bi` | MySQL analytics, Superset, PostgreSQL metadata |
+| `batch` | MinIO, Spark, Airflow, Polaris, PostgreSQL metadata |
+| `bi` | Trino, Superset, PostgreSQL metadata |
 
 Startup TLCN:
 
