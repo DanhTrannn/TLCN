@@ -45,4 +45,10 @@ uv lock --check
 python3 scripts/validate_structure.py
 docker compose --profile core --profile batch --profile bi --profile tools config --quiet
 UV_PROJECT_ENVIRONMENT=.venv-ecommerce uv run --locked --package tlcn-ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
+UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked --package tlcn-data-generator --extra dev -- pytest generator/tests
+npm --prefix apps/storefront ci --no-audit --no-fund
+npm --prefix apps/storefront run typecheck
+npm --prefix apps/storefront run build
 ```
+
+GitHub Actions chạy cùng các kiểm tra này tại [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). Không đưa secret production vào workflow; CI hiện chỉ cần quyền đọc repository.

@@ -30,6 +30,5 @@ Khi tài liệu xung đột, `project/scope.md` được ưu tiên.
 | [`kpi/`](kpi/) | Công thức, cutoff và reconciliation của KPI |
 | [`runbook/`](runbook/) | Setup, operation, recovery và teardown |
 | [`thesis/`](thesis/) | Outline, hình vẽ, bảng thực nghiệm và demo script |
-| [`career/`](career/) | Tài liệu ôn phỏng vấn dựa trên CV và các dự án |
 
 Tài liệu phải dùng đường dẫn tương đối, không chứa secret và không commit output được sinh tự động.

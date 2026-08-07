@@ -23,7 +23,7 @@ Mở `http://localhost:3000`.
 
 ```bash
 cd apps/storefront
-npm install
+npm ci
 npm run dev
 ```
 
@@ -35,6 +35,7 @@ Các biến public được cấu hình khi build:
 ## Kiểm tra
 
 ```bash
+npm ci
 npm run typecheck
 npm run build
 ```

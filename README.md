@@ -217,7 +217,7 @@ UV_PROJECT_ENVIRONMENT=.venv-generator \
 
 ```bash
 cd apps/storefront
-npm install
+npm ci
 npm run dev
 ```
 
@@ -237,9 +237,26 @@ UV_PROJECT_ENVIRONMENT=.venv-ecommerce \
   uv run --locked --package tlcn-ecommerce-api --extra dev -- \
   pytest services/ecommerce-api/tests
 
+UV_PROJECT_ENVIRONMENT=.venv-generator \
+  uv run --locked --package tlcn-data-generator --extra dev -- \
+  pytest generator/tests
+
+npm --prefix apps/storefront ci --no-audit --no-fund
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build
 ```
+
+## Continuous Integration
+
+Workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) chạy khi push vào `main`/`master`, khi mở hoặc cập nhật pull request và khi chạy thủ công.
+
+Ba job độc lập:
+
+- `Repository validation`: kiểm tra cấu trúc, JSON/TOML/Python, Markdown links và Docker Compose config;
+- `Python tests`: chạy test Ecommerce API và data generator bằng `uv.lock`;
+- `Storefront checks`: cài bằng `npm ci`, type-check và production build.
+
+Workflow chỉ có quyền `contents: read`, tự hủy run cũ trên cùng ref và dùng cache dependency của `uv`/npm.
 
 ## Tài liệu
 
