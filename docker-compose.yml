@@ -21,14 +21,14 @@ x-airflow-common: &airflow-common
     MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}:${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
     MYSQL_ANALYTICS_PUBLISH_URL: mysql+pymysql://${MYSQL_ANALYTICS_USER:-analytics_publisher}:${MYSQL_ANALYTICS_PASSWORD:-change-me-analytics}@mysql-analytics:3306/${MYSQL_ANALYTICS_DATABASE:-analytics}
     MINIO_ENDPOINT: http://minio:9000
-    MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-tlcn_minio}
-    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+    MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-password}
     SPARK_MASTER_URL: spark://spark-master:7077
   volumes:
     - ./airflow/dags:/opt/airflow/dags:ro
     - ./airflow/logs:/opt/airflow/logs
     - pipeline-run-data:/data/pipeline-runs
-  networks: ["tlcn-network"]
+  networks: ["lakehouse-network"]
   depends_on:
     postgres-airflow:
       condition: service_healthy
@@ -46,7 +46,7 @@ x-superset-common: &superset-common
   volumes:
     - ./infrastructure/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
     - superset-home:/app/superset_home
-  networks: ["tlcn-network"]
+  networks: ["lakehouse-network"]
 
 services:
   mysql-ecommerce:
@@ -55,10 +55,10 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
       MYSQL_USER: ${MYSQL_ECOMMERCE_USER:-ecommerce_app}
-      MYSQL_PASSWORD: ${MYSQL_ECOMMERCE_PASSWORD:-change-me-ecommerce}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ECOMMERCE_ROOT_PASSWORD:-change-me-root}
+      MYSQL_PASSWORD: ${MYSQL_ECOMMERCE_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ECOMMERCE_ROOT_PASSWORD:-password}
       MYSQL_ECOMMERCE_READER_USER: ${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}
-      MYSQL_ECOMMERCE_READER_PASSWORD: ${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}
+      MYSQL_ECOMMERCE_READER_PASSWORD: ${MYSQL_ECOMMERCE_READER_PASSWORD:-password}
       TZ: UTC
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
     ports:
@@ -71,7 +71,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   ecommerce-api:
     build:
@@ -85,16 +85,16 @@ services:
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-true}
       API_ACCESS_TOKEN_TTL_MINUTES: ${API_ACCESS_TOKEN_TTL_MINUTES:-720}
-      API_AUTH_COOKIE_NAME: ${API_AUTH_COOKIE_NAME:-tlcn_access}
-      API_CSRF_COOKIE_NAME: ${API_CSRF_COOKIE_NAME:-tlcn_csrf}
+      API_AUTH_COOKIE_NAME: ${API_AUTH_COOKIE_NAME:-web_access}
+      API_CSRF_COOKIE_NAME: ${API_CSRF_COOKIE_NAME:-web_csrf}
       API_COOKIE_SECURE: ${API_COOKIE_SECURE:-false}
       API_COOKIE_SAMESITE: ${API_COOKIE_SAMESITE:-lax}
       API_COOKIE_DOMAIN: ${API_COOKIE_DOMAIN:-}
       API_INTERNAL_SECRET: ${API_INTERNAL_SECRET:-change-me-internal-secret}
       API_DEMO_MODE: ${API_DEMO_MODE:-true}
-      API_BOOTSTRAP_ADMIN_EMAIL: ${API_BOOTSTRAP_ADMIN_EMAIL:-admin@tlcn.local}
+      API_BOOTSTRAP_ADMIN_EMAIL: ${API_BOOTSTRAP_ADMIN_EMAIL:-admin@web.local}
       API_BOOTSTRAP_ADMIN_PASSWORD: ${API_BOOTSTRAP_ADMIN_PASSWORD:-Admin@12345}
-      API_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${API_BOOTSTRAP_ADMIN_DISPLAY_NAME:-TLCN Admin}
+      API_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${API_BOOTSTRAP_ADMIN_DISPLAY_NAME:-Admin}
       API_CURRENCY_CODE: ${API_CURRENCY_CODE:-VND}
       API_SHIPPING_FLAT_FEE_VND: ${API_SHIPPING_FLAT_FEE_VND:-30000}
       API_FREE_SHIPPING_THRESHOLD_VND: ${API_FREE_SHIPPING_THRESHOLD_VND:-500000}
@@ -112,14 +112,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   storefront:
     build:
       context: ./apps/storefront
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
-        NEXT_PUBLIC_CSRF_COOKIE_NAME: ${NEXT_PUBLIC_CSRF_COOKIE_NAME:-tlcn_csrf}
+        NEXT_PUBLIC_CSRF_COOKIE_NAME: ${NEXT_PUBLIC_CSRF_COOKIE_NAME:-web_csrf}
     image: storefront:0.1.0
     profiles: ["core"]
     ports:
@@ -132,7 +132,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   generator:
     build:
@@ -144,15 +144,15 @@ services:
       ECOMMERCE_API_URL: http://ecommerce-api:8000
     volumes:
       - ./data/generator:/data/generator
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     profiles: ["batch"]
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-tlcn_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -163,7 +163,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   minio-init:
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
@@ -175,14 +175,14 @@ services:
         mc mb --ignore-existing local/$${MINIO_LAKEHOUSE_BUCKET};
         mc mb --ignore-existing local/$${MINIO_ML_BUCKET};
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-tlcn_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
       MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
-      MINIO_ML_BUCKET: ${MINIO_ML_BUCKET:-ml-artifacts}
+      # MINIO_ML_BUCKET: ${MINIO_ML_BUCKET:-ml-artifacts}
     depends_on:
       minio:
         condition: service_healthy
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   spark-master:
     image: apache/spark:3.5.5-python3
@@ -193,7 +193,7 @@ services:
       - "${SPARK_MASTER_UI_PORT:-8082}:8080"
     volumes:
       - spark-work:/opt/spark/work-dir
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   spark-worker:
     image: apache/spark:3.5.5-python3
@@ -208,14 +208,14 @@ services:
       - spark-work:/opt/spark/work-dir
     depends_on:
       - spark-master
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   postgres-airflow:
     image: postgres:16.8
     profiles: ["batch"]
     environment:
       POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
-      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-change-me-airflow-db}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-password}
       POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
     volumes:
       - postgres-airflow-data:/var/lib/postgresql/data
@@ -224,7 +224,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   airflow-init:
     <<: *airflow-common
@@ -236,14 +236,14 @@ services:
         (airflow users create
         --username $${AIRFLOW_ADMIN_USER}
         --password $${AIRFLOW_ADMIN_PASSWORD}
-        --firstname TLCN
+        --firstname Web
         --lastname Admin
         --role Admin
         --email admin@example.local || true)
     environment:
       <<: *airflow-environment
-      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
-      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-change-me-airflow}
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-airflow}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
 
   airflow-webserver:
     <<: *airflow-common
@@ -293,7 +293,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   postgres-superset:
     image: postgres:16.8
@@ -309,7 +309,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    networks: ["tlcn-network"]
+    networks: ["lakehouse-network"]
 
   superset-init:
     <<: *superset-common
@@ -321,7 +321,7 @@ services:
         (superset fab create-admin
         --username $${SUPERSET_ADMIN_USER}
         --password $${SUPERSET_ADMIN_PASSWORD}
-        --firstname TLCN
+        --firstname Web
         --lastname Admin
         --email admin@example.local || true) &&
         superset init
@@ -350,8 +350,8 @@ services:
       retries: 20
 
 networks:
-  tlcn-network:
-    name: tlcn-network
+  lakehouse-network:
+    name: lakehouse-network
 
 volumes:
   mysql-ecommerce-data:

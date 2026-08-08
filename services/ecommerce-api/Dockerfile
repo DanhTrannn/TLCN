@@ -12,13 +12,13 @@ COPY pyproject.toml uv.lock .python-version ./
 COPY services/ecommerce-api/pyproject.toml services/ecommerce-api/pyproject.toml
 COPY generator/pyproject.toml generator/pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-workspace --package tlcn-ecommerce-api
+    uv sync --frozen --no-dev --no-install-workspace --package ecommerce-api
 COPY services/ecommerce-api/app services/ecommerce-api/app
 COPY database ./database
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable \
-        --reinstall-package tlcn-ecommerce-api \
-        --refresh-package tlcn-ecommerce-api \
-        --package tlcn-ecommerce-api
+        --reinstall-package ecommerce-api \
+        --refresh-package ecommerce-api \
+        --package ecommerce-api
 EXPOSE 8000
 CMD ["sh", "-c", "alembic -c database/alembic.ini upgrade head && python -m database.seeds.seed_catalog && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log"]

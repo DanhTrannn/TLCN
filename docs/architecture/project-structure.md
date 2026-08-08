@@ -88,7 +88,7 @@ Dependency rules:
 ├── generator/
 │   ├── configs/                          # Dataset scale/scenario
 │   ├── tests/                            # SQL export determinism tests
-│   └── src/tlcn_generator/               # Generator CLI
+│   └── src/generator/                    # Generator CLI
 ├── airflow/
 │   ├── dags/                             # Orchestration DAGs
 │   └── logs/                             # Airflow operational logs only
@@ -140,8 +140,8 @@ core → grant DE reader → tools (nếu cần)
 
 Workspace `uv` gồm:
 
-- `tlcn-ecommerce-api`;
-- `tlcn-data-generator`.
+- `ecommerce-api`;
+- `data-generator`.
 
 `uv.lock` là lockfile duy nhất. Dockerfile Python dùng cùng phiên bản `uv` và cài package theo workspace lock. Trino, Polaris, MinIO và Superset được pin bằng container image/config riêng, không đưa vào Python workspace.
 

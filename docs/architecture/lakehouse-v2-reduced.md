@@ -50,7 +50,7 @@ Polaris tách table catalog khỏi Spark và Trino. Cả hai engine phải phân
 
 Phạm vi TLCN chỉ cần:
 
-- một catalog `tlcn`;
+- một catalog `web`;
 - namespaces `bronze`, `silver`, `gold`, `quarantine`, `system`;
 - Spark principal có quyền ghi cần thiết;
 - Trino principal chỉ đọc trusted tables;

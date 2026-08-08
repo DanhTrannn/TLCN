@@ -227,20 +227,20 @@ flowchart TB
 
 ### 5.1. Polaris namespaces
 
-Một catalog `tlcn` có các namespace:
+Một catalog `lakehouse` có các namespace:
 
-- `tlcn.bronze`;
-- `tlcn.silver`;
-- `tlcn.gold`;
-- `tlcn.quarantine`;
-- `tlcn.system`.
+- `lakehouse.bronze`;
+- `lakehouse.silver`;
+- `lakehouse.gold`;
+- `lakehouse.quarantine`;
+- `lakehouse.system`.
 
 Không tạo catalog riêng cho từng bảng hoặc từng DAG.
 
 ### 5.2. MinIO layout
 
 ```text
-s3://tlcn-lakehouse/
+s3://web-lakehouse/
 ├── landing/
 │   ├── oltp/<table>/extract_date=YYYY-MM-DD/run_id=<run_id>/*.parquet
 │   └── logs/date=YYYY-MM-DD/hour=HH/window_start=<timestamp>/*.jsonl.gz

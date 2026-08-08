@@ -18,15 +18,15 @@ class Settings(BaseSettings):
     secret_key: str = Field(min_length=32)
     cors_origins: str = "http://localhost:3000"
     enable_docs: bool = True
-    bootstrap_admin_email: str = "admin@tlcn.local"
+    bootstrap_admin_email: str = "admin@web.local"
     bootstrap_admin_password: str = Field(default="Admin@12345", min_length=8)
-    bootstrap_admin_display_name: str = "TLCN Admin"
+    bootstrap_admin_display_name: str = "Admin"
 
     # Auth / cookie
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 720
-    auth_cookie_name: str = "tlcn_access"
-    csrf_cookie_name: str = "tlcn_csrf"
+    auth_cookie_name: str = "web_access"
+    csrf_cookie_name: str = "web_csrf"
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
     cookie_domain: str | None = None

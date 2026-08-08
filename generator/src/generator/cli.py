@@ -1,13 +1,13 @@
 import argparse
 from pathlib import Path
 
-from tlcn_generator.config import load_config
-from tlcn_generator.runner import run
-from tlcn_generator.sql_export import export_sql
+from generator.config import load_config
+from generator.runner import run
+from generator.sql_export import export_sql
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="tlcn-generator")
+    parser = argparse.ArgumentParser(prog="generator")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Write the scenario manifest")

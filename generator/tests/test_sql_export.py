@@ -9,8 +9,8 @@ from zoneinfo import ZoneInfo
 
 from argon2 import PasswordHasher
 
-from tlcn_generator.config import DEFAULT_DISTRIBUTIONS, GeneratorConfig, PriceBand
-from tlcn_generator.sql_export import DEMO_PASSWORD, PRODUCT_IMAGE_URL, export_sql
+from generator.config import DEFAULT_DISTRIBUTIONS, GeneratorConfig, PriceBand
+from generator.sql_export import DEMO_PASSWORD, PRODUCT_IMAGE_URL, export_sql
 
 
 def _table_blocks(sql: str, table: str) -> list[str]:

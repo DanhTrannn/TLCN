@@ -2,8 +2,8 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from tlcn_generator import __version__
-from tlcn_generator.config import GeneratorConfig
+from generator import __version__
+from generator.config import GeneratorConfig
 
 
 SUPPORTED_MODES = {

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
-from tlcn_generator import __version__
+from generator import __version__
 
 
 CATEGORY_NAMES = {

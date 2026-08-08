@@ -33,7 +33,7 @@ File SQL nằm tại `data/generator/small.sql`, chạy trong một transaction 
 - Storefront: `http://localhost:3000`;
 - API docs: `http://localhost:8000/docs`;
 - Admin: `http://localhost:3000/admin`;
-- Local admin: `admin@tlcn.local` / `Admin@12345`.
+- Local admin: `admin@web.local` / `Admin@12345`.
 
 Migration và bootstrap admin tự chạy khi `ecommerce-api` khởi động.
 
@@ -42,8 +42,8 @@ Migration và bootstrap admin tự chạy khi `ecommerce-api` khởi động.
 ```bash
 uv lock --check
 docker compose --profile core --profile batch --profile bi --profile tools config --quiet
-UV_PROJECT_ENVIRONMENT=.venv-ecommerce uv run --locked --package tlcn-ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
-UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked --package tlcn-data-generator --extra dev -- pytest generator/tests
+uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
+uv run --locked --package data-generator --extra dev -- pytest generator/tests
 npm --prefix apps/storefront ci --no-audit --no-fund
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build

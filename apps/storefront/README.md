@@ -30,7 +30,7 @@ npm run dev
 Các biến public được cấu hình khi build:
 
 - `NEXT_PUBLIC_API_BASE_URL`, mặc định `http://localhost:8000`;
-- `NEXT_PUBLIC_CSRF_COOKIE_NAME`, mặc định `tlcn_csrf`.
+- `NEXT_PUBLIC_CSRF_COOKIE_NAME`, mặc định `web_csrf`.
 
 ## Kiểm tra
 

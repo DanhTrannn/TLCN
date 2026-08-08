@@ -13,8 +13,8 @@ from zoneinfo import ZoneInfo
 
 from argon2.low_level import Type, hash_secret
 
-from tlcn_generator import __version__
-from tlcn_generator.config import (
+from generator import __version__
+from generator.config import (
     CATEGORY_NAMES,
     CustomerClass,
     DistributionConfig,
@@ -706,9 +706,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     randomizer = random.Random(config.seed)
-    namespace = uuid.uuid5(uuid.NAMESPACE_URL, f"tlcn-sql:{config.logical_identity}")
+    namespace = uuid.uuid5(uuid.NAMESPACE_URL, f"web-sql:{config.logical_identity}")
     generation_run_id = f"sql-{config.logical_identity}"
-    demo_email = f"demo.{config.logical_identity[:8]}@tlcn.local"
+    demo_email = f"demo.{config.logical_identity[:8]}@web.local"
     history_end = config.anchor_time.astimezone(UTC)
     history_start = history_end - timedelta(days=max(1, config.history_months) * 30)
     distribution = config.distributions

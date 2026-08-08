@@ -3,8 +3,8 @@ import unittest
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
-from tlcn_generator.config import CATEGORY_NAMES, DEFAULT_DISTRIBUTIONS
-from tlcn_generator.sql_export import (
+from generator.config import CATEGORY_NAMES, DEFAULT_DISTRIBUTIONS
+from generator.sql_export import (
     _build_day_weights,
     _campaign_instances,
     _class_assignment,

@@ -12,12 +12,12 @@ COPY pyproject.toml uv.lock .python-version ./
 COPY services/ecommerce-api/pyproject.toml services/ecommerce-api/pyproject.toml
 COPY generator/pyproject.toml generator/pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-workspace --package tlcn-data-generator
+    uv sync --frozen --no-dev --no-install-workspace --package data-generator
 COPY generator/src generator/src
 COPY generator/configs /app/configs
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable \
-        --reinstall-package tlcn-data-generator \
-        --refresh-package tlcn-data-generator \
-        --package tlcn-data-generator
-ENTRYPOINT ["tlcn-generator"]
+        --reinstall-package data-generator \
+        --refresh-package data-generator \
+        --package data-generator
+ENTRYPOINT ["generator"]

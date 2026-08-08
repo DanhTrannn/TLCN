@@ -4,9 +4,9 @@ requires-python = "==3.11.*"
 
 [manifest]
 members = [
-    "tlcn-data-generator",
-    "tlcn-ecommerce-api",
-    "tlcn-lakehouse-workspace",
+    "data-generator",
+    "ecommerce-api",
+    "lakehouse-workspace",
 ]
 
 [[package]]
@@ -176,6 +176,28 @@ wheels = [
 ]
 
 [[package]]
+name = "data-generator"
+version = "0.3.0"
+source = { editable = "generator" }
+dependencies = [
+    { name = "argon2-cffi" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "argon2-cffi", specifier = "==25.1.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = "==8.4.1" },
+    { name = "pyyaml", specifier = "==6.0.2" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "dnspython"
 version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -183,6 +205,46 @@ sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
 ]
+
+[[package]]
+name = "ecommerce-api"
+version = "0.1.0"
+source = { editable = "services/ecommerce-api" }
+dependencies = [
+    { name = "alembic" },
+    { name = "argon2-cffi" },
+    { name = "email-validator" },
+    { name = "fastapi" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "pymysql", extra = ["rsa"] },
+    { name = "sqlalchemy" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = "==1.16.4" },
+    { name = "argon2-cffi", specifier = "==25.1.0" },
+    { name = "email-validator", specifier = "==2.2.0" },
+    { name = "fastapi", specifier = "==0.116.1" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = "==0.28.1" },
+    { name = "pydantic", specifier = "==2.11.7" },
+    { name = "pydantic-settings", specifier = "==2.10.1" },
+    { name = "pyjwt", specifier = "==2.10.1" },
+    { name = "pymysql", extras = ["rsa"], specifier = "==1.1.1" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = "==8.4.1" },
+    { name = "sqlalchemy", specifier = "==2.0.41" },
+    { name = "uvicorn", extras = ["standard"], specifier = "==0.35.0" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "email-validator"
@@ -296,6 +358,20 @@ sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
 ]
+
+[[package]]
+name = "lakehouse-workspace"
+version = "0.1.0"
+source = { virtual = "." }
+
+[package.optional-dependencies]
+superset-runtime = [
+    { name = "pymysql", extra = ["rsa"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pymysql", extras = ["rsa"], marker = "extra == 'superset-runtime'", specifier = "==1.1.1" }]
+provides-extras = ["superset-runtime"]
 
 [[package]]
 name = "mako"
@@ -525,82 +601,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/15/b9/cc3017f9a9c9b6e27
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/fd/901cfa59aaa5b30a99e16876f11abe38b59a1a2c51ffb3d7142bb6089069/starlette-0.47.3-py3-none-any.whl", hash = "sha256:89c0778ca62a76b826101e7c709e70680a1699ca7da6b44d38eb0a7e61fe4b51", size = 72991, upload-time = "2025-08-24T13:36:40.887Z" },
 ]
-
-[[package]]
-name = "tlcn-data-generator"
-version = "0.3.0"
-source = { editable = "generator" }
-dependencies = [
-    { name = "argon2-cffi" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "argon2-cffi", specifier = "==25.1.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = "==8.4.1" },
-    { name = "pyyaml", specifier = "==6.0.2" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "tlcn-ecommerce-api"
-version = "0.1.0"
-source = { editable = "services/ecommerce-api" }
-dependencies = [
-    { name = "alembic" },
-    { name = "argon2-cffi" },
-    { name = "email-validator" },
-    { name = "fastapi" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pyjwt" },
-    { name = "pymysql", extra = ["rsa"] },
-    { name = "sqlalchemy" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "httpx" },
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = "==1.16.4" },
-    { name = "argon2-cffi", specifier = "==25.1.0" },
-    { name = "email-validator", specifier = "==2.2.0" },
-    { name = "fastapi", specifier = "==0.116.1" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = "==0.28.1" },
-    { name = "pydantic", specifier = "==2.11.7" },
-    { name = "pydantic-settings", specifier = "==2.10.1" },
-    { name = "pyjwt", specifier = "==2.10.1" },
-    { name = "pymysql", extras = ["rsa"], specifier = "==1.1.1" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = "==8.4.1" },
-    { name = "sqlalchemy", specifier = "==2.0.41" },
-    { name = "uvicorn", extras = ["standard"], specifier = "==0.35.0" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "tlcn-lakehouse-workspace"
-version = "0.1.0"
-source = { virtual = "." }
-
-[package.optional-dependencies]
-superset-runtime = [
-    { name = "pymysql", extra = ["rsa"] },
-]
-
-[package.metadata]
-requires-dist = [{ name = "pymysql", extras = ["rsa"], marker = "extra == 'superset-runtime'", specifier = "==1.1.1" }]
-provides-extras = ["superset-runtime"]
 
 [[package]]
 name = "typing-extensions"

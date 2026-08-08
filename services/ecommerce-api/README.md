@@ -28,8 +28,7 @@ Container tự chạy migration, catalog seed và bootstrap admin trước khi k
 ## Test với uv
 
 ```bash
-UV_PROJECT_ENVIRONMENT=.venv-ecommerce \
-  uv run --locked --package tlcn-ecommerce-api --extra dev -- \
+uv run --locked --package ecommerce-api --extra dev -- \
   pytest services/ecommerce-api/tests
 ```
 

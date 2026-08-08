@@ -121,7 +121,7 @@ curl -fsS http://localhost:8000/health/ready
 Tài khoản admin local:
 
 ```text
-Email:    admin@tlcn.local
+Email:    admin@web.local
 Password: Admin@12345
 ```
 
@@ -193,20 +193,18 @@ Kiểm tra lockfile:
 uv lock --check
 ```
 
-Chạy test Ecommerce API trong environment riêng:
+Chạy test Ecommerce API:
 
 ```bash
-UV_PROJECT_ENVIRONMENT=.venv-ecommerce \
-  uv run --locked --package tlcn-ecommerce-api --extra dev -- \
+uv run --locked --package ecommerce-api --extra dev -- \
   pytest services/ecommerce-api/tests
 ```
 
 Chạy generator trực tiếp:
 
 ```bash
-UV_PROJECT_ENVIRONMENT=.venv-generator \
-  uv run --locked --package tlcn-data-generator -- \
-  tlcn-generator --help
+uv run --locked --package data-generator -- \
+  generator --help
 ```
 
 ### Storefront
@@ -228,12 +226,10 @@ docker compose --profile core --profile batch --profile bi --profile tools confi
 Trước khi tạo commit nên chạy thêm:
 
 ```bash
-UV_PROJECT_ENVIRONMENT=.venv-ecommerce \
-  uv run --locked --package tlcn-ecommerce-api --extra dev -- \
+uv run --locked --package ecommerce-api --extra dev -- \
   pytest services/ecommerce-api/tests
 
-UV_PROJECT_ENVIRONMENT=.venv-generator \
-  uv run --locked --package tlcn-data-generator --extra dev -- \
+uv run --locked --package data-generator --extra dev -- \
   pytest generator/tests
 
 npm --prefix apps/storefront ci --no-audit --no-fund

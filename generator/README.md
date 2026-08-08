@@ -43,9 +43,9 @@ Tài khoản demo có nhiều đơn hàng trải đều trong lịch sử để 
 ## Chạy trực tiếp bằng uv
 
 ```bash
-UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked \
-  --package tlcn-data-generator -- \
-  tlcn-generator export-sql \
+uv run --locked \
+  --package data-generator -- \
+  generator export-sql \
   --config generator/configs/small.yml \
   --output data/generator/small.sql
 ```
@@ -53,8 +53,8 @@ UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked \
 ## Kiểm tra
 
 ```bash
-UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked \
-  --package tlcn-data-generator --extra dev -- \
+uv run --locked \
+  --package data-generator --extra dev -- \
   pytest generator/tests
 ```
 
@@ -63,7 +63,7 @@ UV_PROJECT_ENVIRONMENT=.venv-generator uv run --locked \
 Các profile trong `configs/` mô phỏng hành vi phổ biến của sàn TMĐT Việt Nam theo
 quy tắc có kiểm soát, không sao chép dữ liệu hay thuật toán nội bộ của một sàn cụ
 thể. Nếu config không khai báo `distributions`, generator dùng profile mặc định
-trong `src/tlcn_generator/config.py`.
+trong `src/generator/config.py`.
 
 | Tham số | Ý nghĩa |
 |---|---|

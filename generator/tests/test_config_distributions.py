@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from tlcn_generator.config import DEFAULT_DISTRIBUTIONS, load_config
+from generator.config import DEFAULT_DISTRIBUTIONS, load_config
 
 
 def _write_yaml(path: Path, body: dict) -> Path:

@@ -6,7 +6,7 @@ RUN npm ci --no-audit --no-fund
 FROM node:22.18-alpine AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-ARG NEXT_PUBLIC_CSRF_COOKIE_NAME=tlcn_csrf
+ARG NEXT_PUBLIC_CSRF_COOKIE_NAME=web_csrf
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 ENV NEXT_PUBLIC_CSRF_COOKIE_NAME=${NEXT_PUBLIC_CSRF_COOKIE_NAME}
 COPY --from=dependencies /app/node_modules ./node_modules
