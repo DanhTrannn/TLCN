@@ -10,7 +10,14 @@ from zoneinfo import ZoneInfo
 from argon2 import PasswordHasher
 
 from generator.config import DEFAULT_DISTRIBUTIONS, GeneratorConfig, PriceBand
-from generator.sql_export import DEMO_PASSWORD, PRODUCT_IMAGE_URL, export_sql
+from generator.sql_export import (
+    DEMO_PASSWORD,
+    FAMILY_NAMES,
+    FEMALE_GIVEN_NAMES,
+    MALE_GIVEN_NAMES,
+    PRODUCT_IMAGE_URL,
+    export_sql,
+)
 
 
 def _table_blocks(sql: str, table: str) -> list[str]:
@@ -87,6 +94,116 @@ class SqlExportTest(unittest.TestCase):
             password_hash_start = sql.index("$argon2id$")
             password_hash_end = sql.index("'", password_hash_start)
             PasswordHasher().verify(sql[password_hash_start:password_hash_end], DEMO_PASSWORD)
+
+    def test_customer_names_are_vietnamese_structured(self) -> None:
+        config = replace(
+            self.config,
+            scale={"customers": 120, "products": 40, "variants": 120, "orders": 800},
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "names.sql"
+            export_sql(config, path)
+            sql = path.read_text(encoding="utf-8")
+
+            self.assertNotIn("Khách hàng tổng hợp", sql)
+            self.assertIn("Kiểm duyệt viên dữ liệu tổng hợp", sql)
+
+            names = []
+            for block in _table_blocks(sql, "customers"):
+                names.extend(
+                    re.findall(
+                        r"^  \(\d+, UNHEX\('[0-9a-f]+'\), 'customer', '([^']+)',",
+                        block,
+                        re.MULTILINE,
+                    )
+                )
+            self.assertEqual(len(names), config.scale["customers"])
+            for name in names:
+                parts = name.split(" ")
+                self.assertEqual(len(parts), 3, name)
+                self.assertIn(parts[0], FAMILY_NAMES)
+                self.assertIn(parts[2], FEMALE_GIVEN_NAMES + MALE_GIVEN_NAMES)
+
+    def test_customer_names_are_majority_female(self) -> None:
+        config = replace(
+            self.config,
+            scale={"customers": 200, "products": 40, "variants": 120, "orders": 800},
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "names-female.sql"
+            export_sql(config, path)
+            sql = path.read_text(encoding="utf-8")
+
+            female_count = 0
+            for block in _table_blocks(sql, "customers"):
+                for given in re.findall(
+                    r"^  \(\d+, UNHEX\('[0-9a-f]+'\), 'customer', '[^']+ [^']+ ([^']+)',",
+                    block,
+                    re.MULTILINE,
+                ):
+                    if given in FEMALE_GIVEN_NAMES:
+                        female_count += 1
+            self.assertGreater(female_count / config.scale["customers"], 0.70)
+            self.assertLess(female_count / config.scale["customers"], 0.95)
+
+    def test_receiver_name_matches_customer_display_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "receivers.sql"
+            export_sql(self.config, path)
+            sql = path.read_text(encoding="utf-8")
+
+            names_by_customer: dict[str, str] = {}
+            for block in _table_blocks(sql, "customers"):
+                names_by_customer.update(
+                    {
+                        customer_id: display_name
+                        for customer_id, display_name in re.findall(
+                            r"^  \((\d+), UNHEX\('[0-9a-f]+'\), 'customer', '([^']+)',",
+                            block,
+                            re.MULTILINE,
+                        )
+                    }
+                )
+            mismatches = 0
+            checked = 0
+            for block in _table_blocks(sql, "orders"):
+                for customer_id, receiver_name in re.findall(
+                    r"^  \(\d+, 'SYN[^']+', \d+, (\d+), '[^']+', '[^']+', 'VND', "
+                    r"\d+, \d+, \d+, '([^']+)',",
+                    block,
+                    re.MULTILINE,
+                ):
+                    checked += 1
+                    if names_by_customer.get(customer_id) != receiver_name:
+                        mismatches += 1
+            self.assertGreater(checked, 0)
+            self.assertEqual(mismatches, 0)
+
+    def test_receiver_address_matches_customer_address(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "addresses.sql"
+            export_sql(self.config, path)
+            sql = path.read_text(encoding="utf-8")
+
+            self.assertNotIn("đường Dữ Liệu", sql)
+            self.assertNotIn("phường Mẫu", sql)
+
+            addresses_by_customer: dict[str, str] = {}
+            for block in _table_blocks(sql, "orders"):
+                for customer_id, address in re.findall(
+                    r"^  \(\d+, 'SYN[^']+', \d+, (\d+), '[^']+', '[^']+', 'VND', "
+                    r"\d+, \d+, \d+, '[^']+', '09\d+', '([^']+)',",
+                    block,
+                    re.MULTILINE,
+                ):
+                    addresses_by_customer[customer_id] = address
+            self.assertGreater(len(addresses_by_customer), 0)
+            for address in addresses_by_customer.values():
+                self.assertIn("đường ", address)
+                self.assertIn(", phường ", address)
+                self.assertIn(", TP. Hồ Chí Minh", address)
+
+            self.assertGreater(len(set(addresses_by_customer.values())), 1)
 
     def test_rejects_invalid_variant_scale(self) -> None:
         invalid = GeneratorConfig(

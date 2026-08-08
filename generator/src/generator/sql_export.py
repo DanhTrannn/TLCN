@@ -27,7 +27,61 @@ from generator.config import (
 
 DEMO_PASSWORD = "Demo@12345"
 PRODUCT_IMAGE_URL = "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp"
+FEMALE_CUSTOMER_SHARE = 0.80
+STREET_NAMES = (
+    "Nguyễn Huệ", "Lê Lợi", "Trần Hưng Đạo", "Cách Mạng Tháng Tám", "Hai Bà Trưng",
+    "Nguyễn Trãi", "Nguyễn Thị Minh Khai", "Phạm Ngọc Thạch", "Võ Thị Sáu",
+    "Xô Viết Nghệ Tĩnh", "Cao Thắng", "Nguyễn Công Trứ", "Lê Thánh Tôn",
+    "Phan Đăng Lưu", "Ngô Văn Năm", "Trần Phú", "Lê Văn Sỹ",
+    "Phạm Văn Đồng", "Tô Hiệu", "Võ Văn Tần", "Trương Định", "Ngô Gia Tự",
+    "Bạch Đằng", "Điện Biên Phủ", "Nguyễn Thái Học", "Quang Trung",
+    "Nguyễn Văn Cừ", "An Dương Vương", "Hồng Bàng", "Phan Đăng Phúc",
+    "Tôn Đức Thắng", "Trần Quốc Toản", "Nguyễn Tri Phương", "Lý Thường Kiệt",
+    "Trần Quang Khải", "Phan Bội Châu", "Lý Tự Trọng", "Châu Văn Liêm",
+    "Lê Lai", "Ngô Quyền", "Đề Thám", "Nguyễn Thượng Hiền", "Yết Kiêu",
+    "Trần Khánh Dư", "Nguyễn Oanh", "Huỳnh Tấn Phát", "Lê Đức Thọ",
+    "Hoàng Văn Hoan", "Nguyễn Khánh Biểu",
+)
+WARD_NAMES = (
+    "Thảo Điền", "Bình Khánh", "An Phú", "Cát Lái", "Thủ Thiêm",
+    "Bến Nghé", "Bến Thành", "Cầu Ông Lãnh", "Nguyễn Cư Trinh", "Cầu Giấy",
+    "Đa Cao", "Tân Định", "Võ Thị Sáu", "Tân Sơn Nhất", "Phú Thọ",
+    "Linh Tây", "An Hòa", "Linh Xuân", "Bình Trưng Tây", "Thạnh Mỹ Lợi",
+    "Vĩnh Lộc B", "An Lạc",
+)
+DISTRICT_NAMES = (
+    "Quận 1", "Quận 3", "Quận 5", "Quận 10", "Bình Thạnh", "Gò Vấp",
+    "Tân Bình", "Tân Phú", "Phú Nhuận", "Thủ Đức", "Hóc Môn", "Bình Chánh",
+)
 INSERT_BATCH_SIZE = 1_000
+FAMILY_NAMES = (
+    "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ",
+    "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Đinh", "Mai", "Tô",
+    "Đoàn", "Hà", "Trịnh", "Lâm", "Tăng", "Châu", "Lương", "Phùng", "Quách",
+    "Hứa", "Triệu", "Thạch", "Giang", "Khương", "Bạch", "Tạ", "Đồng",
+    "Cao", "Đàm", "Kiều",
+)
+FEMALE_MIDDLE_NAMES = (
+    "Thị", "Thu", "Thuỳ", "Hồng", "Ngọc", "Kim", "Thanh", "Minh",
+    "Anh", "Diệu", "Khánh", "Lan", "Huệ", "Cẩm", "Mỹ", "Trúc", "Ánh",
+)
+FEMALE_GIVEN_NAMES = (
+    "Lan", "Hoa", "Hồng", "Mai", "Ngọc", "Thảo", "Trang", "Linh", "Hương",
+    "Ngân", "Anh", "Hà", "Vy", "Uyên", "Phương", "Quỳnh", "Thu", "Hiền",
+    "Yến", "Như", "Xuân", "Hạnh", "Dung", "Diễm", "Châu", "Thanh", "Khánh",
+    "Tuyết", "Hiếu", "Huyền", "Vân", "Thư", "Nhi", "Bích", "Cúc",
+    "Đào", "Trâm", "Quyên", "Hằng", "Sen", "Trúc", "Oanh",
+)
+MALE_MIDDLE_NAMES = (
+    "Văn", "Quốc", "Minh", "Đức", "Công", "Hữu", "Anh", "Tuấn", "Huy",
+    "Quang", "Mạnh", "Nhật", "Hồng", "Kim", "Trung", "Duy", "Chí", "Gia",
+)
+MALE_GIVEN_NAMES = (
+    "Minh", "Hùng", "Đức", "Nam", "Huy", "Tuấn", "Long", "Sơn", "Dũng",
+    "An", "Bình", "Cường", "Dương", "Hải", "Khánh", "Kiên", "Lâm", "Mạnh",
+    "Nghĩa", "Phúc", "Quang", "Thắng", "Thọ", "Tiến", "Trung", "Việt",
+    "Bảo", "Chí", "Giang", "Hiếu", "Hoàng", "Khoa", "Luân",
+)
 SIZES = ("XS", "S", "M", "L", "XL")
 COLORS = ("BLACK", "WHITE", "RED", "GREEN", "BLUE", "YELLOW", "PINK", "PURPLE", "ORANGE", "BROWN", "GRAY", "BEIGE")
 LEAF_CATEGORIES = tuple((code, name) for code, name in CATEGORY_NAMES.items())
@@ -275,6 +329,29 @@ def _sql_literal(value: SqlValue) -> str:
 
 def _binary_uuid(value: uuid.UUID) -> SqlExpression:
     return SqlExpression(f"UNHEX('{value.hex}')")
+
+
+def _vietnamese_name(name_randomizer: random.Random) -> str:
+    is_female = name_randomizer.random() < FEMALE_CUSTOMER_SHARE
+    family_name = name_randomizer.choice(FAMILY_NAMES)
+    if is_female:
+        middle_name = name_randomizer.choice(FEMALE_MIDDLE_NAMES)
+        given_name = name_randomizer.choice(FEMALE_GIVEN_NAMES)
+    else:
+        middle_name = name_randomizer.choice(MALE_MIDDLE_NAMES)
+        given_name = name_randomizer.choice(MALE_GIVEN_NAMES)
+    return f"{family_name} {middle_name} {given_name}"
+
+
+def _vietnamese_address(address_randomizer: random.Random) -> str:
+    house_number = address_randomizer.randint(1, 999)
+    street_name = address_randomizer.choice(STREET_NAMES)
+    ward_name = address_randomizer.choice(WARD_NAMES)
+    district_name = address_randomizer.choice(DISTRICT_NAMES)
+    return (
+        f"Số {house_number}, đường {street_name}, phường {ward_name}, "
+        f"{district_name}, TP. Hồ Chí Minh"
+    )
 
 
 def _write_insert(
@@ -706,6 +783,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     randomizer = random.Random(config.seed)
+    name_randomizer = random.Random(f"{config.seed}-names")
+    address_randomizer = random.Random(f"{config.seed}-addresses")
     namespace = uuid.uuid5(uuid.NAMESPACE_URL, f"web-sql:{config.logical_identity}")
     generation_run_id = f"sql-{config.logical_identity}"
     demo_email = f"demo.{config.logical_identity[:8]}@web.local"
@@ -734,8 +813,13 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
 
     customer_ids = [customer_base + index + 1 for index in range(customer_count)]
     active_customer_indices: list[int] = []
+    customer_names: list[str] = []
+    customer_addresses: list[str] = []
     customer_rows: list[Sequence[SqlValue]] = []
     for customer_index, customer_id in enumerate(customer_ids):
+        display_name = _vietnamese_name(name_randomizer)
+        customer_names.append(display_name)
+        customer_addresses.append(_vietnamese_address(address_randomizer))
         created_at = history_start - timedelta(days=randomizer.randrange(1, 181))
         is_active = customer_index == 0 or randomizer.random() >= 0.04
         if is_active:
@@ -746,7 +830,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 customer_id,
                 _binary_uuid(_entity_uuid(namespace, "customer", customer_index)),
                 "customer",
-                f"Khách hàng tổng hợp {customer_index + 1:05d}",
+                display_name,
                 "active" if is_active else "inactive",
                 "synthetic",
                 generation_run_id,
@@ -1486,9 +1570,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         subtotal_vnd,
                         shipping_fee_vnd,
                         total_vnd,
-                        f"Khách hàng tổng hợp {customer_index + 1:05d}",
+                        customer_names[customer_index],
                         f"09{(customer_index + 1) % 100_000_000:08d}",
-                        f"Số {customer_index % 300 + 1}, đường Dữ Liệu, phường Mẫu, TP. Hồ Chí Minh",
+                        customer_addresses[customer_index],
                         "synthetic",
                         generation_run_id,
                         order_time,
