@@ -1,5 +1,6 @@
 import hashlib
 import json
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +10,12 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import yaml
 
 from generator import __version__
+
+
+_LOGICAL_IDENTITY_NAMESPACE = uuid.uuid5(
+    uuid.NAMESPACE_URL,
+    "https://d-and-k.local/data-generator/logical-identity",
+)
 
 
 CATEGORY_NAMES = {
@@ -494,7 +501,12 @@ class GeneratorConfig:
             },
             sort_keys=True,
         )
-        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+        payload_digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return str(uuid.uuid5(_LOGICAL_IDENTITY_NAMESPACE, payload_digest))
+
+    @property
+    def generation_run_id(self) -> str:
+        return str(uuid.uuid5(uuid.UUID(self.logical_identity), "generation-run"))
 
 
 def load_config(path: Path) -> GeneratorConfig:

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from uuid import UUID
 
 import yaml
 
@@ -115,6 +116,8 @@ class LoadConfigDistributionTest(unittest.TestCase):
             body["distributions"] = _valid_distributions()
             changed = load_config(_write_yaml(Path(directory) / "changed.yml", body))
         self.assertNotEqual(base.logical_identity, changed.logical_identity)
+        self.assertEqual(str(UUID(base.logical_identity)), base.logical_identity)
+        self.assertEqual(str(UUID(base.generation_run_id)), base.generation_run_id)
 
     def test_rejects_invalid_order_size_sum(self) -> None:
         body = _base_body()

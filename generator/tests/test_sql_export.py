@@ -5,6 +5,7 @@ import unittest
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from argon2 import PasswordHasher
@@ -57,6 +58,11 @@ class SqlExportTest(unittest.TestCase):
             second_bytes = second_path.read_bytes()
             self.assertEqual(hashlib.sha256(first_bytes).digest(), hashlib.sha256(second_bytes).digest())
             self.assertEqual(first_summary.generation_run_id, second_summary.generation_run_id)
+            self.assertEqual(str(UUID(self.config.logical_identity)), self.config.logical_identity)
+            self.assertEqual(
+                str(UUID(first_summary.generation_run_id)),
+                first_summary.generation_run_id,
+            )
 
             sql = first_bytes.decode()
             for table in (
@@ -90,6 +96,51 @@ class SqlExportTest(unittest.TestCase):
             self.assertIn("D&K", sql)
             self.assertEqual(sql.count(PRODUCT_IMAGE_URL), self.config.scale["products"])
             self.assertRegex(sql, r"DK-(AO|QU|CV|DM|AK|PK|GI|TX)-\d{5}")
+            self.assertIn("UUID_TO_BIN(", sql)
+            self.assertIn("-- identifier_strategy: uuid5-deterministic-v1", sql)
+            self.assertNotIn("UNHEX(", sql)
+
+            uuid_pattern = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+            order_blocks = _table_blocks(sql, "orders")
+            checkout_keys = [
+                value
+                for block in order_blocks
+                for value in re.findall(
+                    rf"^  \(\d+, '[^']+', \d+, \d+, '({uuid_pattern})',",
+                    block,
+                    re.MULTILINE,
+                )
+            ]
+            self.assertEqual(len(checkout_keys), first_summary.orders)
+            self.assertEqual(len(checkout_keys), len(set(checkout_keys)))
+
+            payment_identifiers = [
+                pair
+                for block in _table_blocks(sql, "payments")
+                for pair in re.findall(
+                    rf"^  \(\d+, '({uuid_pattern})', \d+, '({uuid_pattern})',",
+                    block,
+                    re.MULTILINE,
+                )
+            ]
+            self.assertEqual(len(payment_identifiers), first_summary.orders)
+            self.assertEqual(
+                len({value for pair in payment_identifiers for value in pair}),
+                first_summary.orders * 2,
+            )
+
+            transition_keys = [
+                value
+                for block in _table_blocks(sql, "order_status_history")
+                for value in re.findall(
+                    rf"^  \(\d+, \d+, (?:NULL|'[^']+'), '[^']+', '[^']+', "
+                    rf"(?:NULL|'[^']*'), '({uuid_pattern})',",
+                    block,
+                    re.MULTILINE,
+                )
+            ]
+            self.assertGreaterEqual(len(transition_keys), first_summary.orders)
+            self.assertEqual(len(transition_keys), len(set(transition_keys)))
 
             password_hash_start = sql.index("$argon2id$")
             password_hash_end = sql.index("'", password_hash_start)
@@ -112,7 +163,7 @@ class SqlExportTest(unittest.TestCase):
             for block in _table_blocks(sql, "customers"):
                 names.extend(
                     re.findall(
-                        r"^  \(\d+, UNHEX\('[0-9a-f]+'\), 'customer', '([^']+)',",
+                        r"^  \(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), 'customer', '([^']+)',",
                         block,
                         re.MULTILINE,
                     )
@@ -137,7 +188,7 @@ class SqlExportTest(unittest.TestCase):
             female_count = 0
             for block in _table_blocks(sql, "customers"):
                 for given in re.findall(
-                    r"^  \(\d+, UNHEX\('[0-9a-f]+'\), 'customer', '[^']+ [^']+ ([^']+)',",
+                    r"^  \(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), 'customer', '[^']+ [^']+ ([^']+)',",
                     block,
                     re.MULTILINE,
                 ):
@@ -158,7 +209,7 @@ class SqlExportTest(unittest.TestCase):
                     {
                         customer_id: display_name
                         for customer_id, display_name in re.findall(
-                            r"^  \((\d+), UNHEX\('[0-9a-f]+'\), 'customer', '([^']+)',",
+                            r"^  \((\d+), UUID_TO_BIN\('[0-9a-f-]{36}'\), 'customer', '([^']+)',",
                             block,
                             re.MULTILINE,
                         )
@@ -229,7 +280,7 @@ class SqlExportTest(unittest.TestCase):
             end = sql.index("\n\n", start)
             block = sql[start:end]
             prices = re.findall(
-                r"^\s+\(\d+, UNHEX\('[0-9a-f]+'\), \d+, '[^']+', '[^']+', '[^']+', (\d+),",
+                r"^\s+\(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), \d+, '[^']+', '[^']+', '[^']+', (\d+),",
                 block,
                 re.MULTILINE,
             )
@@ -249,7 +300,7 @@ class SqlExportTest(unittest.TestCase):
             end = sql.index("\n\n", start)
             block = sql[start:end]
             prices = re.findall(
-                r"^\s+\(\d+, UNHEX\('[0-9a-f]+'\), \d+, '[^']+', '[^']+', '[^']+', (\d+),",
+                r"^\s+\(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), \d+, '[^']+', '[^']+', '[^']+', (\d+),",
                 block,
                 re.MULTILINE,
             )
@@ -293,7 +344,7 @@ class SqlExportTest(unittest.TestCase):
             start = sql.index(marker)
             end = sql.index("\n\n", start)
             block = sql[start:end]
-            order_ids = re.findall(r"^  \(\d+, UNHEX\('[^']+'\), (\d+),", block, re.MULTILINE)
+            order_ids = re.findall(r"^  \(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), (\d+),", block, re.MULTILINE)
             self.assertEqual(len(set(order_ids)), summary.orders)
 
     def test_export_evening_hour_share(self) -> None:
@@ -306,7 +357,7 @@ class SqlExportTest(unittest.TestCase):
             end = sql.index("\n\n", start)
             block = sql[start:end]
             created_times = re.findall(
-                r"'synthetic', 'sql-[^']+', '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)'",
+                r"'synthetic', '[0-9a-f-]{36}', '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)'",
                 block,
             )
             business_zone = ZoneInfo(DEFAULT_DISTRIBUTIONS.business_timezone)
@@ -360,7 +411,7 @@ class SqlExportTest(unittest.TestCase):
                     {
                         int(variant_id): int(product_id)
                         for variant_id, product_id in re.findall(
-                            r"^  \((\d+), UNHEX\('[0-9a-f]+'\), (\d+),",
+                            r"^  \((\d+), UUID_TO_BIN\('[0-9a-f-]{36}'\), (\d+),",
                             block,
                             re.MULTILINE,
                         )
@@ -370,7 +421,7 @@ class SqlExportTest(unittest.TestCase):
             for block in _table_blocks(sql, "orders"):
                 for order_id, customer_id, status, created_at in re.findall(
                     r"^  \((\d+), '[^']+', \d+, (\d+), '[^']+', '([^']+)'.*?"
-                    r"'synthetic', 'sql-[^']+', '([^']+)'",
+                    r"'synthetic', '[0-9a-f-]{36}', '([^']+)'",
                     block,
                     re.MULTILINE,
                 ):
@@ -379,7 +430,7 @@ class SqlExportTest(unittest.TestCase):
             purchases: set[tuple[int, int, str]] = set()
             for block in _table_blocks(sql, "order_items"):
                 for order_id, variant_id in re.findall(
-                    r"^  \(\d+, UNHEX\('[0-9a-f]+'\), (\d+), (\d+),",
+                    r"^  \(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), (\d+), (\d+),",
                     block,
                     re.MULTILINE,
                 ):

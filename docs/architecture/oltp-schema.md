@@ -59,6 +59,22 @@ customers 1--n product_reviews
 
 ## 4. Catalogue bảng và grain
 
+### 4.1. Chiến lược định danh
+
+- PK/FK vật lý trong OLTP dùng `BIGINT UNSIGNED` surrogate key để giữ
+  index nhỏ, join nhanh và phù hợp import hàng triệu dòng.
+- Thực thể đi qua API dùng `public_id BINARY(16)` chứa UUID; API không
+  để lộ surrogate key nội bộ.
+- Generator dùng UUIDv5 deterministic cho `public_id`,
+  `logical_identity`, `generation_run_id` và các khóa
+  kỹ thuật/idempotency.
+- `order_number`, SKU, slug và coupon code là business key có ý nghĩa
+  hiển thị, nên giữ định dạng nghiệp vụ thay vì biến thành UUID.
+- Trong SQL export, UUID được biểu diễn bằng `UUID_TO_BIN('<uuid>')`;
+  Lakehouse chuẩn hóa lại thành chuỗi UUID canonical ở Silver nếu cần.
+
+### 4.2. Danh mục bảng
+
 | Nhóm | Bảng | Grain | Tính chất |
 |---|---|---|---|
 | Customer | `customers` | Một customer | Mutable/anonymizable |

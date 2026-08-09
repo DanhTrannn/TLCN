@@ -328,7 +328,7 @@ def _sql_literal(value: SqlValue) -> str:
 
 
 def _binary_uuid(value: uuid.UUID) -> SqlExpression:
-    return SqlExpression(f"UNHEX('{value.hex}')")
+    return SqlExpression(f"UUID_TO_BIN('{value}')")
 
 
 def _vietnamese_name(name_randomizer: random.Random) -> str:
@@ -386,6 +386,10 @@ def _write_batched(
 
 def _entity_uuid(namespace: uuid.UUID, entity: str, index: int) -> uuid.UUID:
     return uuid.uuid5(namespace, f"{entity}:{index}")
+
+
+def _identifier_uuid(namespace: uuid.UUID, identifier: str, index: int = 0) -> str:
+    return str(_entity_uuid(namespace, identifier, index))
 
 
 def _deterministic_password_hash(logical_identity: str) -> str:
@@ -766,10 +770,11 @@ def _write_header(
         f"-- scenario_id: {config.scenario_id}\n"
         f"-- logical_identity: {config.logical_identity}\n"
         f"-- generation_run_id: {generation_run_id}\n"
+        "-- identifier_strategy: uuid5-deterministic-v1\n"
         f"-- seed: {config.seed}\n"
         f"-- anchor_time: {config.anchor_time.isoformat()}\n"
         f"-- demo_login: {demo_email} / {DEMO_PASSWORD}\n"
-        "-- Prerequisite: run Alembic migrations through revision 0005_order_lifecycle.\n"
+        "-- Prerequisite: run all Alembic migrations with alembic upgrade head.\n"
         "-- Import is fail-fast; importing the same dataset twice is rejected by unique keys.\n\n"
         "SET NAMES utf8mb4;\n"
         "SET time_zone = '+00:00';\n"
@@ -785,8 +790,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     randomizer = random.Random(config.seed)
     name_randomizer = random.Random(f"{config.seed}-names")
     address_randomizer = random.Random(f"{config.seed}-addresses")
-    namespace = uuid.uuid5(uuid.NAMESPACE_URL, f"web-sql:{config.logical_identity}")
-    generation_run_id = f"sql-{config.logical_identity}"
+    namespace = uuid.UUID(config.logical_identity)
+    generation_run_id = config.generation_run_id
     demo_email = f"demo.{config.logical_identity[:8]}@web.local"
     history_end = config.anchor_time.astimezone(UTC)
     history_start = history_end - timedelta(days=max(1, config.history_months) * 30)
@@ -1417,8 +1422,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 updated_at = (
                     cancelled_at or completed_at or confirmed_at or order_time
                 )
-                checkout_key = (
-                    f"sql:{config.logical_identity}:{order_index + 1}:checkout"
+                checkout_key = _identifier_uuid(
+                    namespace, "checkout-idempotency", order_index
                 )
 
                 cart_rows.append(
@@ -1599,9 +1604,13 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 payment_rows.append(
                     (
                         payment_base + order_index + 1,
-                        f"PAYSYN{config.logical_identity[:8].upper()}{order_index + 1:08d}",
+                        _identifier_uuid(
+                            namespace, "payment-reference", order_index
+                        ),
                         order_id,
-                        f"{checkout_key}:pay",
+                        _identifier_uuid(
+                            namespace, "payment-idempotency", order_index
+                        ),
                         "succeeded",
                         "VND",
                         total_vnd,
@@ -1619,7 +1628,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         "paid",
                         "generator",
                         None,
-                        f"{checkout_key}:initial",
+                        _identifier_uuid(
+                            namespace, "order-transition-paid", order_index
+                        ),
                         order_time,
                         order_time,
                     )
@@ -1634,7 +1645,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             "confirmed",
                             "generator",
                             None,
-                            f"{checkout_key}:confirmed",
+                            _identifier_uuid(
+                                namespace, "order-transition-confirmed", order_index
+                            ),
                             confirmed_at,
                             confirmed_at,
                         )
@@ -1649,7 +1662,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             "completed",
                             "generator",
                             None,
-                            f"{checkout_key}:completed",
+                            _identifier_uuid(
+                                namespace, "order-transition-completed", order_index
+                            ),
                             completed_at,
                             completed_at,
                         )
@@ -1664,7 +1679,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             "cancelled",
                             "generator",
                             cancellation_reason,
-                            f"{checkout_key}:cancelled",
+                            _identifier_uuid(
+                                namespace, "order-transition-cancelled", order_index
+                            ),
                             cancelled_at,
                             cancelled_at,
                         )
@@ -1680,7 +1697,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                                 )
                             ),
                             payment_base + order_index + 1,
-                            f"{checkout_key}:refund",
+                            _identifier_uuid(
+                                namespace, "refund-idempotency", order_index
+                            ),
                             "succeeded",
                             "VND",
                             total_vnd,

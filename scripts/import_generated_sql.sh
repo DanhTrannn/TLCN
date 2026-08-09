@@ -20,8 +20,9 @@ fi
 generation_run_id="$(sed -n 's/^-- generation_run_id: //p' "${sql_file}" | head -n 1)"
 logical_identity="$(sed -n 's/^-- logical_identity: //p' "${sql_file}" | head -n 1)"
 
-if [[ ! "${generation_run_id}" =~ ^[a-zA-Z0-9._-]+$ ]] || [[ ! "${logical_identity}" =~ ^[a-fA-F0-9]+$ ]]; then
-  echo "Dataset metadata is missing or invalid: ${sql_file}" >&2
+uuid_pattern='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+if [[ ! "${generation_run_id}" =~ ${uuid_pattern} ]] || [[ ! "${logical_identity}" =~ ${uuid_pattern} ]]; then
+  echo "Dataset metadata must contain canonical UUIDs: ${sql_file}" >&2
   exit 2
 fi
 

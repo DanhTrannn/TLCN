@@ -19,7 +19,10 @@ def run(config: GeneratorConfig, output_directory: Path) -> Path:
     if unsupported:
         raise ValueError(f"unsupported generator modes: {sorted(unsupported)}")
     output_directory.mkdir(parents=True, exist_ok=True)
+    generation_run_id = config.generation_run_id
     manifest = {
+        "generation_run_id": generation_run_id,
+        "identifier_strategy": "uuid5-deterministic-v1",
         "scenario_id": config.scenario_id,
         "dataset_size": config.dataset_size,
         "logical_identity": config.logical_identity,

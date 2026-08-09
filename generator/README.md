@@ -40,6 +40,25 @@ output của CLI hoặc phần header của file SQL thay vì hard-code identity
 
 Tài khoản demo có nhiều đơn hàng trải đều trong lịch sử để kiểm tra Storefront.
 
+## Chiến lược định danh
+
+Generator giữ đúng mô hình identity của OLTP:
+
+- PK/FK nội bộ như `customer_id`, `product_id`, `order_id` vẫn là
+  `BIGINT` surrogate key để join, index và bulk import hiệu quả;
+- `public_id` được sinh bằng UUIDv5 deterministic và ghi vào MySQL
+  `BINARY(16)` qua `UUID_TO_BIN('<uuid>')`;
+- `logical_identity`, `generation_run_id`, checkout/payment/refund
+  idempotency key và `payment_reference` đều là UUID canonical;
+- `order_number`, SKU, slug và coupon code vẫn là business key dễ đọc,
+  không đổi thành UUID.
+
+UUIDv5 được dùng thay UUID ngẫu nhiên vì cùng config và generator version phải
+sinh lại đúng cùng identity. Khi config, phân phối, seed hoặc generator version
+thay đổi, `logical_identity` và toàn bộ UUID thuộc dataset cũng thay đổi.
+Các file SQL sinh bằng generator `0.3.x` phải được export lại trước khi
+dùng script import hiện hành.
+
 ## Chạy trực tiếp bằng uv
 
 ```bash
