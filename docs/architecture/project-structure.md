@@ -95,10 +95,9 @@ Dependency rules:
 ├── infrastructure/
 │   ├── docker/                           # Custom images
 │   ├── mysql-ecommerce/                  # OLTP bootstrap
-│   ├── minio/                            # Landing/warehouse object storage
 │   ├── spark/                            # Spark + Iceberg runtime assets
-│   ├── polaris/                          # Iceberg catalog config
-│   ├── trino/                            # Iceberg/Polaris connector config
+│   ├── polaris/                          # Idempotent catalog/RBAC bootstrap
+│   ├── trino/                            # Iceberg REST/Polaris reader config
 │   └── superset/                         # Superset config
 ├── docs/
 │   ├── architecture/                     # Structure, OLTP schema and diagrams
@@ -127,6 +126,7 @@ Dependency rules:
 | `tools` | OLTP generator | Sinh dữ liệu có seed/scenario |
 | `batch` | MinIO, Spark, Airflow, Polaris, PostgreSQL metadata | Landing, Iceberg Medallion, DQ và maintenance |
 | `bi` | Trino, Superset, PostgreSQL metadata | Query serving và dashboard |
+| `lakehouse-tools` | Spark SQL client | Smoke test writer/reader integration |
 
 Thứ tự chạy:
 

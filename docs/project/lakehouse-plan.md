@@ -81,6 +81,20 @@ Polaris là catalog control plane cho Iceberg:
 
 TLCN không xây dựng governance đa tenant phức tạp. Chỉ triển khai quyền tối thiểu cho Spark writer và Trino reader.
 
+### 2.4. Baseline triển khai local
+
+Baseline Docker Compose được pin để PoC có thể tái lập:
+
+- Apache Polaris `1.5.0` dùng relational JDBC metastore trên PostgreSQL;
+- Apache Iceberg `1.10.1` chạy với Spark `3.5.9`;
+- Trino `483` dùng Iceberg REST catalog và vended credentials;
+- Polaris Console `1.4.0` được build từ commit `e5fea020` của [`apache/polaris-tools`](https://github.com/apache/polaris-tools);
+- catalog `lakehouse` có năm namespace `bronze`, `silver`, `gold`, `quarantine`, `system`;
+- `spark_writer` có quyền quản lý content; `trino_reader` chỉ có quyền đọc data/metadata;
+- service credential nằm trong Docker named volume, không ghi vào Git hoặc image.
+
+Baseline này chứng minh catalog/storage/compute/query integration. DAG, bảng Bronze–Silver–Gold, DQ và dashboard vẫn phải được triển khai theo các phần sau của kế hoạch.
+
 ---
 
 ## 3. Phạm vi nguồn dữ liệu

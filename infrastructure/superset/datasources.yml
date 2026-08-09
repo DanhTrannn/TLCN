@@ -1,0 +1,12 @@
+databases:
+  - database_name: Lakehouse (Trino)
+    sqlalchemy_uri: trino://superset@trino:8080/lakehouse/gold
+    expose_in_sqllab: true
+    allow_ctas: false
+    allow_cvas: false
+    allow_dml: false
+    extra: |
+      {
+        "engine_params": {},
+        "metadata_params": {}
+      }

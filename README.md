@@ -25,8 +25,9 @@ Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope
 |---|---|---|
 | Storefront, API, MySQL | Hoạt động | Tạo và quản lý dữ liệu OLTP |
 | SQL data generator | Hoạt động | Sinh dữ liệu lịch sử có thể tái lập |
-| Batch/Lakehouse | Scaffold infra | MinIO/Spark/Airflow runtime, đang chờ pipeline code |
-| BI/ML | Scaffold infra | Trino, Superset; asset code chưa có |
+| Catalog/storage | Hoạt động | MinIO, Polaris 1.5.0, PostgreSQL metadata và Polaris Console |
+| Compute/query | Hoạt động | Spark + Iceberg runtime, Trino reader và smoke test end-to-end |
+| Pipeline/BI/ML assets | Đang phát triển | DAG, transformation, dashboard và model chưa hoàn tất |
 
 Không chạy truy vấn phân tích nặng trên primary OLTP. Pipeline chỉ được đọc các bảng nằm trong source allowlist bằng tài khoản DE reader.
 
@@ -63,8 +64,8 @@ Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/pro
 | API | FastAPI, SQLAlchemy 2, Alembic, Pydantic |
 | OLTP | MySQL 8.4, InnoDB, UTC, VND |
 | Python workspace | Python 3.11, uv |
-| Data platform mục tiêu | Airflow, Spark, Apache Iceberg, Apache Polaris, MinIO |
-| Serving/BI mục tiêu | Trino, Apache Superset |
+| Data platform | Airflow 2.10, Spark 3.5, Iceberg 1.10, Polaris 1.5, MinIO |
+| Serving/BI | Trino 483, Apache Superset 4.1 |
 | Local runtime | Docker Engine, Docker Compose v2 |
 
 ## Cấu trúc repository
@@ -152,8 +153,9 @@ Import vào chính MySQL mà API đang sử dụng:
 |---|---|
 | `core` | MySQL ecommerce, Ecommerce API, Storefront |
 | `tools` | SQL data generator |
-| `batch` | Hiện là scaffold MinIO/Spark/Airflow; mục tiêu bổ sung Iceberg và Polaris |
-| `bi` | Hiện là scaffold; mục tiêu Trino và Superset |
+| `batch` | MinIO, PostgreSQL Polaris, Polaris, Polaris Console, Spark và Airflow |
+| `bi` | Trino, PostgreSQL Superset và Superset |
+| `lakehouse-tools` | Spark client dùng cho smoke test/SQL ghi qua Polaris |
 
 Xem log core:
 
@@ -161,12 +163,15 @@ Xem log core:
 docker compose --profile core logs -f ecommerce-api storefront mysql-ecommerce
 ```
 
-Khởi động phần mở rộng Batch/BI sau khi profile `core` đã healthy:
+Khởi động Lakehouse/BI sau khi profile `core` đã healthy:
 
 ```bash
 ./scripts/grant_de_reader.sh
 docker compose --profile core --profile batch --profile bi up -d --build
+./scripts/lakehouse_smoke.sh
 ```
+
+Lần build đầu tải image lớn và build Polaris Console trực tiếp từ commit đã pin của `apache/polaris-tools`. Hướng dẫn, URL, RBAC và troubleshooting nằm tại [`docs/runbook/lakehouse-local.md`](docs/runbook/lakehouse-local.md).
 
 Dừng container nhưng giữ volume:
 
@@ -177,7 +182,7 @@ docker compose --profile core --profile batch --profile bi down
 Xóa toàn bộ volume để dựng lại môi trường sạch:
 
 ```bash
-docker compose --profile core --profile batch --profile bi --profile tools \
+docker compose --profile core --profile batch --profile bi --profile tools --profile lakehouse-tools \
   down -v --remove-orphans
 ```
 
@@ -220,7 +225,7 @@ API mặc định phải chạy tại `http://localhost:8000`. Hướng dẫn co
 ## Kiểm tra repository
 
 ```bash
-docker compose --profile core --profile batch --profile bi --profile tools config --quiet
+docker compose --profile core --profile batch --profile bi --profile tools --profile lakehouse-tools config --quiet
 ```
 
 Trước khi tạo commit nên chạy thêm:
@@ -258,7 +263,8 @@ Workflow chỉ có quyền `contents: read`, tự hủy run cũ trên cùng ref 
 | [`docs/architecture/oltp-schema.md`](docs/architecture/oltp-schema.md) | Logical schema, invariant, transaction và index |
 | [`docs/project/web-plan.md`](docs/project/web-plan.md) | Kế hoạch triển khai source website |
 | [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md) | Kiến trúc monorepo và dependency boundary |
-| [`docs/runbook/README.md`](docs/runbook/README.md) | Setup, vận hành và xử lý sự cố |
+| [`docs/runbook/README.md`](docs/runbook/README.md) | Mục lục setup và vận hành |
+| [`docs/runbook/lakehouse-local.md`](docs/runbook/lakehouse-local.md) | Chạy Polaris/Iceberg/Spark/Trino và smoke test |
 | [`skills/oltp-design/SKILL.md`](skills/oltp-design/SKILL.md) | Nguyên tắc thiết kế OLTP tái sử dụng |
 
 Mục lục đầy đủ: [`docs/README.md`](docs/README.md).

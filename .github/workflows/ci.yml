@@ -33,7 +33,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Validate Docker Compose
-        run: docker compose --profile core --profile tools --profile batch --profile bi config --quiet
+        run: docker compose --profile core --profile tools --profile batch --profile bi --profile lakehouse-tools config --quiet
 
   python-tests:
     name: Python tests

@@ -17,21 +17,27 @@ x-airflow-common: &airflow-common
     PIPELINE_ENV: ${PIPELINE_ENV:-local}
     PIPELINE_RUN_DIRECTORY: /data/pipeline-runs
     PIPELINE_CONFIG_PATH: /opt/project/pipelines/batch/config/default.yml
-    # ML_CONFIG_PATH: /opt/project/ml/repurchase/configs/default.yml
     MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}:${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
-    MYSQL_ANALYTICS_PUBLISH_URL: mysql+pymysql://${MYSQL_ANALYTICS_USER:-analytics_publisher}:${MYSQL_ANALYTICS_PASSWORD:-change-me-analytics}@mysql-analytics:3306/${MYSQL_ANALYTICS_DATABASE:-analytics}
     MINIO_ENDPOINT: http://minio:9000
     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-password}
+    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+    MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}
+    POLARIS_CATALOG_URI: http://polaris:8181/api/catalog
+    POLARIS_CATALOG_NAME: ${POLARIS_CATALOG_NAME:-lakehouse}
+    POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
     SPARK_MASTER_URL: spark://spark-master:7077
+    TRINO_URL: http://trino:8080
   volumes:
     - ./airflow/dags:/opt/airflow/dags:ro
-    - ./airflow/logs:/opt/airflow/logs
+    - airflow-logs:/opt/airflow/logs
     - pipeline-run-data:/data/pipeline-runs
+    - polaris-client-credentials:/run/polaris:ro
   networks: ["lakehouse-network"]
   depends_on:
     postgres-airflow:
       condition: service_healthy
+    polaris-init:
+      condition: service_completed_successfully
 
 x-superset-common: &superset-common
   build:
@@ -45,8 +51,28 @@ x-superset-common: &superset-common
     SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
   volumes:
     - ./infrastructure/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    - ./infrastructure/superset/datasources.yml:/app/config/datasources.yml:ro
     - superset-home:/app/superset_home
   networks: ["lakehouse-network"]
+
+x-spark-common: &spark-common
+  build:
+    context: .
+    dockerfile: infrastructure/spark/Dockerfile
+    args:
+      ICEBERG_VERSION: ${ICEBERG_VERSION:-1.10.1}
+  image: lakehouse-spark:3.5.9-iceberg-${ICEBERG_VERSION:-1.10.1}
+  profiles: ["batch"]
+  environment:
+    POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+  networks: ["lakehouse-network"]
+
+x-polaris-database-environment: &polaris-database-environment
+  POLARIS_PERSISTENCE_TYPE: relational-jdbc
+  POLARIS_PERSISTENCE_RELATIONAL_JDBC_DATABASE_TYPE: postgresql
+  QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres-polaris:5432/${POLARIS_DB_NAME:-polaris}
+  QUARKUS_DATASOURCE_USERNAME: ${POLARIS_DB_USER:-polaris}
+  QUARKUS_DATASOURCE_PASSWORD: ${POLARIS_DB_PASSWORD:-change-me-polaris-db}
 
 services:
   mysql-ecommerce:
@@ -147,68 +173,219 @@ services:
     networks: ["lakehouse-network"]
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     profiles: ["batch"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
       timeout: 5s
       retries: 20
     networks: ["lakehouse-network"]
 
   minio-init:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     profiles: ["batch"]
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        until mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD}; do sleep 2; done;
-        mc mb --ignore-existing local/$${MINIO_LAKEHOUSE_BUCKET};
-        mc mb --ignore-existing local/$${MINIO_ML_BUCKET};
+        mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+        mc mb --ignore-existing local/$${MINIO_LAKEHOUSE_BUCKET} &&
+        mc anonymous set none local/$${MINIO_LAKEHOUSE_BUCKET} &&
+        mc ls local
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
-      MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
-      # MINIO_ML_BUCKET: ${MINIO_ML_BUCKET:-ml-artifacts}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}
     depends_on:
       minio:
         condition: service_healthy
     networks: ["lakehouse-network"]
 
-  spark-master:
-    image: apache/spark:3.5.5-python3
+  postgres-polaris:
+    image: postgres:17.6
     profiles: ["batch"]
+    environment:
+      POSTGRES_USER: ${POLARIS_DB_USER:-polaris}
+      POSTGRES_PASSWORD: ${POLARIS_DB_PASSWORD:-change-me-polaris-db}
+      POSTGRES_DB: ${POLARIS_DB_NAME:-polaris}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --data-checksums"
+    volumes:
+      - postgres-polaris-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: ["lakehouse-network"]
+
+  polaris-bootstrap:
+    image: apache/polaris-admin-tool:1.5.0
+    profiles: ["batch"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set +e
+        output="$$(java -jar /deployments/polaris-admin-tool.jar bootstrap \
+          --realm="$${POLARIS_REALM}" \
+          --credential="$${POLARIS_REALM},$${POLARIS_ROOT_CLIENT_ID},$${POLARIS_ROOT_CLIENT_SECRET}" 2>&1)"
+        status=$$?
+        if [ "$$status" -eq 0 ]; then
+          printf '%s\n' "$$output"
+          exit 0
+        fi
+        if printf '%s' "$$output" | grep -q 'already been bootstrapped'; then
+          echo "Realm already exists; bootstrap is complete."
+          exit 0
+        fi
+        printf '%s\n' "$$output" >&2
+        exit "$$status"
+    environment:
+      <<: *polaris-database-environment
+      POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+      POLARIS_ROOT_CLIENT_ID: ${POLARIS_ROOT_CLIENT_ID:-root}
+      POLARIS_ROOT_CLIENT_SECRET: ${POLARIS_ROOT_CLIENT_SECRET:-change-me-polaris-root}
+    depends_on:
+      postgres-polaris:
+        condition: service_healthy
+    networks: ["lakehouse-network"]
+
+  polaris:
+    image: apache/polaris:1.5.0
+    profiles: ["batch"]
+    environment:
+      <<: *polaris-database-environment
+      POLARIS_PERSISTENCE_RELATIONAL_JDBC_MAX_RETRIES: 5
+      POLARIS_PERSISTENCE_RELATIONAL_JDBC_INITIAL_DELAY_IN_MS: 100
+      POLARIS_PERSISTENCE_RELATIONAL_JDBC_MAX_DURATION_IN_MS: 5000
+      POLARIS_REALM_CONTEXT_REALMS: ${POLARIS_REALM:-POLARIS}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      QUARKUS_OTEL_SDK_DISABLED: "true"
+      QUARKUS_HTTP_CORS_ENABLED: "true"
+      QUARKUS_HTTP_CORS_ORIGINS: ${POLARIS_CONSOLE_ORIGIN:-http://localhost:8183}
+      QUARKUS_HTTP_CORS_METHODS: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      QUARKUS_HTTP_CORS_HEADERS: Content-Type,Authorization,Polaris-Realm,X-Request-ID
+    ports:
+      - "${POLARIS_API_PORT:-8181}:8181"
+      - "${POLARIS_MANAGEMENT_PORT:-8182}:8182"
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8182/q/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 15s
+    networks: ["lakehouse-network"]
+
+  polaris-init:
+    image: alpine/curl:8.21.0
+    profiles: ["batch"]
+    environment:
+      POLARIS_URL: http://polaris:8181
+      POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+      POLARIS_CATALOG: ${POLARIS_CATALOG_NAME:-lakehouse}
+      POLARIS_ROOT_CLIENT_ID: ${POLARIS_ROOT_CLIENT_ID:-root}
+      POLARIS_ROOT_CLIENT_SECRET: ${POLARIS_ROOT_CLIENT_SECRET:-change-me-polaris-root}
+      POLARIS_WAREHOUSE_LOCATION: s3://${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}/warehouse
+      POLARIS_ALLOWED_LOCATION: s3://${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}/
+      POLARIS_S3_ENDPOINT: http://minio:9000
+      POLARIS_S3_ENDPOINT_INTERNAL: http://minio:9000
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
+    entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
+    volumes:
+      - ./infrastructure/polaris:/bootstrap:ro
+      - polaris-client-credentials:/run/polaris
+    depends_on:
+      polaris:
+        condition: service_healthy
+    networks: ["lakehouse-network"]
+
+  polaris-console:
+    build:
+      context: https://github.com/apache/polaris-tools.git#e5fea020aedcb1834f306d9a13de7fccbfff1943:console
+      dockerfile: docker/Dockerfile
+    image: polaris-console:1.4.0-e5fea020
+    profiles: ["batch"]
+    environment:
+      VITE_POLARIS_API_URL: ${POLARIS_PUBLIC_API_URL:-http://localhost:8181}
+      VITE_OAUTH_TOKEN_URL: ${POLARIS_PUBLIC_API_URL:-http://localhost:8181}/api/catalog/v1/oauth/tokens
+      VITE_POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+      VITE_POLARIS_PRINCIPAL_SCOPE: PRINCIPAL_ROLE:ALL
+      VITE_POLARIS_REALM_HEADER_NAME: Polaris-Realm
+    ports:
+      - "${POLARIS_CONSOLE_PORT:-8183}:8080"
+    depends_on:
+      polaris-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: ["lakehouse-network"]
+
+  spark-master:
+    <<: *spark-common
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark-master"]
     ports:
       - "7077:7077"
       - "${SPARK_MASTER_UI_PORT:-8082}:8080"
     volumes:
       - spark-work:/opt/spark/work-dir
-    networks: ["lakehouse-network"]
+    depends_on:
+      polaris-init:
+        condition: service_completed_successfully
 
   spark-worker:
-    image: apache/spark:3.5.5-python3
-    profiles: ["batch"]
+    <<: *spark-common
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
     environment:
-      SPARK_WORKER_CORES: 2
-      SPARK_WORKER_MEMORY: 2g
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2g}
     ports:
       - "${SPARK_WORKER_UI_PORT:-8083}:8081"
     volumes:
       - spark-work:/opt/spark/work-dir
     depends_on:
-      - spark-master
-    networks: ["lakehouse-network"]
+      spark-master:
+        condition: service_started
+
+  spark-client:
+    <<: *spark-common
+    profiles: ["lakehouse-tools"]
+    entrypoint: ["/opt/project/spark/with-polaris-credentials.sh"]
+    command:
+      - /opt/spark/bin/spark-sql
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.driver.host=spark-client
+      - --conf
+      - spark.driver.bindAddress=0.0.0.0
+      - -f
+      - /opt/project/spark/sql/smoke.sql
+    volumes:
+      - polaris-client-credentials:/run/polaris:ro
+    depends_on:
+      polaris-init:
+        condition: service_completed_successfully
+      spark-worker:
+        condition: service_started
 
   postgres-airflow:
     image: postgres:16.8
@@ -271,28 +448,29 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  mysql-analytics:
-    image: mysql:8.4.5
+  trino:
+    image: trinodb/trino:483
     profiles: ["bi"]
+    entrypoint: ["/bin/sh", "/opt/trino/start.sh"]
     environment:
-      MYSQL_DATABASE: ${MYSQL_ANALYTICS_DATABASE:-analytics}
-      MYSQL_USER: ${MYSQL_ANALYTICS_USER:-analytics_publisher}
-      MYSQL_PASSWORD: ${MYSQL_ANALYTICS_PASSWORD:-change-me-analytics}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ANALYTICS_ROOT_PASSWORD:-change-me-analytics-root}
-      MYSQL_ANALYTICS_READER_USER: ${MYSQL_ANALYTICS_READER_USER:-analytics_reader}
-      MYSQL_ANALYTICS_READER_PASSWORD: ${MYSQL_ANALYTICS_READER_PASSWORD:-change-me-analytics-reader}
-      TZ: UTC
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+      POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
+      POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
     ports:
-      - "${MYSQL_ANALYTICS_PORT:-3307}:3306"
+      - "${TRINO_PORT:-8084}:8080"
     volumes:
-      - mysql-analytics-data:/var/lib/mysql
-      - ./infrastructure/mysql-analytics/init:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/trino/start.sh:/opt/trino/start.sh:ro
+      - ./infrastructure/trino/config.properties:/etc/trino/config.properties:ro
+      - ./infrastructure/trino/catalog:/etc/trino/catalog:ro
+      - polaris-client-credentials:/run/polaris:ro
+    depends_on:
+      polaris-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -P 3306 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --connect-timeout=2 --silent"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/v1/info"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 20
+      start_period: 30s
     networks: ["lakehouse-network"]
 
   postgres-superset:
@@ -324,13 +502,16 @@ services:
         --firstname Web
         --lastname Admin
         --email admin@example.local || true) &&
-        superset init
+        superset init &&
+        superset import_datasources -p /app/config/datasources.yml
     environment:
       <<: *superset-environment
       SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
       SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-change-me-superset}
     depends_on:
       postgres-superset:
+        condition: service_healthy
+      trino:
         condition: service_healthy
 
   superset:
@@ -341,7 +522,7 @@ services:
     depends_on:
       superset-init:
         condition: service_completed_successfully
-      mysql-analytics:
+      trino:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8088/health"]
@@ -355,10 +536,12 @@ networks:
 
 volumes:
   mysql-ecommerce-data:
-  mysql-analytics-data:
   minio-data:
   spark-work:
+  postgres-polaris-data:
+  polaris-client-credentials:
   postgres-airflow-data:
+  airflow-logs:
   postgres-superset-data:
   pipeline-run-data:
   superset-home:

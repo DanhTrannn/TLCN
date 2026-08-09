@@ -1,0 +1,4 @@
+psycopg2-binary==2.9.10
+PyMySQL[rsa]==1.1.1
+SQLAlchemy==1.4.52
+trino[sqlalchemy]==0.336.0

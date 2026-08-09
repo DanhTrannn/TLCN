@@ -364,15 +364,6 @@ name = "lakehouse-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 
-[package.optional-dependencies]
-superset-runtime = [
-    { name = "pymysql", extra = ["rsa"] },
-]
-
-[package.metadata]
-requires-dist = [{ name = "pymysql", extras = ["rsa"], marker = "extra == 'superset-runtime'", specifier = "==1.1.1" }]
-provides-extras = ["superset-runtime"]
-
 [[package]]
 name = "mako"
 version = "1.3.12"
