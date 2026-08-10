@@ -3,7 +3,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.db.deps import get_db
+from app.db.deps import get_db, get_optional_customer
 from app.modules.catalog.schemas import (
     CatalogFacetsResponse,
     CategoryResponse,
@@ -17,7 +17,10 @@ from app.modules.catalog.service import (
     list_products,
 )
 
-router = APIRouter(tags=["catalog"])
+router = APIRouter(
+    tags=["catalog"],
+    dependencies=[Depends(get_optional_customer)],
+)
 
 
 @router.get("/categories", response_model=list[CategoryResponse])

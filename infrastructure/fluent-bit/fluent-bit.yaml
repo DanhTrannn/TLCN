@@ -1,0 +1,52 @@
+service:
+  flush: 5
+  log_level: info
+  parsers_file: /fluent-bit/etc/parsers.conf
+  storage.path: /var/lib/fluent-bit/storage
+  storage.sync: normal
+  storage.checksum: on
+  storage.max_chunks_up: 128
+
+pipeline:
+  inputs:
+    - name: tail
+      tag: docker.access
+      path: /var/lib/docker/containers/*/*.log
+      parser: docker
+      db: /var/lib/fluent-bit/state/docker-tail.db
+      read_from_head: ${FLUENT_BIT_READ_FROM_HEAD}
+      refresh_interval: 5
+      rotate_wait: 30
+      skip_long_lines: true
+      storage.type: filesystem
+
+  filters:
+    - name: parser
+      match: docker.access
+      key_name: log
+      parser: json
+      reserve_data: false
+      preserve_key: false
+
+    - name: grep
+      match: docker.access
+      regex: $schema['name'] ^ecommerce\.access$
+
+  outputs:
+    - name: s3
+      match: docker.access
+      bucket: ${MINIO_LAKEHOUSE_BUCKET}
+      region: ${AWS_REGION}
+      endpoint: http://minio:9000
+      use_put_object: true
+      total_file_size: 128M
+      upload_timeout: ${FLUENT_BIT_UPLOAD_TIMEOUT}
+      compression: gzip
+      content_type: application/x-ndjson
+      store_dir: /var/lib/fluent-bit/s3
+      store_dir_limit_size: 2G
+      preserve_data_ordering: true
+      s3_key_format: /landing/logs/ingest_date=%Y-%m-%d/ingest_hour=%H/service=ecommerce-api/$UUID.jsonl.gz
+      json_date_key: _agent_collected_at
+      json_date_format: iso8601
+      retry_limit: no_limits

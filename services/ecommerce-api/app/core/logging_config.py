@@ -26,6 +26,14 @@ class JsonLineFormatter(logging.Formatter):
         self.service_version = service_version
 
     def format(self, record: logging.LogRecord) -> str:
+        access_event = getattr(record, "access_event", None)
+        if isinstance(access_event, dict):
+            return json.dumps(
+                access_event,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                default=str,
+            )
         payload: dict[str, Any] = {
             "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat().replace("+00:00", "Z"),
             "service": self.service_name,

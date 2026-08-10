@@ -2,6 +2,9 @@
 
 Generator tạo dataset deterministic từ YAML config. Dataset có thể được xuất thành file SQL để import trực tiếp vào MySQL đã chạy migration.
 
+Generator cũng xuất structured access log cùng contract với API thật. Log được chia theo
+cửa sổ UTC 15 phút, nén `jsonl.gz` và có manifest SHA-256 cạnh từng file.
+
 ## Export SQL
 
 ```bash
@@ -12,6 +15,35 @@ docker compose --profile tools run --rm generator export-sql \
 ```
 
 File xuất hiện trên host tại `data/generator/small.sql`.
+
+## Export access logs
+
+```bash
+docker compose --profile tools run --rm generator export-logs \
+  --config /app/configs/small.yml \
+  --output-directory /data/generator/access-logs \
+  --expected-requests 60000
+```
+
+Output xuất hiện tại `data/generator/access-logs/landing/logs/`. Cùng config và
+`expected-requests` tạo cùng logical identity và byte-identical gzip/manifest. Tổng số
+event thực tế dao động deterministic quanh kỳ vọng vì arrivals được sinh riêng cho từng
+cửa sổ bằng mô hình Poisson (xấp xỉ chuẩn khi kỳ vọng cửa sổ lớn).
+
+Access log dùng đúng route/action của API, cùng UUIDv5 actor/product/variant với file SQL,
+UTC event time và `data_origin=synthetic`. Phân phối giữ peak buổi tối, cuối tuần, Tết,
+ngày đôi 1/1..12/12 và Black Friday theo giờ `Asia/Ho_Chi_Minh`; campaign tăng cả traffic,
+checkout mix, latency và error rate. Các hệ số là giả định phục vụ test/BI, không phải số
+liệu thực tế của một sàn hay thị trường Việt Nam.
+
+Khi profile `batch` và MinIO đang chạy, upload các file đã đóng vào Landing:
+
+```bash
+./scripts/upload_generated_logs.sh data/generator/access-logs
+```
+
+Contract và giới hạn phân tích nằm tại
+[`docs/architecture/access-logs.md`](../docs/architecture/access-logs.md).
 
 Config `small.yml` tạo:
 

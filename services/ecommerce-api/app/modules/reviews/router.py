@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
+from app.db.deps import (
+    get_current_admin,
+    get_current_customer,
+    get_db,
+    get_optional_customer,
+    verify_csrf,
+)
 from app.models.customer import Customer
 from app.modules.reviews.schemas import (
     AdminReviewResponse,
@@ -24,6 +30,7 @@ admin_router = APIRouter(prefix="/admin/reviews", tags=["admin-reviews"])
 @router.get("/products/{slug}/reviews", response_model=ReviewListResponse)
 def product_reviews(
     slug: str,
+    _: Customer | None = Depends(get_optional_customer),
     db: Session = Depends(get_db),
 ) -> ReviewListResponse:
     return list_approved_reviews(db, slug)

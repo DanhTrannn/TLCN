@@ -108,6 +108,7 @@ services:
     environment:
       API_DATABASE_URL: mysql+pymysql://${MYSQL_ECOMMERCE_USER:-ecommerce_app}:${MYSQL_ECOMMERCE_PASSWORD:-change-me-ecommerce}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
       API_SECRET_KEY: ${API_SECRET_KEY:-change-me-with-at-least-32-random-characters}
+      API_ENVIRONMENT: ${PIPELINE_ENV:-local}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000}
       API_ENABLE_DOCS: ${API_ENABLE_DOCS:-true}
       API_ACCESS_TOKEN_TTL_MINUTES: ${API_ACCESS_TOKEN_TTL_MINUTES:-720}
@@ -208,6 +209,28 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    networks: ["lakehouse-network"]
+
+  fluent-bit:
+    image: cr.fluentbit.io/fluent/fluent-bit:4.2.3
+    profiles: ["batch"]
+    command: ["--config", "/fluent-bit/etc/fluent-bit.yaml"]
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}
+      FLUENT_BIT_UPLOAD_TIMEOUT: ${FLUENT_BIT_UPLOAD_TIMEOUT:-15m}
+      FLUENT_BIT_READ_FROM_HEAD: ${FLUENT_BIT_READ_FROM_HEAD:-false}
+    volumes:
+      - ./infrastructure/fluent-bit/fluent-bit.yaml:/fluent-bit/etc/fluent-bit.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - fluent-bit-state:/var/lib/fluent-bit/state
+      - fluent-bit-buffer:/var/lib/fluent-bit/storage
+      - fluent-bit-s3-buffer:/var/lib/fluent-bit/s3
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     networks: ["lakehouse-network"]
 
   postgres-polaris:
@@ -537,6 +560,9 @@ networks:
 volumes:
   mysql-ecommerce-data:
   minio-data:
+  fluent-bit-state:
+  fluent-bit-buffer:
+  fluent-bit-s3-buffer:
   spark-work:
   postgres-polaris-data:
   polaris-client-credentials:

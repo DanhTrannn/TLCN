@@ -20,21 +20,41 @@ def get_db() -> Generator[Session, None, None]:
         session.close()
 
 
-def get_current_customer(
+def _resolve_customer_from_cookie(
     request: Request,
-    db: Session = Depends(get_db),
-) -> Customer:
+    db: Session,
+) -> Customer | None:
     settings = get_settings()
     token = request.cookies.get(settings.auth_cookie_name)
     if not token:
-        raise auth_required()
+        return None
     claims = decode_access_token(token)
     if not claims or "sub" not in claims:
-        raise auth_required()
+        return None
     customer = db.execute(
         select(Customer).where(Customer.public_id == claims["sub"])
     ).scalar_one_or_none()
     if customer is None or customer.status != "active":
+        return None
+    request.state.actor_type = customer.role
+    request.state.actor_key = str(customer.public_id)
+    return customer
+
+
+def get_optional_customer(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Customer | None:
+    """Resolve a valid login for public routes without requiring authentication."""
+    return _resolve_customer_from_cookie(request, db)
+
+
+def get_current_customer(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Customer:
+    customer = _resolve_customer_from_cookie(request, db)
+    if customer is None:
         raise auth_required()
     return customer
 
@@ -60,3 +80,5 @@ def require_internal_secret(request: Request) -> None:
     provided = request.headers.get("X-Internal-Secret")
     if not provided or not secrets.compare_digest(provided, settings.internal_secret):
         raise AppError(FORBIDDEN, "Yêu cầu nội bộ không hợp lệ.", status_code=403)
+    request.state.actor_type = "system"
+    request.state.actor_key = "internal-api"

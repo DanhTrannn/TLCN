@@ -30,6 +30,30 @@ docker compose --profile tools run --rm generator export-sql \
 
 File SQL nằm tại `data/generator/small.sql`, chạy trong một transaction và không được import lặp lại trên cùng database. Tài khoản demo được in ra terminal sau khi export.
 
+## Access logs
+
+Web/API thật phát một JSON event sau mỗi completed request. Fluent Bit tail Docker stdout,
+buffer trên volume và upload gzip lên MinIO sau tối đa khoảng 15 phút:
+
+```bash
+docker compose --profile core --profile batch up -d --build
+docker compose --profile batch logs -f fluent-bit
+```
+
+Sinh lịch sử access log deterministic, cùng identity master với SQL:
+
+```bash
+docker compose --profile tools run --rm generator export-logs \
+  --config /app/configs/small.yml \
+  --output-directory /data/generator/access-logs \
+  --expected-requests 60000
+./scripts/upload_generated_logs.sh data/generator/access-logs
+```
+
+Output local ở `data/generator/access-logs/landing/logs/`. Chi tiết về contract,
+privacy, boundary 15 phút và cách kiểm tra Landing nằm tại
+[`docs/architecture/access-logs.md`](../architecture/access-logs.md).
+
 ## Source web/admin
 
 - Storefront: `http://localhost:3000`;

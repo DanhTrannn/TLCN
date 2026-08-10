@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     service_name: str = "ecommerce-api"
     service_version: str = "0.1.0"
+    environment: str = "local"
     database_url: str = "mysql+pymysql://ecommerce_app:change-me@mysql-ecommerce:3306/ecommerce"
     secret_key: str = Field(min_length=32)
     cors_origins: str = "http://localhost:3000"

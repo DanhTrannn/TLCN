@@ -15,7 +15,8 @@ Hệ thống nguồn đã hỗ trợ:
 - lifecycle `paid → confirmed → completed`, hủy order `paid`, full refund và hoàn tồn kho;
 - review sau mua với moderation, cùng wishlist/search/filter;
 - admin có dashboard vận hành riêng; quản lý/search catalog, inventory, coupon, review, customer và order;
-- seed catalog và generator xuất bộ dữ liệu SQL deterministic.
+- structured access log ở biên FastAPI, Fluent Bit buffer/đóng gzip 15 phút vào MinIO;
+- seed catalog và generator xuất SQL cùng access log deterministic.
 
 Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope.md`](docs/project/scope.md); kiến trúc Lakehouse mục tiêu nằm tại [`docs/project/lakehouse-plan.md`](docs/project/lakehouse-plan.md).
 
@@ -25,6 +26,7 @@ Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope
 |---|---|---|
 | Storefront, API, MySQL | Hoạt động | Tạo và quản lý dữ liệu OLTP |
 | SQL data generator | Hoạt động | Sinh dữ liệu lịch sử có thể tái lập |
+| Access-log source | Hoạt động | FastAPI JSON contract, Fluent Bit → MinIO và synthetic log generator |
 | Catalog/storage | Hoạt động | MinIO, Polaris 1.5.0, PostgreSQL metadata và Polaris Console |
 | Compute/query | Hoạt động | Spark + Iceberg runtime, Trino reader và smoke test end-to-end |
 | Pipeline/BI/ML assets | Đang phát triển | DAG, transformation, dashboard và model chưa hoàn tất |
@@ -44,14 +46,15 @@ Next.js Storefront ──HTTP──▶ FastAPI Ecommerce API
                                    ▼
                               MySQL OLTP ───────┐
                                                │
-Structured access log ──15-minute files───────┤
+FastAPI stdout ──Fluent Bit──15-minute gzip───┤
                                                ▼
                          MinIO Landing → Spark → Iceberg
                                                │
                                   Polaris → Trino → Superset
                                                └──────→ ML
 
-SQL Generator ──file .sql──▶ MySQL OLTP
+Generator ──file .sql──▶ MySQL OLTP
+          └─JSONL.gz + manifest──▶ Landing/replay
 ```
 
 Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md).
@@ -74,7 +77,7 @@ Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/pro
 apps/                  Giao diện người dùng và admin
 services/              Business API và application services
 database/              Alembic migrations và catalog seed
-generator/             Synthetic OLTP SQL generator
+generator/             Synthetic OLTP SQL và access-log generator
 airflow/               DAG và cấu hình orchestration
 infrastructure/        Docker image, MySQL và Superset config
 docs/                  Scope, architecture, contract và runbook
@@ -147,13 +150,25 @@ Import vào chính MySQL mà API đang sử dụng:
 
 `small.yml` tạo 500 customer, 60 product, 240 variant và 3.000 order trong 12 tháng. Profile có mùa vụ Tết/ngày đôi, peak 0h theo giờ Việt Nam, coupon theo campaign, review, cancellation và wishlist conversion có quan hệ phân tích. File SQL chạy trong một transaction, giữ nguyên FK/CHECK và không được import lặp lại trên cùng database. Chi tiết tại [`generator/README.md`](generator/README.md).
 
+Sinh thêm access log cùng danh tính master và mùa vụ:
+
+```bash
+docker compose --profile tools run --rm generator export-logs \
+  --config /app/configs/small.yml \
+  --output-directory /data/generator/access-logs \
+  --expected-requests 60000
+```
+
+Contract, cơ chế 15 phút và giới hạn phân tích nằm tại
+[`docs/architecture/access-logs.md`](docs/architecture/access-logs.md).
+
 ## Lệnh vận hành
 
 | Profile | Thành phần |
 |---|---|
 | `core` | MySQL ecommerce, Ecommerce API, Storefront |
-| `tools` | SQL data generator |
-| `batch` | MinIO, PostgreSQL Polaris, Polaris, Polaris Console, Spark và Airflow |
+| `tools` | SQL và access-log data generator |
+| `batch` | Fluent Bit, MinIO, PostgreSQL Polaris, Polaris, Polaris Console, Spark và Airflow |
 | `bi` | Trino, PostgreSQL Superset và Superset |
 | `lakehouse-tools` | Spark client dùng cho smoke test/SQL ghi qua Polaris |
 
