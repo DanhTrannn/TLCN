@@ -36,8 +36,6 @@ _UUID_PATTERN = re.compile(
 )
 
 _ACTIONS: dict[tuple[str, str], str] = {
-    ("GET", "/health/live"): "health_live",
-    ("GET", "/health/ready"): "health_ready",
     ("POST", "/api/v1/auth/register"): "register",
     ("POST", "/api/v1/auth/login"): "login",
     ("POST", "/api/v1/auth/logout"): "logout",
@@ -100,6 +98,13 @@ def canonical_route(request: Request) -> str:
 
 def action_for(method: str, route: str) -> str:
     return _ACTIONS.get((method.upper(), route), "unknown")
+
+
+_EXCLUDED_ROUTES = frozenset({("GET", "/health/live"), ("GET", "/health/ready")})
+
+
+def should_emit_access_event(method: str, route: str) -> bool:
+    return (method.upper(), route) not in _EXCLUDED_ROUTES
 
 
 def _contains_pii(value: str) -> bool:

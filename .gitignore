@@ -18,6 +18,7 @@ node_modules/
 .next/
 out/
 npm-debug.log*
+.sim_users.tsv
 
 data/events/
 data/generator/

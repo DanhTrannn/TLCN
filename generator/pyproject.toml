@@ -6,7 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "data-generator"
 version = "0.6.0"
 requires-python = ">=3.11,<3.12"
-dependencies = ["argon2-cffi==25.1.0", "PyYAML==6.0.2"]
+dependencies = [
+    "argon2-cffi==25.1.0",
+    "faker>=40.36.0",
+    "httpx==0.28.1",
+    "PyYAML==6.0.2",
+]
 
 [project.optional-dependencies]
 dev = ["pytest==8.4.1"]
