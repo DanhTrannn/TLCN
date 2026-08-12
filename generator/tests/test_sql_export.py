@@ -17,6 +17,8 @@ from generator.sql_export import (
     FEMALE_GIVEN_NAMES,
     MALE_GIVEN_NAMES,
     PRODUCT_IMAGE_URL,
+    SYNTHETIC_COUPON_ARCHIVE_REASON,
+    SYNTHETIC_PRODUCT_ARCHIVE_REASON,
     export_sql,
 )
 
@@ -392,6 +394,50 @@ class SqlExportTest(unittest.TestCase):
             self.assertIn("0H1111", coupon_block)
             self.assertIn("'2025-11-10 17:00:00.000000'", coupon_block)
 
+            product_start = sql.index("INSERT INTO `products`")
+            product_end = sql.index("\n\n", product_start)
+            product_block = sql[product_start:product_end]
+            archived_product_rows = [
+                line
+                for line in product_block.splitlines()
+                if SYNTHETIC_PRODUCT_ARCHIVE_REASON in line
+            ]
+            self.assertEqual(len(archived_product_rows), 2)
+            archived_product_ids: set[int] = set()
+            for row in archived_product_rows:
+                product_id_match = re.match(r"^  \((\d+),", row)
+                self.assertIsNotNone(product_id_match)
+                archived_product_ids.add(int(product_id_match.group(1)))
+                self.assertIn(", 0, '2026-07-01 00:00:00.000000',", row)
+                self.assertRegex(
+                    row,
+                    rf", \d+, '{re.escape(SYNTHETIC_PRODUCT_ARCHIVE_REASON)}',",
+                )
+
+            archived_coupon_rows = [
+                line
+                for line in coupon_block.splitlines()
+                if SYNTHETIC_COUPON_ARCHIVE_REASON in line
+            ]
+            self.assertGreater(len(archived_coupon_rows), 0)
+            archived_coupon_ids: set[int] = set()
+            for row in archived_coupon_rows:
+                coupon_id_match = re.match(r"^  \((\d+),", row)
+                self.assertIsNotNone(coupon_id_match)
+                archived_coupon_ids.add(int(coupon_id_match.group(1)))
+                self.assertRegex(
+                    row,
+                    rf", 0, \d+, \d+, 0, '[^']+', \d+, "
+                    rf"'{re.escape(SYNTHETIC_COUPON_ARCHIVE_REASON)}',",
+                )
+
+            redeemed_coupon_ids = {
+                int(coupon_id)
+                for block in _table_blocks(sql, "coupon_redemptions")
+                for coupon_id in re.findall(r"^  \(\d+, (\d+),", block, re.MULTILINE)
+            }
+            self.assertTrue(archived_coupon_ids & redeemed_coupon_ids)
+
             self.assertGreater(_count_rows(sql, "coupon_redemptions"), 100)
             self.assertGreater(_count_rows(sql, "product_reviews"), 200)
             review_start = sql.index("INSERT INTO `product_reviews`")
@@ -428,15 +474,18 @@ class SqlExportTest(unittest.TestCase):
                     if status != "cancelled":
                         successful_orders[int(order_id)] = (int(customer_id), created_at)
             purchases: set[tuple[int, int, str]] = set()
+            ordered_product_ids: set[int] = set()
             for block in _table_blocks(sql, "order_items"):
                 for order_id, variant_id in re.findall(
                     r"^  \(\d+, UUID_TO_BIN\('[0-9a-f-]{36}'\), (\d+), (\d+),",
                     block,
                     re.MULTILINE,
                 ):
+                    ordered_product_ids.add(variants[int(variant_id)])
                     order = successful_orders.get(int(order_id))
                     if order is not None:
                         purchases.add((order[0], variants[int(variant_id)], order[1]))
+            self.assertTrue(archived_product_ids & ordered_product_ids)
             wishlist_count = 0
             wishlist_conversions = 0
             for block in _table_blocks(sql, "wishlist_items"):

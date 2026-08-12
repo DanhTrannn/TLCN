@@ -39,6 +39,8 @@ Contract máy đọc nằm tại
   `__unmatched__`, không lưu raw path.
 - Actor: `anonymous`, `customer`, `admin`, `system`; key lấy sau khi server xác thực.
 - Commerce context: action và tập search/filter/product/variant đã allowlist.
+- Admin archive dùng action `admin_product_archive` hoặc `admin_coupon_archive`; actor
+  được resolve từ session server-side như mọi request đã xác thực.
 - Privacy: không lưu IP, raw query, body, cookie, Authorization, CSRF, idempotency key,
   email, phone, địa chỉ, payment detail hoặc exception message/stack trace.
 - `data_origin`: `observed` cho web thật, `synthetic` cho generator.
@@ -83,6 +85,20 @@ không suy diễn từ path ingestion.
   request ID, chuẩn hóa route/search/filter.
 - Gold: volume/error/latency theo route-hour, product demand, search/filter demand và
   authenticated coverage. Revenue/conversion nghiệp vụ phải reconcile với OLTP.
+
+### Không suy diễn archive từ access log
+
+Một log `DELETE` status 2xx chỉ chứng minh API đã xử lý request thành công. Nó không
+chứng minh row vừa đổi trạng thái: request có thể là replay idempotent, hoặc transaction
+nghiệp vụ có thể thay đổi trong một phiên bản khác. Vì vậy:
+
+- trạng thái archive của product/coupon lấy từ `archived_at`,
+  `archived_by_customer_id`, `archive_reason` và `is_active` trong MySQL;
+- `updated_at` cùng PK là cursor để Silver merge current state;
+- access log chỉ đo số request archive, tỷ lệ lỗi, latency và admin workload;
+- lý do archive chỉ nằm trong MySQL, không đưa request body vào log;
+- Gold dimension Type 1 có thể expose `is_archived` và `archived_at`; order/order item
+  snapshot giữ lịch sử bán hàng trước archive. Không dựng SCD2 chỉ từ chuỗi request.
 
 ## Vận hành local
 

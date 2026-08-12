@@ -2,7 +2,8 @@
 
 ## 0. Phạm vi và nguồn quyết định
 
-Tài liệu này mô tả schema OLTP hiện hành của source website sau migration `0005_order_lifecycle`.
+Tài liệu này mô tả schema OLTP hiện hành của source website sau migration
+`0008_archive_catalog_promotions`.
 Thiết kế tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
 Schema có 17 bảng nghiệp vụ. Pipeline DE được đọc 16 bảng; `customer_credentials` bị loại vì chứa thông tin xác thực.
@@ -26,6 +27,11 @@ paid --customer/admin hủy--> cancelled
 - Mỗi order tối đa một coupon; coupon và discount được snapshot trên order.
 - Mỗi `order_item` tối đa một review; chỉ chủ order `completed` được tạo review.
 - Review phải được admin duyệt trước khi xuất hiện công khai.
+- Xóa product/coupon trên admin là **archive terminal**, không hard delete. Archive
+  giữ nguyên khóa và quan hệ lịch sử, buộc `is_active = false`, lưu actor/thời điểm/lý do
+  và không cho bật lại.
+- `is_active = false` nhưng `archived_at IS NULL` chỉ là tắt tạm thời; trạng thái này
+  vẫn có thể bật lại.
 - Dữ liệu giao dịch và lịch sử không hard delete.
 
 ## 2. Quy ước chung
@@ -80,13 +86,13 @@ customers 1--n product_reviews
 | Customer | `customers` | Một customer | Mutable/anonymizable |
 | Auth | `customer_credentials` | Một credential/customer | Mutable, không extract |
 | Catalog | `categories` | Một category | Mutable/inactive |
-| Catalog | `products` | Một product | Mutable/inactive |
+| Catalog | `products` | Một product | Mutable/inactive/archive terminal |
 | Catalog | `product_variants` | Một tổ hợp size-color/product | Mutable/inactive |
 | Inventory | `inventory` | Một balance/variant | Mutable, khóa khi checkout/cancel |
 | Cart | `carts` | Một chu kỳ cart/customer | Mutable lifecycle |
 | Cart | `cart_items` | Một variant/cart | Mutable/logical removal |
 | Wishlist | `wishlist_items` | Một product từng wishlist/customer | Mutable presence |
-| Promotion | `coupons` | Một coupon code | Mutable configuration/counter |
+| Promotion | `coupons` | Một coupon code | Mutable configuration/counter/archive terminal |
 | Order | `orders` | Một kết quả checkout/cart | Mutable state, snapshot amount |
 | Order | `order_items` | Một variant line/order | Append-only snapshot |
 | Payment | `payments` | Một payment/order | Append-only trong TLCN |
@@ -125,9 +131,14 @@ Invariant: product chỉ thuộc category lá do application transaction kiểm 
 
 #### `products`
 
-Cột chính: `product_id` PK, `public_id` UK, `category_id` FK, `slug` UK, `name`, `description`, `image_url`, `is_active`, timestamps.
+Cột chính: `product_id` PK, `public_id` UK, `category_id` FK, `slug` UK, `name`,
+`description`, `image_url`, `is_active`, `archived_at`,
+`archived_by_customer_id` FK, `archive_reason`, timestamps.
 
-Invariant: thông tin chung ở product; size/color/SKU/giá ở variant. Inactive thay cho hard delete.
+Invariant: thông tin chung ở product; size/color/SKU/giá ở variant. Ba archive field
+cùng null hoặc cùng có giá trị; archive buộc inactive. FK actor dùng `ON DELETE RESTRICT`
+để giữ audit. Archive không xóa variant, wishlist hay order item; các endpoint bán hàng
+loại product archive bằng trạng thái của parent.
 
 #### `product_variants`
 
@@ -175,9 +186,12 @@ Cột:
 - `minimum_subtotal_vnd`;
 - `starts_at`, `ends_at`, `is_active`;
 - `total_usage_limit`, `per_customer_usage_limit` nullable;
+- `archived_at`, `archived_by_customer_id` FK, `archive_reason`;
 - `used_count`, `created_at`, `updated_at`.
 
-Invariant: `starts_at < ends_at`; limit nếu có phải dương; `used_count <= total_usage_limit`. Index `(updated_at, coupon_id)` phục vụ incremental extraction.
+Invariant: `starts_at < ends_at`; limit nếu có phải dương; `used_count <= total_usage_limit`.
+Ba archive field cùng null hoặc cùng có giá trị; archive buộc inactive và actor dùng
+`ON DELETE RESTRICT`. Index `(updated_at, coupon_id)` phục vụ incremental extraction.
 
 Concurrency: checkout khóa row coupon trước khi kiểm tra `used_count`; đếm redemption customer trong cùng transaction; tăng counter và insert redemption atomically. Cancel khóa coupon và redemption, release đúng một lần rồi giảm counter.
 
@@ -317,11 +331,20 @@ Isolation: `READ COMMITTED`. Lock order là điểm tuần tự hóa.
 2. Chỉ chuyển từ `pending` sang `approved` hoặc `rejected`.
 3. Set moderator/time/reason và commit; replay cùng desired state là idempotent.
 
-### TX-07 — Admin tạo/bật tắt coupon
+### TX-07 — Admin tạo/bật tắt/archive coupon
 
 - Tạo: normalize code, validate window/value/limits, insert; unique code xử lý race.
-- Toggle: khóa coupon, update `is_active`, commit.
+- Toggle: khóa coupon; chỉ update `is_active` khi chưa archive.
+- Archive: khóa coupon; lần đầu set inactive và đủ ba archive field trong cùng
+  transaction. Request lặp là no-op và giữ audit đầu tiên.
 - Không sửa snapshot trên order cũ.
+
+### TX-08 — Admin archive product
+
+- Khóa product; lần đầu set inactive và đủ ba archive field trong cùng transaction.
+- Request lặp là no-op và giữ audit đầu tiên; product archive không thể tái kích hoạt.
+- Không cascade sang variant, wishlist hoặc order item để giữ tham chiếu và snapshot
+  lịch sử.
 
 ## 7. Thứ tự khóa và xử lý race
 
@@ -343,6 +366,7 @@ Cancel bắt đầu từ order rồi khóa children theo ID ổn định. Không
 | Hủy và admin confirm đồng thời | cùng lock order; chỉ transaction commit trước hợp lệ |
 | Review hai request | UK `product_reviews.order_item_id` |
 | Transition lặp | UK history idempotency và `(order_id, to_status)` |
+| Hai admin cùng archive | row lock + archive idempotent, giữ audit đầu tiên |
 
 Deadlock vẫn có thể xảy ra; application chỉ retry transaction khi lỗi được xác định là deadlock/serialization và request idempotent.
 
@@ -352,6 +376,7 @@ Deadlock vẫn có thể xảy ra; application chỉ retry transaction khi lỗi
 
 | Bảng | Cursor | Mutability |
 |---|---|---|
+| `products` | `(updated_at, product_id)` | Mutable/current archive state |
 | `coupons` | `(updated_at, coupon_id)` | Mutable |
 | `coupon_redemptions` | `(updated_at, coupon_redemption_id)` | Mutable |
 | `refunds` | `(created_at, refund_id)` | Append-only |
@@ -364,6 +389,8 @@ Reconciliation cốt lõi:
 - succeeded refund amount = payment amount và order cancelled;
 - cancelled order phải có history, refund và inventory đã restore;
 - active redeemed count theo coupon = `coupons.used_count`;
+- `archived_at IS NOT NULL` thì entity inactive và đủ actor/reason; order/order item
+  lịch sử vẫn join được đến product/coupon archive;
 - approved review phải trỏ đến completed purchased order item;
 - inventory: `opening_on_hand - units của order không cancelled = on_hand` trong phạm vi không adjustment.
 

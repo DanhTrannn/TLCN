@@ -302,7 +302,7 @@ Web transaction, constraint, index và concurrency theo [`../architecture/oltp-s
 |---|---|---|---|
 | `customers` | Mutable | `(updated_at, customer_id)` | Merge current state, anonymize PII |
 | `categories` | Mutable | `(updated_at, category_id)` | Merge current state |
-| `products` | Mutable | `(updated_at, product_id)` | Merge current state |
+| `products` | Mutable/archive terminal | `(updated_at, product_id)` | Merge current state và archive metadata |
 | `product_variants` | Mutable | `(updated_at, variant_id)` | Merge current state |
 | `carts` | Mutable | `(updated_at, cart_id)` | Merge current state, derive lifecycle fields |
 | `cart_items` | Mutable/logical removal | `(updated_at, cart_item_id)` | Merge current state |
@@ -312,7 +312,7 @@ Web transaction, constraint, index và concurrency theo [`../architecture/oltp-s
 | `payments` | Append-only | `(created_at, payment_id)` | Insert/dedup |
 | `order_status_history` | Append-only | `(created_at, order_status_history_id)` | Insert/dedup |
 | `inventory` | Mutable | `(updated_at, variant_id)` | Merge current balance, snapshot downstream |
-| `coupons` | Mutable | `(updated_at, coupon_id)` | Merge current configuration/counter |
+| `coupons` | Mutable/archive terminal | `(updated_at, coupon_id)` | Merge current configuration/counter và archive metadata |
 | `coupon_redemptions` | Mutable | `(updated_at, coupon_redemption_id)` | Merge redeemed/released state |
 | `refunds` | Append-only | `(created_at, refund_id)` | Insert/dedup |
 | `product_reviews` | Mutable | `(updated_at, review_id)` | Merge moderation state |
@@ -551,7 +551,11 @@ GeoIP external enrichment và clickstream event không thuộc TLCN.
 - `dim_route`;
 - `dim_client` nếu client/device analysis được giữ trong dashboard.
 
-Với scope nhỏ, descriptive attributes dùng Type 1 và transaction snapshot giữ lịch sử. Không triển khai SCD2 nếu chưa có câu hỏi phân tích cần thiết.
+Với scope nhỏ, descriptive attributes dùng Type 1 và transaction snapshot giữ lịch sử.
+`dim_product` giữ current `is_archived`/`archived_at`; trạng thái coupon tương ứng được
+giữ ở Silver và dùng khi dựng mart promotion. `archive_reason` được giữ ở Silver để
+drill-down audit, không dùng làm dimension/cardinality tự do ở Gold. Không triển khai
+SCD2 nếu chưa có câu hỏi phân tích cần thiết.
 
 ### 15.2. Facts
 

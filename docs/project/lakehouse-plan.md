@@ -124,6 +124,11 @@ Nguồn nghiệp vụ là 16 bảng được cho phép trong schema `ecommerce`:
 
 `customer_credentials` không được extract vì chứa password hash và dữ liệu đăng nhập không cần cho phân tích.
 
+`products` và `coupons` dùng archive terminal: Lakehouse lấy current archive state và
+audit metadata từ MySQL qua cursor `(updated_at, PK)`. Không suy diễn business deletion
+từ request `DELETE` trong access log; log đó chỉ dùng cho traffic, latency, error và
+admin workload.
+
 Đặc điểm ingestion:
 
 - initial load cho lần chạy đầu;
@@ -522,6 +527,11 @@ ML failure không rollback Gold publication.
 - `silver_data_quarantine`;
 - `silver_data_quality_results`.
 
+`silver_products` và `silver_coupons` merge `is_active`, `archived_at`,
+`archived_by_customer_id` và `archive_reason` như current state. Rule DQ bắt buộc archive
+metadata đầy đủ và entity archive phải inactive; FK lịch sử vẫn được giữ để order và
+redemption trước archive tiếp tục reconcile.
+
 ### 8.3. Gold dimensions
 
 - `dim_date`;
@@ -531,6 +541,10 @@ ML failure không rollback Gold publication.
 - `dim_variant`;
 - `dim_route`;
 - `dim_client` nếu client/device analysis được giữ trong scope.
+
+Dimension dùng Type 1 trong scope hiện tại: `dim_product` expose `is_archived` và
+`archived_at`; archive reason ở Silver cho audit thay vì tạo dimension tự do. Lịch sử
+do `fact_order_item` và snapshot trên order bảo toàn, không dựng SCD2 từ access log.
 
 ### 8.4. Gold facts
 
@@ -954,4 +968,3 @@ Dashboard vận hành tối thiểu:
 - full-text behavioral event catalogue.
 
 Các phần này chỉ được thêm ở KLTN khi có câu hỏi nghiên cứu, dữ liệu, benchmark và thời gian triển khai tương ứng.
-

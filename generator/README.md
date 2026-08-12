@@ -49,11 +49,13 @@ Config `small.yml` tạo:
 
 - 500 customer;
 - 60 product có tên, mô tả và mã mẫu thời trang thực tế theo từng category;
+- 3 product archive ở current snapshot (5% làm tròn xuống), vẫn giữ variant và lịch sử;
 - 240 variant;
 - 3.000 order trong 12 tháng;
 - wishlist, checked-out cart, active/abandoned cart;
 - order item, payment, lifecycle `paid/confirmed/completed/cancelled` và status history;
 - coupon/redemption, full refund của đơn hủy và review sau mua;
+- coupon campaign/0h đã hết hạn được archive, nhưng redemption cũ vẫn được giữ;
 - inventory đã đối soát với đơn không bị hủy.
 
 ## Import MySQL
@@ -65,6 +67,30 @@ Sau khi profile `core` healthy và Alembic đã migrate:
 ```
 
 SQL không tắt FK/CHECK, chạy trong một transaction và fail-fast nếu vi phạm invariant. Cùng một file không được import hai lần; muốn thêm dataset khác, thay `scenario_id` hoặc `seed` để có logical identity mới rồi export lại.
+
+Kiểm tra current archive state và số quan hệ lịch sử còn được bảo toàn trong DBeaver:
+
+```sql
+SELECT 'products' AS entity, COUNT(*) AS archived_count
+FROM products WHERE archived_at IS NOT NULL
+UNION ALL
+SELECT 'coupons', COUNT(*)
+FROM coupons WHERE archived_at IS NOT NULL;
+
+SELECT COUNT(DISTINCT p.product_id) AS archived_products_with_order_history
+FROM products p
+JOIN product_variants v ON v.product_id = p.product_id
+JOIN order_items oi ON oi.variant_id = v.variant_id
+WHERE p.archived_at IS NOT NULL;
+
+SELECT COUNT(DISTINCT c.coupon_id) AS archived_coupons_with_redemption_history
+FROM coupons c
+JOIN coupon_redemptions cr ON cr.coupon_id = c.coupon_id
+WHERE c.archived_at IS NOT NULL;
+```
+
+Archive count là current business state từ MySQL. Không dùng số access log `DELETE`
+2xx để thay cho các truy vấn này vì request lặp idempotent vẫn tạo thêm access log.
 
 CLI in tài khoản demo sau mỗi lần export. Email chứa tám ký tự đầu của
 `logical_identity`; mật khẩu local cố định là `Demo@12345`. Luôn lấy email từ
@@ -88,8 +114,8 @@ Generator giữ đúng mô hình identity của OLTP:
 UUIDv5 được dùng thay UUID ngẫu nhiên vì cùng config và generator version phải
 sinh lại đúng cùng identity. Khi config, phân phối, seed hoặc generator version
 thay đổi, `logical_identity` và toàn bộ UUID thuộc dataset cũng thay đổi.
-Các file SQL sinh bằng generator `0.3.x` phải được export lại trước khi
-dùng script import hiện hành.
+Các file SQL sinh bằng generator trước `0.5.0` chưa có archive metadata hiện hành và
+phải được export lại trước khi dùng script import hiện hành.
 
 ## Chạy trực tiếp bằng uv
 
@@ -141,6 +167,10 @@ trong `src/generator/config.py`.
 - Đơn campaign, đơn dùng coupon và khách one-off có xác suất hủy cao hơn; lý do hủy dùng nội dung nghiệp vụ tiếng Việt. Đơn hủy tạo full refund và release redemption.
 - Review chỉ phát sinh từ item thuộc order `completed`; rating và nội dung tiếng Việt luôn khớp nhau, có độ trễ sau giao hàng và ba trạng thái moderation.
 - Một phần wishlist được tạo trước lần mua đầu của cùng sản phẩm rồi đánh dấu removed tại lúc mua; phần còn lại vẫn present hoặc bị gỡ không chuyển đổi. Nhờ đó có thể tính wishlist-to-purchase conversion.
+- Archive dùng RNG riêng để không làm xáo trộn order distribution: cứ 20 product có một
+  product archive tại `anchor_time`; coupon campaign/0h có `ends_at <= anchor_time` được
+  archive tại `ends_at`. Cả hai đều inactive, lưu admin synthetic và lý do archive,
+  trong khi order item/redemption lịch sử không bị xóa.
 
 Các pattern trên tạo được câu hỏi phân tích rõ ràng: revenue lift ngày sale, hiệu quả
 coupon theo khung giờ/segment, chi phí discount, cancellation rate, review rate/rating,

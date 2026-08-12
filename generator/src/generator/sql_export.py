@@ -54,6 +54,9 @@ DISTRICT_NAMES = (
     "Tân Bình", "Tân Phú", "Phú Nhuận", "Thủ Đức", "Hóc Môn", "Bình Chánh",
 )
 INSERT_BATCH_SIZE = 1_000
+SYNTHETIC_ARCHIVED_PRODUCT_DIVISOR = 20
+SYNTHETIC_PRODUCT_ARCHIVE_REASON = "Ngừng kinh doanh theo kịch bản synthetic"
+SYNTHETIC_COUPON_ARCHIVE_REASON = "Kết thúc chiến dịch synthetic"
 FAMILY_NAMES = (
     "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ",
     "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Đinh", "Mai", "Tô",
@@ -773,6 +776,8 @@ def _write_header(
         "-- identifier_strategy: uuid5-deterministic-v1\n"
         f"-- seed: {config.seed}\n"
         f"-- anchor_time: {config.anchor_time.isoformat()}\n"
+        "-- synthetic_archive_policy: every 20th sampled product at anchor time; "
+        "expired campaign/midnight coupons at ends_at.\n"
         f"-- demo_login: {demo_email} / {DEMO_PASSWORD}\n"
         "-- Prerequisite: run all Alembic migrations with alembic upgrade head.\n"
         "-- Import is fail-fast; importing the same dataset twice is rejected by unique keys.\n\n"
@@ -790,6 +795,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     randomizer = random.Random(config.seed)
     name_randomizer = random.Random(f"{config.seed}-names")
     address_randomizer = random.Random(f"{config.seed}-addresses")
+    archive_randomizer = random.Random(f"{config.seed}-catalog-archive")
     namespace = uuid.UUID(config.logical_identity)
     generation_run_id = config.generation_run_id
     demo_email = f"demo.{config.logical_identity[:8]}@web.local"
@@ -907,6 +913,10 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     category_by_code = {
         category.code.removeprefix(f"{root_category.code}-"): category for category in category_records
     }
+    archived_product_count = product_count // SYNTHETIC_ARCHIVED_PRODUCT_DIVISOR
+    archived_product_indices = frozenset(
+        archive_randomizer.sample(range(product_count), archived_product_count)
+    )
     product_records: list[ProductRecord] = []
     product_rows: list[Sequence[SqlValue]] = []
     base_variants_per_product, extra_variants = divmod(variant_count, product_count)
@@ -935,6 +945,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             name=product_name,
         )
         product_records.append(product)
+        is_archived = product_index in archived_product_indices
         product_rows.append(
             (
                 product.product_id,
@@ -944,9 +955,12 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 product.name,
                 product_description,
                 PRODUCT_IMAGE_URL,
-                True,
+                not is_archived,
+                history_end if is_archived else None,
+                moderator_customer_id if is_archived else None,
+                SYNTHETIC_PRODUCT_ARCHIVE_REASON if is_archived else None,
                 master_created_at,
-                master_created_at,
+                history_end if is_archived else master_created_at,
             )
         )
         product_variant_count = base_variants_per_product + (1 if product_index < extra_variants else 0)
@@ -1096,7 +1110,21 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         _write_batched(
             stream,
             "products",
-            ("product_id", "public_id", "category_id", "slug", "name", "description", "image_url", "is_active", "created_at", "updated_at"),
+            (
+                "product_id",
+                "public_id",
+                "category_id",
+                "slug",
+                "name",
+                "description",
+                "image_url",
+                "is_active",
+                "archived_at",
+                "archived_by_customer_id",
+                "archive_reason",
+                "created_at",
+                "updated_at",
+            ),
             product_rows,
         )
         _write_batched(
@@ -1107,6 +1135,10 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         )
         coupon_rows: list[Sequence[SqlValue]] = []
         for coupon_index, coupon in enumerate(coupon_records):
+            is_archived = (
+                coupon.kind in ("campaign", "midnight")
+                and coupon.ends_at <= history_end
+            )
             coupon_rows.append(
                 (
                     coupon.coupon_id,
@@ -1117,12 +1149,15 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     coupon.minimum_subtotal_vnd,
                     coupon.starts_at,
                     coupon.ends_at,
-                    True,
+                    not is_archived,
                     max(100, order_count + 100),
                     1 if coupon.kind in ("welcome", "campaign", "midnight") else 10,
                     0,
+                    coupon.ends_at if is_archived else None,
+                    moderator_customer_id if is_archived else None,
+                    SYNTHETIC_COUPON_ARCHIVE_REASON if is_archived else None,
                     master_created_at,
-                    master_created_at,
+                    coupon.ends_at if is_archived else master_created_at,
                 )
             )
         _write_batched(
@@ -1141,6 +1176,9 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 "total_usage_limit",
                 "per_customer_usage_limit",
                 "used_count",
+                "archived_at",
+                "archived_by_customer_id",
+                "archive_reason",
                 "created_at",
                 "updated_at",
             ),
