@@ -236,8 +236,7 @@ distributions:
     - 38
     - 42
     status_weights:
-      pending: 12
-      approved: 82
+      approved: 94
       rejected: 6
     delay_days:
     - 1

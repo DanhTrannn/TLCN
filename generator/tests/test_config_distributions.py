@@ -74,7 +74,7 @@ def _valid_distributions() -> dict:
         "reviews": {
             "completed_order_rates": {"loyal": 0.6, "regular": 0.4, "one_off": 0.2},
             "rating_weights": [2, 5, 13, 38, 42],
-            "status_weights": {"pending": 12, "approved": 82, "rejected": 6},
+            "status_weights": {"approved": 94, "rejected": 6},
             "delay_days": [1, 14],
         },
         "cancellations": {
@@ -230,6 +230,18 @@ class LoadConfigDistributionTest(unittest.TestCase):
         body["distributions"]["reviews"]["rating_weights"] = [10, 20, 30, 40]
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, "rating_weights"):
+                load_config(_write_yaml(Path(directory) / "bad.yml", body))
+
+    def test_rejects_pending_review_status(self) -> None:
+        body = _base_body()
+        body["distributions"] = _valid_distributions()
+        body["distributions"]["reviews"]["status_weights"] = {
+            "pending": 10,
+            "approved": 84,
+            "rejected": 6,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "approved/rejected"):
                 load_config(_write_yaml(Path(directory) / "bad.yml", body))
 
     def test_rejects_coupon_segments_not_matching_customer_classes(self) -> None:

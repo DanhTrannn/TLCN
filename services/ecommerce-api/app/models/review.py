@@ -25,7 +25,7 @@ class ProductReview(Base):
     )
     rating: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="approved")
     moderation_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     moderated_by_customer_id: Mapped[int | None] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("customers.customer_id", ondelete="RESTRICT"), nullable=True
@@ -43,11 +43,14 @@ class ProductReview(Base):
 
     __table_args__ = (
         CheckConstraint("rating between 1 and 5", name="rating"),
-        CheckConstraint("status in ('pending','approved','rejected')", name="status"),
+        CheckConstraint("status in ('approved','rejected')", name="status"),
         CheckConstraint(
-            "(status = 'pending' and moderated_by_customer_id is null and moderated_at is null) "
-            "or (status in ('approved','rejected') and moderated_by_customer_id is not null "
-            "and moderated_at is not null)",
+            "(status = 'approved' and moderation_reason is null and "
+            "((moderated_by_customer_id is null and moderated_at is null) or "
+            "(moderated_by_customer_id is not null and moderated_at is not null))) "
+            "or (status = 'rejected' and moderated_by_customer_id is not null "
+            "and moderated_at is not null and moderation_reason is not null "
+            "and char_length(trim(moderation_reason)) >= 3)",
             name="moderation_consistency",
         ),
         Index("uq_product_reviews_public_id", "public_id", unique=True),

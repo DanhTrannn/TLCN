@@ -82,7 +82,6 @@ class SqlExportTest(unittest.TestCase):
                 "payments",
                 "order_status_history",
                 "coupon_redemptions",
-                "refunds",
                 "product_reviews",
                 "inventory",
             ):
@@ -101,6 +100,9 @@ class SqlExportTest(unittest.TestCase):
             self.assertIn("UUID_TO_BIN(", sql)
             self.assertIn("-- identifier_strategy: uuid5-deterministic-v1", sql)
             self.assertNotIn("UNHEX(", sql)
+
+            if "'cancelled'" in "".join(_table_blocks(sql, "orders")):
+                self.assertIn("INSERT INTO `refunds`", sql)
 
             uuid_pattern = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
             order_blocks = _table_blocks(sql, "orders")
@@ -443,8 +445,9 @@ class SqlExportTest(unittest.TestCase):
             review_start = sql.index("INSERT INTO `product_reviews`")
             review_end = sql.index("\n\n", review_start)
             review_block = sql[review_start:review_end]
-            for status in ("pending", "approved", "rejected"):
+            for status in ("approved", "rejected"):
                 self.assertIn(f"'{status}'", review_block)
+            self.assertNotIn("'pending'", review_block)
             self.assertIn("Mua ", review_block)
 
             self.assertIn("Đặt nhầm size hoặc màu", sql)

@@ -177,7 +177,7 @@ wheels = [
 
 [[package]]
 name = "data-generator"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "generator" }
 dependencies = [
     { name = "argon2-cffi" },

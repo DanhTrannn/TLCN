@@ -195,7 +195,7 @@ DEFAULT_DISTRIBUTIONS = DistributionConfig(
     reviews=ReviewBehavior(
         completed_order_rates=(("loyal", 0.58), ("regular", 0.38), ("one_off", 0.24)),
         rating_weights=(2, 5, 13, 38, 42),
-        status_weights=(("pending", 12), ("approved", 82), ("rejected", 6)),
+        status_weights=(("approved", 94), ("rejected", 6)),
         delay_days_min=1,
         delay_days_max=14,
     ),
@@ -453,8 +453,8 @@ def _validate_distributions(distributions: DistributionConfig) -> None:
         _validate_rate(value, f"review rate {name}")
     if len(review.rating_weights) != 5 or any(value < 0 for value in review.rating_weights):
         raise ValueError("review rating_weights must contain five non-negative values")
-    if {name for name, _ in review.status_weights} != {"pending", "approved", "rejected"}:
-        raise ValueError("review status_weights must contain pending/approved/rejected")
+    if {name for name, _ in review.status_weights} != {"approved", "rejected"}:
+        raise ValueError("review status_weights must contain approved/rejected")
     if any(value < 0 for _, value in review.status_weights):
         raise ValueError("review status weights must be non-negative")
     if review.delay_days_min < 0 or review.delay_days_min > review.delay_days_max:

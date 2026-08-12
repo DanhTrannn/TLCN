@@ -114,8 +114,8 @@ Generator giữ đúng mô hình identity của OLTP:
 UUIDv5 được dùng thay UUID ngẫu nhiên vì cùng config và generator version phải
 sinh lại đúng cùng identity. Khi config, phân phối, seed hoặc generator version
 thay đổi, `logical_identity` và toàn bộ UUID thuộc dataset cũng thay đổi.
-Các file SQL sinh bằng generator trước `0.5.0` chưa có archive metadata hiện hành và
-phải được export lại trước khi dùng script import hiện hành.
+Các file SQL sinh bằng generator trước `0.6.0` chưa theo contract archive/review hiện
+hành và phải được export lại trước khi dùng script import hiện hành.
 
 ## Chạy trực tiếp bằng uv
 
@@ -156,7 +156,7 @@ trong `src/generator/config.py`.
 | `quantity_per_item` | Tỷ lệ quantity 1/2/3 trên mỗi dòng hàng |
 | `customers` | Nhóm `loyal`, `regular`, `one_off`; có tần suất mua và `campaign_affinity` riêng |
 | `coupons` | Tỷ lệ dùng coupon thường/campaign/0h/đơn đầu, hệ số theo nhóm khách và mệnh giá |
-| `reviews` | Tỷ lệ review theo nhóm khách, phân phối rating, moderation status và độ trễ sau mua |
+| `reviews` | Tỷ lệ review theo nhóm khách, phân phối rating, trạng thái hiển thị/ẩn hậu kiểm và độ trễ sau mua |
 | `cancellations` | Tỷ lệ hủy thường/campaign, phần tăng khi dùng coupon, hệ số nhóm khách và lý do VN |
 
 ### Quan hệ dữ liệu có chủ đích
@@ -165,7 +165,9 @@ trong `src/generator/config.py`.
 - Khách loyal/regular/one-off khác nhau về số lần mua, khoảng cách giữa đơn, khả năng bám campaign, dùng coupon, review và hủy đơn.
 - Coupon 0h chỉ hiệu lực 00:00–02:00 giờ Việt Nam; coupon campaign theo ngày đôi; welcome ưu tiên đơn đầu; coupon thường có ngưỡng subtotal cao hơn.
 - Đơn campaign, đơn dùng coupon và khách one-off có xác suất hủy cao hơn; lý do hủy dùng nội dung nghiệp vụ tiếng Việt. Đơn hủy tạo full refund và release redemption.
-- Review chỉ phát sinh từ item thuộc order `completed`; rating và nội dung tiếng Việt luôn khớp nhau, có độ trễ sau giao hàng và ba trạng thái moderation.
+- Review chỉ phát sinh từ item thuộc order `completed`; rating và nội dung tiếng Việt
+  luôn khớp nhau, có độ trễ sau giao hàng và được hiển thị ngay. Tỷ lệ synthetic mặc
+  định gồm 94% đang hiển thị và 6% đã bị admin ẩn hậu kiểm, không có trạng thái chờ duyệt.
 - Một phần wishlist được tạo trước lần mua đầu của cùng sản phẩm rồi đánh dấu removed tại lúc mua; phần còn lại vẫn present hoặc bị gỡ không chuyển đổi. Nhờ đó có thể tính wishlist-to-purchase conversion.
 - Archive dùng RNG riêng để không làm xáo trộn order distribution: cứ 20 product có một
   product archive tại `anchor_time`; coupon campaign/0h có `ends_at <= anchor_time` được

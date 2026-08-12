@@ -796,6 +796,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     name_randomizer = random.Random(f"{config.seed}-names")
     address_randomizer = random.Random(f"{config.seed}-addresses")
     archive_randomizer = random.Random(f"{config.seed}-catalog-archive")
+    review_randomizer = random.Random(f"{config.seed}-reviews")
     namespace = uuid.UUID(config.logical_identity)
     generation_run_id = config.generation_run_id
     demo_email = f"demo.{config.logical_identity[:8]}@web.local"
@@ -1532,42 +1533,41 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         distribution.reviews.completed_order_rates,
                         customer_class,
                     )
-                    if completed and randomizer.random() < review_rate:
+                    if completed and review_randomizer.random() < review_rate:
                         review_time = (completed_at or order_time) + timedelta(
-                            days=randomizer.randint(
+                            days=review_randomizer.randint(
                                 distribution.reviews.delay_days_min,
                                 distribution.reviews.delay_days_max,
                             ),
-                            hours=randomizer.randint(0, 23),
+                            hours=review_randomizer.randint(0, 23),
                         )
                         if review_time <= history_end:
                             review_index += 1
                             rating = 1 + _weighted_index(
-                                randomizer,
+                                review_randomizer,
                                 distribution.reviews.rating_weights,
                             )
                             review_status = _weighted_pair(
-                                randomizer,
+                                review_randomizer,
                                 distribution.reviews.status_weights,
                             )
                             moderated_at = None
                             moderated_by_customer_id = None
                             moderation_reason = None
-                            if review_status != "pending":
+                            if review_status == "rejected":
                                 moderated_at = min(
                                     history_end,
                                     review_time
                                     + timedelta(
-                                        hours=randomizer.randint(1, 48)
+                                        hours=review_randomizer.randint(1, 48)
                                     ),
                                 )
                                 moderated_by_customer_id = (
                                     moderator_customer_id
                                 )
-                                if review_status == "rejected":
-                                    moderation_reason = randomizer.choice(
-                                        REVIEW_REJECTION_REASONS
-                                    )
+                                moderation_reason = review_randomizer.choice(
+                                    REVIEW_REJECTION_REASONS
+                                )
                             review_rows.append(
                                 (
                                     review_base + review_index,
@@ -1583,7 +1583,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                                     variant.product.product_id,
                                     rating,
                                     _review_content(
-                                        randomizer,
+                                        review_randomizer,
                                         rating,
                                         variant.product.name,
                                         (

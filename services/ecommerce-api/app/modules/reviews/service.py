@@ -118,7 +118,7 @@ def create_review(
             product_id=product_id,
             rating=payload.rating,
             content=payload.content or None,
-            status="pending",
+            status="approved",
         )
         db.add(review)
         db.flush()
