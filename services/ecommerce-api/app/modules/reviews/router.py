@@ -58,7 +58,7 @@ def add_review(
 
 @admin_router.get("", response_model=list[AdminReviewResponse])
 def admin_reviews(
-    status: str | None = Query(default=None, pattern=r"^(pending|approved|rejected)$"),
+    status: str | None = Query(default=None, pattern=r"^(approved|rejected)$"),
     _: Customer = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> list[AdminReviewResponse]:

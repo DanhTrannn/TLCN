@@ -68,11 +68,7 @@ def get_overview(db: Session) -> AdminOverviewResponse:
             select(Order.status, func.count()).group_by(Order.status)
         ).all()
     }
-    pending_reviews = db.scalar(
-        select(func.count())
-        .select_from(ProductReview)
-        .where(ProductReview.status == "pending")
-    ) or 0
+    total_reviews = db.scalar(select(func.count()).select_from(ProductReview)) or 0
     now = datetime.now(UTC).replace(tzinfo=None)
     active_coupons = db.scalar(
         select(func.count())
@@ -103,7 +99,7 @@ def get_overview(db: Session) -> AdminOverviewResponse:
         confirmed_orders=order_counts.get("confirmed", 0),
         completed_orders=order_counts.get("completed", 0),
         cancelled_orders=order_counts.get("cancelled", 0),
-        pending_reviews=int(pending_reviews),
+        total_reviews=int(total_reviews),
         active_coupons=int(active_coupons),
         gross_revenue_vnd=int(gross_revenue),
         refunded_amount_vnd=int(refunded_amount),

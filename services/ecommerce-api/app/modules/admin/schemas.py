@@ -12,7 +12,7 @@ class AdminOverviewResponse(BaseModel):
     confirmed_orders: int
     completed_orders: int
     cancelled_orders: int
-    pending_reviews: int
+    total_reviews: int
     active_coupons: int
     gross_revenue_vnd: int
     refunded_amount_vnd: int

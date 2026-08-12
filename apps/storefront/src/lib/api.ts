@@ -188,7 +188,7 @@ export interface AdminOverview {
   confirmed_orders: number;
   completed_orders: number;
   cancelled_orders: number;
-  pending_reviews: number;
+  total_reviews: number;
   active_coupons: number;
   gross_revenue_vnd: number;
   refunded_amount_vnd: number;

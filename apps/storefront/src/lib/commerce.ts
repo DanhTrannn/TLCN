@@ -42,7 +42,7 @@ export interface OrderItemReview {
   public_id: string;
   rating: number;
   content: string | null;
-  status: "pending" | "approved" | "rejected";
+  status: "approved" | "rejected";
   moderation_reason: string | null;
 }
 
@@ -129,7 +129,7 @@ export interface AdminReview {
   customer_name: string;
   rating: number;
   content: string | null;
-  status: "pending" | "approved" | "rejected";
+  status: "approved" | "rejected";
   moderation_reason: string | null;
   created_at: string;
   updated_at: string;

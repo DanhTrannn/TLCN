@@ -68,9 +68,8 @@ function ReviewForm({
 
   if (item.review) {
     const labels = {
-      pending: "Đang chờ duyệt",
-      approved: "Đã hiển thị",
-      rejected: "Bị từ chối",
+      approved: "Đang hiển thị",
+      rejected: "Đã bị ẩn",
     };
     return (
       <div className="mt-3 rounded-xl bg-surface p-3 text-sm">
@@ -80,7 +79,7 @@ function ReviewForm({
         </div>
         {item.review.content ? <p className="mt-1 text-muted">{item.review.content}</p> : null}
         {item.review.moderation_reason ? (
-          <p className="mt-2 text-accent">Lý do: {item.review.moderation_reason}</p>
+          <p className="mt-2 text-accent">Lý do ẩn: {item.review.moderation_reason}</p>
         ) : null}
       </div>
     );

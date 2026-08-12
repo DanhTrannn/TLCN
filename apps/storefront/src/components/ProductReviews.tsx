@@ -31,7 +31,7 @@ export function ProductReviews({ slug }: { slug: string }) {
         {reviews?.average_rating ? (
           <div className="rounded-2xl bg-paper px-4 py-3 text-right">
             <p className="text-xl font-semibold">{reviews.average_rating}/5</p>
-            <p className="text-xs text-muted">{reviews.total} đánh giá đã duyệt</p>
+            <p className="text-xs text-muted">{reviews.total} đánh giá</p>
           </div>
         ) : null}
       </div>
@@ -40,7 +40,7 @@ export function ProductReviews({ slug }: { slug: string }) {
       ) : reviews.items.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-line bg-paper p-8 text-center">
           <Icon className="mx-auto text-moss" name="star" size={24} />
-          <p className="mt-3 text-sm text-muted">Chưa có đánh giá đã được duyệt.</p>
+          <p className="mt-3 text-sm text-muted">Chưa có đánh giá cho sản phẩm này.</p>
         </div>
       ) : (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">

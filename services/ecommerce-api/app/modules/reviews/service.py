@@ -190,13 +190,7 @@ def moderate_review(
         ).scalar_one_or_none()
         if review is None:
             raise not_found("Không tìm thấy đánh giá.")
-        if review.status != "pending":
-            if review.status != payload.status:
-                raise AppError(
-                    REVIEW_NOT_ALLOWED,
-                    "Đánh giá đã được xử lý và không thể đổi trạng thái.",
-                    status_code=409,
-                )
+        if review.status == payload.status:
             return CustomerReviewResponse(
                 public_id=str(review.public_id),
                 rating=review.rating,
@@ -208,7 +202,9 @@ def moderate_review(
             )
         now = _utc_now()
         review.status = payload.status
-        review.moderation_reason = payload.reason or None
+        review.moderation_reason = (
+            payload.reason if payload.status == "rejected" else None
+        )
         review.moderated_by_customer_id = admin_customer_id
         review.moderated_at = now
         review.updated_at = now

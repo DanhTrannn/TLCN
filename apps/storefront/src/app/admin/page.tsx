@@ -50,7 +50,7 @@ export default function AdminOverviewPage() {
     { label: "Sản phẩm đang bán", value: data.active_products, href: "/admin/products", icon: "package" },
     { label: "Biến thể đang bán", value: data.active_variants, href: "/admin/products", icon: "dashboard" },
     { label: "Coupon còn hiệu lực", value: data.active_coupons, href: "/admin/coupons", icon: "ticket" },
-    { label: "Đánh giá chờ duyệt", value: data.pending_reviews, href: "/admin/reviews", icon: "star" },
+    { label: "Tổng đánh giá", value: data.total_reviews, href: "/admin/reviews", icon: "star" },
   ];
 
   return (
@@ -94,7 +94,6 @@ export default function AdminOverviewPage() {
           <h2 className="text-xl font-semibold">Cần xử lý</h2><p className="mt-1 text-sm text-muted">Ưu tiên trong phiên làm việc này.</p>
           <div className="mt-5 divide-y divide-line">
             <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/orders"><span>Đơn chờ xác nhận</span><strong className="rounded-full bg-warning/10 px-3 py-1 text-warning">{data.paid_orders}</strong></Link>
-            <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/reviews"><span>Đánh giá chờ duyệt</span><strong className="rounded-full bg-accent/10 px-3 py-1 text-accent">{data.pending_reviews}</strong></Link>
             <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/products"><span>Biến thể sắp hết hàng</span><strong className="rounded-full bg-danger/10 px-3 py-1 text-danger">{data.low_stock_variants}</strong></Link>
           </div>
         </article>
