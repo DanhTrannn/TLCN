@@ -3,7 +3,7 @@
 ## 0. Phạm vi và nguồn quyết định
 
 Tài liệu này mô tả schema OLTP hiện hành của source website sau migration
-`0008_archive_catalog_promotions`.
+`0009_reviews_publish_immediately`.
 Thiết kế tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
 Schema có 17 bảng nghiệp vụ. Pipeline DE được đọc 16 bảng; `customer_credentials` bị loại vì chứa thông tin xác thực.
@@ -26,7 +26,8 @@ paid --customer/admin hủy--> cancelled
 - Hủy order phải hoàn tồn kho, full refund payment, release coupon và ghi history trong cùng transaction.
 - Mỗi order tối đa một coupon; coupon và discount được snapshot trên order.
 - Mỗi `order_item` tối đa một review; chỉ chủ order `completed` được tạo review.
-- Review phải được admin duyệt trước khi xuất hiện công khai.
+- Review được hiển thị ngay sau khi customer gửi. Admin chỉ hậu kiểm để ẩn nội dung
+  vi phạm hoặc khôi phục review đã ẩn; không có hàng chờ duyệt.
 - Xóa product/coupon trên admin là **archive terminal**, không hard delete. Archive
   giữ nguyên khóa và quan hệ lịch sử, buộc `is_active = false`, lưu actor/thời điểm/lý do
   và không cho bật lại.
@@ -99,7 +100,7 @@ customers 1--n product_reviews
 | Promotion | `coupon_redemptions` | Một redemption/order | Mutable redeemed/released |
 | Refund | `refunds` | Một full refund/payment | Append-only trong TLCN |
 | History | `order_status_history` | Một transition/order | Append-only |
-| Review | `product_reviews` | Một review/order_item | Mutable moderation state |
+| Review | `product_reviews` | Một review/order_item | Mutable current visibility state |
 
 ## 5. Thiết kế theo domain
 
@@ -260,7 +261,7 @@ Invariant cho dữ liệu mới: initial `paid`, `paid -> confirmed|cancelled`, 
 
 #### `product_reviews`
 
-Mục đích: review có verified purchase và moderation đơn giản.
+Mục đích: review có verified purchase, tự động hiển thị và hậu kiểm đơn giản.
 
 Cột: `review_id` PK, `public_id` UK, `order_item_id` FK/UK, `customer_id` FK, `product_id` FK, `rating`, `content`, `status`, `moderation_reason`, `moderated_by_customer_id` FK, `moderated_at`, timestamps.
 
@@ -269,7 +270,10 @@ Invariant:
 - rating 1..5;
 - một `order_item` tối đa một review;
 - transaction tạo review phải chứng minh order thuộc customer và status `completed`;
-- pending không có moderator/time; approved/rejected phải có moderator/time;
+- status chỉ gồm `approved` (đang hiển thị) và `rejected` (đã ẩn);
+- review mới `approved` có ba moderation field null;
+- review bị ẩn phải có moderator/time và lý do tối thiểu ba ký tự; review được khôi
+  phục có moderator/time nhưng `moderation_reason` null;
 - endpoint public chỉ đọc `approved`.
 
 Indexes: `(product_id, status, created_at, review_id)` cho trang sản phẩm; `(customer_id, created_at, review_id)` cho lịch sử; `(updated_at, review_id)` cho extraction.
@@ -322,14 +326,15 @@ Isolation: `READ COMMITTED`. Lock order là điểm tuần tự hóa.
 
 1. Khóa/đọc `order_item -> order` và xác minh ownership.
 2. Chỉ order `completed`.
-3. Insert review `pending`; unique `order_item_id` xử lý race.
+3. Insert review `approved`, không có moderation metadata; unique `order_item_id` xử lý race.
 4. Commit.
 
-### TX-06 — Moderate review
+### TX-06 — Hậu kiểm review
 
 1. Khóa review.
-2. Chỉ chuyển từ `pending` sang `approved` hoặc `rejected`.
-3. Set moderator/time/reason và commit; replay cùng desired state là idempotent.
+2. `approved -> rejected` bắt buộc lý do; set moderator/time và ẩn khỏi public query.
+3. `rejected -> approved` xóa lý do, set moderator/time mới và hiển thị lại.
+4. Request trùng desired state là idempotent và giữ audit gần nhất.
 
 ### TX-07 — Admin tạo/bật tắt/archive coupon
 
@@ -365,6 +370,7 @@ Cancel bắt đầu từ order rồi khóa children theo ID ổn định. Không
 | Hai actor cùng hủy | lock order + state check + UK refund/history |
 | Hủy và admin confirm đồng thời | cùng lock order; chỉ transaction commit trước hợp lệ |
 | Review hai request | UK `product_reviews.order_item_id` |
+| Hai admin đổi visibility review | row lock + current-state check; request cùng state idempotent |
 | Transition lặp | UK history idempotency và `(order_id, to_status)` |
 | Hai admin cùng archive | row lock + archive idempotent, giữ audit đầu tiên |
 
@@ -380,7 +386,7 @@ Deadlock vẫn có thể xảy ra; application chỉ retry transaction khi lỗi
 | `coupons` | `(updated_at, coupon_id)` | Mutable |
 | `coupon_redemptions` | `(updated_at, coupon_redemption_id)` | Mutable |
 | `refunds` | `(created_at, refund_id)` | Append-only |
-| `product_reviews` | `(updated_at, review_id)` | Mutable moderation |
+| `product_reviews` | `(updated_at, review_id)` | Mutable current visibility/moderation |
 
 Reconciliation cốt lõi:
 
@@ -391,7 +397,9 @@ Reconciliation cốt lõi:
 - active redeemed count theo coupon = `coupons.used_count`;
 - `archived_at IS NOT NULL` thì entity inactive và đủ actor/reason; order/order item
   lịch sử vẫn join được đến product/coupon archive;
-- approved review phải trỏ đến completed purchased order item;
+- mọi review phải trỏ đến completed purchased order item;
+- review `approved` auto-publish có thể không có moderator; review `rejected` phải đủ
+  moderator/time/reason;
 - inventory: `opening_on_hand - units của order không cancelled = on_hand` trong phạm vi không adjustment.
 
 PII ở customer/order shipping snapshot phải được phân loại và mask/anonymize ở downstream. OLTP là source of truth; lakehouse chỉ dẫn xuất.

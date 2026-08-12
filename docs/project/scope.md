@@ -107,7 +107,8 @@ Website tối giản hỗ trợ:
 6. Checkout với địa chỉ nhập trực tiếp.
 7. Checkout hợp lệ có thể áp dụng một coupon, tạo order `paid`, payment `succeeded` và giảm inventory atomically.
 8. Customer xem order history/detail, hủy order còn `paid` và review item của order `completed`.
-9. Admin quản lý catalog, variant, inventory, coupon, review moderation, customer status và lifecycle `paid → confirmed → completed`.
+9. Admin quản lý catalog, variant, inventory, coupon, hậu kiểm ẩn/khôi phục review,
+   customer status và lifecycle `paid → confirmed → completed`.
 10. Customer/admin hủy order `paid`; hệ thống hoàn inventory, full refund và release coupon atomically.
 
 ### 5.2. Nguồn dữ liệu TLCN
@@ -315,7 +316,7 @@ Web transaction, constraint, index và concurrency theo [`../architecture/oltp-s
 | `coupons` | Mutable/archive terminal | `(updated_at, coupon_id)` | Merge current configuration/counter và archive metadata |
 | `coupon_redemptions` | Mutable | `(updated_at, coupon_redemption_id)` | Merge redeemed/released state |
 | `refunds` | Append-only | `(created_at, refund_id)` | Insert/dedup |
-| `product_reviews` | Mutable | `(updated_at, review_id)` | Merge moderation state |
+| `product_reviews` | Mutable current visibility | `(updated_at, review_id)` | Merge trạng thái hiển thị/hậu kiểm |
 
 ### 10.2. Composite cursor
 
@@ -383,6 +384,11 @@ Modes TLCN:
 
 
 Mỗi run có `scenario_id`, seed, anchor time, scale, generator version và logical identity. Cùng config/seed phải tạo cùng logical dataset. Generator phải xuất được file SQL import trực tiếp vào MySQL trong một transaction, giữ FK/CHECK và fail-fast khi import trùng. Phân phối dùng múi giờ nghiệp vụ `Asia/Ho_Chi_Minh` nhưng lưu UTC; dữ liệu có quan hệ giữa ngày sale/khung giờ 0h, segment khách, coupon, cancellation, review và wishlist conversion thay vì random độc lập.
+
+Review synthetic không có trạng thái chờ duyệt: `approved` là đang hiển thị ngay sau
+khi tạo; `rejected` mô phỏng review đã bị admin ẩn hậu kiểm và phải có đủ actor, thời
+điểm, lý do. RNG review tách khỏi order để thay đổi review distribution không làm lệch
+order/cancellation distribution.
 
 ---
 
@@ -567,8 +573,13 @@ SCD2 nếu chưa có câu hỏi phân tích cần thiết.
 | `fact_cart` | Một cart |
 | `fact_cart_item` | Một logical cart item/current extracted state |
 | `fact_wishlist_item` | Một customer-product wishlist state |
+| `fact_product_review` | Một review/order item với current visibility state |
 | `fact_inventory_snapshot` | Một variant × snapshot date |
 | `fact_web_request` | Một deduplicated HTTP request |
+
+`fact_product_review` giữ `created_at`, current `status` và `moderated_at` gần nhất.
+OLTP không có moderation event history nên fact này không dùng để dựng timeline nhiều
+lần ẩn/khôi phục; muốn phân tích transition lịch sử phải bổ sung bảng review history.
 
 ### 15.3. Marts
 
@@ -600,6 +611,7 @@ SCD2 nếu chưa có câu hỏi phân tích cần thiết.
 - Cart abandonment theo grain cart.
 - Wishlist popularity theo current/logical state.
 - Inventory current/low-stock.
+- Review submitted/visible/hidden count và average rating của review đang hiển thị.
 
 ### 16.2. Access-log KPI
 
@@ -677,6 +689,8 @@ Access-log `view_count`, `search_count`, session và traffic-source feature khô
 - Amount không âm và order arithmetic đúng.
 - Payment amount/status khớp order.
 - Inventory/order transition hợp lệ.
+- Review trỏ đến order item của order `completed`; status chỉ `approved/rejected` và
+  moderation metadata nhất quán với current visibility.
 - PII được pseudonymize.
 
 ### 18.3. Silver log checks
@@ -694,6 +708,8 @@ Access-log `view_count`, `search_count`, session và traffic-source feature khô
 - Request totals reconcile với Silver log theo interval.
 - Mart totals reconcile với facts.
 - Không có raw PII trong Gold/ML.
+- Public review count/rating chỉ tính review `approved`; submitted/hidden count phải
+  được ghi nhãn riêng và reconcile với toàn bộ `silver_product_reviews`.
 
 ### 18.5. Quarantine contract
 

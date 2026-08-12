@@ -13,7 +13,8 @@ Hệ thống nguồn đã hỗ trợ:
 - wishlist và anonymous/customer cart;
 - checkout có kiểm tra tồn kho, coupon và ghi order/payment atomically;
 - lifecycle `paid → confirmed → completed`, hủy order `paid`, full refund và hoàn tồn kho;
-- review sau mua với moderation, cùng wishlist/search/filter;
+- review verified-purchase hiển thị ngay và admin hậu kiểm ẩn/khôi phục, cùng
+  wishlist/search/filter;
 - admin có dashboard vận hành riêng; quản lý/search catalog, inventory, coupon, review, customer và order;
 - structured access log ở biên FastAPI, Fluent Bit buffer/đóng gzip 15 phút vào MinIO;
 - seed catalog và generator xuất SQL cùng access log deterministic.

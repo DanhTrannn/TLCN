@@ -24,7 +24,8 @@ Quyết định hiện hành:
 6. Customer checkout với thông tin giao hàng.
 7. Checkout hợp lệ có thể áp dụng một coupon, tạo order `paid`, payment `succeeded` và giảm inventory atomically.
 8. Customer xem order, hủy order còn `paid` và review item của order `completed`.
-9. Admin quản lý catalog, inventory, coupon, review moderation, customer status và xác nhận/hoàn tất/hủy order.
+9. Admin quản lý catalog, inventory, coupon, hậu kiểm ẩn/khôi phục review, customer
+   status và xác nhận/hoàn tất/hủy order.
 10. Hủy order `paid` hoàn inventory, full refund và release coupon trong một transaction.
 11. Website tạo OLTP rows đủ cho dashboard/ML mua lại.
 12. Web/API tạo structured access log đủ cho traffic, error, latency, route và search/filter analysis.
@@ -357,8 +358,10 @@ Mọi write cùng commit/rollback. Không gọi external API, email hoặc analy
 
 1. Customer chỉ review order item thuộc order `completed` của mình.
 2. Unique `order_item_id` bảo đảm tối đa một review/item.
-3. Review mới ở `pending`; admin chuyển sang `approved` hoặc `rejected`.
-4. Public product page chỉ hiển thị review `approved`.
+3. Review mới ở `approved`, hiển thị công khai ngay và không có moderation metadata.
+4. Admin có thể hậu kiểm `approved -> rejected` khi có lý do, hoặc
+   `rejected -> approved` để khôi phục; public product page chỉ đọc `approved`.
+5. Request đổi visibility về đúng current state là idempotent.
 
 ---
 

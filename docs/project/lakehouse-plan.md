@@ -129,6 +129,11 @@ audit metadata từ MySQL qua cursor `(updated_at, PK)`. Không suy diễn busin
 từ request `DELETE` trong access log; log đó chỉ dùng cho traffic, latency, error và
 admin workload.
 
+`product_reviews` không có approval queue. Review mới được ghi `approved` và hiển thị
+ngay; admin chỉ hậu kiểm sang `rejected` hoặc khôi phục lại `approved`. Lakehouse merge
+current visibility theo `(updated_at, review_id)`; access log moderation không thay thế
+trạng thái nghiệp vụ trong MySQL.
+
 Đặc điểm ingestion:
 
 - initial load cho lần chạy đầu;
@@ -532,6 +537,10 @@ ML failure không rollback Gold publication.
 metadata đầy đủ và entity archive phải inactive; FK lịch sử vẫn được giữ để order và
 redemption trước archive tiếp tục reconcile.
 
+`silver_product_reviews` giữ verified-purchase reference, rating/content, `created_at`,
+current `status`, moderation actor/reason và `moderated_at`. Review `approved` mới có thể
+không có moderation actor/time; review `rejected` bắt buộc đủ actor/time/reason.
+
 ### 8.3. Gold dimensions
 
 - `dim_date`;
@@ -555,8 +564,13 @@ do `fact_order_item` và snapshot trên order bảo toàn, không dựng SCD2 t�
 | `fact_payment` | Một payment |
 | `fact_cart` | Một cart |
 | `fact_wishlist_item` | Một customer-product wishlist state |
+| `fact_product_review` | Một review/order item với current visibility state |
 | `fact_inventory_snapshot` | Một variant tại một snapshot date |
 | `fact_web_request` | Một deduplicated HTTP request |
+
+`fact_product_review` không phải moderation event history: OLTP chỉ giữ lần thay đổi
+visibility gần nhất, nên không dựng timeline nhiều lần ẩn/khôi phục từ current row hoặc
+access log.
 
 ### 8.5. Gold marts
 
@@ -591,6 +605,7 @@ do `fact_order_item` và snapshot trên order bảo toàn, không dựng SCD2 t�
 - wishlist popularity;
 - inventory current/low-stock;
 - historical repurchase rate.
+- review submitted/visible/hidden count và average rating chỉ trên review đang hiển thị.
 
 ### 9.2. KPI access log
 
@@ -646,6 +661,8 @@ Access log chỉ bổ sung traffic tới product/search/cart/checkout route. Kh�
 - payment/status hợp lệ;
 - inventory invariant đúng;
 - order transition hợp lệ;
+- review phải trỏ đến completed order item; status chỉ `approved/rejected` và moderation
+  metadata phải nhất quán với current visibility;
 - PII được pseudonymize theo contract.
 
 ### 10.3. Silver log checks
@@ -666,6 +683,8 @@ Access log chỉ bổ sung traffic tới product/search/cart/checkout route. Kh�
 - revenue/units reconcile với Silver OLTP;
 - request totals reconcile với Silver log theo interval;
 - mart totals reconcile với facts;
+- visible review count/rating chỉ tính `approved`; submitted/hidden metrics phải được
+  ghi nhãn riêng và reconcile với `silver_product_reviews`;
 - không có raw IP, token, email, phone hoặc address;
 - Gold snapshot chỉ publish khi core rule pass.
 
