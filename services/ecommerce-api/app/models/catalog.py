@@ -55,6 +55,13 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
+    archived_by_customer_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("customers.customer_id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    archive_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DATETIME(fsp=6), nullable=False, server_default=text("CURRENT_TIMESTAMP(6)")
     )
@@ -66,10 +73,21 @@ class Product(Base):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "(archived_at is null and archived_by_customer_id is null and archive_reason is null) "
+            "or (archived_at is not null and archived_by_customer_id is not null "
+            "and archive_reason is not null and char_length(trim(archive_reason)) >= 3)",
+            name="archive_metadata_consistency",
+        ),
+        CheckConstraint(
+            "archived_at is null or is_active = 0",
+            name="archived_not_active",
+        ),
         Index("uq_products_slug", "slug", unique=True),
         Index("uq_products_public_id", "public_id", unique=True),
         Index("ix_products_category_id_is_active_product_id", "category_id", "is_active", "product_id"),
         Index("ix_products_is_active_product_id", "is_active", "product_id"),
+        Index("ix_products_archived_at_product_id", "archived_at", "product_id"),
         Index("ix_products_updated_at_product_id", "updated_at", "product_id"),
     )
 

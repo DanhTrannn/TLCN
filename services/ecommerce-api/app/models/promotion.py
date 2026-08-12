@@ -23,6 +23,13 @@ class Coupon(Base):
     starts_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
+    archived_by_customer_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("customers.customer_id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    archive_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     total_usage_limit: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), nullable=True)
     per_customer_usage_limit: Mapped[int | None] = mapped_column(INTEGER(unsigned=True), nullable=True)
     used_count: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False, default=0)
@@ -58,8 +65,19 @@ class Coupon(Base):
             "total_usage_limit is null or used_count <= total_usage_limit",
             name="used_count_within_limit",
         ),
+        CheckConstraint(
+            "(archived_at is null and archived_by_customer_id is null and archive_reason is null) "
+            "or (archived_at is not null and archived_by_customer_id is not null "
+            "and archive_reason is not null and char_length(trim(archive_reason)) >= 3)",
+            name="archive_metadata_consistency",
+        ),
+        CheckConstraint(
+            "archived_at is null or is_active = 0",
+            name="archived_not_active",
+        ),
         Index("uq_coupons_public_id", "public_id", unique=True),
         Index("uq_coupons_code_normalized", "code_normalized", unique=True),
+        Index("ix_coupons_archived_at_coupon_id", "archived_at", "coupon_id"),
         Index("ix_coupons_updated_at_coupon_id", "updated_at", "coupon_id"),
     )
 
