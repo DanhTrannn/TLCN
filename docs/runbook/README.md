@@ -1,6 +1,7 @@
 # Runbook
 
 - [`lakehouse-local.md`](lakehouse-local.md): khởi động, bootstrap RBAC, smoke test và xử lý lỗi Polaris–Iceberg–Spark–Trino.
+- [`startup-flow.md`](startup-flow.md): tóm tắt từng service làm gì khi khởi động theo profile.
 
 Runbook TLCN bao phủ clean setup, service health, OLTP seed/generator, scheduled/manual batch run, rerun, replay, backfill, partial failure, fallback dataset và teardown.
 
