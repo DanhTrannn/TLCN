@@ -6,6 +6,7 @@ import { AdminModal } from "@/components/admin/AdminModal";
 import { Icon } from "@/components/ui/Icon";
 import {
   ApiError,
+  archiveAdminProduct,
   createAdminProduct,
   formatVnd,
   getAdminProducts,
@@ -16,6 +17,7 @@ import {
   type AdminVariant,
   type Category,
 } from "@/lib/api";
+import { formatVietnamDateTime } from "@/lib/datetime";
 
 const DEFAULT_PRODUCT_IMAGE_URL =
   "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp";
@@ -119,6 +121,11 @@ function ProductEditor({
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const archivedAt = product.archived_at;
+  const archived = archivedAt !== null;
 
   async function saveProduct() {
     setBusy(true);
@@ -151,6 +158,22 @@ function ProductEditor({
     }
   }
 
+  async function submitArchive(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setArchiveError(null);
+    try {
+      await archiveAdminProduct(product.public_id, archiveReason.trim());
+      setArchiveOpen(false);
+      setArchiveReason("");
+      await onSaved();
+    } catch (err) {
+      setArchiveError(err instanceof ApiError ? err.message : "Không xóa được sản phẩm");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <article className="admin-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -161,36 +184,105 @@ function ProductEditor({
             {product.variants.length} biến thể · từ {formatVnd(Math.min(...product.variants.map((item) => item.price_vnd)))}
           </p>
         </div>
-        <button
-          className={`min-h-11 rounded-full border px-4 text-sm font-semibold ${
-            product.is_active ? "border-success/20 bg-success/10 text-success" : "border-line bg-paper text-muted"
-          }`}
-          disabled={busy}
-          onClick={toggleActive}
-          type="button"
-        >
-          {product.is_active ? "Đang hiển thị" : "Đã ẩn"}
-        </button>
+        {archived ? (
+          <span className="inline-flex min-h-11 items-center rounded-full border border-danger/20 bg-danger/5 px-4 text-sm font-semibold text-danger">
+            Đã lưu trữ
+          </span>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`min-h-11 rounded-full border px-4 text-sm font-semibold ${
+                product.is_active ? "border-success/20 bg-success/10 text-success" : "border-line bg-paper text-muted"
+              }`}
+              disabled={busy}
+              onClick={toggleActive}
+              type="button"
+            >
+              {product.is_active ? "Đang hiển thị" : "Đã ẩn"}
+            </button>
+            <button
+              className="button-secondary px-4 text-danger"
+              disabled={busy}
+              onClick={() => {
+                setArchiveError(null);
+                setArchiveReason("");
+                setArchiveOpen(true);
+              }}
+              type="button"
+            >
+              <Icon name="trash" size={16} />
+              Xóa sản phẩm
+            </button>
+          </div>
+        )}
       </div>
 
-      <details className="mt-5">
-        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold"><Icon name="chevron-right" size={16} />Sửa thông tin chung</summary>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="text-sm">Tên<input className="admin-input" onChange={(e) => setName(e.target.value)} value={name} /></label>
-          <label className="text-sm">Danh mục<select className="admin-input" onChange={(e) => setCategory(e.target.value)} value={category}>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
-          <label className="text-sm md:col-span-2">URL ảnh<input className="admin-input" onChange={(e) => setImageUrl(e.target.value)} value={imageUrl} /></label>
-          <label className="text-sm md:col-span-2">Mô tả<textarea className="admin-input" onChange={(e) => setDescription(e.target.value)} rows={3} value={description} /></label>
+      {archived ? (
+        <div className="mt-5 rounded-2xl border border-danger/20 bg-danger/5 p-4 text-sm">
+          <p className="font-semibold text-danger">
+            Lưu trữ lúc {formatVietnamDateTime(archivedAt)}
+          </p>
+          <p className="mt-2 text-muted">Lý do: {product.archive_reason}</p>
+          <p className="mt-2 text-xs leading-5 text-muted">
+            Sản phẩm không còn xuất hiện trên cửa hàng; tồn kho, wishlist và lịch sử đơn hàng vẫn được giữ nguyên.
+          </p>
         </div>
-        <button className="mt-3 button-primary" disabled={busy} onClick={saveProduct} type="button">Lưu sản phẩm</button>
-      </details>
+      ) : (
+        <>
+          <details className="mt-5">
+            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold"><Icon name="chevron-right" size={16} />Sửa thông tin chung</summary>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="text-sm">Tên<input className="admin-input" onChange={(e) => setName(e.target.value)} value={name} /></label>
+              <label className="text-sm">Danh mục<select className="admin-input" onChange={(e) => setCategory(e.target.value)} value={category}>{categories.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+              <label className="text-sm md:col-span-2">URL ảnh<input className="admin-input" onChange={(e) => setImageUrl(e.target.value)} value={imageUrl} /></label>
+              <label className="text-sm md:col-span-2">Mô tả<textarea className="admin-input" onChange={(e) => setDescription(e.target.value)} rows={3} value={description} /></label>
+            </div>
+            <button className="mt-3 button-primary" disabled={busy} onClick={saveProduct} type="button">Lưu sản phẩm</button>
+          </details>
 
-      <details className="mt-5 border-t border-line pt-4">
-        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-muted"><Icon name="chevron-right" size={16} />Quản lý {product.variants.length} biến thể</summary>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {product.variants.map((variant) => <VariantEditor key={variant.public_id} onSaved={onSaved} variant={variant} />)}
-        </div>
-      </details>
+          <details className="mt-5 border-t border-line pt-4">
+            <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-muted"><Icon name="chevron-right" size={16} />Quản lý {product.variants.length} biến thể</summary>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {product.variants.map((variant) => <VariantEditor key={variant.public_id} onSaved={onSaved} variant={variant} />)}
+            </div>
+          </details>
+        </>
+      )}
       {error ? <p className="mt-3 text-sm font-semibold text-accent">{error}</p> : null}
+
+      <AdminModal
+        busy={busy}
+        description="Sản phẩm sẽ bị ẩn vĩnh viễn khỏi cửa hàng, nhưng dữ liệu tồn kho, wishlist và đơn hàng cũ vẫn được giữ để đối soát."
+        onClose={() => setArchiveOpen(false)}
+        open={archiveOpen}
+        title={`Xóa sản phẩm ${product.name}?`}
+      >
+        <form className="space-y-5" onSubmit={submitArchive}>
+          <label className="field-label" htmlFor={`archive-product-${product.public_id}`}>
+            Lý do xóa
+            <textarea
+              autoFocus
+              className="admin-input"
+              id={`archive-product-${product.public_id}`}
+              maxLength={500}
+              minLength={3}
+              onChange={(event) => setArchiveReason(event.target.value)}
+              placeholder="Ví dụ: Ngừng kinh doanh sản phẩm"
+              required
+              rows={3}
+              value={archiveReason}
+            />
+          </label>
+          {archiveError ? <div className="feedback-error" role="alert">{archiveError}</div> : null}
+          <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <button className="button-secondary" disabled={busy} onClick={() => setArchiveOpen(false)} type="button">Hủy</button>
+            <button className="button-accent" disabled={busy || archiveReason.trim().length < 3} type="submit">
+              <Icon name="trash" size={16} />
+              {busy ? "Đang xóa…" : "Xác nhận xóa"}
+            </button>
+          </div>
+        </form>
+      </AdminModal>
     </article>
   );
 }

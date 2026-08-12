@@ -144,6 +144,8 @@ export interface AdminCoupon {
   starts_at: string;
   ends_at: string;
   is_active: boolean;
+  archived_at: string | null;
+  archive_reason: string | null;
   total_usage_limit: number | null;
   per_customer_usage_limit: number | null;
   used_count: number;
@@ -316,6 +318,17 @@ export function setAdminCouponActive(publicId: string, isActive: boolean) {
       method: "PATCH",
       headers: mutationHeaders(),
       body: JSON.stringify({ is_active: isActive }),
+    }
+  );
+}
+
+export function archiveAdminCoupon(publicId: string, reason: string) {
+  return apiFetch<void>(
+    `/api/v1/admin/coupons/${encodeURIComponent(publicId)}`,
+    {
+      method: "DELETE",
+      headers: mutationHeaders(),
+      body: JSON.stringify({ reason }),
     }
   );
 }

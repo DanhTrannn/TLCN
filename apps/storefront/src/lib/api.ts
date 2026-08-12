@@ -213,6 +213,8 @@ export interface AdminProduct {
   description: string | null;
   image_url: string | null;
   is_active: boolean;
+  archived_at: string | null;
+  archive_reason: string | null;
   variants: AdminVariant[];
 }
 
@@ -413,6 +415,14 @@ export function updateAdminProduct(
     method: "PATCH",
     headers: csrfHeaders(),
     body: JSON.stringify(input),
+  });
+}
+
+export function archiveAdminProduct(publicId: string, reason: string) {
+  return apiFetch<void>(`/api/v1/admin/products/${encodeURIComponent(publicId)}`, {
+    method: "DELETE",
+    headers: csrfHeaders(),
+    body: JSON.stringify({ reason }),
   });
 }
 

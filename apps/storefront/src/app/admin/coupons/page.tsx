@@ -6,6 +6,7 @@ import { AdminModal } from "@/components/admin/AdminModal";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError, formatVnd } from "@/lib/api";
 import {
+  archiveAdminCoupon,
   createAdminCoupon,
   getAdminCoupons,
   setAdminCouponActive,
@@ -31,6 +32,9 @@ export default function AdminCouponsPage() {
   const [busy, setBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [archivingCoupon, setArchivingCoupon] = useState<AdminCoupon | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -83,6 +87,23 @@ export default function AdminCouponsPage() {
     }
   }
 
+  async function submitArchive(event: React.FormEvent) {
+    event.preventDefault();
+    if (!archivingCoupon) return;
+    setBusy(true);
+    setArchiveError(null);
+    try {
+      await archiveAdminCoupon(archivingCoupon.public_id, archiveReason.trim());
+      setArchivingCoupon(null);
+      setArchiveReason("");
+      await load();
+    } catch (requestError) {
+      setArchiveError(requestError instanceof ApiError ? requestError.message : "Không xóa được coupon");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -128,20 +149,72 @@ export default function AdminCouponsPage() {
         </form>
       </AdminModal>
 
+      <AdminModal
+        busy={busy}
+        description="Coupon sẽ không thể dùng cho checkout mới, nhưng đơn hàng và lượt sử dụng trước đây vẫn được giữ nguyên để đối soát."
+        onClose={() => setArchivingCoupon(null)}
+        open={archivingCoupon !== null}
+        title={`Xóa coupon ${archivingCoupon?.code ?? ""}?`}
+      >
+        <form className="space-y-5" onSubmit={submitArchive}>
+          <label className="field-label" htmlFor="archive-coupon-reason">
+            Lý do xóa
+            <textarea
+              autoFocus
+              className="admin-input"
+              id="archive-coupon-reason"
+              maxLength={500}
+              minLength={3}
+              onChange={(event) => setArchiveReason(event.target.value)}
+              placeholder="Ví dụ: Kết thúc chiến dịch"
+              required
+              rows={3}
+              value={archiveReason}
+            />
+          </label>
+          {archiveError ? <div className="feedback-error" role="alert">{archiveError}</div> : null}
+          <div className="flex flex-col-reverse gap-2 border-t border-line pt-5 sm:flex-row sm:justify-end">
+            <button className="button-secondary" disabled={busy} onClick={() => setArchivingCoupon(null)} type="button">Hủy</button>
+            <button className="button-accent" disabled={busy || archiveReason.trim().length < 3} type="submit">
+              <Icon name="trash" size={16} />
+              {busy ? "Đang xóa…" : "Xác nhận xóa"}
+            </button>
+          </div>
+        </form>
+      </AdminModal>
+
       {error ? <div className="feedback-error mt-5">{error}</div> : null}
       <div className="admin-table-shell mt-6">
         <table>
           <thead><tr><th>Mã</th><th>Mức giảm</th><th>Hiệu lực</th><th>Sử dụng</th><th><span className="sr-only">Thao tác</span></th></tr></thead>
           <tbody>
-            {coupons.map((coupon) => (
-              <tr key={coupon.public_id}>
-                <td><p className="font-semibold tracking-wide">{coupon.code}</p><span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${coupon.is_active ? "bg-success/10 text-success" : "bg-muted/10 text-muted"}`}>{coupon.is_active ? "Đang bật" : "Đã tắt"}</span></td>
-                <td><p className="font-semibold">{coupon.discount_type === "percentage" ? `${coupon.discount_value}%` : formatVnd(coupon.discount_value)}</p><p className="mt-1 text-xs text-muted">Đơn từ {formatVnd(coupon.minimum_subtotal_vnd)}</p></td>
-                <td className="text-xs leading-5 text-muted">{formatVietnamDateTime(coupon.starts_at)}<br />đến {formatVietnamDateTime(coupon.ends_at)}</td>
-                <td><p className="font-semibold">{coupon.used_count}{coupon.total_usage_limit ? ` / ${coupon.total_usage_limit}` : ""}</p><p className="mt-1 text-xs text-muted">Mỗi khách: {coupon.per_customer_usage_limit ?? "Không giới hạn"}</p></td>
-                <td className="text-right"><button className={coupon.is_active ? "button-secondary px-4 text-danger" : "button-secondary px-4 text-success"} disabled={busy} onClick={() => void toggle(coupon)} type="button">{coupon.is_active ? "Tắt coupon" : "Bật coupon"}</button></td>
-              </tr>
-            ))}
+            {coupons.map((coupon) => {
+              const archived = coupon.archived_at !== null;
+              return (
+                <tr key={coupon.public_id}>
+                  <td>
+                    <p className="font-semibold tracking-wide">{coupon.code}</p>
+                    <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${archived ? "bg-danger/10 text-danger" : coupon.is_active ? "bg-success/10 text-success" : "bg-muted/10 text-muted"}`}>
+                      {archived ? "Đã lưu trữ" : coupon.is_active ? "Đang bật" : "Đã tắt"}
+                    </span>
+                    {coupon.archived_at ? <p className="mt-2 text-xs leading-5 text-muted">{formatVietnamDateTime(coupon.archived_at)}<br />{coupon.archive_reason}</p> : null}
+                  </td>
+                  <td><p className="font-semibold">{coupon.discount_type === "percentage" ? `${coupon.discount_value}%` : formatVnd(coupon.discount_value)}</p><p className="mt-1 text-xs text-muted">Đơn từ {formatVnd(coupon.minimum_subtotal_vnd)}</p></td>
+                  <td className="text-xs leading-5 text-muted">{formatVietnamDateTime(coupon.starts_at)}<br />đến {formatVietnamDateTime(coupon.ends_at)}</td>
+                  <td><p className="font-semibold">{coupon.used_count}{coupon.total_usage_limit ? ` / ${coupon.total_usage_limit}` : ""}</p><p className="mt-1 text-xs text-muted">Mỗi khách: {coupon.per_customer_usage_limit ?? "Không giới hạn"}</p></td>
+                  <td className="text-right">
+                    {archived ? (
+                      <span className="text-xs text-muted">Giữ lịch sử sử dụng</span>
+                    ) : (
+                      <div className="flex justify-end gap-2">
+                        <button className={coupon.is_active ? "button-secondary px-4 text-danger" : "button-secondary px-4 text-success"} disabled={busy} onClick={() => void toggle(coupon)} type="button">{coupon.is_active ? "Tắt" : "Bật"}</button>
+                        <button className="button-secondary px-4 text-danger" disabled={busy} onClick={() => { setArchiveError(null); setArchiveReason(""); setArchivingCoupon(coupon); }} type="button"><Icon name="trash" size={16} />Xóa</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {coupons.length === 0 ? <div className="p-10 text-center"><Icon className="mx-auto text-moss" name="ticket" size={24} /><p className="mt-3 text-muted">Chưa có coupon.</p></div> : null}
