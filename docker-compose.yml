@@ -135,7 +135,7 @@ services:
       mysql-ecommerce:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=5).close()"]
       interval: 10s
       timeout: 5s
       retries: 20

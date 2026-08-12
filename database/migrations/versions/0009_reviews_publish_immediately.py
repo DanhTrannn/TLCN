@@ -26,17 +26,25 @@ _POST_PUBLICATION_MODERATION = (
 )
 
 
+def _drop_review_check_constraint(logical_name: str) -> None:
+    """Drop either the legacy double-prefixed name or the normalized name."""
+    existing_names = {
+        constraint["name"]
+        for constraint in sa.inspect(op.get_bind()).get_check_constraints("product_reviews")
+    }
+    candidates = (
+        f"ck_product_reviews_{logical_name}",
+        f"ck_product_reviews_ck_product_reviews_{logical_name}",
+    )
+    for constraint_name in candidates:
+        if constraint_name in existing_names:
+            op.drop_constraint(op.f(constraint_name), "product_reviews", type_="check")
+            return
+
+
 def upgrade() -> None:
-    op.drop_constraint(
-        op.f("ck_product_reviews_moderation_consistency"),
-        "product_reviews",
-        type_="check",
-    )
-    op.drop_constraint(
-        op.f("ck_product_reviews_status"),
-        "product_reviews",
-        type_="check",
-    )
+    _drop_review_check_constraint("moderation_consistency")
+    _drop_review_check_constraint("status")
     op.execute(
         sa.text(
             "UPDATE product_reviews SET status = 'approved', updated_at = CURRENT_TIMESTAMP(6) "
@@ -77,16 +85,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        op.f("ck_product_reviews_moderation_consistency"),
-        "product_reviews",
-        type_="check",
-    )
-    op.drop_constraint(
-        op.f("ck_product_reviews_status"),
-        "product_reviews",
-        type_="check",
-    )
+    _drop_review_check_constraint("moderation_consistency")
+    _drop_review_check_constraint("status")
     op.execute(
         sa.text(
             "UPDATE product_reviews SET status = 'pending', updated_at = CURRENT_TIMESTAMP(6) "
