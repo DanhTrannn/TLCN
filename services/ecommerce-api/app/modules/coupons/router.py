@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import not_found
 from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
 from app.models.customer import Customer
+from app.modules.admin.schemas import ArchiveRequest
 from app.modules.coupons.schemas import (
     AvailableCouponListResponse,
     CouponResponse,
@@ -14,6 +15,7 @@ from app.modules.coupons.schemas import (
 )
 from app.modules.cart.service import get_cart
 from app.modules.coupons.service import (
+    archive_coupon,
     create_coupon,
     list_available_coupons,
     list_coupons,
@@ -66,4 +68,19 @@ def patch_coupon(
     except ValueError as error:
         raise not_found("Không tìm thấy coupon.") from error
     set_coupon_active(parsed_id, payload.is_active)
+    return Response(status_code=204)
+
+
+@admin_router.delete("/{public_id}", status_code=204)
+def delete_coupon(
+    public_id: str,
+    payload: ArchiveRequest,
+    admin: Customer = Depends(get_current_admin),
+    _: None = Depends(verify_csrf),
+) -> Response:
+    try:
+        parsed_id = UUID(public_id)
+    except ValueError as error:
+        raise not_found("Không tìm thấy coupon.") from error
+    archive_coupon(admin.customer_id, parsed_id, payload.reason)
     return Response(status_code=204)

@@ -37,7 +37,15 @@ class AdminProductResponse(BaseModel):
     description: str | None
     image_url: str | None
     is_active: bool
+    archived_at: datetime | None
+    archive_reason: str | None
     variants: list[AdminVariantResponse]
+
+
+class ArchiveRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    reason: str = Field(min_length=3, max_length=500)
 
 
 class CreateVariantRequest(BaseModel):

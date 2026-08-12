@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from starlette.requests import Request
 
-from app.core.access_logging import build_access_event, normalize_search_query
+from app.core.access_logging import action_for, build_access_event, normalize_search_query
 from app.core.logging_config import JsonLineFormatter
 
 
@@ -145,3 +145,14 @@ def test_formatter_emits_access_event_without_wrapper() -> None:
     payload = json.loads(JsonLineFormatter("ecommerce-api", "0.1.0").format(record))
 
     assert payload == access_event
+
+
+def test_archive_routes_have_distinct_bounded_actions() -> None:
+    assert (
+        action_for("DELETE", "/api/v1/admin/products/{public_id}")
+        == "admin_product_archive"
+    )
+    assert (
+        action_for("DELETE", "/api/v1/admin/coupons/{public_id}")
+        == "admin_coupon_archive"
+    )

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import (
     COUPON_INVALID,
     COUPON_USAGE_LIMIT,
+    INVALID_STATE_TRANSITION,
     VALIDATION_ERROR,
     AppError,
     not_found,
@@ -182,6 +184,8 @@ def _coupon_response(coupon: Coupon) -> CouponResponse:
         starts_at=coupon.starts_at,
         ends_at=coupon.ends_at,
         is_active=coupon.is_active,
+        archived_at=coupon.archived_at,
+        archive_reason=coupon.archive_reason,
         total_usage_limit=coupon.total_usage_limit,
         per_customer_usage_limit=coupon.per_customer_usage_limit,
         used_count=coupon.used_count,
@@ -233,15 +237,41 @@ def create_coupon(payload: CreateCouponRequest) -> CouponResponse:
         ) from error
 
 
-def set_coupon_active(public_id, is_active: bool) -> None:
+def set_coupon_active(public_id: UUID, is_active: bool) -> None:
     def _work(db: Session) -> None:
         coupon = db.execute(
             select(Coupon).where(Coupon.public_id == public_id).with_for_update()
         ).scalar_one_or_none()
         if coupon is None:
             raise not_found("Không tìm thấy coupon.")
+        if is_active and coupon.archived_at is not None:
+            raise AppError(
+                INVALID_STATE_TRANSITION,
+                "Coupon đã lưu trữ không thể bật lại.",
+                status_code=409,
+            )
         coupon.is_active = is_active
         coupon.updated_at = datetime.now(UTC).replace(tzinfo=None)
+        db.flush()
+
+    run_in_transaction(_work)
+
+
+def archive_coupon(admin_customer_id: int, public_id: UUID, reason: str) -> None:
+    def _work(db: Session) -> None:
+        coupon = db.execute(
+            select(Coupon).where(Coupon.public_id == public_id).with_for_update()
+        ).scalar_one_or_none()
+        if coupon is None:
+            raise not_found("Không tìm thấy coupon.")
+        if coupon.archived_at is not None:
+            return
+        now = datetime.now(UTC).replace(tzinfo=None)
+        coupon.is_active = False
+        coupon.archived_at = now
+        coupon.archived_by_customer_id = admin_customer_id
+        coupon.archive_reason = reason
+        coupon.updated_at = now
         db.flush()
 
     run_in_transaction(_work)

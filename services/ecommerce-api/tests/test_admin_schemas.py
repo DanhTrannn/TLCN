@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.admin.schemas import (
+    ArchiveRequest,
     CreateProductRequest,
     UpdateProductRequest,
     UpdateVariantRequest,
@@ -34,3 +35,10 @@ def test_variant_patch_requires_a_change() -> None:
 def test_variant_patch_rejects_unknown_inventory_mutation() -> None:
     with pytest.raises(ValidationError):
         UpdateVariantRequest(restock_quantity=10)
+
+
+def test_archive_requires_a_meaningful_reason() -> None:
+    with pytest.raises(ValidationError):
+        ArchiveRequest(reason="  x  ")
+
+    assert ArchiveRequest(reason="  ngừng kinh doanh  ").reason == "ngừng kinh doanh"

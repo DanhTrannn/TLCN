@@ -69,6 +69,7 @@ _ACTIONS: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/admin/products"): "admin_product_list",
     ("POST", "/api/v1/admin/products"): "admin_product_create",
     ("PATCH", "/api/v1/admin/products/{public_id}"): "admin_product_update",
+    ("DELETE", "/api/v1/admin/products/{public_id}"): "admin_product_archive",
     ("PATCH", "/api/v1/admin/variants/{public_id}"): "admin_variant_update",
     ("GET", "/api/v1/admin/orders"): "admin_order_list",
     ("GET", "/api/v1/admin/orders/{order_number}"): "admin_order_detail",
@@ -81,6 +82,7 @@ _ACTIONS: dict[tuple[str, str], str] = {
     ("GET", "/api/v1/admin/coupons"): "admin_coupon_list",
     ("POST", "/api/v1/admin/coupons"): "admin_coupon_create",
     ("PATCH", "/api/v1/admin/coupons/{public_id}"): "admin_coupon_update",
+    ("DELETE", "/api/v1/admin/coupons/{public_id}"): "admin_coupon_archive",
 }
 
 

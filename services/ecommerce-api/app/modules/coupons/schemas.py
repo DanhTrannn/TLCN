@@ -49,6 +49,8 @@ class CouponResponse(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_active: bool
+    archived_at: datetime | None
+    archive_reason: str | None
     total_usage_limit: int | None
     per_customer_usage_limit: int | None
     used_count: int

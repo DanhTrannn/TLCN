@@ -5,7 +5,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, VALIDATION_ERROR, not_found
+from app.core.errors import AppError, INVALID_STATE_TRANSITION, VALIDATION_ERROR, not_found
 from app.core.ids import uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Category, Product, ProductVariant
@@ -42,13 +42,22 @@ def get_overview(db: Session) -> AdminOverviewResponse:
     active_variants = db.scalar(
         select(func.count())
         .select_from(ProductVariant)
-        .where(ProductVariant.is_active.is_(True))
+        .join(Product, Product.product_id == ProductVariant.product_id)
+        .where(
+            ProductVariant.is_active.is_(True),
+            Product.is_active.is_(True),
+        )
     ) or 0
     low_stock_variants = db.scalar(
         select(func.count())
         .select_from(Inventory)
         .join(ProductVariant, ProductVariant.variant_id == Inventory.variant_id)
-        .where(ProductVariant.is_active.is_(True), Inventory.on_hand <= 5)
+        .join(Product, Product.product_id == ProductVariant.product_id)
+        .where(
+            ProductVariant.is_active.is_(True),
+            Product.is_active.is_(True),
+            Inventory.on_hand <= 5,
+        )
     ) or 0
     customers = db.scalar(
         select(func.count()).select_from(Customer).where(Customer.role == "customer")
@@ -156,6 +165,8 @@ def list_products(db: Session, search: str | None = None) -> list[AdminProductRe
             description=product.description,
             image_url=product.image_url,
             is_active=product.is_active,
+            archived_at=product.archived_at,
+            archive_reason=product.archive_reason,
             variants=variants_by_product[product.product_id],
         )
         for product, category_code in product_rows
@@ -245,8 +256,36 @@ def update_product(public_id: str, payload: UpdateProductRequest) -> None:
         if "image_url" in fields:
             product.image_url = str(payload.image_url) if payload.image_url else None
         if "is_active" in fields:
+            if payload.is_active and product.archived_at is not None:
+                raise AppError(
+                    INVALID_STATE_TRANSITION,
+                    "Sản phẩm đã lưu trữ không thể bật lại.",
+                    status_code=409,
+                )
             product.is_active = payload.is_active
         product.updated_at = datetime.now(UTC)
+        db.flush()
+
+    run_in_transaction(_work)
+
+
+def archive_product(admin_customer_id: int, public_id: str, reason: str) -> None:
+    parsed_id = _parse_public_id(public_id, "sản phẩm")
+
+    def _work(db: Session) -> None:
+        product = db.execute(
+            select(Product).where(Product.public_id == parsed_id).with_for_update()
+        ).scalar_one_or_none()
+        if product is None:
+            raise not_found("Không tìm thấy sản phẩm.")
+        if product.archived_at is not None:
+            return
+        now = datetime.now(UTC).replace(tzinfo=None)
+        product.is_active = False
+        product.archived_at = now
+        product.archived_by_customer_id = admin_customer_id
+        product.archive_reason = reason
+        product.updated_at = now
         db.flush()
 
     run_in_transaction(_work)

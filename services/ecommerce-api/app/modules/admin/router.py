@@ -9,12 +9,14 @@ from app.modules.admin.schemas import (
     AdminOrderResponse,
     AdminOverviewResponse,
     AdminProductResponse,
+    ArchiveRequest,
     CreateProductRequest,
     UpdateCustomerRequest,
     UpdateProductRequest,
     UpdateVariantRequest,
 )
 from app.modules.admin.service import (
+    archive_product,
     create_product,
     get_admin_order_detail,
     get_overview,
@@ -80,6 +82,17 @@ def patch_product(
     __: None = Depends(verify_csrf),
 ) -> Response:
     update_product(public_id, payload)
+    return Response(status_code=204)
+
+
+@router.delete("/products/{public_id}", status_code=204)
+def delete_product(
+    public_id: str,
+    payload: ArchiveRequest,
+    admin: Customer = Depends(get_current_admin),
+    _: None = Depends(verify_csrf),
+) -> Response:
+    archive_product(admin.customer_id, public_id, payload.reason)
     return Response(status_code=204)
 
 
