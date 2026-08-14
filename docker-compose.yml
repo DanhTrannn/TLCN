@@ -17,6 +17,7 @@ x-airflow-common: &airflow-common
     PIPELINE_ENV: ${PIPELINE_ENV:-local}
     PIPELINE_RUN_DIRECTORY: /data/pipeline-runs
     PIPELINE_CONFIG_PATH: /opt/project/pipelines/batch/config/default.yml
+    PYTHONPATH: /opt/project/pipelines/src
     MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}:${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
     MINIO_ENDPOINT: http://minio:9000
     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
@@ -29,6 +30,7 @@ x-airflow-common: &airflow-common
     TRINO_URL: http://trino:8080
   volumes:
     - ./airflow/dags:/opt/airflow/dags:ro
+    - ./pipelines:/opt/project/pipelines:ro
     - airflow-logs:/opt/airflow/logs
     - pipeline-run-data:/data/pipeline-runs
     - polaris-client-credentials:/run/polaris:ro
