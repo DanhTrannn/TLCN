@@ -1,0 +1,92 @@
+run:
+  data_interval_minutes: 15
+  retries: 2
+  quarantine_max_rows: 100000
+
+landing:
+  oltp_prefix: landing/oltp
+  log_prefix: landing/logs
+  manifest_version: "1.0.0"
+
+tables:
+  - name: customers
+    cursor_field: updated_at
+    pk: customer_id
+    mutability: mutable
+    silver_table: silver_customers
+    pseudonymize: [email_normalized, phone, full_name]
+  - name: categories
+    cursor_field: updated_at
+    pk: category_id
+    mutability: mutable
+    silver_table: silver_categories
+  - name: products
+    cursor_field: updated_at
+    pk: product_id
+    mutability: mutable
+    silver_table: silver_products
+  - name: product_variants
+    cursor_field: updated_at
+    pk: variant_id
+    mutability: mutable
+    silver_table: silver_product_variants
+  - name: carts
+    cursor_field: updated_at
+    pk: cart_id
+    mutability: mutable
+    silver_table: silver_carts
+  - name: cart_items
+    cursor_field: updated_at
+    pk: cart_item_id
+    mutability: mutable
+    silver_table: silver_cart_items
+  - name: wishlist_items
+    cursor_field: updated_at
+    pk: wishlist_item_id
+    mutability: mutable
+    silver_table: silver_wishlist_items
+  - name: orders
+    cursor_field: updated_at
+    pk: order_id
+    mutability: mutable
+    silver_table: silver_orders
+  - name: order_items
+    cursor_field: created_at
+    pk: order_item_id
+    mutability: append_only
+    silver_table: silver_order_items
+  - name: payments
+    cursor_field: created_at
+    pk: payment_id
+    mutability: append_only
+    silver_table: silver_payments
+  - name: order_status_history
+    cursor_field: created_at
+    pk: order_status_history_id
+    mutability: append_only
+    silver_table: silver_order_status_history
+  - name: inventory
+    cursor_field: updated_at
+    pk: variant_id
+    mutability: mutable
+    silver_table: silver_inventory
+  - name: coupons
+    cursor_field: updated_at
+    pk: coupon_id
+    mutability: mutable
+    silver_table: silver_coupons
+  - name: coupon_redemptions
+    cursor_field: updated_at
+    pk: coupon_redemption_id
+    mutability: mutable
+    silver_table: silver_coupon_redemptions
+  - name: refunds
+    cursor_field: created_at
+    pk: refund_id
+    mutability: append_only
+    silver_table: silver_refunds
+  - name: product_reviews
+    cursor_field: updated_at
+    pk: review_id
+    mutability: mutable
+    silver_table: silver_product_reviews

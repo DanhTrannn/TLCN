@@ -11,4 +11,5 @@ package = false
 members = [
   "services/ecommerce-api",
   "generator",
+  "pipelines",
 ]
