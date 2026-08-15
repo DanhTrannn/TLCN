@@ -38,6 +38,7 @@ USER airflow
 RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000,gid=0 \
     uv export --frozen --no-dev \
         --no-emit-project --no-emit-workspace --no-hashes \
+        --package batch-pipeline \
         --output-file /tmp/airflow-requirements.txt \
     && uv pip install --requirement /tmp/airflow-requirements.txt \
     && rm /tmp/airflow-requirements.txt \
