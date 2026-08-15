@@ -11,6 +11,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock .python-version ./
 COPY services/ecommerce-api/pyproject.toml services/ecommerce-api/pyproject.toml
 COPY generator/pyproject.toml generator/pyproject.toml
+COPY pipelines/pyproject.toml pipelines/pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace --package ecommerce-api
 COPY services/ecommerce-api/app services/ecommerce-api/app

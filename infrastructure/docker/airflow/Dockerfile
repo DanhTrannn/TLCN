@@ -33,6 +33,7 @@ WORKDIR /opt/project
 COPY --chown=airflow:root pyproject.toml uv.lock .python-version ./
 COPY --chown=airflow:root services/ecommerce-api/pyproject.toml services/ecommerce-api/pyproject.toml
 COPY --chown=airflow:root generator/pyproject.toml generator/pyproject.toml
+COPY --chown=airflow:root pipelines/pyproject.toml pipelines/pyproject.toml
 USER airflow
 RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000,gid=0 \
     uv export --frozen --no-dev \
