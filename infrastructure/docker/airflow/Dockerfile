@@ -2,6 +2,8 @@
 FROM curlimages/curl:8.17.0 AS pipeline-jars
 ARG ICEBERG_VERSION=1.10.1
 ARG MYSQL_CONNECTOR_VERSION=8.4.0
+ARG HADOOP_AWS_VERSION=3.3.4
+ARG AWS_SDK_BUNDLE_VERSION=1.12.262
 ARG MAVEN_MIRROR=https://repo1.maven.org/maven2
 RUN mkdir -p /tmp/jars \
     && curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
@@ -15,7 +17,15 @@ RUN mkdir -p /tmp/jars \
     && curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
       -C - --connect-timeout 30 \
       "${MAVEN_MIRROR}/com/mysql/mysql-connector-j/${MYSQL_CONNECTOR_VERSION}/mysql-connector-j-${MYSQL_CONNECTOR_VERSION}.jar" \
-      --output /tmp/jars/mysql-connector-j.jar
+      --output /tmp/jars/mysql-connector-j.jar \
+    && curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+      -C - --connect-timeout 30 \
+      "${MAVEN_MIRROR}/org/apache/hadoop/hadoop-aws/${HADOOP_AWS_VERSION}/hadoop-aws-${HADOOP_AWS_VERSION}.jar" \
+      --output /tmp/jars/hadoop-aws.jar \
+    && curl --fail --location --retry 5 --retry-all-errors --retry-delay 5 \
+      -C - --connect-timeout 30 \
+      "${MAVEN_MIRROR}/com/amazonaws/aws-java-sdk-bundle/${AWS_SDK_BUNDLE_VERSION}/aws-java-sdk-bundle-${AWS_SDK_BUNDLE_VERSION}.jar" \
+      --output /tmp/jars/aws-java-sdk-bundle.jar
 
 FROM apache/airflow:2.10.5-python3.11
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /uvx /bin/
