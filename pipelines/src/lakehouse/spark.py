@@ -24,6 +24,18 @@ def _polaris_credentials() -> tuple[str, str]:
     return env["POLARIS_SPARK_CLIENT_ID"], env["POLARIS_SPARK_CLIENT_SECRET"]
 
 
+def configure_s3a(builder):
+    return (
+        builder
+        .config("spark.hadoop.fs.s3a.endpoint", os.environ["MINIO_ENDPOINT"])
+        .config("spark.hadoop.fs.s3a.access.key", os.environ["MINIO_ACCESS_KEY"])
+        .config("spark.hadoop.fs.s3a.secret.key", os.environ["MINIO_SECRET_KEY"])
+        .config("spark.hadoop.fs.s3a.path.style.access", "true")
+        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+    )
+
+
 def spark_session(job_name: str):
     client_id, secret = _polaris_credentials()
     builder = SparkSession.builder.appName(job_name) \
@@ -45,7 +57,7 @@ def spark_session(job_name: str):
         .config("spark.sql.catalogImplementation", "in-memory") \
         .config("spark.sql.defaultCatalog", os.environ["POLARIS_CATALOG_NAME"]) \
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    return builder.getOrCreate()
+    return configure_s3a(builder).getOrCreate()
 
 
 def jdbc_url() -> str:
