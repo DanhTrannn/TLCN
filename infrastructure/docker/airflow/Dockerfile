@@ -52,5 +52,5 @@ RUN --mount=type=cache,target=/home/airflow/.cache/uv,uid=50000,gid=0 \
         --output-file /tmp/airflow-requirements.txt \
     && uv pip install --requirement /tmp/airflow-requirements.txt \
     && rm /tmp/airflow-requirements.txt \
-    && uv pip install pyspark==3.5.9 pytest==8.4.1 \
+    && uv pip install pyspark==3.5.9 pytest==8.4.1 pandas==2.2.3 \
     && cp /opt/spark/jars/*.jar "$(python -c 'import pyspark, os; print(os.path.join(os.path.dirname(pyspark.__file__), "jars"))')/"
