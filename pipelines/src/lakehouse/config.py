@@ -46,6 +46,7 @@ class RunSpec:
     data_interval_minutes: int
     retries: int
     quarantine_max_rows: int
+    max_parallel_tables: int
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,15 @@ class Config:
             if table.name == name:
                 return table
         return None
+
+    @property
+    def bucket(self) -> str:
+        return os.environ["MINIO_LAKEHOUSE_BUCKET"]
+
+    @property
+    def jdbc_url(self) -> str:
+        from lakehouse.spark import jdbc_url
+        return jdbc_url()
 
 
 def config_path() -> Path:

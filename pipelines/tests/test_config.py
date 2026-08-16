@@ -85,6 +85,7 @@ run:
   data_interval_minutes: 15
   retries: 2
   quarantine_max_rows: 100000
+  max_parallel_tables: 4
 landing:
   oltp_prefix: landing/oltp
   log_prefix: landing/logs
