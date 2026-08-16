@@ -441,7 +441,11 @@ services:
         --firstname Web
         --lastname Admin
         --role Admin
-        --email admin@example.local || true)
+        --email admin@example.local || true) &&
+        (airflow connections delete spark_default || true) &&
+        airflow connections add spark_default
+        --conn-host spark://spark-master:7077
+        --conn-type spark
     environment:
       <<: *airflow-environment
       AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-airflow}
