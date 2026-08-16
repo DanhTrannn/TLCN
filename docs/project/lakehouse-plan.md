@@ -275,6 +275,8 @@ s3://web-lakehouse/
 │   ├── quarantine/
 │   └── system/
 ├── checkpoints/
+├── state/
+│   └── cursor/<table>.json
 └── artifacts/ml/repurchase/
 ```
 
@@ -285,6 +287,9 @@ Nguyên tắc:
 - không partition theo UUID, customer ID, product ID hoặc request ID;
 - mọi path dùng UTC date/hour;
 - timezone nghiệp vụ `Asia/Ho_Chi_Minh` chỉ dùng khi trình bày và tính business calendar.
+
+`state/cursor/` nằm trong cùng bucket `web-lakehouse` (không tạo bucket riêng cho
+state); cursor chỉ được ghi sau khi downstream publication thành công (Section 5).
 
 ---
 
@@ -405,15 +410,17 @@ Gold publication chỉ thành công khi:
 
 ```text
 check_mysql
+→ begin_run
 → capture_high_watermarks
 → extract_tables_to_landing
 → validate_landing_manifests
-→ append_bronze_oltp
-→ validate_bronze_oltp
-→ build_silver_oltp
-→ run_silver_oltp_dq
-→ publish_oltp_interval
+→ ... (Bronze/Silver/Gold — Section 4)
 ```
+
+Phần đã triển khai dừng ở `validate_landing_manifests`: 5 task đầu dùng PythonOperator
+(check MySQL, sinh run_id/extract_date, chụp high watermark, validate manifest) và
+SparkSubmitOperator (extract 16 bảng thành Parquet bất biến trên Landing). Các task
+`append_bronze_oltp → ... → publish_oltp_interval` sẽ được bổ sung ở Section 4.
 
 ### 7.2. `ingest_access_logs`
 
