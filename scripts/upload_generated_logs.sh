@@ -16,10 +16,6 @@ if ! find "${landing_logs}" -type f -name '*.jsonl.gz' -print -quit | grep -q .;
   echo "No closed .jsonl.gz files found below: ${landing_logs}" >&2
   exit 2
 fi
-if ! find "${landing_logs}" -type f -name '*.manifest.json' -print -quit | grep -q .; then
-  echo "No manifest files found below: ${landing_logs}" >&2
-  exit 2
-fi
 
 landing_logs_absolute="$(realpath "${landing_logs}")"
 echo "Uploading closed generated logs from ${landing_logs_absolute}..."

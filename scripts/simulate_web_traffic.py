@@ -22,8 +22,11 @@ from pathlib import Path
 
 import httpx
 from faker import Faker
+from generator.config import load_config
+from generator.log_export import _active_customer_indices
+from generator.sql_export import DEMO_PASSWORD
 
-PASSWORD = "SimPass!123"
+PASSWORD = DEMO_PASSWORD
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
@@ -55,46 +58,44 @@ class SimUser:
     email: str
     display_name: str
 
-    def to_row(self) -> str:
-        return f"{self.email}\t{self.display_name}"
-
 
 class UserPool:
-    """Persistent pool of simulated customers stored in scripts/.sim_users.tsv."""
+    """Pool of simulated customers matching existing MySQL database records."""
 
-    def __init__(self, path: Path, base_url: str) -> None:
-        self.path = path
+    def __init__(self, base_url: str, config_path: Path | None = None) -> None:
         self.base_url = base_url
         self._lock = threading.Lock()
         self.users: list[SimUser] = []
-        self.load()
+        if config_path and config_path.exists():
+            self._load_from_config(config_path)
 
-    def load(self) -> None:
-        if not self.path.exists():
-            return
-        for line in self.path.read_text().splitlines():
-            parts = line.split("\t")
-            if len(parts) >= 2:
-                self.users.append(SimUser(parts[0], parts[1]))
+    def _load_from_config(self, config_path: Path) -> None:
+        config = load_config(config_path)
+        active_indices = _active_customer_indices(config)
+        logical_prefix = config.logical_identity[:8]
+        demo_email = f"demo.{logical_prefix}@web.local"
+        self.users.append(SimUser(email=demo_email, display_name="Khách hàng mẫu"))
+        for idx in active_indices:
+            if idx == 0:
+                continue
+            email = f"customer.{idx + 1:04d}.{logical_prefix}@web.local"
+            self.users.append(SimUser(email=email, display_name=f"Khách hàng {idx + 1}"))
 
-    def save(self) -> None:
-        with self._lock:
-            self.path.write_text("\n".join(u.to_row() for u in self.users) + "\n")
-
-    def seed(self, count: int, fake: Faker, client: httpx.Client) -> None:
+    def seed_in_memory(self, count: int, fake: Faker, client: httpx.Client) -> None:
+        """Fallback in-memory registration if no config is available."""
         for _ in range(count):
             email = fake.unique.email()
-            data = {"email": email, "password": PASSWORD, "display_name": fake.name()}
+            display_name = fake.name()
+            data = {"email": email, "password": PASSWORD, "display_name": display_name}
             response = client.post(f"{self.base_url}/api/v1/auth/register", json=data)
             if response.status_code in (200, 201):
                 with self._lock:
-                    self.users.append(SimUser(email, data["display_name"]))
-                self.save()
+                    self.users.append(SimUser(email, display_name))
         fake.unique.clear()
 
     def pick(self) -> SimUser:
         if not self.users:
-            raise RuntimeError("User pool is empty; seeding failed")
+            raise RuntimeError("User pool is empty")
         return random.choice(self.users)
 
 
@@ -460,14 +461,34 @@ class Simulator:
         print(self.stats.summary())
 
 
+def _detect_config() -> Path | None:
+    """Auto-detect active generator config based on most recently modified SQL file or config directory."""
+    data_dir = Path("data/generator")
+    if data_dir.exists():
+        sql_files = sorted(data_dir.glob("*.sql"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for sql_file in sql_files:
+            candidate = Path("generator/configs") / f"{sql_file.stem}.yml"
+            if candidate.exists():
+                return candidate
+    for candidate_name in ("small.yml", "medium.yml", "large-local.yml"):
+        candidate = Path("generator/configs") / candidate_name
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Simulate natural real-time web traffic against the ecommerce API.")
     parser.add_argument("--base-url", default="http://localhost:8000", help="FastAPI base URL")
     parser.add_argument("--duration", type=int, default=300, help="Total run duration in seconds (default: 300)")
     parser.add_argument("--concurrency", type=int, default=5, help="Number of concurrent virtual users (default: 5)")
-    parser.add_argument("--seed-users", type=int, default=20, help="Initial user pool size (default: 20)")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to generator config (e.g. generator/configs/medium.yml, small.yml). Auto-detected if not given.",
+    )
     parser.add_argument("--error-rate", type=float, default=0.05, help="Rate of natural user errors (default: 0.05)")
-    parser.add_argument("--pool-file", type=Path, default=Path(__file__).parent / ".sim_users.tsv", help="Path to user pool cache")
     parser.add_argument("--internal-secret", default="change-me-internal-secret", help="X-Internal-Secret for order fulfillment")
     return parser.parse_args()
 
@@ -479,12 +500,13 @@ def main() -> None:
 
     client = httpx.Client(timeout=15.0)
     try:
-        pool = UserPool(args.pool_file, args.base_url)
-        if len(pool.users) < args.seed_users:
-            print(f"==> Initializing user pool with {args.seed_users - len(pool.users)} virtual users...")
-            pool.seed(args.seed_users - len(pool.users), simulator.fake, client)
+        config_path = args.config or _detect_config()
+        pool = UserPool(args.base_url, config_path=config_path if config_path and config_path.exists() else None)
         if not pool.users:
-            raise RuntimeError("No users in pool; seeding failed")
+            print("==> No generator config found, initializing 20 in-memory test users...")
+            pool.seed_in_memory(20, simulator.fake, client)
+        else:
+            print(f"==> Using config '{config_path}' with {len(pool.users)} customers in virtual user pool.")
         simulator.run(pool)
     finally:
         client.close()

@@ -868,16 +868,20 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         )
     )
 
+    password_hash = _deterministic_password_hash(config.logical_identity)
     credential_rows: list[Sequence[SqlValue]] = [
         (
-            customer_ids[0],
-            demo_email,
-            _deterministic_password_hash(config.logical_identity),
+            customer_ids[customer_index],
+            demo_email
+            if customer_index == 0
+            else f"customer.{customer_index + 1:04d}.{config.logical_identity[:8]}@web.local",
+            password_hash,
             True,
             history_start,
             history_start,
             history_start,
         )
+        for customer_index in active_customer_indices
     ]
 
     root_category = CategoryRecord(category_base + 1, f"syn-{config.logical_identity[:8]}", "Thời trang tổng hợp")

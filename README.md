@@ -1,283 +1,233 @@
-# TLCN E-commerce Data Platform
+<!-- prettier-ignore -->
+<div align="center">
 
-Monorepo cho đề tài **Data Lakehouse xử lý theo lô từ MySQL OLTP và structured web access log, phục vụ BI và dự đoán khả năng khách hàng mua lại**. Website **D&K** đóng vai trò hệ thống nguồn, tạo dữ liệu có kiểm soát cho phần Data Engineering, BI và ML.
+# D&K E-Commerce Data Platform
 
-## Phạm vi
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Node.js](https://img.shields.io/badge/Node.js->=22-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://mysql.com)
+[![Apache Spark](https://img.shields.io/badge/Apache_Spark-3.5.9-E25A1C?style=flat-square&logo=apachespark&logoColor=white)](https://spark.apache.org)
+[![Apache Iceberg](https://img.shields.io/badge/Apache_Iceberg-1.10.1-blue?style=flat-square&logo=apache&logoColor=white)](https://iceberg.apache.org)
+[![Apache Polaris](https://img.shields.io/badge/Apache_Polaris-1.6.0-teal?style=flat-square&logo=apache&logoColor=white)](https://polaris.apache.org)
+[![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-2.10.5-017CEE?style=flat-square&logo=apacheairflow&logoColor=white)](https://airflow.apache.org)
+[![Trino](https://img.shields.io/badge/Trino-483-DD00A1?style=flat-square&logo=trino&logoColor=white)](https://trino.io)
+[![Apache Superset](https://img.shields.io/badge/Apache_Superset-4.1.2-0CA144?style=flat-square&logo=apache&logoColor=white)](https://superset.apache.org)
 
-Nguồn dữ liệu chính thức của TLCN gồm 16 bảng MySQL OLTP và structured web access log được rotate/nén theo micro-batch. Clickstream frontend/mobile, analytics session, Kafka và streaming nằm ngoài giai đoạn này.
+:star: If you find this project useful, consider giving it a star!
 
-Hệ thống nguồn đã hỗ trợ:
+[Overview](#overview) • [Features](#features) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Testing](#testing-and-verification) • [Documentation](#documentation-index)
 
-- đăng ký, đăng nhập và phân quyền customer/admin;
-- catalog theo product/variant, search, filter và sort;
-- wishlist và anonymous/customer cart;
-- checkout có kiểm tra tồn kho, coupon và ghi order/payment atomically;
-- lifecycle `paid → confirmed → completed`, hủy order `paid`, full refund và hoàn tồn kho;
-- review verified-purchase hiển thị ngay và admin hậu kiểm ẩn/khôi phục, cùng
-  wishlist/search/filter;
-- admin có dashboard vận hành riêng; quản lý/search catalog, inventory, coupon, review, customer và order;
-- structured access log ở biên FastAPI, Fluent Bit buffer/đóng gzip 15 phút vào MinIO;
-- seed catalog và generator xuất SQL cùng access log deterministic.
+</div>
 
-Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope.md`](docs/project/scope.md); kiến trúc Lakehouse mục tiêu nằm tại [`docs/project/lakehouse-plan.md`](docs/project/lakehouse-plan.md).
+The **D&K E-Commerce Data Platform** is a batch data lakehouse monorepo. It extracts transactional records from MySQL 8.4 and ingests structured web access logs from an e-commerce FastAPI backend. The platform cleans, normalizes, and models this data across Medallion layers (Bronze, Silver, Gold) using Apache Iceberg, Apache Spark, and Apache Polaris catalog. The output serves analytical queries via Trino, business intelligence dashboards in Apache Superset, and feature engineering pipelines for customer repurchase prediction.
 
-## Trạng thái triển khai
+> [!NOTE]
+> The system batches access logs in 15-minute intervals and runs scheduled batch ETL jobs for OLTP data. It does not provide sub-minute streaming latency or Kafka/Flink event streaming.
 
-| Khối | Trạng thái | Vai trò |
-|---|---|---|
-| Storefront, API, MySQL | Hoạt động | Tạo và quản lý dữ liệu OLTP |
-| SQL data generator | Hoạt động | Sinh dữ liệu lịch sử có thể tái lập |
-| Access-log source | Hoạt động | FastAPI JSON contract, Fluent Bit → MinIO và synthetic log generator |
-| Catalog/storage | Hoạt động | MinIO, Polaris 1.6.0, PostgreSQL 16.8 metadata và Polaris Console |
-| Compute/query | Hoạt động | Spark 3.5.9 + Iceberg 1.10.1, Trino reader/admin và smoke test end-to-end |
-| Pipeline/BI/ML assets | Đang phát triển | DAG, transformation, dashboard và model |
+## Overview
 
-Không chạy truy vấn phân tích nặng trên primary OLTP. Phân tích được thực hiện trên tầng Lakehouse (Iceberg/Trino/Superset).
+Building an analytical environment for an operational e-commerce database can place a high load on production systems. This platform provides a robust data lakehouse pattern to offload analytical queries, track historical access patterns, and train machine learning models without impacting operational performance.
 
-## Kiến trúc
+The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 17 relational tables, a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
 
-```text
-Customer/Admin
-      │
-      ▼
-Next.js Storefront ──HTTP──▶ FastAPI Ecommerce API
-                                   │
-                               short transaction
-                                   │
-                                   ▼
-                               MySQL OLTP ───────┐
-                                                │
-FastAPI stdout ──Fluent Bit──15-minute gzip───┤
-                                                ▼
-                         MinIO Landing → Spark → Iceberg
-                                                │
-                                   Polaris → Trino → Superset
-                                                └──────→ ML
+## Features
 
-Generator (host CLI) ──file .sql──▶ MySQL OLTP
-                     └─JSONL.gz + manifest──▶ Landing/replay
-```
+- **Operational Analytics:** Query historical order, product, inventory, and customer metrics without placing analytical load on the production MySQL database.
+- **Access Log Analysis:** Inspect traffic patterns, latency distributions, error rates, and search keywords aggregated into hourly and daily summary tables.
+- **Repurchase Modeling:** Generate point-in-time training features and 30-day repurchase labels from validated Gold transaction snapshots.
+- **Deterministic Data Generator:** Generate 12 months of realistic Vietnamese e-commerce transactions and matching 30-day access logs using calibrated market distributions.
+- **Idempotent Ingestion:** Multi-threaded Spark extractor with composite cursor tracking `(cursor_field, pk)` and cryptographic manifest validation.
 
-Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md).
+## Quick Start
 
-## Tech stack
+### Prerequisites
 
-| Lớp | Công nghệ |
-|---|---|
-| Web | Next.js 15, React 19, TypeScript, Tailwind CSS |
-| API | FastAPI, SQLAlchemy 2, Alembic, Pydantic |
-| OLTP | MySQL 8.4.5, InnoDB, UTC, VND |
-| Python workspace | Python 3.11, uv (uv workspace: `ecommerce-api`, `data-generator`, `batch-pipeline`) |
-| Metadata DB | PostgreSQL 16.8 (hợp nhất cho Polaris, Airflow, Superset) |
-| Data platform | Airflow 2.10.5, Spark 3.5.9, Iceberg 1.10.1, Polaris 1.6.0, MinIO |
-| Serving/BI | Trino 483, Apache Superset 4.1.2 |
-| Local runtime | Docker Engine, Docker Compose v2 |
+You need the following tools to run this platform locally:
 
-## Cấu trúc repository
+- [Docker Engine](https://docs.docker.com/engine/install/) 24+ and Docker Compose v2.20+
+- [Python 3.11](https://www.python.org/downloads/) with [`uv`](https://docs.astral.sh/uv/) package manager
+- [Node.js](https://nodejs.org/) 22+ (for host storefront development)
 
-```text
-apps/                  Giao diện người dùng và admin (Storefront Next.js)
-services/              Business API (FastAPI) và application services
-database/              Alembic migrations và catalog seed
-generator/             Synthetic OLTP SQL và access-log generator (CLI package)
-pipelines/             Spark batch jobs và lakehouse module (batch-pipeline)
-airflow/               DAG và cấu hình orchestration
-infrastructure/        Docker images, configs (Spark, Trino, Polaris, Superset, Fluent Bit, Postgres)
-docs/                  Scope, architecture, contract, design system và runbook
-scripts/               Lệnh vận hành dùng lại được
-skills/                Nguyên tắc thiết kế tái sử dụng
-tests/                 Test cross-component và test data
-```
+### 1. Start Core Services
 
-Không đặt source code, tài liệu thiết kế hoặc dữ liệu sinh trực tiếp ở thư mục gốc. Root chỉ giữ entrypoint và cấu hình cấp repository.
-
-## Chạy nhanh
-
-### 1. Yêu cầu
-
-- Docker Engine và Docker Compose v2;
-- Git;
-- `uv` 0.11.32 nếu phát triển Python trực tiếp;
-- Node.js 22 nếu phát triển Storefront ngoài Docker.
-
-### 2. Khởi tạo môi trường
+Clone the repository and launch the core operational stack (MySQL, FastAPI Backend, Next.js Storefront, MinIO S3, and Fluent Bit):
 
 ```bash
 cp .env.example .env
 docker compose --profile core up -d --build
 ```
 
-`ecommerce-api` tự chạy Alembic migration, seed catalog và bootstrap tài khoản admin khi khởi động.
-
-Kiểm tra trạng thái:
+Verify service readiness:
 
 ```bash
 docker compose --profile core ps
 curl -fsS http://localhost:8000/health/ready
 ```
 
-### 3. Truy cập
+### 2. Start Data Platform Services
 
-| Thành phần | Địa chỉ |
-|---|---|
-| Storefront | `http://localhost:3000` |
-| Product catalog | `http://localhost:3000/products` |
-| Admin console | `http://localhost:3000/admin` |
-| OpenAPI | `http://localhost:8000/docs` |
-
-Tài khoản admin local:
-
-```text
-Email:    admin@web.local
-Password: Admin@12345
-```
-
-Đây chỉ là credential mặc định cho môi trường local. Hãy thay các secret trong `.env` trước khi deploy ra môi trường khác.
-
-## Sinh và import dữ liệu
-
-Chạy generator trực tiếp trên máy host qua `uv`:
+Launch the Lakehouse processing and query services (Polaris Catalog, Spark Master/Worker, Airflow Scheduler/Webserver, Trino, and Apache Superset):
 
 ```bash
-# 1. Sinh dữ liệu SQL nhỏ
+docker compose --profile batch --profile bi up -d
+```
+
+### 3. Service Access Endpoints
+
+Once the services are running, access the following dashboards and endpoints:
+
+| Service | Port | URL | Default Credentials |
+|---|---|---|---|
+| **Storefront** | 3000 | `http://localhost:3000` | (Public) |
+| **Admin Console** | 3000 | `http://localhost:3000/admin` | `admin@web.local` / `Admin@12345` |
+| **Backend API Docs** | 8000 | `http://localhost:8000/docs` | (Public Swagger UI) |
+| **MinIO S3 Console** | 9001 | `http://localhost:9001` | `minioadmin` / `password` |
+| **Polaris Catalog Console** | 8183 | `http://localhost:8183` | `admin` / `password` (Realm: `POLARIS`) |
+| **Airflow Web UI** | 8080 | `http://localhost:8080` | `airflow` / `password` |
+| **Spark Master UI** | 8082 | `http://localhost:8082` | (Web UI) |
+| **Trino Query Engine** | 8084 | `http://localhost:8084` | `trino` |
+| **Apache Superset** | 8088 | `http://localhost:8088` | `admin` / `password` |
+
+---
+
+## Architecture
+
+The system processes data from two main sources: transactional data from MySQL and structured access logs from FastAPI. It leverages an object storage landing zone and an Apache Spark ETL pipeline to load data into Apache Iceberg tables.
+
+```text
+               Customer / Admin Traffic
+                          │
+                          ▼
+            Next.js Storefront (Port 3000)
+                          │
+                     HTTP / JSON
+                          │
+                          ▼
+             FastAPI API (Port 8000)
+            /                       \
+   Short Transactions          Structured Logs (stdout)
+          /                           \
+         ▼                             ▼
+    MySQL 8.4                     Fluent Bit
+  (16 OLTP tables)            (15m micro-batch gzip)
+         │                             │
+         └──────────────┬──────────────┘
+                        ▼
+               MinIO S3 Landing Zone
+           s3://web-lakehouse/landing/
+                        │
+                  Apache Spark
+           (Medallion ETL Pipeline)
+                        │
+            Apache Iceberg + Polaris
+           (Bronze → Silver → Gold)
+                        │
+                 Trino SQL Engine
+                        │
+            ┌───────────┴───────────┐
+            ▼                       ▼
+     Apache Superset          ML Repurchase
+      (BI Dashboards)           Prediction
+```
+
+### Technology Stack
+
+| Layer | Component | Version | Responsibility |
+|---|---|---|---|
+| **Presentation** | Next.js / React | 15.5 / 19.1 | Customer storefront and store operations console |
+| **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic and structured access logging |
+| **Operational DB** | MySQL | 8.4 LTS | Primary relational database (17 tables, 16 analytical) |
+| **Log Collector** | Fluent Bit | 4.2.3 | Container log tailing, disk buffering, S3 gzip flushing |
+| **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`web-lakehouse` bucket) |
+| **Table Catalog** | Apache Polaris | 1.6.0 | REST catalog managing Iceberg namespaces and RBAC |
+| **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
+| **Orchestration** | Apache Airflow | 2.10.5 | DAG scheduling and job orchestration |
+| **Query Engine** | Trino | 483 | Distributed SQL query engine reading Iceberg tables |
+| **Visualization** | Apache Superset | 4.1.2 | Executive and operational BI dashboards |
+
+---
+
+## Data Generation and Simulation
+
+The repository provides two traffic generation mechanisms: real-time simulation against live services and deterministic historical backfill.
+
+### Real-Time Traffic Simulation
+
+Run concurrent virtual users executing browsing, search, cart, checkout, and review actions against the live API:
+
+```bash
+uv run --package data-generator -- python scripts/simulate_web_traffic.py \
+  --duration 60 \
+  --concurrency 5 \
+  --error-rate 0.05
+```
+
+### Historical Data Backfill
+
+Generate 12 months of deterministic historical OLTP data and 30 days of matching access logs:
+
+```bash
+# 1. Export SQL transaction history
 uv run --locked --package data-generator -- generator export-sql \
   --config generator/configs/small.yml \
   --output data/generator/small.sql
 
-# 2. Import vào MySQL
+# 2. Import into MySQL database
 ./scripts/import_generated_sql.sh data/generator/small.sql
-```
 
-`small.yml` tạo 500 customer, 60 product, 240 variant và 3.000 order trong 12 tháng. Profile có mùa vụ Tết/ngày đôi, peak 0h theo giờ Việt Nam, coupon theo campaign, review, cancellation và wishlist conversion có quan hệ phân tích. File SQL chạy trong một transaction, giữ nguyên FK/CHECK và không được import lặp lại trên cùng database. Chi tiết tại [`generator/README.md`](generator/README.md).
-
-Sinh thêm access log cùng danh tính master và mùa vụ:
-
-```bash
+# 3. Export matching operational access logs
 uv run --locked --package data-generator -- generator export-logs \
   --config generator/configs/small.yml \
   --output-directory data/generator/access-logs \
   --expected-requests 60000
+
+# 4. Upload logs to MinIO S3 Landing Zone
+./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
 
-Contract, cơ chế 15 phút và giới hạn phân tích nằm tại
-[`docs/architecture/access-logs.md`](docs/architecture/access-logs.md).
+---
 
-## Lệnh vận hành
+## Testing and Verification
 
-| Profile | Thành phần |
-|---|---|
-| `core` | MySQL, Ecommerce API, Storefront |
-| `batch` | Fluent Bit, MinIO, PostgreSQL, Polaris, Polaris Console, Spark và Airflow |
-| `bi` | Trino, PostgreSQL và Superset |
-| `lakehouse-tools` | Spark client dùng cho smoke test/SQL ghi qua Polaris |
-
-Xem log core:
+Run the full test suite across all Python workspace packages and the frontend (149 Python tests total):
 
 ```bash
-docker compose --profile core logs -f ecommerce-api storefront mysql
-```
+# Backend API tests (63 tests)
+uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 
-Khởi động Lakehouse/BI sau khi profile `core` đã healthy:
+# Data Generator tests (54 tests)
+uv run --locked --package data-generator --extra dev -- pytest generator/tests
 
-```bash
-docker compose --profile core --profile batch --profile bi up -d --build
+# Batch Pipeline tests (32 tests)
+PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
+
+# Run all Python tests in workspace
+PYTHONPATH=pipelines/src:generator/src:services/ecommerce-api uv run pytest
+
+# Frontend type check and production build
+npm --prefix apps/storefront run typecheck
+npm --prefix apps/storefront run build
+
+# Lakehouse cluster smoke test
 ./scripts/lakehouse_smoke.sh
 ```
 
-Lần build đầu tải image lớn và build Polaris Console trực tiếp từ commit đã pin của `apache/polaris-tools`. Hướng dẫn, URL, RBAC và troubleshooting nằm tại [`docs/runbook/lakehouse-local.md`](docs/runbook/lakehouse-local.md).
+---
 
-Dừng container nhưng giữ volume:
+## Documentation Index
 
-```bash
-docker compose --profile core --profile batch --profile bi down
-```
+Explore the detailed architecture and planning documents:
 
-Xóa toàn bộ volume để dựng lại môi trường sạch:
-
-```bash
-docker compose --profile core --profile batch --profile bi --profile tools --profile lakehouse-tools \
-  down -v --remove-orphans
-```
-
-Lệnh cuối xóa dữ liệu MySQL, Airflow, MinIO và Superset trên máy local.
-
-## Phát triển
-
-### Python với uv
-
-Kiểm tra lockfile:
-
-```bash
-uv lock --check
-```
-
-Chạy test Ecommerce API:
-
-```bash
-uv run --locked --package ecommerce-api --extra dev -- \
-  pytest services/ecommerce-api/tests
-```
-
-Chạy generator trực tiếp:
-
-```bash
-uv run --locked --package data-generator -- \
-  generator --help
-```
-
-### Storefront
-
-```bash
-cd apps/storefront
-npm ci
-npm run dev
-```
-
-API mặc định phải chạy tại `http://localhost:8000`. Hướng dẫn component tại [`apps/storefront/README.md`](apps/storefront/README.md) và [`services/ecommerce-api/README.md`](services/ecommerce-api/README.md).
-
-## Kiểm tra repository
-
-```bash
-docker compose --profile core --profile batch --profile bi --profile tools --profile lakehouse-tools config --quiet
-```
-
-Trước khi tạo commit nên chạy thêm:
-
-```bash
-uv run --locked --package ecommerce-api --extra dev -- \
-  pytest services/ecommerce-api/tests
-
-uv run --locked --package data-generator --extra dev -- \
-  pytest generator/tests
-
-npm --prefix apps/storefront ci --no-audit --no-fund
-npm --prefix apps/storefront run typecheck
-npm --prefix apps/storefront run build
-```
-
-## Continuous Integration
-
-Workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) chạy khi push vào `main`/`master`, khi mở hoặc cập nhật pull request và khi chạy thủ công.
-
-Ba job độc lập:
-
-- `Repository validation`: kiểm tra Docker Compose config;
-- `Python tests`: chạy test Ecommerce API và data generator bằng `uv.lock`;
-- `Storefront checks`: cài bằng `npm ci`, type-check và production build.
-
-Workflow chỉ có quyền `contents: read`, tự hủy run cũ trên cùng ref và dùng cache dependency của `uv`/npm.
-
-## Tài liệu
-
-| Tài liệu | Mục đích |
-|---|---|
-| [`docs/project/scope.md`](docs/project/scope.md) | Nguồn yêu cầu và acceptance ưu tiên cao nhất |
-| [`docs/project/lakehouse-plan.md`](docs/project/lakehouse-plan.md) | Kế hoạch Iceberg, Polaris, Trino, Medallion, DQ và maintenance |
-| [`docs/architecture/oltp-schema.md`](docs/architecture/oltp-schema.md) | Logical schema, invariant, transaction và index |
-| [`docs/project/web-plan.md`](docs/project/web-plan.md) | Kế hoạch triển khai source website |
-| [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md) | Kiến trúc monorepo và dependency boundary |
-| [`docs/runbook/README.md`](docs/runbook/README.md) | Mục lục setup và vận hành |
-| [`docs/runbook/lakehouse-local.md`](docs/runbook/lakehouse-local.md) | Chạy Polaris/Iceberg/Spark/Trino và smoke test |
-| [`skills/oltp-design/SKILL.md`](skills/oltp-design/SKILL.md) | Nguyên tắc thiết kế OLTP tái sử dụng |
-
-Mục lục đầy đủ: [`docs/README.md`](docs/README.md).
+| Topic | Document | Purpose |
+|---|---|---|
+| **System Scope** | [`docs/project/SCOPE.md`](docs/project/SCOPE.md) | Technical requirements, data boundaries, and acceptance criteria |
+| **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
+| **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
+| **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Fluent Bit buffering, S3 layout |
+| **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
+| **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |
+| **Design System** | [`docs/design-system/DESIGN.md`](docs/design-system/DESIGN.md) | UI tokens, typography, component guidelines, and color palette |
+| **Batch Ingestion Plan** | [`docs/pipelines/batch/ingest_oltp_to_landing.md`](docs/pipelines/batch/ingest_oltp_to_landing.md) | Spark OLTP extraction to MinIO Landing and manifest validation |
+| **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and smoke testing |
+| **Startup Sequence** | [`docs/runbook/STARTUP_FLOW.md`](docs/runbook/STARTUP_FLOW.md) | Service bootstrap sequence, migrations, and health checks |
+| **Runbook Index** | [`docs/runbook/README.md`](docs/runbook/README.md) | Central index for operational tasks, commands, and validation |

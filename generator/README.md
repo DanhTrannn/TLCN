@@ -1,205 +1,106 @@
-# OLTP Data Generator
+# OLTP & Access Log Data Generator
 
-Generator tạo dataset deterministic từ YAML config. Dataset có thể được xuất thành file SQL để import trực tiếp vào MySQL đã chạy migration.
+The Data Generator (`data-generator` package, v0.6.0) creates deterministic synthetic datasets calibrated to realistic Vietnamese e-commerce behavior. It exports full relational SQL inserts for MySQL OLTP and operational HTTP access logs formatted identically to production runtime logs.
 
-Generator cũng xuất structured access log cùng contract với API thật. Log được chia theo
-cửa sổ UTC 15 phút, nén `jsonl.gz` và có manifest SHA-256 cạnh từng file.
+---
 
-## Export SQL
+## 1. Export SQL History
 
 ```bash
-docker compose --profile tools build generator
-docker compose --profile tools run --rm generator export-sql \
-  --config /app/configs/small.yml \
-  --output /data/generator/small.sql
+uv run --locked --package data-generator -- generator export-sql \
+  --config generator/configs/small.yml \
+  --output data/generator/small.sql
 ```
 
-File xuất hiện trên host tại `data/generator/small.sql`.
+The output file is written to `data/generator/small.sql`.
 
-## Export access logs
+---
+
+## 2. Export Matching Access Logs
 
 ```bash
-docker compose --profile tools run --rm generator export-logs \
-  --config /app/configs/small.yml \
-  --output-directory /data/generator/access-logs \
+uv run --locked --package data-generator -- generator export-logs \
+  --config generator/configs/small.yml \
+  --output-directory data/generator/access-logs \
   --expected-requests 60000
 ```
 
-Output xuất hiện tại `data/generator/access-logs/landing/logs/`. Cùng config và
-`expected-requests` tạo cùng logical identity và byte-identical gzip/manifest. Tổng số
-event thực tế dao động deterministic quanh kỳ vọng vì arrivals được sinh riêng cho từng
-cửa sổ bằng mô hình Poisson (xấp xỉ chuẩn khi kỳ vọng cửa sổ lớn).
+Output files are structured in Hive-style partition directories under `data/generator/access-logs/landing/logs/`:
 
-Access log dùng đúng route/action của API, cùng UUIDv5 actor/product/variant với file SQL,
-UTC event time và `data_origin=synthetic`. Phân phối giữ peak buổi tối, cuối tuần, Tết,
-ngày đôi 1/1..12/12 và Black Friday theo giờ `Asia/Ho_Chi_Minh`; campaign tăng cả traffic,
-checkout mix, latency và error rate. Các hệ số là giả định phục vụ test/BI, không phải số
-liệu thực tế của một sàn hay thị trường Việt Nam.
+```text
+landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
+```
 
-Khi profile `batch` và MinIO đang chạy, upload các file đã đóng vào Landing:
+- **Retention Window:** Generates operational access logs matching the most recent 30-day window.
+- **Format:** Gzip-compressed newline-delimited JSON (`.jsonl.gz`).
+- **Telemetry Standards:** Standardized to OpenTelemetry-compatible fields (`service.name=ecommerce-api`, `data_origin=observed`, 12-character hex container IDs).
+
+---
+
+## 3. Upload to MinIO Landing Zone
+
+When MinIO and Docker services are active, upload generated logs to the S3 Landing Zone:
 
 ```bash
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
 
-Contract và giới hạn phân tích nằm tại
-[`docs/architecture/access-logs.md`](../docs/architecture/access-logs.md).
+---
 
-Config `small.yml` tạo:
+## 4. Import into MySQL
 
-- 500 customer;
-- 60 product có tên, mô tả và mã mẫu thời trang thực tế theo từng category;
-- 3 product archive ở current snapshot (5% làm tròn xuống), vẫn giữ variant và lịch sử;
-- 240 variant;
-- 3.000 order trong 12 tháng;
-- wishlist, checked-out cart, active/abandoned cart;
-- order item, payment, lifecycle `paid/confirmed/completed/cancelled` và status history;
-- coupon/redemption, full refund của đơn hủy và review sau mua;
-- coupon campaign/0h đã hết hạn được archive, nhưng redemption cũ vẫn được giữ;
-- inventory đã đối soát với đơn không bị hủy.
-
-## Import MySQL
-
-Sau khi profile `core` healthy và Alembic đã migrate:
+Once MySQL is running and Alembic migrations have completed (`0001` through `0009`):
 
 ```bash
 ./scripts/import_generated_sql.sh data/generator/small.sql
 ```
 
-SQL không tắt FK/CHECK, chạy trong một transaction và fail-fast nếu vi phạm invariant. Cùng một file không được import hai lần; muốn thêm dataset khác, thay `scenario_id` hoặc `seed` để có logical identity mới rồi export lại.
+> [!IMPORTANT]
+> The generated SQL runs within a single atomic transaction without disabling foreign key checks. Do not import the same SQL file twice into the same database.
 
-Kiểm tra current archive state và số quan hệ lịch sử còn được bảo toàn trong DBeaver:
+### Demo Customer Credentials
+After export, the CLI prints a demo customer account. The demo email uses the first 8 characters of `logical_identity`, and the local password is fixed to `Demo@12345`.
 
-```sql
-SELECT 'products' AS entity, COUNT(*) AS archived_count
-FROM products WHERE archived_at IS NOT NULL
-UNION ALL
-SELECT 'coupons', COUNT(*)
-FROM coupons WHERE archived_at IS NOT NULL;
+---
 
-SELECT COUNT(DISTINCT p.product_id) AS archived_products_with_order_history
-FROM products p
-JOIN product_variants v ON v.product_id = p.product_id
-JOIN order_items oi ON oi.variant_id = v.variant_id
-WHERE p.archived_at IS NOT NULL;
+## 5. Dataset Scale Configurations
 
-SELECT COUNT(DISTINCT c.coupon_id) AS archived_coupons_with_redemption_history
-FROM coupons c
-JOIN coupon_redemptions cr ON cr.coupon_id = c.coupon_id
-WHERE c.archived_at IS NOT NULL;
-```
+The `configs/` directory provides pre-configured scenarios:
 
-Archive count là current business state từ MySQL. Không dùng số access log `DELETE`
-2xx để thay cho các truy vấn này vì request lặp idempotent vẫn tạo thêm access log.
+| Config | Customers | Products | Variants | Orders | Window |
+|---|---|---|---|---|---|
+| `small.yml` | 500 | 60 | 240 | ~3,000 | 12 months |
+| `medium.yml` | 5,000 | 200 | 800 | ~30,000 | 12 months |
+| `large-local.yml` | 50,000 | 500 | 2,000 | ~300,000 | 12 months |
+| `large-10m.yml` | 500,000 | 1,000 | 4,000 | ~10,000,000 | 12 months |
+| `month-test.yml` | 200 | 30 | 120 | ~250 | 1 month |
 
-CLI in tài khoản demo sau mỗi lần export. Email chứa tám ký tự đầu của
-`logical_identity`; mật khẩu local cố định là `Demo@12345`. Luôn lấy email từ
-output của CLI hoặc phần header của file SQL thay vì hard-code identity cũ.
+---
 
-Tài khoản demo có nhiều đơn hàng trải đều trong lịch sử để kiểm tra Storefront.
+## 6. Vietnamese E-Commerce Behavioral Distributions
 
-## Chiến lược định danh
+The generator models realistic retail consumption patterns:
 
-Generator giữ đúng mô hình identity của OLTP:
+- **Timezone & Seasonality:** Calibrated to `Asia/Ho_Chi_Minh` (stored as UTC). Models Lunar New Year (Tet) sales peaks, double-day campaigns (e.g. 9/9, 11/11, 12/12), and Black Friday.
+- **Diurnal Rhythm:** Normal day peaks occur at 19:00–22:00. Campaign days feature 00:00–02:00 midnight spikes, lunch rushes (12:00), and evening surges.
+- **Customer Segmentation:** Customers are segmented into `loyal`, `regular`, and `one_off` cohorts with distinct purchase intervals, coupon affinity, review propensities, and cancellation rates.
+- **Review Behavior:** Reviews originate exclusively from verified `completed` order items. Default synthetic ratio features 94% published immediately and 6% post-moderated (`rejected`) with Vietnamese audit reasons.
+- **Soft Archive:** Simulates product and coupon lifecycle archives without breaking historical relational lineage.
 
-- PK/FK nội bộ như `customer_id`, `product_id`, `order_id` vẫn là
-  `BIGINT` surrogate key để join, index và bulk import hiệu quả;
-- `public_id` được sinh bằng UUIDv5 deterministic và ghi vào MySQL
-  `BINARY(16)` qua `UUID_TO_BIN('<uuid>')`;
-- `logical_identity`, `generation_run_id`, checkout/payment/refund
-  idempotency key và `payment_reference` đều là UUID canonical;
-- `order_number`, SKU, slug và coupon code vẫn là business key dễ đọc,
-  không đổi thành UUID.
+---
 
-UUIDv5 được dùng thay UUID ngẫu nhiên vì cùng config và generator version phải
-sinh lại đúng cùng identity. Khi config, phân phối, seed hoặc generator version
-thay đổi, `logical_identity` và toàn bộ UUID thuộc dataset cũng thay đổi.
-Các file SQL sinh bằng generator trước `0.6.0` chưa theo contract archive/review hiện
-hành và phải được export lại trước khi dùng script import hiện hành.
+## 7. Deterministic Identity Strategy
 
-## Chạy trực tiếp bằng uv
+- **Surrogate PKs:** Uses `BIGINT UNSIGNED` keys for internal joins and performant bulk imports.
+- **Public Identifiers:** Uses deterministic UUIDv5 for `public_id`, `logical_identity`, `generation_run_id`, and transaction idempotency keys.
+- **Business Keys:** Keeps human-readable `order_number`, SKU, slug, and coupon code identifiers.
+
+---
+
+## 8. Unit Testing
+
+Run the generator unit tests (54 tests):
 
 ```bash
-uv run --locked \
-  --package data-generator -- \
-  generator export-sql \
-  --config generator/configs/small.yml \
-  --output data/generator/small.sql
+uv run --locked --package data-generator --extra dev -- pytest generator/tests
 ```
-
-## Kiểm tra
-
-```bash
-uv run --locked \
-  --package data-generator --extra dev -- \
-  pytest generator/tests
-```
-
-## Phân phối dữ liệu TMĐT Việt Nam (`distributions`)
-
-Các profile trong `configs/` mô phỏng hành vi phổ biến của sàn TMĐT Việt Nam theo
-quy tắc có kiểm soát, không sao chép dữ liệu hay thuật toán nội bộ của một sàn cụ
-thể. Nếu config không khai báo `distributions`, generator dùng profile mặc định
-trong `src/generator/config.py`.
-
-| Tham số | Ý nghĩa |
-|---|---|
-| `business_timezone` | Múi giờ nghiệp vụ, chốt là `Asia/Ho_Chi_Minh`; SQL vẫn lưu UTC |
-| `day_of_week` | 7 hệ số Thứ 2..Chủ nhật, cuối tuần cao hơn |
-| `hour_of_day` | 24 hệ số giờ địa phương, peak thường ngày 19h–22h |
-| `campaign_hour_of_day` | Phân phối riêng cho ngày campaign, có spike 0h–2h, 12h và 20h–23h |
-| `seasonality.tet` | Cửa sổ Tết, `peak` là hệ số nhân nhu cầu ở trung tâm mùa vụ |
-| `seasonality.sales` | Sale ngày đôi 1/1..12/12 và Black Friday; 9/9..12/12 có boost cao hơn |
-| `categories` | Trọng số 8 danh mục thời trang nữ |
-| `price_bands` | Histogram giá VND; giá variant làm tròn tới 1.000đ |
-| `order_size` | Tỷ lệ đơn có 1/2/3/4 dòng hàng |
-| `quantity_per_item` | Tỷ lệ quantity 1/2/3 trên mỗi dòng hàng |
-| `customers` | Nhóm `loyal`, `regular`, `one_off`; có tần suất mua và `campaign_affinity` riêng |
-| `coupons` | Tỷ lệ dùng coupon thường/campaign/0h/đơn đầu, hệ số theo nhóm khách và mệnh giá |
-| `reviews` | Tỷ lệ review theo nhóm khách, phân phối rating, trạng thái hiển thị/ẩn hậu kiểm và độ trễ sau mua |
-| `cancellations` | Tỷ lệ hủy thường/campaign, phần tăng khi dùng coupon, hệ số nhóm khách và lý do VN |
-
-### Quan hệ dữ liệu có chủ đích
-
-- Order tăng vào cuối tuần, mùa Tết, ngày đôi và Black Friday; ngày campaign ưu tiên các khung 0h, 12h và buổi tối theo giờ Việt Nam.
-- Khách loyal/regular/one-off khác nhau về số lần mua, khoảng cách giữa đơn, khả năng bám campaign, dùng coupon, review và hủy đơn.
-- Coupon 0h chỉ hiệu lực 00:00–02:00 giờ Việt Nam; coupon campaign theo ngày đôi; welcome ưu tiên đơn đầu; coupon thường có ngưỡng subtotal cao hơn.
-- Đơn campaign, đơn dùng coupon và khách one-off có xác suất hủy cao hơn; lý do hủy dùng nội dung nghiệp vụ tiếng Việt. Đơn hủy tạo full refund và release redemption.
-- Review chỉ phát sinh từ item thuộc order `completed`; rating và nội dung tiếng Việt
-  luôn khớp nhau, có độ trễ sau giao hàng và được hiển thị ngay. Tỷ lệ synthetic mặc
-  định gồm 94% đang hiển thị và 6% đã bị admin ẩn hậu kiểm, không có trạng thái chờ duyệt.
-- Một phần wishlist được tạo trước lần mua đầu của cùng sản phẩm rồi đánh dấu removed tại lúc mua; phần còn lại vẫn present hoặc bị gỡ không chuyển đổi. Nhờ đó có thể tính wishlist-to-purchase conversion.
-- Archive dùng RNG riêng để không làm xáo trộn order distribution: cứ 20 product có một
-  product archive tại `anchor_time`; coupon campaign/0h có `ends_at <= anchor_time` được
-  archive tại `ends_at`. Cả hai đều inactive, lưu admin synthetic và lý do archive,
-  trong khi order item/redemption lịch sử không bị xóa.
-
-Các pattern trên tạo được câu hỏi phân tích rõ ràng: revenue lift ngày sale, hiệu quả
-coupon theo khung giờ/segment, chi phí discount, cancellation rate, review rate/rating,
-wishlist conversion và repurchase propensity. Đây là dữ liệu synthetic có giả định,
-không được diễn giải như thống kê thực tế của thị trường.
-
-Lưu ý:
-
-- Mốc 0h Việt Nam được chuyển thành UTC trước khi ghi `DATETIME(6)`; dashboard phải chuyển lại `Asia/Ho_Chi_Minh` khi phân tích giờ/ngày nghiệp vụ.
-- `logical_identity` phụ thuộc generator version và toàn bộ `distributions`; thay đổi phân phối tạo dataset mới. Hãy đổi `scenario_id`/`seed` hoặc reset DB trước khi import lại.
-- Sau khi sửa config phải build lại image: `docker compose --profile tools build generator`.
-
-## Chiến lược import theo quy mô
-
-Exporter hiện gom tối đa 1.000 dòng trong mỗi multi-row `INSERT` và giữ toàn bộ
-dataset trong một transaction. Cách này phù hợp cho `small.yml` và `medium.yml`
-vì đơn giản, giữ FK/CHECK và rollback toàn bộ khi lỗi.
-
-Với `large-local.yml` hoặc `large-10m.yml`, nên bổ sung một export mode riêng:
-
-1. xuất CSV/TSV theo từng bảng theo đúng thứ tự parent trước child;
-2. dùng `LOAD DATA LOCAL INFILE` vào staging tables;
-3. kiểm tra count, FK, amount và inventory tại staging;
-4. promote sang OLTP theo batch có checkpoint và `generation_run_id`;
-5. chỉ đánh dấu generation run hoàn tất sau reconciliation.
-
-`mysqlsh util.loadDump()` với nhiều thread là phương án thay thế nếu generator
-xuất MySQL dump directory. Không nên tắt `FOREIGN_KEY_CHECKS` trên bảng OLTP chỉ
-để tăng tốc; nếu cần tối ưu local, hãy thực hiện ở staging và validate trước khi
-promote.

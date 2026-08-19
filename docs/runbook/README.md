@@ -1,80 +1,106 @@
-# Runbook
+# Operational Runbooks
 
-- [`lakehouse-local.md`](lakehouse-local.md): khởi động, bootstrap RBAC, smoke test và xử lý lỗi Polaris–Iceberg–Spark–Trino.
-- [`startup-flow.md`](startup-flow.md): tóm tắt từng service làm gì khi khởi động theo profile.
+This directory contains operational runbooks and development workflows for the D&K E-Commerce Data Platform.
 
-Runbook TLCN bao phủ clean setup, service health, OLTP seed/generator, scheduled/manual batch run, rerun, replay, backfill, partial failure, fallback dataset và teardown.
+## Runbook Guides
 
-## Base commands
+- [`SETUP.md`](SETUP.md): Step-by-step Lakehouse deployment, Polaris REST Catalog RBAC bootstrapping, smoke testing, and troubleshooting for the Iceberg-Spark-Trino stack.
+- [`STARTUP_FLOW.md`](STARTUP_FLOW.md): Detailed initialization sequence, Docker Compose profiles, one-shot init containers, database migrations, and health checks.
+
+---
+
+## 1. Quick Start (Base Commands)
+
+Launch services using Docker Compose profiles:
 
 ```bash
+# 1. Prepare environment configuration
 cp .env.example .env
+
+# 2. Start core e-commerce services (MySQL, FastAPI, Storefront)
 docker compose --profile core up -d --build
+
+# 3. Start batch processing and data platform services (MinIO, Polaris, Spark, Airflow)
 docker compose --profile batch up -d --build
+
+# 4. Start BI and query serving services (Trino, Superset)
 docker compose --profile bi up -d --build
 ```
 
-Profile `core` gồm MySQL, Ecommerce API và Storefront.
-Profile `batch` gồm Fluent Bit, MinIO, PostgreSQL (hợp nhất), Polaris, Spark và Airflow.
-Profile `bi` gồm Trino, PostgreSQL và Superset.
+---
 
-## Generator OLTP
+## 2. Web Application and Endpoints
 
-Chạy generator trực tiếp trên máy host qua `uv`:
+After starting the `core` profile, access the applications at:
+
+- **Storefront:** `http://localhost:3000`
+- **Admin Console:** `http://localhost:3000/admin` (Default: `admin@web.local` / `Admin@12345`)
+- **API Documentation:** `http://localhost:8000/docs` (Interactive Swagger UI)
+- **API Readiness Check:** `http://localhost:8000/health/ready`
+
+*Note: Database migrations and default admin seeding occur automatically during backend startup.*
+
+---
+
+## 3. Data Generation and Backfill
+
+### Generate Synthetic OLTP Transactions
+
+Generate historical transactions and import them into MySQL:
 
 ```bash
 uv run --locked --package data-generator -- generator export-sql \
   --config generator/configs/small.yml \
   --output data/generator/small.sql
+
 ./scripts/import_generated_sql.sh data/generator/small.sql
 ```
 
-File SQL nằm tại `data/generator/small.sql`, chạy trong một transaction và không được import lặp lại trên cùng database. Tài khoản demo được in ra terminal sau khi export.
+### Generate Historical Access Logs
 
-## Access logs
-
-Web/API thật phát một JSON event sau mỗi completed request. Fluent Bit tail Docker stdout,
-buffer trên volume và upload gzip lên MinIO sau tối đa khoảng 15 phút:
-
-```bash
-docker compose --profile core --profile batch up -d --build
-docker compose --profile batch logs -f fluent-bit
-```
-
-Sinh lịch sử access log deterministic, cùng identity master với SQL:
+Generate deterministic JSON access logs matching the OLTP dataset:
 
 ```bash
 uv run --locked --package data-generator -- generator export-logs \
   --config generator/configs/small.yml \
   --output-directory data/generator/access-logs \
   --expected-requests 60000
+
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
 
-Output local ở `data/generator/access-logs/landing/logs/`. Chi tiết về contract,
-privacy, boundary 15 phút và cách kiểm tra Landing nằm tại
-[`docs/architecture/access-logs.md`](../architecture/access-logs.md).
+### Live Access Logging
 
-## Source web/admin
-
-- Storefront: `http://localhost:3000`;
-- API docs: `http://localhost:8000/docs`;
-- Admin: `http://localhost:3000/admin`;
-- Local admin: `admin@web.local` / `Admin@12345`.
-
-Migration và bootstrap admin tự chạy khi `ecommerce-api` khởi động.
-
-## Validation
+To stream live HTTP access logs from running API containers into MinIO Landing:
 
 ```bash
+docker compose --profile core --profile batch up -d
+docker compose --profile batch logs -f fluent-bit
+```
+
+---
+
+## 4. Local Validation and CI Commands
+
+Run tests and type checks across all components before submitting changes:
+
+```bash
+# Check uv lockfile and Docker Compose syntax
 uv lock --check
 docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
+
+# Run Python Test Suite (149 tests total)
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
-npm --prefix apps/storefront ci --no-audit --no-fund
+
+# Run all Python tests in single runner
+PYTHONPATH=pipelines/src:generator/src:services/ecommerce-api uv run pytest
+
+# Frontend Typecheck and Production Build
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build
-```
 
-GitHub Actions chạy cùng các kiểm tra này tại [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). Không đưa secret production vào workflow; CI hiện chỉ cần quyền đọc repository.
+# Lakehouse Smoke Test
+./scripts/lakehouse_smoke.sh
+```

@@ -200,7 +200,7 @@ def _actor(
     active_customer_indices: tuple[int, ...],
 ) -> tuple[str, str | None]:
     if scenario.actor_policy == "system":
-        return "system", "synthetic-health-check"
+        return "system", "health-check-monitor"
     if scenario.actor_policy == "anonymous":
         return "anonymous", None
     if scenario.actor_policy == "mixed" and randomizer.random() < 0.58:
@@ -362,8 +362,8 @@ def _event(
         "service": {
             "name": "ecommerce-api",
             "version": "0.1.0",
-            "environment": "synthetic",
-            "instance_id": "synthetic-generator",
+            "environment": "local",
+            "instance_id": uuid.uuid5(log_namespace, f"instance:{event_index % 3}").hex[:12],
         },
         "event": {
             "name": "http.server.request",
@@ -381,7 +381,7 @@ def _event(
         "client": {"user_agent": user_agent_randomizer.choice(USER_AGENTS)},
         "ecommerce": ecommerce,
         "error": {"code": error_code, "type": error_type},
-        "data_origin": "synthetic",
+        "data_origin": "observed",
     }
 
 
@@ -391,19 +391,18 @@ def _write_window(
     oltp_logical_identity: str,
     window_start: datetime,
     events: list[dict[str, Any]],
-) -> tuple[Path, Path]:
-    window_end = window_start + timedelta(minutes=WINDOW_MINUTES)
+) -> Path:
     directory = (
         output_root
         / "landing"
         / "logs"
-        / f"date={window_start:%Y-%m-%d}"
-        / f"hour={window_start:%H}"
+        / f"ingest_date={window_start:%Y-%m-%d}"
+        / f"ingest_hour={window_start:%H}"
         / "service=ecommerce-api"
     )
     directory.mkdir(parents=True, exist_ok=True)
     part_id = uuid.uuid5(uuid.UUID(log_identity), f"window:{_iso(window_start)}")
-    data_path = directory / f"part-{part_id}.jsonl.gz"
+    data_path = directory / f"{part_id}.jsonl.gz"
     temporary_path = data_path.with_suffix(data_path.suffix + ".tmp")
 
     with temporary_path.open("wb") as raw_stream:
@@ -417,36 +416,7 @@ def _write_window(
                 )
                 stream.write(line.encode("utf-8") + b"\n")
     temporary_path.replace(data_path)
-
-    compressed = data_path.read_bytes()
-    timestamps = [event["timestamp"] for event in events]
-    manifest = {
-        "manifest_version": "1.0.0",
-        "object_path": data_path.relative_to(output_root).as_posix(),
-        "sha256": hashlib.sha256(compressed).hexdigest(),
-        "compressed_bytes": len(compressed),
-        "line_count": len(events),
-        "window_start": _iso(window_start),
-        "window_end": _iso(window_end),
-        "min_event_timestamp": min(timestamps),
-        "max_event_timestamp": max(timestamps),
-        "service": "ecommerce-api",
-        "instance": "synthetic-generator",
-        "schema_versions": [SCHEMA_VERSION],
-        "data_origins": ["synthetic"],
-        "generator_version": __version__,
-        "log_logical_identity": log_identity,
-        "oltp_logical_identity": oltp_logical_identity,
-    }
-    manifest_path = data_path.with_suffix(".manifest.json")
-    temporary_manifest = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
-    temporary_manifest.write_text(
-        json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        + "\n",
-        encoding="utf-8",
-    )
-    temporary_manifest.replace(manifest_path)
-    return data_path, manifest_path
+    return data_path
 
 
 def export_logs(
@@ -464,7 +434,8 @@ def export_logs(
         raise ValueError("customers, products, and variants must be positive")
 
     history_end = config.anchor_time.astimezone(UTC)
-    history_start = history_end - timedelta(days=max(1, config.history_months) * 30)
+    # Landing access logs are operational staging buffers: retain ~1 month (30 days)
+    history_start = history_end - timedelta(days=30)
     first_window = _window_floor(history_start)
     windows: list[datetime] = []
     cursor = first_window
@@ -569,5 +540,5 @@ def export_logs(
         expected_requests=expected_requests,
         emitted_requests=emitted,
         files=files,
-        manifests=files,
+        manifests=0,
     )

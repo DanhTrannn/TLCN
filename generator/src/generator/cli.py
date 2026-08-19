@@ -62,7 +62,7 @@ def main() -> None:
             f"Requests: {summary.emitted_requests} emitted "
             f"({summary.expected_requests} expected)"
         )
-        print(f"Files: {summary.files} gzip + {summary.manifests} manifests")
+        print(f"Files: {summary.files} .jsonl.gz")
         return
 
     output_path = arguments.output or Path("/data/generator") / f"{config.scenario_id}-{config.logical_identity}.sql"
