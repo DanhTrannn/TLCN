@@ -9,7 +9,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 from zoneinfo import ZoneInfo
 
 from generator import __version__
@@ -221,15 +221,46 @@ def _active_customer_indices(config: GeneratorConfig) -> tuple[int, ...]:
     return tuple(result)
 
 
+def _weighted_index(randomizer: random.Random, weights: Sequence[int | float]) -> int:
+    total = sum(weights)
+    target = randomizer.random() * total
+    cumulative = 0.0
+    for index, weight in enumerate(weights):
+        cumulative += weight
+        if target < cumulative:
+            return index
+    return len(weights) - 1
+
+
+def _product_slugs(config: GeneratorConfig) -> tuple[str, ...]:
+    """Replay the SQL exporter's product category/slug assignment stream."""
+    randomizer = random.Random(config.seed)
+    categories = config.distributions.categories
+    weights = [weight for _, weight in categories]
+    category_sequences = {code: 0 for code in CATEGORY_NAMES}
+    slugs: list[str] = []
+    for _ in range(config.scale["products"]):
+        idx = _weighted_index(randomizer, weights)
+        category_code = categories[idx][0]
+        category_sequence = category_sequences[category_code]
+        category_sequences[category_code] += 1
+        slugs.append(f"syn-{config.logical_identity[:8]}-{category_code}-{category_sequence + 1:05d}")
+    return tuple(slugs)
+
+
 def _commerce_context(
     scenario: RouteScenario,
     randomizer: random.Random,
     namespace: uuid.UUID,
-    product_count: int,
+    product_slugs: tuple[str, ...],
     variant_count: int,
 ) -> dict[str, Any]:
     context: dict[str, Any] = {"action": scenario.action}
-    if scenario.action in {"product_detail", "product_reviews", "wishlist_add"}:
+    product_count = len(product_slugs)
+    if scenario.action in {"product_detail", "product_reviews"}:
+        index = randomizer.randrange(product_count)
+        context["product_key"] = product_slugs[index]
+    elif scenario.action in {"wishlist_add", "wishlist_remove"}:
         index = randomizer.randrange(product_count)
         context["product_key"] = str(_entity_uuid(namespace, "product", index))
     if scenario.action == "cart_item_set":
@@ -366,11 +397,8 @@ def _write_window(
         output_root
         / "landing"
         / "logs"
-        / "data_origin=synthetic"
-        / f"dataset_id={log_identity}"
         / f"date={window_start:%Y-%m-%d}"
         / f"hour={window_start:%H}"
-        / f"window_start={window_start:%Y%m%dT%H%M%SZ}"
         / "service=ecommerce-api"
     )
     directory.mkdir(parents=True, exist_ok=True)
@@ -459,6 +487,7 @@ def export_logs(
     user_agent_randomizer = random.Random(f"{config.seed}:log-user-agents")
     business_zone = ZoneInfo(config.distributions.business_timezone)
     active_customer_indices = _active_customer_indices(config)
+    product_slugs = _product_slugs(config)
 
     emitted = 0
     files = 0
@@ -497,7 +526,7 @@ def export_logs(
                 scenario,
                 context_randomizer,
                 oltp_namespace,
-                product_count,
+                product_slugs,
                 variant_count,
             )
             status_code, error_code, error_type = _outcome(

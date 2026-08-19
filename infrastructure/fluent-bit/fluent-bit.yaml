@@ -46,7 +46,7 @@ pipeline:
       store_dir: /var/lib/fluent-bit/s3
       store_dir_limit_size: 2G
       preserve_data_ordering: true
-      s3_key_format: /landing/logs/ingest_date=%Y-%m-%d/ingest_hour=%H/service=ecommerce-api/$UUID.jsonl.gz
+      s3_key_format: /landing/logs/date=%Y-%m-%d/hour=%H/service=ecommerce-api/$UUID.jsonl.gz
       json_date_key: _agent_collected_at
       json_date_format: iso8601
       retry_limit: no_limits

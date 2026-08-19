@@ -68,21 +68,19 @@ bền vững sẽ giữ offset cho các lần restart tiếp theo.
 
 ## Landing và Medallion
 
-Log thật được ghi dưới prefix ingestion time:
+Cả Log thật (Fluent Bit) và Log lịch sử (Generator) được ghi đồng bộ dưới cùng một layout phân vùng chuẩn Hive:
 
 ```text
-landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/
-  service=ecommerce-api/<uuid>.jsonl.gz
+landing/logs/date=YYYY-MM-DD/hour=HH/service=ecommerce-api/<part_or_uuid>.jsonl.gz
 ```
 
-Generator ghi file đóng theo UTC event window, kèm manifest cạnh file. Downstream đọc
-cả hai layout dưới `landing/logs/**`, luôn partition Bronze/Silver theo event time chứ
-không suy diễn từ path ingestion.
+- Generator ghi file đóng theo UTC event window (15 phút), kèm manifest cạnh file.
+- Fluent Bit ghi micro-batch đóng sau mỗi khoảng 15 phút (`upload_timeout: 15m`).
+- Downstream Spark/Airflow đọc đồng nhất dưới `landing/logs/date=*/hour=*/*`, phân biệt nguồn qua trường `data_origin` (`observed` hoặc `synthetic`).
 
-- Landing: object gzip đã đóng, immutable, phục vụ replay.
+- Landing: object gzip đã đóng, immutable, lưu đệm tạm thời.
 - Bronze: giữ raw lineage, source path/checksum/line number và cả duplicate.
-- Silver: validate schema, quarantine lỗi, pseudonymize actor, parse user-agent, dedup
-  request ID, chuẩn hóa route/search/filter.
+- Silver: validate schema, quarantine lỗi, pseudonymize actor, parse user-agent, dedup request ID, chuẩn hóa route/search/filter.
 - Gold: volume/error/latency theo route-hour, product demand, search/filter demand và
   authenticated coverage. Revenue/conversion nghiệp vụ phải reconcile với OLTP.
 
