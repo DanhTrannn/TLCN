@@ -30,7 +30,7 @@ product_slug_pattern="syn-${logical_identity:0:8}-%"
 
 echo "Importing ${sql_file} into the MySQL database used by ecommerce-api..."
 import_started_at=${SECONDS}
-docker compose --profile core exec -T mysql-ecommerce sh -lc \
+docker compose --profile core exec -T mysql sh -lc \
   'export MYSQL_PWD="$MYSQL_PASSWORD"; exec mysql --protocol=socket -u"$MYSQL_USER" "$MYSQL_DATABASE"' \
   < "${sql_file}"
 
@@ -38,7 +38,7 @@ echo "Import completed in $((SECONDS - import_started_at))s. Verifying visible c
 docker compose --profile core exec -T \
   -e IMPORT_RUN_ID="${generation_run_id}" \
   -e PRODUCT_SLUG_PATTERN="${product_slug_pattern}" \
-  mysql-ecommerce sh -lc '
+  mysql sh -lc '
     export MYSQL_PWD="$MYSQL_PASSWORD"
     exec mysql --protocol=socket -u"$MYSQL_USER" "$MYSQL_DATABASE" --execute="
       SELECT

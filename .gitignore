@@ -37,4 +37,5 @@ airflow/logs/*
 .vscode/
 
 docs/superpowers/
+skills/
 

@@ -84,30 +84,40 @@ Dependency rules:
 ├── database/
 │   ├── migrations/                       # Alembic schema versions
 │   ├── seeds/                            # Deterministic master data
-│   └── README.md                         # Ownership and reader policy
+│   └── README.md                         # Ownership and database notes
 ├── generator/
 │   ├── configs/                          # Dataset scale/scenario
-│   ├── tests/                            # SQL export determinism tests
-│   └── src/generator/                    # Generator CLI
+│   ├── tests/                            # SQL export & log export tests
+│   └── src/generator/                    # Generator CLI package
+├── pipelines/
+│   ├── config/                           # 16-table ingestion & lakehouse configs
+│   ├── src/lakehouse/                    # Spark session, landing, manifest & config validation
+│   ├── src/jobs/                         # Spark batch jobs (extract_oltp, ...)
+│   └── tests/                            # Pipeline unit tests
 ├── airflow/
-│   ├── dags/                             # Orchestration DAGs
+│   ├── dags/                             # Orchestration DAGs (ingest_oltp_batch.py)
 │   └── logs/                             # Airflow operational logs only
 ├── infrastructure/
-│   ├── docker/                           # Custom images
-│   ├── mysql-ecommerce/                  # OLTP bootstrap
-│   ├── spark/                            # Spark + Iceberg runtime assets
+│   ├── docker/                           # Custom images (Airflow, Superset)
+│   ├── fluent-bit/                       # Real-time access log collector config
+│   ├── postgres/                         # Multi-database init scripts
+│   ├── spark/                            # Spark + Iceberg runtime assets & smoke test
 │   ├── polaris/                          # Idempotent catalog/RBAC bootstrap
-│   ├── trino/                            # Iceberg REST/Polaris reader config
-│   └── superset/                         # Superset config
+│   ├── trino/                            # Iceberg REST/Polaris reader config & startup
+│   └── superset/                         # Superset config & datasources
 ├── docs/
 │   ├── architecture/                     # Structure, OLTP schema and diagrams
+│   ├── design-system/                    # UI design tokens and components
+│   ├── pipelines/                        # Pipeline implementation notes
 │   ├── project/                          # Scope and plans
 │   └── runbook/                          # Setup and operation
 ├── skills/
 │   └── oltp-design/SKILL.md              # OLTP design principles
 ├── scripts/
-│   ├── grant_de_reader.sh                # Table-level reader grants
-│   └── import_generated_sql.sh           # Import generated dataset
+│   ├── import_generated_sql.sh           # Import generated dataset into MySQL
+│   ├── lakehouse_smoke.sh                # End-to-end Spark write -> Polaris -> Trino read smoke test
+│   ├── upload_generated_logs.sh          # Upload synthetic access logs to MinIO
+│   └── simulate_web_traffic.py           # Web traffic simulator
 ├── tests/                                # Cross-component tests
 ├── .env.example
 ├── README.md
@@ -116,32 +126,30 @@ Dependency rules:
 └── uv.lock
 ```
 
-Đây là cấu trúc mục tiêu. Thư mục cho pipeline batch, Airflow DAG, ML và dashboard chỉ được tạo khi bắt đầu implementation tương ứng; không tạo placeholder rỗng chỉ để khớp sơ đồ.
-
 ## 4. Runtime profiles mục tiêu
 
 | Profile | Thành phần | Vai trò |
 |---|---|---|
-| `core` | MySQL ecommerce, Ecommerce API, Storefront | Tạo OLTP data và access log |
-| `tools` | OLTP generator | Sinh dữ liệu có seed/scenario |
-| `batch` | MinIO, Spark, Airflow, Polaris, PostgreSQL metadata | Landing, Iceberg Medallion, DQ và maintenance |
-| `bi` | Trino, Superset, PostgreSQL metadata | Query serving và dashboard |
+| `core` | MySQL, Ecommerce API, Storefront | Tạo OLTP data và access log |
+| `batch` | Fluent Bit, MinIO, PostgreSQL, Polaris, Polaris Console, Spark và Airflow | Landing, Iceberg Medallion, DQ và orchestration |
+| `bi` | Trino, PostgreSQL và Superset | Query serving và dashboard |
 | `lakehouse-tools` | Spark SQL client | Smoke test writer/reader integration |
 
 Thứ tự chạy:
 
 ```text
-core → grant DE reader → tools (nếu cần)
-     → batch: ingestion/transform/catalog
+core → Sinh & nạp dữ liệu bằng generator CLI trên host (nếu cần)
+     → batch: Ingestion/transform/catalog
      → bi: Trino/Superset
 ```
 
 ## 5. Python workspace
 
-Workspace `uv` gồm:
+Workspace `uv` gồm 3 members:
 
-- `ecommerce-api`;
-- `data-generator`.
+- `ecommerce-api` (`services/ecommerce-api`);
+- `data-generator` (`generator`);
+- `batch-pipeline` (`pipelines`).
 
 `uv.lock` là lockfile duy nhất. Dockerfile Python dùng cùng phiên bản `uv` và cài package theo workspace lock. Trino, Polaris, MinIO và Superset được pin bằng container image/config riêng, không đưa vào Python workspace.
 

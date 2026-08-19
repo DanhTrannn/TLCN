@@ -10,7 +10,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-change-me-airflow-db}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-password}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
     AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-me-airflow-secret}
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
     AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
@@ -18,11 +18,11 @@ x-airflow-common: &airflow-common
     PIPELINE_RUN_DIRECTORY: /data/pipeline-runs
     PIPELINE_CONFIG_PATH: /opt/project/pipelines/config/default.yml
     PYTHONPATH: /opt/project/pipelines/src
-    MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}:${MYSQL_ECOMMERCE_READER_PASSWORD:-change-me-ecommerce-reader}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
+    MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_USER:-ecommerce_app}:${MYSQL_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-ecommerce}
     MINIO_ENDPOINT: http://minio:9000
     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
-    MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}
+    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-password}
+    MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
     POLARIS_CATALOG_URI: http://polaris:8181/api/catalog
     POLARIS_CATALOG_NAME: ${POLARIS_CATALOG_NAME:-lakehouse}
     POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
@@ -36,10 +36,8 @@ x-airflow-common: &airflow-common
     - polaris-client-credentials:/run/polaris:ro
   networks: ["lakehouse-network"]
   depends_on:
-    postgres-airflow:
+    postgres:
       condition: service_healthy
-    polaris-init:
-      condition: service_completed_successfully
 
 x-superset-common: &superset-common
   build:
@@ -49,7 +47,7 @@ x-superset-common: &superset-common
   profiles: ["bi"]
   environment: &superset-environment
     SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change-me-superset-secret}
-    SUPERSET_DATABASE_URI: postgresql+psycopg2://${SUPERSET_DB_USER:-superset}:${SUPERSET_DB_PASSWORD:-change-me-superset-db}@postgres-superset:5432/${SUPERSET_DB_NAME:-superset}
+    SUPERSET_DATABASE_URI: postgresql+psycopg2://${SUPERSET_DB_USER:-superset}:${SUPERSET_DB_PASSWORD:-password}@postgres:5432/${SUPERSET_DB_NAME:-superset}
     SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
   volumes:
     - ./infrastructure/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
@@ -72,28 +70,25 @@ x-spark-common: &spark-common
 x-polaris-database-environment: &polaris-database-environment
   POLARIS_PERSISTENCE_TYPE: relational-jdbc
   POLARIS_PERSISTENCE_RELATIONAL_JDBC_DATABASE_TYPE: postgresql
-  QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres-polaris:5432/${POLARIS_DB_NAME:-polaris}
+  QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/${POLARIS_DB_NAME:-polaris}
   QUARKUS_DATASOURCE_USERNAME: ${POLARIS_DB_USER:-polaris}
-  QUARKUS_DATASOURCE_PASSWORD: ${POLARIS_DB_PASSWORD:-change-me-polaris-db}
+  QUARKUS_DATASOURCE_PASSWORD: ${POLARIS_DB_PASSWORD:-password}
 
 services:
-  mysql-ecommerce:
+  mysql:
     image: mysql:8.4.5
     profiles: ["core"]
     environment:
-      MYSQL_DATABASE: ${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
-      MYSQL_USER: ${MYSQL_ECOMMERCE_USER:-ecommerce_app}
-      MYSQL_PASSWORD: ${MYSQL_ECOMMERCE_PASSWORD:-password}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ECOMMERCE_ROOT_PASSWORD:-password}
-      MYSQL_ECOMMERCE_READER_USER: ${MYSQL_ECOMMERCE_READER_USER:-ecommerce_de_reader}
-      MYSQL_ECOMMERCE_READER_PASSWORD: ${MYSQL_ECOMMERCE_READER_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
+      MYSQL_USER: ${MYSQL_USER:-ecommerce_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
       TZ: UTC
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
     ports:
-      - "${MYSQL_ECOMMERCE_PORT:-3306}:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
-      - mysql-ecommerce-data:/var/lib/mysql
-      - ./infrastructure/mysql-ecommerce/init:/docker-entrypoint-initdb.d:ro
+      - mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -P 3306 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --connect-timeout=2 --silent"]
       interval: 10s
@@ -108,36 +103,19 @@ services:
     image: ecommerce-api:0.1.0
     profiles: ["core"]
     environment:
-      API_DATABASE_URL: mysql+pymysql://${MYSQL_ECOMMERCE_USER:-ecommerce_app}:${MYSQL_ECOMMERCE_PASSWORD:-change-me-ecommerce}@mysql-ecommerce:3306/${MYSQL_ECOMMERCE_DATABASE:-ecommerce}
+      API_DATABASE_URL: mysql+pymysql://${MYSQL_USER:-ecommerce_app}:${MYSQL_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-ecommerce}
       API_SECRET_KEY: ${API_SECRET_KEY:-change-me-with-at-least-32-random-characters}
-      API_ENVIRONMENT: ${PIPELINE_ENV:-local}
       API_CORS_ORIGINS: ${API_CORS_ORIGINS:-http://localhost:3000}
-      API_ENABLE_DOCS: ${API_ENABLE_DOCS:-true}
-      API_ACCESS_TOKEN_TTL_MINUTES: ${API_ACCESS_TOKEN_TTL_MINUTES:-720}
-      API_AUTH_COOKIE_NAME: ${API_AUTH_COOKIE_NAME:-web_access}
-      API_CSRF_COOKIE_NAME: ${API_CSRF_COOKIE_NAME:-web_csrf}
-      API_COOKIE_SECURE: ${API_COOKIE_SECURE:-false}
-      API_COOKIE_SAMESITE: ${API_COOKIE_SAMESITE:-lax}
-      API_COOKIE_DOMAIN: ${API_COOKIE_DOMAIN:-}
-      API_INTERNAL_SECRET: ${API_INTERNAL_SECRET:-change-me-internal-secret}
-      API_DEMO_MODE: ${API_DEMO_MODE:-true}
       API_BOOTSTRAP_ADMIN_EMAIL: ${API_BOOTSTRAP_ADMIN_EMAIL:-admin@web.local}
       API_BOOTSTRAP_ADMIN_PASSWORD: ${API_BOOTSTRAP_ADMIN_PASSWORD:-Admin@12345}
       API_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${API_BOOTSTRAP_ADMIN_DISPLAY_NAME:-Admin}
-      API_CURRENCY_CODE: ${API_CURRENCY_CODE:-VND}
-      API_SHIPPING_FLAT_FEE_VND: ${API_SHIPPING_FLAT_FEE_VND:-30000}
-      API_FREE_SHIPPING_THRESHOLD_VND: ${API_FREE_SHIPPING_THRESHOLD_VND:-500000}
-      API_CART_ITEM_MAX_QUANTITY: ${API_CART_ITEM_MAX_QUANTITY:-20}
-      API_CATALOG_PAGE_SIZE: ${API_CATALOG_PAGE_SIZE:-12}
-      API_ORDER_PAGE_SIZE: ${API_ORDER_PAGE_SIZE:-10}
-      API_CHECKOUT_MAX_RETRIES: ${API_CHECKOUT_MAX_RETRIES:-3}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
-      mysql-ecommerce:
+      mysql:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=5).close()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -163,25 +141,13 @@ services:
       retries: 10
     networks: ["lakehouse-network"]
 
-  generator:
-    build:
-      context: .
-      dockerfile: generator/Dockerfile
-    image: data-generator:0.1.0
-    profiles: ["tools"]
-    environment:
-      ECOMMERCE_API_URL: http://ecommerce-api:8000
-    volumes:
-      - ./data/generator:/data/generator
-    networks: ["lakehouse-network"]
-
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    profiles: ["batch"]
+    profiles: ["core"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -206,7 +172,7 @@ services:
         mc ls local
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
       MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}
     depends_on:
       minio:
@@ -219,7 +185,7 @@ services:
     command: ["--config", "/fluent-bit/etc/fluent-bit.yaml"]
     environment:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}
       FLUENT_BIT_UPLOAD_TIMEOUT: ${FLUENT_BIT_UPLOAD_TIMEOUT:-15m}
@@ -235,25 +201,27 @@ services:
         condition: service_completed_successfully
     networks: ["lakehouse-network"]
 
-  postgres-polaris:
-    image: postgres:17.6
-    profiles: ["batch"]
+  postgres:
+    image: postgres:16.8
+    profiles: ["batch", "bi"]
     environment:
-      POSTGRES_USER: ${POLARIS_DB_USER:-polaris}
-      POSTGRES_PASSWORD: ${POLARIS_DB_PASSWORD:-change-me-polaris-db}
-      POSTGRES_DB: ${POLARIS_DB_NAME:-polaris}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --data-checksums"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres-polaris-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 20
     networks: ["lakehouse-network"]
 
   polaris-bootstrap:
-    image: apache/polaris-admin-tool:1.5.0
+    image: apache/polaris-admin-tool:1.6.0
     profiles: ["batch"]
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -277,14 +245,14 @@ services:
       <<: *polaris-database-environment
       POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
       POLARIS_ROOT_CLIENT_ID: ${POLARIS_ROOT_CLIENT_ID:-root}
-      POLARIS_ROOT_CLIENT_SECRET: ${POLARIS_ROOT_CLIENT_SECRET:-change-me-polaris-root}
+      POLARIS_ROOT_CLIENT_SECRET: ${POLARIS_ROOT_CLIENT_SECRET:-password}
     depends_on:
-      postgres-polaris:
+      postgres:
         condition: service_healthy
     networks: ["lakehouse-network"]
 
   polaris:
-    image: apache/polaris:1.5.0
+    image: apache/polaris:1.6.0
     profiles: ["batch"]
     environment:
       <<: *polaris-database-environment
@@ -294,7 +262,7 @@ services:
       POLARIS_REALM_CONTEXT_REALMS: ${POLARIS_REALM:-POLARIS}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
       QUARKUS_OTEL_SDK_DISABLED: "true"
       QUARKUS_HTTP_CORS_ENABLED: "true"
       QUARKUS_HTTP_CORS_ORIGINS: ${POLARIS_CONSOLE_ORIGIN:-http://localhost:8183}
@@ -324,9 +292,9 @@ services:
       POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
       POLARIS_CATALOG: ${POLARIS_CATALOG_NAME:-lakehouse}
       POLARIS_ROOT_CLIENT_ID: ${POLARIS_ROOT_CLIENT_ID:-root}
-      POLARIS_ROOT_CLIENT_SECRET: ${POLARIS_ROOT_CLIENT_SECRET:-change-me-polaris-root}
-      POLARIS_WAREHOUSE_LOCATION: s3://${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}/warehouse
-      POLARIS_ALLOWED_LOCATION: s3://${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}/
+      POLARIS_ROOT_CLIENT_SECRET: ${POLARIS_ROOT_CLIENT_SECRET:-password}
+      POLARIS_WAREHOUSE_LOCATION: s3://${MINIO_LAKEHOUSE_BUCKET:-lakehouse}/warehouse
+      POLARIS_ALLOWED_LOCATION: s3://${MINIO_LAKEHOUSE_BUCKET:-lakehouse}/
       POLARIS_S3_ENDPOINT: http://minio:9000
       POLARIS_S3_ENDPOINT_INTERNAL: http://minio:9000
       AWS_REGION: ${AWS_REGION:-us-east-1}
@@ -368,20 +336,17 @@ services:
     <<: *spark-common
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master", "--host", "spark-master"]
     ports:
-      - "7077:7077"
+      - "${SPARK_MASTER_PORT:-7077}:7077"
       - "${SPARK_MASTER_UI_PORT:-8082}:8080"
     volumes:
       - spark-work:/opt/spark/work-dir
-    depends_on:
-      polaris-init:
-        condition: service_completed_successfully
 
   spark-worker:
     <<: *spark-common
     command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
     environment:
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2g}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-1}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-1g}
     ports:
       - "${SPARK_WORKER_UI_PORT:-8083}:8081"
     volumes:
@@ -412,22 +377,6 @@ services:
       spark-worker:
         condition: service_started
 
-  postgres-airflow:
-    image: postgres:16.8
-    profiles: ["batch"]
-    environment:
-      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
-      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-password}
-      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
-    volumes:
-      - postgres-airflow-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks: ["lakehouse-network"]
-
   airflow-init:
     <<: *airflow-common
     command:
@@ -449,7 +398,7 @@ services:
     environment:
       <<: *airflow-environment
       AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-airflow}
-      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-password}
 
   airflow-webserver:
     <<: *airflow-common
@@ -484,6 +433,7 @@ services:
     environment:
       POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
       POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+      TRINO_POLARIS_ROLE: ${TRINO_POLARIS_ROLE:-reader}
     ports:
       - "${TRINO_PORT:-8084}:8080"
     volumes:
@@ -502,22 +452,6 @@ services:
       start_period: 30s
     networks: ["lakehouse-network"]
 
-  postgres-superset:
-    image: postgres:16.8
-    profiles: ["bi"]
-    environment:
-      POSTGRES_USER: ${SUPERSET_DB_USER:-superset}
-      POSTGRES_PASSWORD: ${SUPERSET_DB_PASSWORD:-change-me-superset-db}
-      POSTGRES_DB: ${SUPERSET_DB_NAME:-superset}
-    volumes:
-      - postgres-superset-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks: ["lakehouse-network"]
-
   superset-init:
     <<: *superset-common
     command:
@@ -530,15 +464,16 @@ services:
         --password $${SUPERSET_ADMIN_PASSWORD}
         --firstname Web
         --lastname Admin
+        --role Admin
         --email admin@example.local || true) &&
         superset init &&
         superset import_datasources -p /app/config/datasources.yml
     environment:
       <<: *superset-environment
       SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-change-me-superset}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-password}
     depends_on:
-      postgres-superset:
+      postgres:
         condition: service_healthy
       trino:
         condition: service_healthy
@@ -564,16 +499,14 @@ networks:
     name: lakehouse-network
 
 volumes:
-  mysql-ecommerce-data:
+  mysql-data:
   minio-data:
   fluent-bit-state:
   fluent-bit-buffer:
   fluent-bit-s3-buffer:
   spark-work:
-  postgres-polaris-data:
+  postgres-data:
   polaris-client-credentials:
-  postgres-airflow-data:
   airflow-logs:
-  postgres-superset-data:
   pipeline-run-data:
   superset-home:

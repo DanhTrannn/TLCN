@@ -25,6 +25,7 @@ Khi tài liệu xung đột, `project/scope.md` được ưu tiên.
 |---|---|
 | [`project/`](project/) | Scope, roadmap và implementation plan |
 | [`architecture/`](architecture/) | System boundary, project structure và OLTP schema |
+| [`design-system/`](design-system/) | Tokens, typography và component specs cho Storefront UI |
 | [`runbook/`](runbook/) | Setup, Polaris/Iceberg local, operation, recovery và teardown |
 
 Tài liệu phải dùng đường dẫn tương đối, không chứa secret và không commit output được sinh tự động.

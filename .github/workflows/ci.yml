@@ -33,7 +33,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Validate Docker Compose
-        run: docker compose --profile core --profile tools --profile batch --profile bi --profile lakehouse-tools config --quiet
+        run: docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
 
   python-tests:
     name: Python tests
@@ -60,6 +60,11 @@ jobs:
         run: >-
           uv run --locked --package data-generator --extra dev --
           pytest generator/tests
+
+      - name: Run batch-pipeline tests
+        run: >-
+          PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev --
+          pytest pipelines/tests
 
   storefront:
     name: Storefront checks

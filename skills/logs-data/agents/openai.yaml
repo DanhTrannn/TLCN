@@ -1,4 +1,0 @@
-interface:
-  display_name: "E-commerce Log Data"
-  short_description: "Design e-commerce logs and synthetic traffic"
-  default_prompt: "Use $logs-data to design privacy-safe e-commerce access logs and batch Lakehouse ingestion."

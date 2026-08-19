@@ -10,22 +10,22 @@ Runbook TLCN bao phủ clean setup, service health, OLTP seed/generator, schedul
 ```bash
 cp .env.example .env
 docker compose --profile core up -d --build
-./scripts/grant_de_reader.sh
 docker compose --profile batch up -d --build
 docker compose --profile bi up -d --build
 ```
 
-Profile `core` chỉ gồm MySQL ecommerce, Ecommerce API và Storefront.
-Script grant chạy sau migration, cấp `SELECT` theo allowlist 16 bảng OLTP và
-không cấp quyền đọc `customer_credentials`.
+Profile `core` gồm MySQL, Ecommerce API và Storefront.
+Profile `batch` gồm Fluent Bit, MinIO, PostgreSQL (hợp nhất), Polaris, Spark và Airflow.
+Profile `bi` gồm Trino, PostgreSQL và Superset.
 
 ## Generator OLTP
 
+Chạy generator trực tiếp trên máy host qua `uv`:
+
 ```bash
-docker compose --profile tools build generator
-docker compose --profile tools run --rm generator export-sql \
-  --config /app/configs/small.yml \
-  --output /data/generator/small.sql
+uv run --locked --package data-generator -- generator export-sql \
+  --config generator/configs/small.yml \
+  --output data/generator/small.sql
 ./scripts/import_generated_sql.sh data/generator/small.sql
 ```
 
@@ -44,9 +44,9 @@ docker compose --profile batch logs -f fluent-bit
 Sinh lịch sử access log deterministic, cùng identity master với SQL:
 
 ```bash
-docker compose --profile tools run --rm generator export-logs \
-  --config /app/configs/small.yml \
-  --output-directory /data/generator/access-logs \
+uv run --locked --package data-generator -- generator export-logs \
+  --config generator/configs/small.yml \
+  --output-directory data/generator/access-logs \
   --expected-requests 60000
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
@@ -68,9 +68,10 @@ Migration và bootstrap admin tự chạy khi `ecommerce-api` khởi động.
 
 ```bash
 uv lock --check
-docker compose --profile core --profile batch --profile bi --profile tools config --quiet
+docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
+PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
 npm --prefix apps/storefront ci --no-audit --no-fund
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build

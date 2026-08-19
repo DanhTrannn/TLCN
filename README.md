@@ -28,11 +28,11 @@ Phạm vi và tiêu chí nghiệm thu được chốt tại [`docs/project/scope
 | Storefront, API, MySQL | Hoạt động | Tạo và quản lý dữ liệu OLTP |
 | SQL data generator | Hoạt động | Sinh dữ liệu lịch sử có thể tái lập |
 | Access-log source | Hoạt động | FastAPI JSON contract, Fluent Bit → MinIO và synthetic log generator |
-| Catalog/storage | Hoạt động | MinIO, Polaris 1.5.0, PostgreSQL metadata và Polaris Console |
-| Compute/query | Hoạt động | Spark + Iceberg runtime, Trino reader và smoke test end-to-end |
-| Pipeline/BI/ML assets | Đang phát triển | DAG, transformation, dashboard và model chưa hoàn tất |
+| Catalog/storage | Hoạt động | MinIO, Polaris 1.6.0, PostgreSQL 16.8 metadata và Polaris Console |
+| Compute/query | Hoạt động | Spark 3.5.9 + Iceberg 1.10.1, Trino reader/admin và smoke test end-to-end |
+| Pipeline/BI/ML assets | Đang phát triển | DAG, transformation, dashboard và model |
 
-Không chạy truy vấn phân tích nặng trên primary OLTP. Pipeline chỉ được đọc các bảng nằm trong source allowlist bằng tài khoản DE reader.
+Không chạy truy vấn phân tích nặng trên primary OLTP. Phân tích được thực hiện trên tầng Lakehouse (Iceberg/Trino/Superset).
 
 ## Kiến trúc
 
@@ -42,20 +42,20 @@ Customer/Admin
       ▼
 Next.js Storefront ──HTTP──▶ FastAPI Ecommerce API
                                    │
-                              short transaction
+                               short transaction
                                    │
                                    ▼
-                              MySQL OLTP ───────┐
-                                               │
+                               MySQL OLTP ───────┐
+                                                │
 FastAPI stdout ──Fluent Bit──15-minute gzip───┤
-                                               ▼
+                                                ▼
                          MinIO Landing → Spark → Iceberg
-                                               │
-                                  Polaris → Trino → Superset
-                                               └──────→ ML
+                                                │
+                                   Polaris → Trino → Superset
+                                                └──────→ ML
 
-Generator ──file .sql──▶ MySQL OLTP
-          └─JSONL.gz + manifest──▶ Landing/replay
+Generator (host CLI) ──file .sql──▶ MySQL OLTP
+                     └─JSONL.gz + manifest──▶ Landing/replay
 ```
 
 Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md).
@@ -66,22 +66,24 @@ Các boundary và dependency rule chi tiết nằm tại [`docs/architecture/pro
 |---|---|
 | Web | Next.js 15, React 19, TypeScript, Tailwind CSS |
 | API | FastAPI, SQLAlchemy 2, Alembic, Pydantic |
-| OLTP | MySQL 8.4, InnoDB, UTC, VND |
-| Python workspace | Python 3.11, uv |
-| Data platform | Airflow 2.10, Spark 3.5, Iceberg 1.10, Polaris 1.5, MinIO |
-| Serving/BI | Trino 483, Apache Superset 4.1 |
+| OLTP | MySQL 8.4.5, InnoDB, UTC, VND |
+| Python workspace | Python 3.11, uv (uv workspace: `ecommerce-api`, `data-generator`, `batch-pipeline`) |
+| Metadata DB | PostgreSQL 16.8 (hợp nhất cho Polaris, Airflow, Superset) |
+| Data platform | Airflow 2.10.5, Spark 3.5.9, Iceberg 1.10.1, Polaris 1.6.0, MinIO |
+| Serving/BI | Trino 483, Apache Superset 4.1.2 |
 | Local runtime | Docker Engine, Docker Compose v2 |
 
 ## Cấu trúc repository
 
 ```text
-apps/                  Giao diện người dùng và admin
-services/              Business API và application services
+apps/                  Giao diện người dùng và admin (Storefront Next.js)
+services/              Business API (FastAPI) và application services
 database/              Alembic migrations và catalog seed
-generator/             Synthetic OLTP SQL và access-log generator
+generator/             Synthetic OLTP SQL và access-log generator (CLI package)
+pipelines/             Spark batch jobs và lakehouse module (batch-pipeline)
 airflow/               DAG và cấu hình orchestration
-infrastructure/        Docker image, MySQL và Superset config
-docs/                  Scope, architecture, contract và runbook
+infrastructure/        Docker images, configs (Spark, Trino, Polaris, Superset, Fluent Bit, Postgres)
+docs/                  Scope, architecture, contract, design system và runbook
 scripts/               Lệnh vận hành dùng lại được
 skills/                Nguyên tắc thiết kế tái sử dụng
 tests/                 Test cross-component và test data
@@ -134,18 +136,15 @@ Password: Admin@12345
 
 ## Sinh và import dữ liệu
 
-Build generator và xuất bộ dữ liệu nhỏ:
+Chạy generator trực tiếp trên máy host qua `uv`:
 
 ```bash
-docker compose --profile tools build generator
-docker compose --profile tools run --rm generator export-sql \
-  --config /app/configs/small.yml \
-  --output /data/generator/small.sql
-```
+# 1. Sinh dữ liệu SQL nhỏ
+uv run --locked --package data-generator -- generator export-sql \
+  --config generator/configs/small.yml \
+  --output data/generator/small.sql
 
-Import vào chính MySQL mà API đang sử dụng:
-
-```bash
+# 2. Import vào MySQL
 ./scripts/import_generated_sql.sh data/generator/small.sql
 ```
 
@@ -154,9 +153,9 @@ Import vào chính MySQL mà API đang sử dụng:
 Sinh thêm access log cùng danh tính master và mùa vụ:
 
 ```bash
-docker compose --profile tools run --rm generator export-logs \
-  --config /app/configs/small.yml \
-  --output-directory /data/generator/access-logs \
+uv run --locked --package data-generator -- generator export-logs \
+  --config generator/configs/small.yml \
+  --output-directory data/generator/access-logs \
   --expected-requests 60000
 ```
 
@@ -167,22 +166,20 @@ Contract, cơ chế 15 phút và giới hạn phân tích nằm tại
 
 | Profile | Thành phần |
 |---|---|
-| `core` | MySQL ecommerce, Ecommerce API, Storefront |
-| `tools` | SQL và access-log data generator |
-| `batch` | Fluent Bit, MinIO, PostgreSQL Polaris, Polaris, Polaris Console, Spark và Airflow |
-| `bi` | Trino, PostgreSQL Superset và Superset |
+| `core` | MySQL, Ecommerce API, Storefront |
+| `batch` | Fluent Bit, MinIO, PostgreSQL, Polaris, Polaris Console, Spark và Airflow |
+| `bi` | Trino, PostgreSQL và Superset |
 | `lakehouse-tools` | Spark client dùng cho smoke test/SQL ghi qua Polaris |
 
 Xem log core:
 
 ```bash
-docker compose --profile core logs -f ecommerce-api storefront mysql-ecommerce
+docker compose --profile core logs -f ecommerce-api storefront mysql
 ```
 
 Khởi động Lakehouse/BI sau khi profile `core` đã healthy:
 
 ```bash
-./scripts/grant_de_reader.sh
 docker compose --profile core --profile batch --profile bi up -d --build
 ./scripts/lakehouse_smoke.sh
 ```

@@ -8,16 +8,16 @@ Stack local triển khai đúng dependency trong `lakehouse-plan.md`:
 MinIO ── lưu Landing + Iceberg data/metadata files
   ▲
   │ vended S3 credentials
-Polaris 1.5.0 ── Iceberg REST Catalog ── PostgreSQL metadata
+Polaris 1.6.0 ── Iceberg REST Catalog ── PostgreSQL 16.8 metadata
   ▲
   ├── Spark 3.5.9 + Iceberg 1.10.1: writer duy nhất
-  ├── Trino 483: reader/query engine
+  ├── Trino 483: reader/admin query engine
   └── Polaris Console: quản trị catalog/RBAC
 
 Superset ── SQLAlchemy/Trino ── Trino ── Polaris ── Iceberg
 ```
 
-Polaris không chứa file Parquet và không chạy query. PostgreSQL Polaris chỉ giữ catalog/RBAC metadata; MinIO mới giữ file Iceberg. Superset không kết nối MySQL OLTP hoặc MinIO trực tiếp.
+Polaris không chứa file Parquet và không chạy query. PostgreSQL chỉ giữ catalog/RBAC metadata (Polaris, Airflow, Superset); MinIO mới giữ file Iceberg. Superset không kết nối MySQL OLTP hoặc MinIO trực tiếp.
 
 ## 2. Chuẩn bị
 
@@ -64,12 +64,13 @@ Lần đầu cần tải các image lớn và build hai image local:
 Thứ tự startup được khóa bằng health/dependency condition:
 
 1. `minio-init` tạo private bucket `web-lakehouse`;
-2. `polaris-bootstrap` tạo schema JDBC và realm `POLARIS` trong PostgreSQL;
-3. `polaris-init` tạo catalog `lakehouse` trỏ tới `s3://web-lakehouse/warehouse`;
-4. tạo namespaces `bronze`, `silver`, `gold`, `quarantine`, `system`;
-5. tạo `spark_writer` với `CATALOG_MANAGE_CONTENT`;
-6. tạo `trino_reader` chỉ có metadata/read-data privileges;
-7. credential được giữ trong named volume `polaris-client-credentials`, không commit vào repository.
+2. `postgres` chạy script tạo 3 database `polaris`, `airflow`, `superset`;
+3. `polaris-bootstrap` tạo schema JDBC và realm `POLARIS` trong PostgreSQL;
+4. `polaris-init` tạo catalog `lakehouse` trỏ tới `s3://web-lakehouse/warehouse`;
+5. tạo namespaces `bronze`, `silver`, `gold`, `quarantine`, `system`;
+6. tạo `spark_writer` với `CATALOG_MANAGE_CONTENT`;
+7. tạo `trino_reader` (read privileges) và `trino_admin` (`CATALOG_MANAGE_CONTENT`);
+8. credentials được giữ trong named volume `polaris-client-credentials`, không commit vào repository.
 
 Bootstrap có thể chạy lại. Nếu credential volume còn hợp lệ, script tái sử dụng credential thay vì rotate.
 

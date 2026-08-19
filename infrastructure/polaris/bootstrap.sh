@@ -88,8 +88,11 @@ load_saved_credentials() {
     [ -n "${POLARIS_SPARK_CLIENT_SECRET:-}" ] && \
     [ -n "${POLARIS_TRINO_CLIENT_ID:-}" ] && \
     [ -n "${POLARIS_TRINO_CLIENT_SECRET:-}" ] && \
+    [ -n "${POLARIS_TRINO_ADMIN_CLIENT_ID:-}" ] && \
+    [ -n "${POLARIS_TRINO_ADMIN_CLIENT_SECRET:-}" ] && \
     obtain_token "$POLARIS_SPARK_CLIENT_ID" "$POLARIS_SPARK_CLIENT_SECRET" >/dev/null 2>&1 && \
-    obtain_token "$POLARIS_TRINO_CLIENT_ID" "$POLARIS_TRINO_CLIENT_SECRET" >/dev/null 2>&1
+    obtain_token "$POLARIS_TRINO_CLIENT_ID" "$POLARIS_TRINO_CLIENT_SECRET" >/dev/null 2>&1 && \
+    obtain_token "$POLARIS_TRINO_ADMIN_CLIENT_ID" "$POLARIS_TRINO_ADMIN_CLIENT_SECRET" >/dev/null 2>&1
 }
 
 principal_credentials() {
@@ -134,21 +137,28 @@ ensure_entity POST "$POLARIS_URL/api/management/v1/principal-roles" \
   '{"principalRole":{"name":"spark_writer_role","properties":{}}}'
 ensure_entity POST "$POLARIS_URL/api/management/v1/principal-roles" \
   '{"principalRole":{"name":"trino_reader_role","properties":{}}}'
+ensure_entity POST "$POLARIS_URL/api/management/v1/principal-roles" \
+  '{"principalRole":{"name":"trino_admin_role","properties":{}}}'
 ensure_entity POST "$POLARIS_URL/api/management/v1/catalogs/$CATALOG/catalog-roles" \
   '{"catalogRole":{"name":"spark_writer_catalog_role","properties":{}}}'
 ensure_entity POST "$POLARIS_URL/api/management/v1/catalogs/$CATALOG/catalog-roles" \
   '{"catalogRole":{"name":"trino_reader_catalog_role","properties":{}}}'
+ensure_entity POST "$POLARIS_URL/api/management/v1/catalogs/$CATALOG/catalog-roles" \
+  '{"catalogRole":{"name":"trino_admin_catalog_role","properties":{}}}'
 
 if load_saved_credentials; then
-  echo "Reusing valid Spark and Trino credentials from persistent volume."
+  echo "Reusing valid Spark, Trino Reader, and Trino Admin credentials from persistent volume."
 else
   echo "Creating or rotating service-principal credentials..."
   spark_credentials="$(principal_credentials spark_writer)"
   trino_credentials="$(principal_credentials trino_reader)"
+  trino_admin_credentials="$(principal_credentials trino_admin)"
   POLARIS_SPARK_CLIENT_ID="$(printf '%s' "$spark_credentials" | cut -f1)"
   POLARIS_SPARK_CLIENT_SECRET="$(printf '%s' "$spark_credentials" | cut -f2)"
   POLARIS_TRINO_CLIENT_ID="$(printf '%s' "$trino_credentials" | cut -f1)"
   POLARIS_TRINO_CLIENT_SECRET="$(printf '%s' "$trino_credentials" | cut -f2)"
+  POLARIS_TRINO_ADMIN_CLIENT_ID="$(printf '%s' "$trino_admin_credentials" | cut -f1)"
+  POLARIS_TRINO_ADMIN_CLIENT_SECRET="$(printf '%s' "$trino_admin_credentials" | cut -f2)"
 
   umask 077
   cat >"$CREDENTIAL_FILE" <<EOF
@@ -156,6 +166,8 @@ POLARIS_SPARK_CLIENT_ID='$POLARIS_SPARK_CLIENT_ID'
 POLARIS_SPARK_CLIENT_SECRET='$POLARIS_SPARK_CLIENT_SECRET'
 POLARIS_TRINO_CLIENT_ID='$POLARIS_TRINO_CLIENT_ID'
 POLARIS_TRINO_CLIENT_SECRET='$POLARIS_TRINO_CLIENT_SECRET'
+POLARIS_TRINO_ADMIN_CLIENT_ID='$POLARIS_TRINO_ADMIN_CLIENT_ID'
+POLARIS_TRINO_ADMIN_CLIENT_SECRET='$POLARIS_TRINO_ADMIN_CLIENT_SECRET'
 EOF
 fi
 
@@ -167,6 +179,10 @@ if ! principal_has_role trino_reader trino_reader_role; then
   ensure_entity PUT "$POLARIS_URL/api/management/v1/principals/trino_reader/principal-roles" \
     '{"principalRole":{"name":"trino_reader_role"}}'
 fi
+if ! principal_has_role trino_admin trino_admin_role; then
+  ensure_entity PUT "$POLARIS_URL/api/management/v1/principals/trino_admin/principal-roles" \
+    '{"principalRole":{"name":"trino_admin_role"}}'
+fi
 if ! catalog_role_has_principal_role spark_writer_catalog_role spark_writer_role; then
   ensure_entity PUT "$POLARIS_URL/api/management/v1/principal-roles/spark_writer_role/catalog-roles/$CATALOG" \
     '{"catalogRole":{"name":"spark_writer_catalog_role"}}'
@@ -175,9 +191,17 @@ if ! catalog_role_has_principal_role trino_reader_catalog_role trino_reader_role
   ensure_entity PUT "$POLARIS_URL/api/management/v1/principal-roles/trino_reader_role/catalog-roles/$CATALOG" \
     '{"catalogRole":{"name":"trino_reader_catalog_role"}}'
 fi
+if ! catalog_role_has_principal_role trino_admin_catalog_role trino_admin_role; then
+  ensure_entity PUT "$POLARIS_URL/api/management/v1/principal-roles/trino_admin_role/catalog-roles/$CATALOG" \
+    '{"catalogRole":{"name":"trino_admin_catalog_role"}}'
+fi
 
 if ! catalog_role_has_privilege spark_writer_catalog_role CATALOG_MANAGE_CONTENT; then
   ensure_entity PUT "$POLARIS_URL/api/management/v1/catalogs/$CATALOG/catalog-roles/spark_writer_catalog_role/grants" \
+    '{"type":"catalog","privilege":"CATALOG_MANAGE_CONTENT"}'
+fi
+if ! catalog_role_has_privilege trino_admin_catalog_role CATALOG_MANAGE_CONTENT; then
+  ensure_entity PUT "$POLARIS_URL/api/management/v1/catalogs/$CATALOG/catalog-roles/trino_admin_catalog_role/grants" \
     '{"type":"catalog","privilege":"CATALOG_MANAGE_CONTENT"}'
 fi
 for privilege in TABLE_READ_DATA TABLE_FULL_METADATA VIEW_FULL_METADATA NAMESPACE_FULL_METADATA CATALOG_READ_PROPERTIES; do
