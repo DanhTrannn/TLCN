@@ -202,7 +202,7 @@ services:
     networks: ["lakehouse-network"]
 
   postgres:
-    image: postgres:16.8
+    image: postgres:16.8-alpine
     profiles: ["batch", "bi"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
