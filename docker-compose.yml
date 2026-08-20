@@ -207,6 +207,9 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POLARIS_DB_PASSWORD: ${POLARIS_DB_PASSWORD:-password}
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:-password}
+      SUPERSET_DB_PASSWORD: ${SUPERSET_DB_PASSWORD:-password}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --data-checksums"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
