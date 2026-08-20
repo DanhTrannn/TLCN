@@ -11,6 +11,7 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from sqlalchemy.engine.url import make_url
 
 from lakehouse.config import load_config
+from lakehouse.cursor import build_cursor_advancements, write_committed_cursor
 from lakehouse.validate import s3_client, validate_run
 
 CONFIG_PATH = os.environ["PIPELINE_CONFIG_PATH"]
@@ -64,7 +65,10 @@ def capture_high_watermarks() -> dict:
                     f"(SELECT MAX(`{table.cursor_field}`) FROM `{table.name}`)"
                 )
                 row = cur.fetchone()
-                result[table.name] = {"at": str(row[0]), "pk": row[1]}
+                result[table.name] = {
+                    "at": str(row[0]) if row[0] is not None else None,
+                    "pk": row[1],
+                }
     finally:
         conn.close()
     return result
@@ -84,6 +88,21 @@ def validate_landing_manifests(**context) -> None:
     bad = {table: v for table, v in violations.items() if v}
     if bad:
         raise AirflowException(f"manifest violations: {json.dumps(bad)}")
+
+
+def commit_cursors(**context) -> None:
+    cfg = load_config(CONFIG_PATH)
+    watermarks = context["ti"].xcom_pull(task_ids="capture_high_watermarks")
+    s3 = s3_client(
+        os.environ["MINIO_ENDPOINT"], os.environ["MINIO_ACCESS_KEY"],
+        os.environ["MINIO_SECRET_KEY"],
+    )
+    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    states = build_cursor_advancements(
+        watermarks, [t.name for t in cfg.tables], now_utc
+    )
+    for table, state in states.items():
+        write_committed_cursor(s3, cfg.bucket, table, state)
 
 
 with DAG(
@@ -121,4 +140,9 @@ with DAG(
         python_callable=validate_landing_manifests,
     )
 
-    check >> begin >> capture >> extract >> validate
+    commit = PythonOperator(
+        task_id="commit_cursors",
+        python_callable=commit_cursors,
+    )
+
+    check >> begin >> capture >> extract >> validate >> commit
