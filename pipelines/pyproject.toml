@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==8.4.1"]
+dev = ["pytest==8.4.1", "pyspark==3.5.3"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,6 +1,15 @@
+import shutil
+
 import pytest
-from pyspark.sql import SparkSession
-from lakehouse.bronze import ingest_to_bronze
+
+pyspark = pytest.importorskip("pyspark", reason="pyspark not installed")
+pytestmark = pytest.mark.skipif(
+    shutil.which("java") is None,
+    reason="Java not found — Spark tests require a JDK",
+)
+
+from pyspark.sql import SparkSession  # noqa: E402
+from lakehouse.bronze import ingest_to_bronze  # noqa: E402
 
 
 @pytest.fixture(scope="session")
