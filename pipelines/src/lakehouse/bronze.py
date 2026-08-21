@@ -6,7 +6,7 @@ def ingest_to_bronze(
     spark: SparkSession,
     run_id: str,
     source_path: str,
-    format: str,
+    source_format: str,
     target_table: str,
     quarantine_table: str,
     error_threshold: float = 0.01,
@@ -16,7 +16,7 @@ def ingest_to_bronze(
     df = (
         spark.read.option("mode", "PERMISSIVE")
         .option("columnNameOfCorruptRecord", "_corrupt_record")
-        .format(format)
+        .format(source_format)
         .load(source_path)
     )
 
@@ -28,32 +28,35 @@ def ingest_to_bronze(
     )
 
     df.cache()
-    total_count = df.count()
-    if total_count == 0:
-        return
+    try:
+        total_count = df.count()
+        if total_count == 0:
+            return
 
-    # Check for errors
-    if "_corrupt_record" in df.columns:
-        error_df = df.filter(col("_corrupt_record").isNotNull())
-        error_count = error_df.count()
+        # Check for errors
+        if "_corrupt_record" in df.columns:
+            error_df = df.filter(col("_corrupt_record").isNotNull())
+            error_count = error_df.count()
 
-        if error_count / total_count >= error_threshold:
-            raise RuntimeError(
-                f"Error threshold exceeded: {error_count} errors out of {total_count} records."
-            )
+            if error_count / total_count >= error_threshold:
+                raise RuntimeError(
+                    f"Error threshold exceeded: {error_count} errors out of {total_count} records."
+                )
 
-        if error_count > 0:
-            if _write_format == "iceberg":
-                error_df.write.format("iceberg").mode("append").saveAsTable(quarantine_table)
-            else:
-                error_df.write.format(_write_format).mode("append").save(quarantine_table)
+            if error_count > 0:
+                if _write_format == "iceberg":
+                    error_df.write.format("iceberg").mode("append").saveAsTable(quarantine_table)
+                else:
+                    error_df.write.format(_write_format).mode("append").save(quarantine_table)
 
-        valid_df = df.filter(col("_corrupt_record").isNull()).drop("_corrupt_record")
-    else:
-        valid_df = df
+            valid_df = df.filter(col("_corrupt_record").isNull()).drop("_corrupt_record")
+        else:
+            valid_df = df
 
-    # Write valid to target
-    if _write_format == "iceberg":
-        valid_df.write.format("iceberg").mode("append").saveAsTable(target_table)
-    else:
-        valid_df.write.format(_write_format).mode("append").save(target_table)
+        # Write valid to target
+        if _write_format == "iceberg":
+            valid_df.write.format("iceberg").mode("append").saveAsTable(target_table)
+        else:
+            valid_df.write.format(_write_format).mode("append").save(target_table)
+    finally:
+        df.unpersist()
