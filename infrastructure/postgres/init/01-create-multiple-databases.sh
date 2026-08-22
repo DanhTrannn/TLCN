@@ -16,3 +16,4 @@ EOSQL
 create_user_and_database polaris polaris "${POLARIS_DB_PASSWORD:-password}"
 create_user_and_database airflow airflow "${AIRFLOW_DB_PASSWORD:-password}"
 create_user_and_database superset superset "${SUPERSET_DB_PASSWORD:-password}"
+create_user_and_database hue hue "${HUE_DB_PASSWORD:-password}"

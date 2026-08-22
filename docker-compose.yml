@@ -495,6 +495,8 @@ services:
     volumes:
       - ./infrastructure/hue/hue.ini:/usr/share/hue/desktop/conf/z-hue.ini:ro
     depends_on:
+      postgres:
+        condition: service_healthy
       trino:
         condition: service_healthy
     networks: ["lakehouse-network"]
