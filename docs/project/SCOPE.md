@@ -46,7 +46,7 @@ The backend API emits structured JSON logs on container stdout for every complet
 3. **Immutable Landing:** Landing zone files and Bronze tables are append-only.
 4. **Idempotency:** Silver layer pipelines handle deduplication and state merging. Rerunning a pipeline with the same input yields the exact same logical state.
 5. **Quality Gates:** Data is only published to the Gold layer after passing exact-match reconciliation checks (e.g., row counts, monetary amounts).
-6. **Separation of Compute:** Spark handles all Iceberg writes. Trino handles all read queries from Apache Superset. Transactional web APIs never communicate with Spark or Trino.
+6. **Separation of Compute:** Spark handles all Iceberg writes. Trino handles all read queries from Apache Superset and Apache Hue. Transactional web APIs never communicate with Spark or Trino.
 
 ---
 

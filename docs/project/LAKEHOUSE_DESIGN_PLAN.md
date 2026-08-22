@@ -11,6 +11,7 @@ The platform employs a decoupled storage and compute architecture:
 - **Catalog:** Apache Polaris (v1.6.0) acts as the REST catalog, managing namespaces, tables, and RBAC policies.
 - **Processing (Writer):** Apache Spark (v3.5.9) handles all extraction, parsing, transformation, data quality checks, and Iceberg table commits.
 - **Serving (Reader):** Trino (v483) serves SQL queries directly from Iceberg tables via Polaris REST catalog.
+- **Query UI:** Apache Hue (v4.11.0) provides an interactive SQL editor and data exploration interface for Trino.
 - **Visualization:** Apache Superset (v4.1.2) connects to Trino to serve executive and operational dashboards.
 - **Orchestration:** Apache Airflow (v2.10.5) manages all pipeline dependencies, schedules, and retries.
 

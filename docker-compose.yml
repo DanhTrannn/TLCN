@@ -77,7 +77,6 @@ x-polaris-database-environment: &polaris-database-environment
 services:
   mysql:
     image: mysql:8.4.5
-    profiles: ["core"]
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
       MYSQL_USER: ${MYSQL_USER:-ecommerce_app}
@@ -143,7 +142,6 @@ services:
 
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    profiles: ["core", "batch"]
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -162,7 +160,6 @@ services:
 
   minio-init:
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
-    profiles: ["batch"]
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
@@ -203,7 +200,6 @@ services:
 
   postgres:
     image: postgres:16.8-alpine
-    profiles: ["batch", "bi"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
@@ -222,7 +218,6 @@ services:
 
   polaris-bootstrap:
     image: apache/polaris-admin-tool:1.6.0
-    profiles: ["batch"]
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -253,7 +248,6 @@ services:
 
   polaris:
     image: apache/polaris:1.6.0
-    profiles: ["batch"]
     environment:
       <<: *polaris-database-environment
       POLARIS_PERSISTENCE_RELATIONAL_JDBC_MAX_RETRIES: 5
@@ -286,7 +280,6 @@ services:
 
   polaris-init:
     image: alpine/curl:8.21.0
-    profiles: ["batch"]
     environment:
       POLARIS_URL: http://polaris:8181
       POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
@@ -313,7 +306,6 @@ services:
       context: https://github.com/apache/polaris-tools.git#e5fea020aedcb1834f306d9a13de7fccbfff1943:console
       dockerfile: docker/Dockerfile
     image: polaris-console:1.4.0-e5fea020
-    profiles: ["batch"]
     environment:
       VITE_POLARIS_API_URL: ${POLARIS_PUBLIC_API_URL:-http://localhost:8181}
       VITE_OAUTH_TOKEN_URL: ${POLARIS_PUBLIC_API_URL:-http://localhost:8181}/api/catalog/v1/oauth/tokens
@@ -428,7 +420,6 @@ services:
 
   trino:
     image: trinodb/trino:483
-    profiles: ["bi"]
     entrypoint: ["/bin/sh", "/opt/trino/start.sh"]
     environment:
       POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
@@ -493,6 +484,17 @@ services:
       interval: 15s
       timeout: 10s
       retries: 20
+
+  hue:
+    image: gethue/hue:latest
+    ports:
+      - "${HUE_PORT:-8888}:8888"
+    volumes:
+      - ./infrastructure/hue/hue.ini:/usr/share/hue/desktop/conf/z-hue.ini:ro
+    depends_on:
+      trino:
+        condition: service_healthy
+    networks: ["lakehouse-network"]
 
 networks:
   lakehouse-network:

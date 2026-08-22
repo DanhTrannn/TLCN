@@ -122,12 +122,12 @@ The system processes data from two main sources: transactional data from MySQL a
             Apache Iceberg + Polaris
            (Bronze → Silver → Gold)
                         │
-                 Trino SQL Engine
-                        │
-            ┌───────────┴───────────┐
-            ▼                       ▼
-     Apache Superset          ML Repurchase
-      (BI Dashboards)           Prediction
+                  Trino SQL Engine
+                         │
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+    Apache Hue     Apache Superset  ML Repurchase
+    (Query UI)     (BI Dashboards)   Prediction
 ```
 
 ### Technology Stack
@@ -143,6 +143,7 @@ The system processes data from two main sources: transactional data from MySQL a
 | **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
 | **Orchestration** | Apache Airflow | 2.10.5 | DAG scheduling and job orchestration |
 | **Query Engine** | Trino | 483 | Distributed SQL query engine reading Iceberg tables |
+| **Query UI** | Apache Hue | 4.11.0 | Interactive SQL editor and data exploration interface for Trino |
 | **Visualization** | Apache Superset | 4.1.2 | Executive and operational BI dashboards |
 
 ---
@@ -198,7 +199,7 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ## Testing and Verification
 
-Run the full test suite across all Python workspace packages and the frontend (149 Python tests total):
+Run the full test suite across all Python workspace packages and the frontend (154 Python tests total):
 
 ```bash
 # Backend API tests (63 tests)
@@ -207,7 +208,7 @@ uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce
 # Data Generator tests (54 tests)
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 
-# Batch Pipeline tests (32 tests)
+# Batch Pipeline tests (37 tests)
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
 
 # Run all Python tests in workspace

@@ -10,6 +10,7 @@ The local stack implements the decoupled architecture defined in the lakehouse p
 - **Apache Polaris (v1.6.0):** Acts as the Iceberg REST Catalog, backed by PostgreSQL 16.8 for realm and RBAC metadata.
 - **Apache Spark (v3.5.9 + Iceberg v1.10.1):** The exclusive writer engine responsible for ETL and table commits.
 - **Trino (v483):** The distributed SQL query engine for read-only serving.
+- **Apache Hue (v4.11.0):** Interactive SQL query editor and metadata browser for Trino (`:8888`).
 - **Polaris Web Console:** Catalog and RBAC management UI (`:8183`).
 - **Apache Superset (v4.1.2):** Business intelligence dashboards connected to Trino.
 
@@ -33,13 +34,13 @@ If exposing services beyond `localhost`, update the following variables to avoid
 
 ## 3. Startup Sequence
 
-Launch the catalog, compute, and BI layers:
+Launch the default catalog, storage, Trino, and Hue:
 
 ```bash
-docker compose --profile batch --profile bi up -d --build
+docker compose up -d --build
 ```
 
-To run the complete system including the e-commerce web application:
+To run the complete system including batch processing, BI dashboards, and the e-commerce storefront:
 
 ```bash
 docker compose --profile core --profile batch --profile bi up -d --build
@@ -62,6 +63,7 @@ docker compose --profile core --profile batch --profile bi up -d --build
 | **Storefront** | `http://localhost:3000` | 3000 | Consumer shopping UI |
 | **Admin Console** | `http://localhost:3000/admin` | 3000 | Store operations (`admin@web.local` / `Admin@12345`) |
 | **Ecommerce API** | `http://localhost:8000/docs` | 8000 | Backend Swagger UI |
+| **Hue (Query UI)** | `http://localhost:8888` | 8888 | Interactive SQL editor for Trino (Create user on 1st login) |
 | **Airflow UI** | `http://localhost:8080` | 8080 | DAG orchestration UI (`airflow` / `password`) |
 | **Spark Master UI** | `http://localhost:8082` | 8082 | Compute cluster status |
 | **Trino Web UI** | `http://localhost:8084` | 8084 | Query execution status |
@@ -88,8 +90,8 @@ The script performs the following verifications:
 To query manually via Trino CLI inside container:
 
 ```bash
-docker compose --profile bi exec trino trino --execute "SHOW SCHEMAS FROM lakehouse;"
-docker compose --profile bi exec trino trino --execute "SELECT * FROM lakehouse.system.stack_smoke;"
+docker compose exec trino trino --execute "SHOW SCHEMAS FROM lakehouse;"
+docker compose exec trino trino --execute "SELECT * FROM lakehouse.system.stack_smoke;"
 ```
 
 ---

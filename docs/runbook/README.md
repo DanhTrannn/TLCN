@@ -17,14 +17,17 @@ Launch services using Docker Compose profiles:
 # 1. Prepare environment configuration
 cp .env.example .env
 
-# 2. Start core e-commerce services (MySQL, FastAPI, Storefront)
-docker compose --profile core up -d --build
+# 2. Start Default Storage, Catalog & Query UI (MySQL, Postgres, MinIO, Polaris, Trino, Hue)
+docker compose up -d --build
 
-# 3. Start batch processing and data platform services (MinIO, Polaris, Spark, Airflow)
+# 3. Start Batch Processing & Log Collector (Fluent Bit, Spark Cluster, Airflow)
 docker compose --profile batch up -d --build
 
-# 4. Start BI and query serving services (Trino, Superset)
+# 4. Start BI Dashboards (Apache Superset)
 docker compose --profile bi up -d --build
+
+# 5. Start Storefront & FastAPI Web Application (Optional)
+docker compose --profile core up -d --build
 ```
 
 ---
@@ -37,6 +40,15 @@ After starting the `core` profile, access the applications at:
 - **Admin Console:** `http://localhost:3000/admin` (Default: `admin@web.local` / `Admin@12345`)
 - **API Documentation:** `http://localhost:8000/docs` (Interactive Swagger UI)
 - **API Readiness Check:** `http://localhost:8000/health/ready`
+
+### Data Platform & Analytics Endpoints
+
+- **Hue (SQL Query Editor for Trino):** `http://localhost:8888` (Create any username/password on first login)
+- **Apache Superset (BI Dashboards):** `http://localhost:8088` (Default: `admin` / `password`)
+- **Apache Airflow (Orchestration):** `http://localhost:8080` (Default: `airflow` / `airflow`)
+- **Apache Polaris Web Console:** `http://localhost:8183`
+- **MinIO Object Storage Console:** `http://localhost:9001` (Default: `minioadmin` / `password`)
+- **Spark Master UI:** `http://localhost:8082`
 
 *Note: Database migrations and default admin seeding occur automatically during backend startup.*
 
@@ -100,7 +112,7 @@ Run tests and type checks across all components before submitting changes:
 uv lock --check
 docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
 
-# Run Python Test Suite (149 tests total)
+# Run Python Test Suite (154 tests total)
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
