@@ -21,6 +21,7 @@ This directory contains the architecture specifications, data schemas, operation
 ### Pipelines and ETL
 
 - [`pipelines/batch/INGEST_OLTP_TO_LANDING.md`](pipelines/batch/INGEST_OLTP_TO_LANDING.md): Spark batch extraction of 16 OLTP tables to MinIO Landing with composite cursors and manifest validation.
+- [`pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md): Spark ingestion of structured access logs from Landing Zone to Iceberg Bronze table (`web_events`).
 
 ### Operations and Deployment
 
