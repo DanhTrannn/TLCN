@@ -47,10 +47,12 @@ Data is physically organized in UTC-based partition paths within the `lakehouse`
 - **Access Logs:** The API emits JSON logs to stdout; Fluent Bit flushes 15-minute gzip-compressed micro-batches to the Landing zone.
 
 ### 3.2. Bronze Layer
-Spark reads Landing files and performs append-only commits to Bronze Iceberg tables.
-- Preserves the raw source representation exactly as extracted.
-- Appends ingestion metadata: `_run_id`, `_source_system`, `_source_schema`, `_source_table`, `_source_primary_key`, `_source_cursor_at`, `_source_high_watermark`, `_ingested_at_utc`.
-- Routes unparseable records to the `lakehouse.quarantine` namespace.
+Spark reads Landing files and performs append-only commits to Bronze Iceberg tables using a **Dead-Letter (Guarded)** strategy:
+- Preserves the raw source representation exactly as extracted using Spark `PERMISSIVE` read mode.
+- Appends three lineage metadata columns to every row: `_run_id` (Airflow DAG Run ID, enables idempotent reruns), `_source_file` (absolute S3 path for auditability), `_ingested_at_utc` (ingest timestamp for incremental Silver processing).
+- **Circuit Breaker:** If the fraction of corrupt records in a batch exceeds the error threshold (default 1%), the job raises `RuntimeError` and fails fast. This prevents silent, catastrophic schema changes from propagating.
+- **Decentralized Quarantine:** Corrupt records below the threshold are routed to a per-table quarantine namespace (`lakehouse.quarantine.<table_name>_errors`), not a shared sink. This isolates replay scope and prevents cross-domain resource contention.
+- Replay of quarantined records is done via ad-hoc jobs that write directly to the Bronze table; the Silver MERGE handles late arrival without ordering issues.
 
 ### 3.3. Silver Layer
 Spark transforms Bronze data into typed, deduplicated tables.

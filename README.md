@@ -199,7 +199,7 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ## Testing and Verification
 
-Run the full test suite across all Python workspace packages and the frontend (154 Python tests total):
+Run the full test suite across all Python workspace packages and the frontend (163 Python tests total):
 
 ```bash
 # Backend API tests (63 tests)
@@ -208,7 +208,7 @@ uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce
 # Data Generator tests (54 tests)
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 
-# Batch Pipeline tests (37 tests)
+# Batch Pipeline tests (46 tests)
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
 
 # Run all Python tests in workspace

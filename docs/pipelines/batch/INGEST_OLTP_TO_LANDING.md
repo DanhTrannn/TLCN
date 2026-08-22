@@ -17,7 +17,8 @@ Airflow DAG: ingest_oltp_batch
  │      ├── Lineage metadata column enrichment (_run_id, _source_*, _ingested_at_utc)
  │      ├── Parquet write to s3a://lakehouse/landing/oltp/<table>/extract_date=.../run_id=.../
  │      └── Cryptographic manifest write (manifest.json with MD5 checksums)
- └── 5. validate_landing_manifests (PythonOperator: validates Parquet row counts and S3 objects)
+ ├── 5. validate_landing_manifests (PythonOperator: validates Parquet row counts and S3 objects)
+ └── 6. commit_cursors (PythonOperator: advances committed cursor state to captured high watermarks)
 ```
 
 ---
@@ -45,15 +46,26 @@ landing/oltp/<table>/extract_date=YYYY-MM-DD/run_id=<run_id>/
 
 Incremental ingestion relies on composite cursors `(cursor_field, pk)` to guarantee exact and deterministic boundary queries without data loss.
 
-### Incremental SQL Predicate
-When a committed cursor exists in `s3://lakehouse/state/cursor/<table>.json`:
+### Extraction Window Predicate
+
+Every run extracts the closed window `(committed, high_watermark]`, expressed as a
+composite pair so that rows sharing the boundary timestamp are partitioned exactly
+by primary key:
 
 ```sql
 WHERE (`cursor_field` > :committed_at 
    OR (`cursor_field` = :committed_at AND `pk` > :committed_pk))
+  AND (`cursor_field` < :high_watermark_at 
+   OR (`cursor_field` = :high_watermark_at AND `pk` <= :high_watermark_pk))
 ```
 
+The first run (no committed cursor) applies only the upper bound, i.e. a full
+extract of everything up to `(high_watermark_at, high_watermark_pk)`. The upper
+bound guarantees that rows written to MySQL *after* the watermark capture fall
+into the next run, keeping validation deterministic even under live traffic.
+
 ### High Watermark Capture
+
 Before extraction starts, Airflow captures the instantaneous high watermark in MySQL:
 
 ```sql
@@ -61,6 +73,32 @@ SELECT MAX(`cursor_field`) AS at, MAX(`pk`) AS pk_at_max
 FROM `<table>`
 WHERE `cursor_field` = (SELECT MAX(`cursor_field`) FROM `<table>`);
 ```
+
+Empty tables capture `at = null` and are skipped by the cursor commit step, so
+their next run still performs a full extract once data appears.
+
+### Cursor Commit (Incremental State)
+
+The final DAG step (`commit_cursors`) writes the captured high watermark of every
+table to `s3://web-lakehouse/state/cursor/<table>.json` as:
+
+```json
+{"cursor_at": "2026-08-19T14:00:00", "cursor_pk": 1280, "updated_at_utc": "2026-08-19T14:06:12Z"}
+```
+
+Committing happens **only after** `validate_landing_manifests` passes for the whole
+run. This ordering is what makes retries and replays safe:
+
+- A failed run never commits, so an Airflow retry with the same `run_id`
+  re-extracts exactly the same window and overwrites its own `data/` prefix
+  idempotently.
+- A partial commit (task crash mid-way) is harmless: committed tables advance to
+  their next window, uncommitted tables fall back to a full extract.
+- Committing the captured high watermark (not the extracted `max_at`) guarantees
+  adjacent windows are disjoint and gapless, so no row is lost or duplicated.
+
+To reset incremental state for a backfill, delete the `state/cursor/<table>.json`
+object; the next run performs a full extract of that table.
 
 ---
 
@@ -141,8 +179,9 @@ Run the pipeline unit test suite:
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
 ```
 
-### Test Coverage (32 Tests)
+### Test Coverage (41 Tests)
 - `test_config.py`: Verifies loading and validation of table specs, cursor mappings, and mutability configurations.
-- `test_cursor.py`: Tests JSON round-tripping and error handling for `CursorState`.
+- `test_cursor.py`: Tests JSON round-tripping, cursor advancement from captured watermarks, and S3 cursor writes.
 - `test_landing.py`: Verifies `RunPaths` path builders, manifest serialization, and edge-case validation rules.
+- `test_query.py`: Verifies the extraction window predicate builder (first run, incremental, boundary ties).
 - `test_validate.py`: Tests S3 manifest validation logic and failure detection.

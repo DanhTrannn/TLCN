@@ -13,6 +13,6 @@ create_user_and_database() {
 EOSQL
 }
 
-create_user_and_database polaris polaris password
-create_user_and_database airflow airflow password
-create_user_and_database superset superset password
+create_user_and_database polaris polaris "${POLARIS_DB_PASSWORD:-password}"
+create_user_and_database airflow airflow "${AIRFLOW_DB_PASSWORD:-password}"
+create_user_and_database superset superset "${SUPERSET_DB_PASSWORD:-password}"

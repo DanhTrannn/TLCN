@@ -112,7 +112,7 @@ Run tests and type checks across all components before submitting changes:
 uv lock --check
 docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
 
-# Run Python Test Suite (154 tests total)
+# Run Python Test Suite (163 tests total)
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests

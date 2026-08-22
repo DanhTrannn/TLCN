@@ -9,6 +9,7 @@ from pyspark.sql.functions import col, count, lit, max, min
 from lakehouse.config import Config, TableSpec
 from lakehouse.cursor import CursorState
 from lakehouse.landing import MANIFEST_VERSION, RunPaths
+from lakehouse.query import build_range_predicate
 
 
 def _utc_now() -> str:
@@ -73,13 +74,9 @@ def extract_one_table(
                      extract_date=extract_date, run_id=run_id)
     now_utc = _utc_now()
 
-    range_pred = ""
-    if committed is not None:
-        range_pred = (
-            f" WHERE (`{table.cursor_field}` > '{committed.cursor_at}' OR "
-            f"(`{table.cursor_field}` = '{committed.cursor_at}' AND "
-            f"`{table.pk}` > {committed.cursor_pk or 0}))"
-        )
+    range_pred = build_range_predicate(
+        table.cursor_field, table.pk, committed, high_watermark_at, high_watermark_pk
+    )
 
     bounds = spark.read.format("jdbc").options(
         url=cfg.jdbc_url,
