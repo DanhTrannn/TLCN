@@ -73,16 +73,17 @@ flowchart LR
 ├── pipelines/
 │   ├── config/                           # Lakehouse table configurations (default.yml)
 │   ├── src/lakehouse/                    # Core library (config, cursor, landing, spark, validate)
-│   ├── src/jobs/                         # Spark batch jobs (extract_oltp.py, jdbc_probe.py)
-│   └── tests/                            # Pipeline & cursor tests (32 tests)
+│   ├── src/jobs/                         # Spark batch jobs (extract_oltp.py, ingest_bronze.py, ingest_logs_to_bronze.py)
+│   └── tests/                            # Pipeline, bronze & cursor tests (46 tests)
 ├── airflow/
-│   ├── dags/                             # Airflow DAGs (ingest_oltp_batch.py)
+│   ├── dags/                             # Airflow DAGs (ingest_oltp_batch.py, ingest_logs_15m_to_bronze.py)
 │   └── logs/                             # Airflow operational logs
 ├── infrastructure/
 │   ├── docker/                           # Custom images (Airflow, Superset)
 │   ├── fluent-bit/                       # Real-time access log collector config
+│   ├── hue/                              # Apache Hue Trino query UI config & postgres backend
 │   ├── polaris/                          # Idempotent Polaris catalog bootstrap script
-│   ├── postgres/                         # Multi-database init scripts (polaris, airflow, superset)
+│   ├── postgres/                         # Multi-database init scripts (polaris, airflow, superset, hue)
 │   ├── spark/                            # Spark Dockerfile, credentials script & conf
 │   ├── trino/                            # Trino Iceberg REST catalog configuration
 │   └── superset/                         # Superset datasources and configuration
@@ -110,19 +111,20 @@ The monorepo uses [`uv`](https://docs.astral.sh/uv/) as the package manager and 
 - **`data-generator`** (`generator`): Faker, PyYAML, Argon2, HTTPX.
 - **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3, PyArrow.
 
-Infrastructure components (Trino, Polaris, MinIO, Superset, Spark) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
+Infrastructure components (Trino, Hue, Polaris, MinIO, Superset, Spark) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
 
 ---
 
 ## 4. Docker Runtime Profiles
 
-The platform uses Docker Compose profiles to isolate service lifecycle:
+The platform uses Docker Compose profiles to isolate service lifecycles:
 
 | Profile | Services | Purpose |
 |---|---|---|
-| `core` | `mysql`, `ecommerce-api`, `storefront` | Operational e-commerce web application and primary database |
-| `batch` | `minio`, `minio-init`, `fluent-bit`, `postgres`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `spark-master`, `spark-worker`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, object landing, Iceberg ETL, catalog RBAC, and Airflow orchestration |
-| `bi` | `postgres`, `trino`, `superset-init`, `superset` | Distributed SQL query engine and Superset BI dashboards |
+| *(Default)* | `mysql`, `postgres`, `minio`, `minio-init`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `trino`, `hue` | Core storage, PostgreSQL metadata, Polaris REST catalog, Trino SQL query engine, and Hue Query UI |
+| `batch` | `fluent-bit`, `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
+| `bi` | `superset-init`, `superset` | Apache Superset BI visualization dashboards |
+| `core` | `ecommerce-api`, `storefront` | Operational e-commerce web application and customer storefront |
 | `lakehouse-tools` | `spark-client` | Ad-hoc Spark CLI verification and SQL smoke tests |
 
 ### Service Port Allocations
@@ -132,6 +134,7 @@ The platform uses Docker Compose profiles to isolate service lifecycle:
 | **Storefront** | `3000` | HTTP | Customer web store & operator console |
 | **MySQL** | `3306` | TCP | OLTP relational database |
 | **Ecommerce API** | `8000` | HTTP | FastAPI REST endpoints & Swagger docs (`/docs`) |
+| **Hue (Trino Query UI)** | `8888` | HTTP | Interactive SQL query editor & data exploration interface |
 | **Airflow Webserver** | `8080` | HTTP | Pipeline DAG execution & monitoring UI |
 | **Polaris REST Catalog** | `8181` | HTTP | Iceberg REST catalog API |
 | **Polaris Management** | `8182` | HTTP | Polaris health and management API |
@@ -143,4 +146,4 @@ The platform uses Docker Compose profiles to isolate service lifecycle:
 | **Apache Superset** | `8088` | HTTP | BI dashboards and SQL Lab interface |
 | **MinIO S3 API** | `9000` | HTTP (S3) | Object storage API endpoint |
 | **MinIO Web Console** | `9001` | HTTP | Web management console for S3 buckets |
-| **PostgreSQL** | `5432` | TCP | Metadata database for Polaris, Airflow, and Superset |
+| **PostgreSQL** | `5432` | TCP | Metadata database for Polaris, Airflow, Superset, and Hue |

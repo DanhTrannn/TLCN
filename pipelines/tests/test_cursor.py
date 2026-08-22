@@ -79,8 +79,8 @@ def test_build_cursor_advancements_skips_missing_table():
 def test_write_committed_cursor_round_trip():
     s3 = _FakeS3()
     state = CursorState("2026-08-15 10:00:00", 5, "2026-08-15T10:05:00Z")
-    write_committed_cursor(s3, "web-lakehouse", "orders", state)
-    body = s3.objects[("web-lakehouse", "state/cursor/orders.json")]
+    write_committed_cursor(s3, "lakehouse", "orders", state)
+    body = s3.objects[("lakehouse", "state/cursor/orders.json")]
     parsed = CursorState.from_json(body)
     assert parsed == state
 
@@ -88,5 +88,5 @@ def test_write_committed_cursor_round_trip():
 def test_write_committed_cursor_key_uses_cursor_object_path():
     s3 = _FakeS3()
     state = CursorState("2026-08-15 10:00:00", 5, "2026-08-15T10:05:00Z")
-    write_committed_cursor(s3, "web-lakehouse", "customers", state)
-    assert list(s3.objects) == [("web-lakehouse", "state/cursor/customers.json")]
+    write_committed_cursor(s3, "lakehouse", "customers", state)
+    assert list(s3.objects) == [("lakehouse", "state/cursor/customers.json")]

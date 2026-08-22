@@ -80,7 +80,7 @@ their next run still performs a full extract once data appears.
 ### Cursor Commit (Incremental State)
 
 The final DAG step (`commit_cursors`) writes the captured high watermark of every
-table to `s3://web-lakehouse/state/cursor/<table>.json` as:
+table to `s3://lakehouse/state/cursor/<table>.json` as:
 
 ```json
 {"cursor_at": "2026-08-19T14:00:00", "cursor_pk": 1280, "updated_at_utc": "2026-08-19T14:06:12Z"}
