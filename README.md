@@ -164,24 +164,33 @@ uv run --package data-generator -- python scripts/simulate_web_traffic.py \
 
 ### Historical Data Backfill
 
-Generate 12 months of deterministic historical OLTP data and 30 days of matching access logs:
+Generate and ingest 12 months of deterministic OLTP transactions and 30 days of matching access logs.
+
+#### Automated Backfill (Recommended — auto-cleanup with no temporary files left on host):
 
 ```bash
-# 1. Export SQL transaction history
+# Backfill both OLTP MySQL transactions and MinIO Access Logs
+./scripts/backfill_data.sh
+
+# Or backfill individually
+./scripts/backfill_data.sh --mode oltp  # MySQL database only
+./scripts/backfill_data.sh --mode logs  # MinIO Landing Zone only
+```
+
+#### Manual Step-by-Step Backfill:
+
+```bash
+# 1. Export SQL transaction history & import into MySQL
 uv run --locked --package data-generator -- generator export-sql \
   --config generator/configs/small.yml \
   --output data/generator/small.sql
-
-# 2. Import into MySQL database
 ./scripts/import_generated_sql.sh data/generator/small.sql
 
-# 3. Export matching operational access logs
+# 2. Export operational access logs & upload to MinIO S3 Landing Zone
 uv run --locked --package data-generator -- generator export-logs \
   --config generator/configs/small.yml \
   --output-directory data/generator/access-logs \
   --expected-requests 60000
-
-# 4. Upload logs to MinIO S3 Landing Zone
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
 

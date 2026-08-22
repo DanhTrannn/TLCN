@@ -44,9 +44,22 @@ After starting the `core` profile, access the applications at:
 
 ## 3. Data Generation and Backfill
 
-### Generate Synthetic OLTP Transactions
+### Automated Backfill (Zero-Footprint on Host)
 
-Generate historical transactions and import them into MySQL:
+To backfill data using temporary directories with automatic cleanup:
+
+```bash
+# Backfill both OLTP MySQL dataset and MinIO Access Logs
+./scripts/backfill_data.sh
+
+# Or backfill individually
+./scripts/backfill_data.sh --mode oltp  # MySQL database only
+./scripts/backfill_data.sh --mode logs  # MinIO Landing Zone only
+```
+
+### Manual Step-by-Step Backfill
+
+#### Generate Synthetic OLTP Transactions
 
 ```bash
 uv run --locked --package data-generator -- generator export-sql \
@@ -56,9 +69,7 @@ uv run --locked --package data-generator -- generator export-sql \
 ./scripts/import_generated_sql.sh data/generator/small.sql
 ```
 
-### Generate Historical Access Logs
-
-Generate deterministic JSON access logs matching the OLTP dataset:
+#### Generate Historical Access Logs
 
 ```bash
 uv run --locked --package data-generator -- generator export-logs \

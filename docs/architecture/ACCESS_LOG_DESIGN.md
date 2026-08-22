@@ -186,10 +186,6 @@ Access the MinIO Web Console at `http://localhost:9001` (Bucket: `lakehouse`, Pr
 ### Backfill Historical Access Logs
 
 ```bash
-uv run --locked --package data-generator -- generator export-logs \
-  --config generator/configs/small.yml \
-  --output-directory data/generator/access-logs \
-  --expected-requests 60000
-
-./scripts/upload_generated_logs.sh data/generator/access-logs
+# Automated zero-footprint backfill to MinIO
+./scripts/backfill_data.sh --mode logs
 ```

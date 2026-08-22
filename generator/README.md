@@ -4,7 +4,27 @@ The Data Generator (`data-generator` package, v0.6.0) creates deterministic synt
 
 ---
 
-## 1. Export SQL History
+## Automated Backfill (Zero-Footprint on Host)
+
+To backfill data without leaving temporary SQL or log files on your host filesystem, use [`scripts/backfill_data.sh`](../../scripts/backfill_data.sh):
+
+```bash
+# Backfill both OLTP SQL into MySQL and Access Logs to MinIO S3
+./scripts/backfill_data.sh
+
+# Or backfill individually
+./scripts/backfill_data.sh --mode oltp  # MySQL database only
+./scripts/backfill_data.sh --mode logs  # MinIO Landing Zone only
+
+# With a specific scale configuration
+./scripts/backfill_data.sh --config generator/configs/medium.yml
+```
+
+---
+
+## Manual Export Workflow
+
+### 1. Export SQL History
 
 ```bash
 uv run --locked --package data-generator -- generator export-sql \
@@ -14,9 +34,23 @@ uv run --locked --package data-generator -- generator export-sql \
 
 The output file is written to `data/generator/small.sql`.
 
+### 2. Import into MySQL
+
+Once MySQL is running and Alembic migrations have completed (`0001` through `0009`):
+
+```bash
+./scripts/import_generated_sql.sh data/generator/small.sql
+```
+
+> [!IMPORTANT]
+> The generated SQL runs within a single atomic transaction without disabling foreign key checks. Do not import the same SQL file twice into the same database.
+
+### Demo Customer Credentials
+After export, the CLI prints a demo customer account. The demo email uses the first 8 characters of `logical_identity`, and the local password is fixed to `Demo@12345`.
+
 ---
 
-## 2. Export Matching Access Logs
+### 3. Export Matching Access Logs
 
 ```bash
 uv run --locked --package data-generator -- generator export-logs \
@@ -35,31 +69,13 @@ landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.
 - **Format:** Gzip-compressed newline-delimited JSON (`.jsonl.gz`).
 - **Telemetry Standards:** Standardized to OpenTelemetry-compatible fields (`service.name=ecommerce-api`, `data_origin=observed`, 12-character hex container IDs).
 
----
-
-## 3. Upload to MinIO Landing Zone
+### 4. Upload to MinIO Landing Zone
 
 When MinIO and Docker services are active, upload generated logs to the S3 Landing Zone:
 
 ```bash
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
-
----
-
-## 4. Import into MySQL
-
-Once MySQL is running and Alembic migrations have completed (`0001` through `0009`):
-
-```bash
-./scripts/import_generated_sql.sh data/generator/small.sql
-```
-
-> [!IMPORTANT]
-> The generated SQL runs within a single atomic transaction without disabling foreign key checks. Do not import the same SQL file twice into the same database.
-
-### Demo Customer Credentials
-After export, the CLI prints a demo customer account. The demo email uses the first 8 characters of `logical_identity`, and the local password is fixed to `Demo@12345`.
 
 ---
 
