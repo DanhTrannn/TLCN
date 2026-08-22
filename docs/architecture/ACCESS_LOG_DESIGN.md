@@ -18,7 +18,7 @@ Fluent Bit Collector (v4.2.3)
       │ Flushes 15-minute micro-batches
       ▼
 MinIO S3 Landing Zone
-      │ s3://web-lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
+      │ s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
       ▼
 Spark Batch ETL Pipeline
       │ Bronze (Raw deduplication, metadata enrichment)
@@ -152,7 +152,7 @@ To comply with data privacy policies, the following fields are strictly excluded
 All access log files follow Hive-style partitioning:
 
 ```text
-s3://web-lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
+s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
 ```
 
 - **File Format:** Gzip-compressed newline-delimited JSON (`.jsonl.gz`).
@@ -181,7 +181,7 @@ docker compose --profile batch logs -f fluent-bit
 
 ### Inspect MinIO S3 Objects
 
-Access the MinIO Web Console at `http://localhost:9001` (Bucket: `web-lakehouse`, Prefix: `landing/logs/`).
+Access the MinIO Web Console at `http://localhost:9001` (Bucket: `lakehouse`, Prefix: `landing/logs/`).
 
 ### Backfill Historical Access Logs
 

@@ -29,4 +29,4 @@ docker compose --profile batch run --rm --no-deps \
     mc mirror --overwrite /generated-logs "local/$MINIO_LAKEHOUSE_BUCKET/landing/logs"
   '
 
-echo "Upload completed under s3://${MINIO_LAKEHOUSE_BUCKET:-web-lakehouse}/landing/logs/."
+echo "Upload completed under s3://${MINIO_LAKEHOUSE_BUCKET:-lakehouse}/landing/logs/."

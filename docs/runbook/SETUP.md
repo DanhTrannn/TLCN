@@ -6,7 +6,7 @@ This runbook covers the local deployment, RBAC bootstrapping, smoke testing, and
 
 The local stack implements the decoupled architecture defined in the lakehouse plan:
 
-- **MinIO S3:** Stores Landing zone files, Iceberg metadata, and Parquet data files under bucket `web-lakehouse`.
+- **MinIO S3:** Stores Landing zone files, Iceberg metadata, and Parquet data files under bucket `lakehouse`.
 - **Apache Polaris (v1.6.0):** Acts as the Iceberg REST Catalog, backed by PostgreSQL 16.8 for realm and RBAC metadata.
 - **Apache Spark (v3.5.9 + Iceberg v1.10.1):** The exclusive writer engine responsible for ETL and table commits.
 - **Trino (v483):** The distributed SQL query engine for read-only serving.
@@ -47,10 +47,10 @@ docker compose --profile core --profile batch --profile bi up -d --build
 
 ### Automated Bootstrap Workflow
 
-1. `minio-init` creates the private `web-lakehouse` bucket if not present.
+1. `minio-init` creates the private `lakehouse` bucket if not present.
 2. `postgres` provisions isolated databases for `polaris`, `airflow`, and `superset`.
 3. `polaris-bootstrap` initializes the JDBC metadata store and default `POLARIS` realm.
-4. `polaris-init` creates the `lakehouse` catalog mapped to `s3://web-lakehouse/warehouse` and registers the namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
+4. `polaris-init` creates the `lakehouse` catalog mapped to `s3://lakehouse/warehouse` and registers the namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
 5. `polaris-init` provisions `spark_writer` (with `CATALOG_MANAGE_CONTENT`) and `trino_reader` principals, persisting credentials to the `polaris-client-credentials` Docker volume.
 
 ---
@@ -82,7 +82,7 @@ Run the automated smoke test script to verify end-to-end integration:
 The script performs the following verifications:
 1. Verifies that `polaris` and `minio` endpoints are reachable.
 2. Uses Spark SQL (`spark-client`) to write an Iceberg table (`lakehouse.system.stack_smoke`) via Polaris REST catalog.
-3. Verifies that data files exist in MinIO under `s3://web-lakehouse/warehouse/system/stack_smoke`.
+3. Verifies that data files exist in MinIO under `s3://lakehouse/warehouse/system/stack_smoke`.
 4. Executes a Trino query reading from `lakehouse.system.stack_smoke` to ensure end-to-end read-write connectivity.
 
 To query manually via Trino CLI inside container:

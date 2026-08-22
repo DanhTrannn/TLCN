@@ -19,8 +19,8 @@ This document describes the initialization sequence and behavior of each service
 | Service | Startup Behavior |
 |---|---|
 | `minio` | Starts MinIO S3 server (`:9000`) and web console (`:9001`). |
-| `minio-init` | One-shot: Configures `mc` alias → Idempotently creates `web-lakehouse` bucket → Disables anonymous public access. |
-| `fluent-bit` | Waits for `minio-init` → Tails container stdout logs, buffers to persistent storage, compresses to gzip, and flushes 15-minute micro-batches to `s3://web-lakehouse/landing/logs/`. |
+| `minio-init` | One-shot: Configures `mc` alias → Idempotently creates `lakehouse` bucket → Disables anonymous public access. |
+| `fluent-bit` | Waits for `minio-init` → Tails container stdout logs, buffers to persistent storage, compresses to gzip, and flushes 15-minute micro-batches to `s3://lakehouse/landing/logs/`. |
 | `postgres` | Boots PostgreSQL 16.8 → Runs `01-create-multiple-databases.sh` to initialize isolated databases for `polaris`, `airflow`, and `superset`. |
 | `polaris-bootstrap` | One-shot: Executes `polaris-admin-tool bootstrap` to create the default realm (`POLARIS`) and root client credentials in PostgreSQL. |
 | `polaris` | Waits for `postgres`, `polaris-bootstrap`, and `minio-init` → Starts Polaris REST catalog (`:8181`) and management server (`:8182`). |

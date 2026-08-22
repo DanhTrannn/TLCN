@@ -114,7 +114,7 @@ The system processes data from two main sources: transactional data from MySQL a
          └──────────────┬──────────────┘
                         ▼
                MinIO S3 Landing Zone
-           s3://web-lakehouse/landing/
+           s3://lakehouse/landing/
                         │
                   Apache Spark
            (Medallion ETL Pipeline)
@@ -138,7 +138,7 @@ The system processes data from two main sources: transactional data from MySQL a
 | **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic and structured access logging |
 | **Operational DB** | MySQL | 8.4 LTS | Primary relational database (17 tables, 16 analytical) |
 | **Log Collector** | Fluent Bit | 4.2.3 | Container log tailing, disk buffering, S3 gzip flushing |
-| **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`web-lakehouse` bucket) |
+| **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`lakehouse` bucket) |
 | **Table Catalog** | Apache Polaris | 1.6.0 | REST catalog managing Iceberg namespaces and RBAC |
 | **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
 | **Orchestration** | Apache Airflow | 2.10.5 | DAG scheduling and job orchestration |

@@ -6,7 +6,7 @@ This document outlines the architecture, storage formats, compute engines, and t
 
 The platform employs a decoupled storage and compute architecture:
 
-- **Storage:** MinIO object storage (`web-lakehouse` bucket) holds all Landing files and Iceberg data/metadata files.
+- **Storage:** MinIO object storage (`lakehouse` bucket) holds all Landing files and Iceberg data/metadata files.
 - **Table Format:** Apache Iceberg (v1.10.1) is the exclusive table format for Bronze, Silver, and Gold layers.
 - **Catalog:** Apache Polaris (v1.6.0) acts as the REST catalog, managing namespaces, tables, and RBAC policies.
 - **Processing (Writer):** Apache Spark (v3.5.9) handles all extraction, parsing, transformation, data quality checks, and Iceberg table commits.
@@ -30,12 +30,12 @@ The `lakehouse` catalog contains five logical namespaces:
 - `lakehouse.system`
 
 ### 2.2. Object Storage (MinIO) Layout
-Data is physically organized in UTC-based partition paths within the `web-lakehouse` bucket:
-- **Landing Zone:** Immutable raw data `s3://web-lakehouse/landing/`
+Data is physically organized in UTC-based partition paths within the `lakehouse` bucket:
+- **Landing Zone:** Immutable raw data `s3://lakehouse/landing/`
   - OLTP: `landing/oltp/<table>/extract_date=YYYY-MM-DD/run_id=<run_id>/...`
   - Access Logs: `landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz`
-- **Warehouse:** Managed Iceberg tables `s3://web-lakehouse/warehouse/<namespace>/<table>/`
-- **State:** Checkpoints, committed cursors, and run metadata `s3://web-lakehouse/state/cursor/<table>.json`
+- **Warehouse:** Managed Iceberg tables `s3://lakehouse/warehouse/<namespace>/<table>/`
+- **State:** Checkpoints, committed cursors, and run metadata `s3://lakehouse/state/cursor/<table>.json`
 
 ---
 

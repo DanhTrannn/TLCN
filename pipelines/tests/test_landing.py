@@ -2,7 +2,7 @@ import pytest
 
 from lakehouse.landing import RunPaths, manifest_from_dict, validate_manifest
 
-RUN = RunPaths(bucket="web-lakehouse", table="orders",
+RUN = RunPaths(bucket="lakehouse", table="orders",
                extract_date="2026-08-15", run_id="run123")
 
 

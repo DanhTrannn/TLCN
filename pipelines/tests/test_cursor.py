@@ -6,7 +6,7 @@ from lakehouse.cursor import CURSOR_DIR, CursorState, cursor_object_path
 
 
 def test_cursor_object_path():
-    assert cursor_object_path("web-lakehouse", "orders") == "state/cursor/orders.json"
+    assert cursor_object_path("lakehouse", "orders") == "state/cursor/orders.json"
 
 
 def test_to_json_round_trip():

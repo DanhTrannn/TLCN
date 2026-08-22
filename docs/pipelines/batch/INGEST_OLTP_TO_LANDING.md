@@ -15,7 +15,7 @@ Airflow DAG: ingest_oltp_batch
  │      ├── Multi-threaded read (ThreadPoolExecutor, 4 parallel tables)
  │      ├── Incremental extraction via composite cursor (cursor_field, pk)
  │      ├── Lineage metadata column enrichment (_run_id, _source_*, _ingested_at_utc)
- │      ├── Parquet write to s3a://web-lakehouse/landing/oltp/<table>/extract_date=.../run_id=.../
+ │      ├── Parquet write to s3a://lakehouse/landing/oltp/<table>/extract_date=.../run_id=.../
  │      └── Cryptographic manifest write (manifest.json with MD5 checksums)
  └── 5. validate_landing_manifests (PythonOperator: validates Parquet row counts and S3 objects)
 ```
@@ -46,7 +46,7 @@ landing/oltp/<table>/extract_date=YYYY-MM-DD/run_id=<run_id>/
 Incremental ingestion relies on composite cursors `(cursor_field, pk)` to guarantee exact and deterministic boundary queries without data loss.
 
 ### Incremental SQL Predicate
-When a committed cursor exists in `s3://web-lakehouse/state/cursor/<table>.json`:
+When a committed cursor exists in `s3://lakehouse/state/cursor/<table>.json`:
 
 ```sql
 WHERE (`cursor_field` > :committed_at 
