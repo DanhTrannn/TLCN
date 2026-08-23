@@ -61,6 +61,22 @@ def main():
         print(f"  Target: {target_table}")
 
         try:
+            # Check if landing path exists before attempting ingestion
+            try:
+                files = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
+                    spark._jsc.hadoopConfiguration()
+                ).globStatus(
+                    spark._jvm.org.apache.hadoop.fs.Path(source_path.replace("*", "?"))
+                )
+                has_data = any(f.getPath().getName().endswith(".parquet") for f in files)
+            except Exception:
+                has_data = False
+
+            if not has_data:
+                print(f"[{idx}/{total_tables}] SKIP: '{table_name}' - no landing data found.")
+                skip_count += 1
+                continue
+
             ingest_to_bronze(
                 spark=spark,
                 run_id=args.run_id,
