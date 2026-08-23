@@ -238,6 +238,7 @@ Explore the detailed architecture and planning documents:
 | **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |
 | **Design System** | [`docs/design-system/DESIGN.md`](docs/design-system/DESIGN.md) | UI tokens, typography, component guidelines, and color palette |
 | **Batch Ingestion (OLTP)** | [`docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md`](docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md) | Spark OLTP extraction to MinIO Landing and manifest validation |
+| **Bronze Ingestion (OLTP)** | [`docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md) | Spark ingestion of OLTP data from Landing to Iceberg Bronze tables |
 | **Bronze Ingestion (Logs)** | [`docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md) | Spark ingestion of Access Logs from Landing to Iceberg Bronze table (`web_events`) |
 | **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and smoke testing |
 | **Startup Sequence** | [`docs/runbook/STARTUP_FLOW.md`](docs/runbook/STARTUP_FLOW.md) | Service bootstrap sequence, migrations, and health checks |
