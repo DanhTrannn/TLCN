@@ -181,6 +181,6 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | `ingest_oltp_batch` | Done | Hourly |
 | `ingest_oltp_landing_to_bronze` | Done | Daily 2 AM |
 | `ingest_logs_15m_to_bronze` | Done | Every 15 min |
-| `ingest_oltp_bronze_to_silver` | Done | Manual |
+| `ingest_oltp_bronze_to_silver` | Done | Daily 2 AM |
 | `ingest_logs_bronze_to_silver` | Done | Every 2 hours |
 | Silver → Gold | Pending | - |

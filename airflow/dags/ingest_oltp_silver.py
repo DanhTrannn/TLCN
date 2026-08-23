@@ -26,7 +26,7 @@ def begin_run(**context) -> None:
 with DAG(
     dag_id="ingest_oltp_bronze_to_silver",
     default_args=DEFAULT_ARGS,
-    schedule=None,
+    schedule="0 2 * * *",
     catchup=False,
     start_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
     description="Ingest OLTP Bronze tables to Silver via MERGE",

@@ -66,7 +66,7 @@ pipelines/
 - **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](../docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md).
 
 ### 2.4. OLTP Bronze → Silver (`ingest_oltp_bronze_to_silver` DAG)
-- **Schedule:** Manual trigger.
+- **Schedule:** Daily at 2 AM UTC (`0 2 * * *`).
 - **Flow:** Reads all 16 Bronze tables, deduplicates by PK, applies business rule validation (8 rules), routes violations to quarantine, pseudonymizes PII (customers), and performs MERGE (upsert for mutable, append for append-only) into Silver Iceberg tables.
 - **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md).
 
@@ -86,7 +86,7 @@ pipelines/
 | `ingest_oltp_batch` | Hourly | MySQL → Landing | 16/16 | Composite cursors, MD5 manifests |
 | `ingest_logs_15m_to_bronze` | 15 min | Fluent Bit → Bronze | 1/1 | `web_events`, anti-join dedup |
 | `ingest_oltp_landing_to_bronze` | Daily 2 AM | Landing → Bronze | 16/16 | Auto-discover `run_id` from Landing |
-| `ingest_oltp_bronze_to_silver` | Manual | Bronze → Silver | 16/16 | MERGE, PII pseudonymization, quarantine |
+| `ingest_oltp_bronze_to_silver` | Daily 2 AM | Bronze → Silver | 16/16 | MERGE, PII pseudonymization, quarantine |
 | `ingest_logs_bronze_to_silver` | 2 hours | Bronze → Silver | 1/1 | Anti-join dedup, struct flattening |
 
 ### Pending
