@@ -73,10 +73,10 @@ flowchart LR
 ├── pipelines/
 │   ├── config/                           # Lakehouse table configurations (default.yml)
 │   ├── src/lakehouse/                    # Core library (config, cursor, landing, spark, validate)
-│   ├── src/jobs/                         # Spark batch jobs (extract_oltp.py, ingest_bronze.py, ingest_logs_to_bronze.py)
-│   └── tests/                            # Pipeline, bronze & cursor tests (46 tests)
+│   ├── src/jobs/                         # Spark batch jobs (extract_oltp.py, ingest_bronze.py, ingest_logs_to_bronze.py, ingest_oltp_to_bronze.py)
+│   └── tests/                            # Pipeline, bronze & cursor tests (49 tests)
 ├── airflow/
-│   ├── dags/                             # Airflow DAGs (ingest_oltp_batch.py, ingest_logs_15m_to_bronze.py)
+│   ├── dags/                             # Airflow DAGs (ingest_oltp_batch.py, ingest_logs_15m_to_bronze.py, ingest_oltp_landing_to_bronze.py)
 │   └── logs/                             # Airflow operational logs
 ├── infrastructure/
 │   ├── docker/                           # Custom images (Airflow, Superset)
@@ -147,3 +147,40 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | **MinIO S3 API** | `9000` | HTTP (S3) | Object storage API endpoint |
 | **MinIO Web Console** | `9001` | HTTP | Web management console for S3 buckets |
 | **PostgreSQL** | `5432` | TCP | Metadata database for Polaris, Airflow, Superset, and Hue |
+
+---
+
+## 5. Implementation Progress
+
+### Infrastructure (All Done)
+
+| Component | Version | Status |
+|---|---|---|
+| MinIO (S3 storage) | RELEASE.2025-09-07 | Done |
+| Polaris (Iceberg catalog) | 1.6.0 | Done |
+| Spark (compute) | 3.5.9 + Iceberg 1.10.1 | Done |
+| Trino (query engine) | v483 | Done |
+| Airflow (orchestration) | 2.10.5 | Done |
+| MySQL (OLTP source) | 8.4.5 | Done |
+| Hue (SQL editor) | 4.11.0 | Done |
+| Superset (BI) | 4.1.2 | Done |
+| E-Commerce API + Storefront | 0.1.0 | Done |
+
+### Batch Pipelines
+
+| Layer | OLTP | Logs |
+|---|---|---|
+| Landing → Bronze | Done (16/16 tables) | Done (`web_events`) |
+| Bronze → Silver | Pending | Pending |
+| Silver → Gold | Pending | Pending |
+
+### Airflow DAGs
+
+| DAG | Status | Schedule |
+|---|---|---|
+| `ingest_oltp_batch` | Done | Hourly |
+| `ingest_oltp_landing_to_bronze` | Done | Daily 2 AM |
+| `ingest_logs_15m_to_bronze` | Done | Every 15 min |
+| Bronze → Silver (OLTP) | Pending | - |
+| Bronze → Silver (Logs) | Pending | - |
+| Silver → Gold | Pending | - |
