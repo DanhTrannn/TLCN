@@ -169,3 +169,94 @@ def test_merge_result_dataclass():
     assert result.inserted == 5
     assert result.updated == 3
     assert result.quarantined == 1
+
+
+def test_negative_price_routes_to_quarantine(spark, tmp_path):
+    schema = StructType([
+        StructField("variant_id", IntegerType(), False),
+        StructField("product_id", IntegerType(), False),
+        StructField("sku", StringType(), False),
+        StructField("size_code", StringType(), True),
+        StructField("color_code", StringType(), True),
+        StructField("price_vnd", IntegerType(), False),
+        StructField("is_active", StringType(), False),
+        StructField("created_at", TimestampType(), False),
+        StructField("updated_at", TimestampType(), False),
+        StructField("_ingested_at_utc", TimestampType(), False),
+        StructField("_run_id", StringType(), False),
+    ])
+    data = [
+        (1, 1, "SKU-001", "M", "RED", -1000, "true", "2026-01-01", "2026-08-01", "2026-08-15", "run-1"),
+        (2, 1, "SKU-002", "L", "BLUE", 50000, "true", "2026-01-01", "2026-08-01", "2026-08-15", "run-1"),
+    ]
+    bronze_df = spark.createDataFrame(data, schema)
+    target = str(tmp_path / "silver_product_variants")
+
+    @dataclass
+    class MockTable:
+        name: str
+        pk: str
+        cursor_field: str
+        mutability: str
+        silver_table: str
+        pseudonymize: tuple = ()
+
+    table = MockTable(
+        name="product_variants", pk="variant_id", cursor_field="updated_at",
+        mutability="mutable", silver_table="silver_product_variants",
+    )
+
+    result = merge_oltp_table(
+        spark=spark, table=table, bronze_df=bronze_df,
+        run_id="run-1", target_path=target, _write_format="parquet",
+    )
+
+    assert result.quarantined == 1
+    assert result.inserted == 1
+
+    df = spark.read.parquet(target)
+    assert df.count() == 1
+    assert df.filter("variant_id = 2").count() == 1
+
+
+def test_valid_price_passes(spark, tmp_path):
+    schema = StructType([
+        StructField("variant_id", IntegerType(), False),
+        StructField("product_id", IntegerType(), False),
+        StructField("sku", StringType(), False),
+        StructField("size_code", StringType(), True),
+        StructField("color_code", StringType(), True),
+        StructField("price_vnd", IntegerType(), False),
+        StructField("is_active", StringType(), False),
+        StructField("created_at", TimestampType(), False),
+        StructField("updated_at", TimestampType(), False),
+        StructField("_ingested_at_utc", TimestampType(), False),
+        StructField("_run_id", StringType(), False),
+    ])
+    data = [
+        (1, 1, "SKU-001", "M", "RED", 50000, "true", "2026-01-01", "2026-08-01", "2026-08-15", "run-1"),
+    ]
+    bronze_df = spark.createDataFrame(data, schema)
+    target = str(tmp_path / "silver_product_variants")
+
+    @dataclass
+    class MockTable:
+        name: str
+        pk: str
+        cursor_field: str
+        mutability: str
+        silver_table: str
+        pseudonymize: tuple = ()
+
+    table = MockTable(
+        name="product_variants", pk="variant_id", cursor_field="updated_at",
+        mutability="mutable", silver_table="silver_product_variants",
+    )
+
+    result = merge_oltp_table(
+        spark=spark, table=table, bronze_df=bronze_df,
+        run_id="run-1", target_path=target, _write_format="parquet",
+    )
+
+    assert result.quarantined == 0
+    assert result.inserted == 1
