@@ -60,9 +60,7 @@ def _validate_rows(df: DataFrame, table_name: str) -> tuple[DataFrame, DataFrame
     if not violations:
         return df, df.limit(0)
 
-    violation_expr = violations[0]
-    for v in violations[1:]:
-        violation_expr = F.when(v.isNotNull(), v).otherwise(violation_expr)
+    violation_expr = F.coalesce(*violations)
 
     df_with_violation = df.withColumn("_violation_type", violation_expr)
     violating = df_with_violation.filter(F.col("_violation_type").isNotNull())
@@ -79,9 +77,6 @@ def write_quarantine(
     target_path: str | None = None,
     _write_format: str = "iceberg",
 ) -> int:
-    if violations_df.rdd.isEmpty():
-        return 0
-
     quarantined = violations_df.select(
         F.to_json(F.struct("*")).alias("record_data"),
         F.col("_violation_type").alias("violation_type"),
@@ -119,7 +114,7 @@ def merge_oltp_table(
 
     valid_df, violations_df = _validate_rows(deduped, table.name)
 
-    if not violations_df.rdd.isEmpty():
+    if violations_df.head(1):
         quarantine_count = write_quarantine(
             spark, violations_df, table.name, run_id,
             target_path=f"{target_path}_quarantine",
@@ -133,26 +128,47 @@ def merge_oltp_table(
                 f"{col_name}_pseudonymized",
                 F.sha2(F.concat(F.col(col_name).cast("string"), F.lit(_get_salt())), 256),
             )
+            valid_df = valid_df.drop(col_name)
         valid_df = valid_df.withColumn("_pii_pseudonymized_at", F.current_timestamp())
+    else:
+        valid_df = valid_df.withColumn("_pii_pseudonymized_at", F.lit(None).cast("timestamp"))
 
     valid_df = _add_silver_metadata(valid_df, run_id)
 
+    target_exists = False
+    existing_df = None
     try:
-        existing_df = spark.read.format(_write_format).load(target_path) if _write_format != "iceberg" else None
-        existing_count = existing_df.count() if existing_df is not None else 0
+        if _write_format == "iceberg":
+            existing_df = spark.read.format("iceberg").load(target_path)
+        else:
+            existing_df = spark.read.format(_write_format).load(target_path)
+        target_exists = True
     except Exception:
-        existing_count = 0
+        pass
 
-    if _write_format == "iceberg":
-        valid_df.writeTo(target_path).append()
-    else:
-        valid_df.write.format(_write_format).mode("append").save(target_path)
+    if target_exists:
+        existing_deduped = _dedup_by_pk(existing_df, table.pk, table.cursor_field)
 
-    new_count = valid_df.count()
-    if existing_count > 0:
-        result.updated = min(new_count, existing_count)
-        result.inserted = max(0, new_count - result.updated)
+        existing_pks = existing_deduped.select(table.pk).distinct()
+        batch_pks = valid_df.select(table.pk).distinct()
+        new_pks_count = batch_pks.join(existing_pks, table.pk, "left_anti").count()
+        updated_pks_count = batch_pks.join(existing_pks, table.pk, "inner").count()
+
+        result.inserted = new_pks_count
+        result.updated = updated_pks_count
+
+        combined = valid_df.unionByName(existing_deduped, allowMissingColumns=True)
+        merged = _dedup_by_pk(combined, table.pk, table.cursor_field)
+        if _write_format == "iceberg":
+            merged.writeTo(target_path).overwritePartitions()
+        else:
+            merged.write.format(_write_format).mode("overwrite").save(target_path)
     else:
-        result.inserted = new_count
+        result.inserted = valid_df.count()
+        result.updated = 0
+        if _write_format == "iceberg":
+            valid_df.writeTo(target_path).createOrReplace()
+        else:
+            valid_df.write.format(_write_format).mode("overwrite").save(target_path)
 
     return result

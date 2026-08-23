@@ -161,7 +161,7 @@ def test_merge_preserves_unchanged_columns(spark, tmp_path):
 
     df_after = spark.read.parquet(target)
     row_after = df_after.filter("customer_id = 2").collect()[0]
-    assert row_after["email_normalized"] == row_before["email_normalized"]
+    assert row_after["email_normalized_pseudonymized"] == row_before["email_normalized_pseudonymized"]
 
 
 def test_merge_result_dataclass():
