@@ -24,7 +24,7 @@ def begin_run(**context) -> None:
 with DAG(
     dag_id="ingest_oltp_landing_to_bronze",
     default_args=DEFAULT_ARGS,
-    schedule=None,
+    schedule="0 2 * * *",  # Daily at 2 AM UTC
     catchup=False,
     start_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
     description="Ingest OLTP data from MinIO Landing Zone to Iceberg Bronze tables",
