@@ -18,7 +18,6 @@ pipelines/
 │   │   ├── ingest_oltp_to_bronze.py      # Auto-discovers Landing run_id and ingests to Bronze
 │   │   ├── ingest_oltp_silver.py         # Ingests OLTP Bronze to Silver via MERGE
 │   │   ├── ingest_logs_silver.py         # Ingests Logs Bronze to Silver with anti-join dedup
-│   │   └── jdbc_probe.py                 # Health and connectivity probe for MySQL JDBC
 │   └── lakehouse/                        # Core Python library
 │       ├── bronze.py                     # OLTP Bronze schema definitions, DDLs, and transformation
 │       ├── config.py                     # Pipeline configuration loader and validation
