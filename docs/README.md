@@ -30,6 +30,46 @@ This directory contains the architecture specifications, data schemas, operation
 - [`runbook/SETUP.md`](runbook/SETUP.md): Local cluster setup, Polaris RBAC bootstrap, and end-to-end smoke testing.
 - [`runbook/STARTUP_FLOW.md`](runbook/STARTUP_FLOW.md): Container startup sequence, database migrations, and health verification.
 
+## Progress
+
+### Infrastructure
+
+| Component | Status | Notes |
+|---|---|---|
+| MinIO (S3 storage) | Done | `lakehouse` bucket, Landing + Warehouse paths |
+| Polaris (Iceberg REST catalog) | Done | RBAC: `spark_writer`, `trino_reader`, `trino_admin` |
+| Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
+| Trino (query engine) | Done | v483, read-only via Polaris |
+| Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
+| MySQL (OLTP source) | Done | 16 tables, synthetic data via generator |
+| Hue (SQL editor) | Done | Connected to Trino |
+| Superset (dashboards) | Done | Connected to Trino |
+| E-Commerce API + Storefront | Done | FastAPI + Next.js |
+
+### Batch Pipelines
+
+| DAG | Status | Tables | Notes |
+|---|---|---|---|
+| `ingest_oltp_batch` | Done | 16/16 | MySQL → Landing (Parquet + manifests) |
+| `ingest_logs_15m_to_bronze` | Done | 1/1 | Access logs → Bronze (`web_events`) |
+| `ingest_oltp_landing_to_bronze` | Done | 16/16 | Landing → Bronze (auto-discover run_id) |
+| Bronze → Silver (OLTP) | Pending | - | Dedup, type cast, MERGE |
+| Bronze → Silver (Logs) | Pending | - | Parse JSON, dedup by request_id |
+| Silver → Gold | Pending | - | Star schema, marts |
+| Iceberg maintenance | Pending | - | Compaction, snapshot expiration, orphan cleanup |
+
+### Validation
+
+| Check | Status | Result |
+|---|---|---|
+| OLTP extraction (MySQL → Landing) | Pass | 16 tables, Parquet + MD5 manifests |
+| Landing → Bronze ingestion | Pass | 16 tables, 0 skipped, 0 quarantine |
+| Bronze table counts (Trino) | Pass | Matches source (e.g. orders: 12,000) |
+| Polaris catalog + RBAC | Pass | Spark write, Trino read-only |
+| Access logs → Bronze | Pass | `web_events` table |
+
+---
+
 ## Directory Structure
 
 | Directory | Content Type | Focus Area |
