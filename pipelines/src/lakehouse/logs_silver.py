@@ -65,7 +65,7 @@ def ingest_logs_to_silver(
     if bronze_df.rdd.isEmpty():
         return 0
 
-    window = Window.orderBy(F.col("event_id").desc(), F.col("_ingested_at").desc())
+    window = Window.partitionBy("event_id").orderBy(F.col("_ingested_at").desc())
     deduped = bronze_df.withColumn("_rn", F.row_number().over(window)).filter(F.col("_rn") == 1).drop("_rn")
 
     enriched = (
