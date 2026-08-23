@@ -7,6 +7,44 @@ from lakehouse.config import load_config
 from lakehouse.spark import spark_session
 
 
+def discover_latest_run_id(spark, bucket: str, table: str, extract_date: str) -> str | None:
+    """Find the latest run_id directory under extract_date that contains data files."""
+    hadoop_path = spark._jvm.org.apache.hadoop.fs.Path(
+        f"s3a://{bucket}/landing/oltp/{table}/extract_date={extract_date}"
+    )
+    fs = hadoop_path.getFileSystem(spark._jsc.hadoopConfiguration())
+
+    try:
+        if not fs.exists(hadoop_path):
+            return None
+        run_dirs = fs.listStatus(hadoop_path)
+    except Exception:
+        return None
+
+    # Collect run_ids that have data files
+    candidates = []
+    for d in run_dirs:
+        if not d.isDirectory():
+            continue
+        dir_name = d.getPath().getName()
+        if not dir_name.startswith("run_id="):
+            continue
+        rid = dir_name.split("=", 1)[1]
+        data_path = spark._jvm.org.apache.hadoop.fs.Path(
+            f"s3a://{bucket}/landing/oltp/{table}/extract_date={extract_date}/{dir_name}/data"
+        )
+        try:
+            if fs.exists(data_path) and len(fs.listStatus(data_path)) > 0:
+                candidates.append(rid)
+        except Exception:
+            continue
+
+    if not candidates:
+        return None
+    # Return the lexicographically last run_id (most recent by UUIDv7 or similar)
+    return sorted(candidates)[-1]
+
+
 def build_landing_path(bucket: str, table: str, extract_date: str, run_id: str) -> str:
     return f"s3a://{bucket}/landing/oltp/{table}/extract_date={extract_date}/run_id={run_id}/data/*.parquet"
 
@@ -23,7 +61,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(
         description="Ingest OLTP Landing data to Bronze Iceberg tables"
     )
-    parser.add_argument("--run-id", required=True, help="Airflow DAG run ID")
+    parser.add_argument("--run-id", default=None, help="Airflow DAG run ID (auto-discovered if omitted)")
     parser.add_argument("--extract-date", required=True, help="Extract date (YYYY-MM-DD)")
     parser.add_argument("--tables", nargs="*", help="Specific tables to ingest (default: all)")
     parser.add_argument(
@@ -44,6 +82,7 @@ def main():
     total_tables = len(tables_to_ingest)
     success_count = 0
     skip_count = 0
+    run_id = args.run_id
 
     for idx, table_name in enumerate(tables_to_ingest, 1):
         table_spec = cfg.table(table_name)
@@ -52,7 +91,16 @@ def main():
             skip_count += 1
             continue
 
-        source_path = build_landing_path(args.bucket, table_name, args.extract_date, args.run_id)
+        # Auto-discover run_id if not provided
+        effective_run_id = run_id
+        if not effective_run_id:
+            effective_run_id = discover_latest_run_id(spark, args.bucket, table_name, args.extract_date)
+            if not effective_run_id:
+                print(f"[{idx}/{total_tables}] SKIP: '{table_name}' - no landing run found.")
+                skip_count += 1
+                continue
+
+        source_path = build_landing_path(args.bucket, table_name, args.extract_date, effective_run_id)
         target_table = build_target_table(table_name)
         quarantine_table = build_quarantine_table(table_name)
 
@@ -61,14 +109,13 @@ def main():
         print(f"  Target: {target_table}")
 
         try:
-            # Check if landing path exists before attempting ingestion
+            # Check if landing data dir exists and has parquet files
             try:
-                files = spark._jvm.org.apache.hadoop.fs.FileSystem.get(
-                    spark._jsc.hadoopConfiguration()
-                ).globStatus(
-                    spark._jvm.org.apache.hadoop.fs.Path(source_path.replace("*", "?"))
+                data_dir_path = spark._jvm.org.apache.hadoop.fs.Path(
+                    f"s3a://{args.bucket}/landing/oltp/{table_name}/extract_date={args.extract_date}/run_id={effective_run_id}/data"
                 )
-                has_data = any(f.getPath().getName().endswith(".parquet") for f in files)
+                fs = data_dir_path.getFileSystem(spark._jsc.hadoopConfiguration())
+                has_data = fs.exists(data_dir_path) and len(fs.listStatus(data_dir_path)) > 0
             except Exception:
                 has_data = False
 
@@ -79,7 +126,7 @@ def main():
 
             ingest_to_bronze(
                 spark=spark,
-                run_id=args.run_id,
+                run_id=effective_run_id,
                 source_path=source_path,
                 source_format="parquet",
                 target_table=target_table,

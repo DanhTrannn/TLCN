@@ -15,7 +15,6 @@ DEFAULT_ARGS = {
 
 
 def begin_run(**context) -> None:
-    context["ti"].xcom_push(key="run_id", value=uuid.uuid4().hex)
     context["ti"].xcom_push(
         key="extract_date", value=datetime.now(timezone.utc).strftime("%Y-%m-%d")
     )
@@ -39,7 +38,6 @@ with DAG(
         task_id="ingest_oltp_to_bronze",
         application=SPARK_APP,
         application_args=[
-            "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
             "--extract-date", "{{ ti.xcom_pull(task_ids='begin_run', key='extract_date') }}",
         ],
     )
