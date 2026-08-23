@@ -23,6 +23,8 @@ This directory contains the architecture specifications, data schemas, operation
 - [`pipelines/batch/INGEST_OLTP_TO_LANDING.md`](pipelines/batch/INGEST_OLTP_TO_LANDING.md): Spark batch extraction of 16 OLTP tables to MinIO Landing with composite cursors and manifest validation.
 - [`pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md): Spark ingestion of OLTP data from Landing Zone to Iceberg Bronze tables with lineage metadata.
 - [`pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md): Spark ingestion of structured access logs from Landing Zone to Iceberg Bronze table (`web_events`).
+- [`pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md): Spark ingestion of OLTP data from Bronze to Silver with MERGE, PII pseudonymization, and quarantine routing.
+- [`pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md): Spark ingestion of access logs from Bronze to Silver with anti-join dedup and struct flattening.
 
 ### Operations and Deployment
 
@@ -53,8 +55,8 @@ This directory contains the architecture specifications, data schemas, operation
 | `ingest_oltp_batch` | Done | 16/16 | MySQL → Landing (Parquet + manifests) |
 | `ingest_logs_15m_to_bronze` | Done | 1/1 | Access logs → Bronze (`web_events`) |
 | `ingest_oltp_landing_to_bronze` | Done | 16/16 | Landing → Bronze (auto-discover run_id) |
-| Bronze → Silver (OLTP) | Pending | - | Dedup, type cast, MERGE |
-| Bronze → Silver (Logs) | Pending | - | Parse JSON, dedup by request_id |
+| `ingest_oltp_bronze_to_silver` | Done | 16/16 | Bronze → Silver (MERGE, PII, quarantine) |
+| `ingest_logs_bronze_to_silver` | Done | 1/1 | Bronze → Silver (anti-join dedup, struct flattening) |
 | Silver → Gold | Pending | - | Star schema, marts |
 | Iceberg maintenance | Pending | - | Compaction, snapshot expiration, orphan cleanup |
 
@@ -67,6 +69,8 @@ This directory contains the architecture specifications, data schemas, operation
 | Bronze table counts (Trino) | Pass | Matches source (e.g. orders: 12,000) |
 | Polaris catalog + RBAC | Pass | Spark write, Trino read-only |
 | Access logs → Bronze | Pass | `web_events` table |
+| OLTP Bronze → Silver | Pass | 16 tables, MERGE, PII pseudonymization, quarantine |
+| Logs Bronze → Silver | Pass | `web_events` anti-join dedup, struct flattening |
 
 ---
 

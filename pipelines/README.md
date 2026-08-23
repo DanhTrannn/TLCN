@@ -16,6 +16,8 @@ pipelines/
 │   │   ├── ingest_bronze.py              # Ingests Landing OLTP Parquet files into Iceberg Bronze tables
 │   │   ├── ingest_logs_to_bronze.py      # Ingests 15-minute micro-batch Access Logs into Iceberg Bronze
 │   │   ├── ingest_oltp_to_bronze.py      # Auto-discovers Landing run_id and ingests to Bronze
+│   │   ├── ingest_oltp_silver.py         # Ingests OLTP Bronze to Silver via MERGE
+│   │   ├── ingest_logs_silver.py         # Ingests Logs Bronze to Silver with anti-join dedup
 │   │   └── jdbc_probe.py                 # Health and connectivity probe for MySQL JDBC
 │   └── lakehouse/                        # Core Python library
 │       ├── bronze.py                     # OLTP Bronze schema definitions, DDLs, and transformation
@@ -24,17 +26,22 @@ pipelines/
 │       ├── extract.py                    # Multi-threaded MySQL JDBC extraction engine
 │       ├── landing.py                    # Landing Zone paths builder and MD5 manifest serialization
 │       ├── logs_bronze.py                # OpenTelemetry log schema, DDLs, and partition-pruned anti-join
+│       ├── logs_silver.py                # Logs Silver: anti-join dedup, struct flattening, metadata
 │       ├── query.py                      # Extraction window SQL predicate generator
+│       ├── silver.py                     # OLTP Silver: MERGE core, dedup, PII, quarantine
+│       ├── silver_ddl.py                 # Silver table DDL definitions (16 OLTP + quarantine)
 │       ├── spark.py                      # SparkSession factory with S3A and Polaris OAuth2 authentication
 │       └── validate.py                   # S3 object validation and manifest verification
-└── tests/                                # Unit test suite (49 tests total)
+└── tests/                                # Unit test suite (61 tests total)
     ├── test_bronze.py                    # Tests OLTP Bronze ingestion logic and dead-letter quarantine
     ├── test_config.py                    # Tests configuration parsing and validation
     ├── test_cursor.py                    # Tests cursor state management and S3 state round-trips
     ├── test_ingest_oltp_to_bronze.py     # Tests Landing path builders and auto-discovery
     ├── test_landing.py                   # Tests Landing path builders and manifest serialization
     ├── test_logs_bronze.py               # Tests OpenTelemetry log schema and Bronze transformations
+    ├── test_logs_silver.py               # Tests Logs Silver dedup and struct flattening
     ├── test_query.py                     # Tests extraction window SQL predicate generation
+    ├── test_silver.py                    # Tests OLTP Silver MERGE, PII, quarantine, integration
     └── test_validate.py                  # Tests S3 manifest verification logic
 ```
 
@@ -58,6 +65,16 @@ pipelines/
 - **Flow:** Auto-discovers latest `run_id` from Landing zone, reads Parquet files, and ingests into Iceberg Bronze tables with lineage metadata (`_run_id`, `_source_file`, `_ingested_at_utc`). Gracefully skips tables with no landing data.
 - **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](../docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md).
 
+### 2.4. OLTP Bronze → Silver (`ingest_oltp_bronze_to_silver` DAG)
+- **Schedule:** Manual trigger.
+- **Flow:** Reads all 16 Bronze tables, deduplicates by PK, applies business rule validation (8 rules), routes violations to quarantine, pseudonymizes PII (customers), and performs MERGE (upsert for mutable, append for append-only) into Silver Iceberg tables.
+- **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md).
+
+### 2.5. Logs Bronze → Silver (`ingest_logs_bronze_to_silver` DAG)
+- **Schedule:** Every 2 hours (`0 */2 * * *`).
+- **Flow:** Reads Bronze `web_events` table, deduplicates by `event_id` using `row_number()` window, flattens nested OpenTelemetry structs into flat columns, and appends to Silver `silver_logs` table.
+- **Documentation:** [`docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md).
+
 ---
 
 ## 3. Pipeline Status
@@ -69,23 +86,25 @@ pipelines/
 | `ingest_oltp_batch` | Hourly | MySQL → Landing | 16/16 | Composite cursors, MD5 manifests |
 | `ingest_logs_15m_to_bronze` | 15 min | Fluent Bit → Bronze | 1/1 | `web_events`, anti-join dedup |
 | `ingest_oltp_landing_to_bronze` | Daily 2 AM | Landing → Bronze | 16/16 | Auto-discover `run_id` from Landing |
+| `ingest_oltp_bronze_to_silver` | Manual | Bronze → Silver | 16/16 | MERGE, PII pseudonymization, quarantine |
+| `ingest_logs_bronze_to_silver` | 2 hours | Bronze → Silver | 1/1 | Anti-join dedup, struct flattening |
 
 ### Pending
 
 | DAG | Schedule | Source → Target | Notes |
 |---|---|---|---|
-| Bronze → Silver (OLTP) | - | Bronze → Silver | Dedup, type cast, MERGE for mutable tables |
-| Bronze → Silver (Logs) | - | Bronze → Silver | Parse JSON, dedup by `request_id` |
 | Silver → Gold | - | Silver → Gold | Star schema (`dim_*`, `fact_*`), marts |
 | Iceberg maintenance | - | - | Compaction, snapshot expiration, orphan cleanup |
 
 ### Validation Results
 
 ```
-OLTP extraction (MySQL → Landing):  Pass  (16 tables, Parquet + manifests)
-Landing → Bronze ingestion:         Pass  (16 tables, 0 skipped, 0 quarantine)
-Bronze table counts (Trino):        Pass  (e.g. orders: 12,000, customers: 2,008)
-Access logs → Bronze:               Pass  (web_events table)
+OLTP extraction (MySQL → Landing):        Pass  (16 tables, Parquet + manifests)
+Landing → Bronze ingestion:               Pass  (16 tables, 0 skipped, 0 quarantine)
+Bronze table counts (Trino):              Pass  (e.g. orders: 12,000, customers: 2,008)
+Access logs → Bronze:                     Pass  (web_events table)
+OLTP Bronze → Silver:                     Pass  (16 tables, MERGE, PII, quarantine)
+Logs Bronze → Silver:                     Pass  (web_events, anti-join dedup)
 ```
 
 ---
