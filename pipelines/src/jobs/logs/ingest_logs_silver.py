@@ -1,8 +1,8 @@
 import argparse
 import sys
 
-from lakehouse.logs_bronze import BRONZE_EVENTS_TABLE
-from lakehouse.logs_silver import ensure_logs_silver_tables, ingest_logs_to_silver
+from lakehouse.logs.bronze import BRONZE_EVENTS_TABLE
+from lakehouse.logs.silver import ensure_logs_silver_tables, ingest_logs_to_silver
 from lakehouse.spark import spark_session
 
 

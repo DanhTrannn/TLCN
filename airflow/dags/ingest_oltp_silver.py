@@ -1,13 +1,15 @@
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
+import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
+VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 CONFIG_PATH = os.environ["PIPELINE_CONFIG_PATH"]
-SPARK_APP = "/opt/project/pipelines/src/jobs/ingest_oltp_silver.py"
+SPARK_APP = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_silver.py"
 
 DEFAULT_ARGS = {
     "owner": "batch",
@@ -19,7 +21,7 @@ DEFAULT_ARGS = {
 def begin_run(**context) -> None:
     context["ti"].xcom_push(key="run_id", value=uuid.uuid4().hex)
     context["ti"].xcom_push(
-        key="bronze_date", value=datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        key="bronze_date", value=pendulum.now("UTC").strftime("%Y-%m-%d")
     )
 
 
@@ -28,7 +30,7 @@ with DAG(
     default_args=DEFAULT_ARGS,
     schedule="0 2 * * *",
     catchup=False,
-    start_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
+    start_date=pendulum.datetime(2026, 8, 15, tz=VN_TZ),
     description="Ingest OLTP Bronze tables to Silver via MERGE",
 ) as dag:
 

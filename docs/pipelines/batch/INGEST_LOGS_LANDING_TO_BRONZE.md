@@ -302,7 +302,7 @@ OTEL_LOG_SCHEMA = StructType([
 ])
 ```
 
-### 5.2. Core Spark Job: `pipelines/src/jobs/ingest_logs_to_bronze.py`
+### 5.2. Core Spark Job: `pipelines/src/jobs/logs/ingest_logs_to_bronze.py`
 ```python
 import argparse
 import sys
@@ -448,7 +448,7 @@ with DAG(
 
     spark_ingest = SparkSubmitOperator(
         task_id="spark_microbatch_to_bronze",
-        application="/opt/project/pipelines/src/jobs/ingest_logs_to_bronze.py",
+        application="/opt/project/pipelines/src/jobs/logs/ingest_logs_to_bronze.py",
         application_args=[
             "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
             "--ingest-date", "{{ data_interval_start.strftime('%Y-%m-%d') }}",

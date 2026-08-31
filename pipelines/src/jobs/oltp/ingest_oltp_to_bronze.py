@@ -2,8 +2,8 @@ import argparse
 import os
 import sys
 
-from lakehouse.bronze import ingest_to_bronze
 from lakehouse.config import load_config
+from lakehouse.oltp.bronze import ingest_to_bronze
 from lakehouse.spark import spark_session
 
 

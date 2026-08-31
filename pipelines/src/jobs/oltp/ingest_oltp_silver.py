@@ -2,8 +2,8 @@ import argparse
 import sys
 
 from lakehouse.config import load_config
-from lakehouse.silver import merge_oltp_table
-from lakehouse.silver_ddl import ensure_silver_tables
+from lakehouse.oltp.silver import merge_oltp_table
+from lakehouse.oltp.silver_ddl import ensure_silver_tables
 from lakehouse.spark import spark_session
 
 

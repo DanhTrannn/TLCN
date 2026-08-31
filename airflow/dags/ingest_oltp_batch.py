@@ -1,8 +1,9 @@
 import json
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
+import pendulum
 import pymysql
 from airflow import DAG
 from airflow.exceptions import AirflowException
@@ -11,11 +12,12 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from sqlalchemy.engine.url import make_url
 
 from lakehouse.config import load_config
-from lakehouse.cursor import build_cursor_advancements, write_committed_cursor
+from lakehouse.oltp.cursor import build_cursor_advancements, write_committed_cursor
 from lakehouse.validate import s3_client, validate_run
 
+VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 CONFIG_PATH = os.environ["PIPELINE_CONFIG_PATH"]
-SPARK_APP = "/opt/project/pipelines/src/jobs/extract_oltp.py"
+SPARK_APP = "/opt/project/pipelines/src/jobs/oltp/extract_oltp.py"
 
 DEFAULT_ARGS = {
     "owner": "batch",
@@ -46,7 +48,7 @@ def check_mysql() -> str:
 def begin_run(**context) -> None:
     context["ti"].xcom_push(key="run_id", value=uuid.uuid4().hex)
     context["ti"].xcom_push(
-        key="extract_date", value=datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        key="extract_date", value=pendulum.now("UTC").strftime("%Y-%m-%d")
     )
 
 
@@ -97,7 +99,7 @@ def commit_cursors(**context) -> None:
         os.environ["MINIO_ENDPOINT"], os.environ["MINIO_ACCESS_KEY"],
         os.environ["MINIO_SECRET_KEY"],
     )
-    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now_utc = pendulum.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
     states = build_cursor_advancements(
         watermarks, [t.name for t in cfg.tables], now_utc
     )
@@ -110,7 +112,7 @@ with DAG(
     default_args=DEFAULT_ARGS,
     schedule=None,
     catchup=False,
-    start_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
+    start_date=pendulum.datetime(2026, 8, 15, tz=VN_TZ),
     description="Extract OLTP tables to MinIO landing with manifests",
 ) as dag:
 

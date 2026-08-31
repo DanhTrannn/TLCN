@@ -1,15 +1,23 @@
+from __future__ import annotations
+
 import concurrent.futures
 import hashlib
 import json
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, lit, max, min
+if TYPE_CHECKING:
+    from pyspark.sql import SparkSession
+
+try:
+    from pyspark.sql.functions import col, count, lit, max, min
+except ImportError:
+    col = count = lit = max = min = None  # type: ignore
 
 from lakehouse.config import Config, TableSpec
-from lakehouse.cursor import CursorState
 from lakehouse.landing import MANIFEST_VERSION, RunPaths
-from lakehouse.query import build_range_predicate
+from lakehouse.oltp.cursor import CursorState
+from lakehouse.oltp.query import build_range_predicate
 
 
 def _utc_now() -> str:

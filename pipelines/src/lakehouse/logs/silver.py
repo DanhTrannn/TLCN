@@ -55,6 +55,46 @@ TBLPROPERTIES (
 """)
 
 
+SILVER_LOGS_COLUMNS = [
+    "event_id",
+    "event_ts",
+    "observed_timestamp",
+    "schema_name",
+    "schema_version",
+    "service_name",
+    "service_version",
+    "service_environment",
+    "service_instance_id",
+    "severity_number",
+    "severity_text",
+    "trace_id",
+    "span_id",
+    "event_name",
+    "event_category",
+    "event_kind",
+    "event_outcome",
+    "event_duration_ns",
+    "http_request_method",
+    "http_route",
+    "http_status_code",
+    "request_id",
+    "actor_type",
+    "actor_key",
+    "client_user_agent",
+    "ecommerce_action",
+    "ecommerce_product_key",
+    "ecommerce_variant_key",
+    "ecommerce_search_query",
+    "ecommerce_search_redacted",
+    "ecommerce_filters",
+    "error_code",
+    "error_type",
+    "data_origin",
+    "_silver_ingested_at",
+    "_source_bronze_run_id",
+]
+
+
 def ingest_logs_to_silver(
     spark: SparkSession,
     bronze_df: DataFrame,
@@ -62,7 +102,7 @@ def ingest_logs_to_silver(
     target_path: str,
     _write_format: str = "iceberg",
 ) -> int:
-    if bronze_df.rdd.isEmpty():
+    if bronze_df.limit(1).count() == 0:
         return 0
 
     window = Window.partitionBy("event_id").orderBy(F.col("_ingested_at").desc())
@@ -98,16 +138,17 @@ def ingest_logs_to_silver(
         .withColumn("error_type", F.col("error.type"))
         .withColumn("_silver_ingested_at", F.current_timestamp())
         .withColumn("_source_bronze_run_id", F.lit(run_id))
-        .drop("schema", "service", "event", "http", "request", "actor", "client", "ecommerce", "error", "_run_id", "_source_file", "_ingested_at")
     )
 
-    count = enriched.count()
+    final_df = enriched.select(*SILVER_LOGS_COLUMNS)
+
+    count = final_df.count()
     if count == 0:
         return 0
 
     if _write_format == "iceberg":
-        enriched.writeTo(LOGS_SILVER_TABLE).append()
+        final_df.writeTo(LOGS_SILVER_TABLE).append()
     else:
-        enriched.write.format(_write_format).mode("append").save(target_path)
+        final_df.write.format(_write_format).mode("append").save(target_path)
 
     return count

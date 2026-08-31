@@ -702,7 +702,7 @@ git commit -m "feat(pipelines): add business rule validation and quarantine rout
 ## Task 4: Spark Submit Job for Logs Silver
 
 **Files:**
-- Create: `pipelines/src/jobs/ingest_logs_silver.py`
+- Create: `pipelines/src/jobs/logs/ingest_logs_silver.py`
 
 **Interfaces:**
 - argparse with `--run-id` and `--ingest-date`
@@ -718,8 +718,8 @@ import sys
 
 from pyspark.sql.functions import col
 
-from lakehouse.logs_bronze import BRONZE_EVENTS_TABLE
-from lakehouse.logs_silver import ensure_logs_silver_tables, ingest_logs_to_silver
+from lakehouse.logs.bronze import BRONZE_EVENTS_TABLE
+from lakehouse.logs.silver import ensure_logs_silver_tables, ingest_logs_to_silver
 from lakehouse.spark import spark_session
 
 
@@ -813,7 +813,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
-SPARK_APP = "/opt/project/pipelines/src/jobs/ingest_logs_silver.py"
+SPARK_APP = "/opt/project/pipelines/src/jobs/logs/ingest_logs_silver.py"
 
 DEFAULT_ARGS = {
     "owner": "batch",

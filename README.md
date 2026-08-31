@@ -199,7 +199,7 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ## Testing and Verification
 
-Run the full test suite across all Python workspace packages and the frontend (163 Python tests total):
+Run the full test suite across all Python workspace packages and the frontend (171 Python tests total):
 
 ```bash
 # Backend API tests (63 tests)
@@ -208,7 +208,7 @@ uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce
 # Data Generator tests (54 tests)
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 
-# Batch Pipeline tests (46 tests)
+# Batch Pipeline tests (54 tests: Bronze, Silver & Gold)
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
 
 # Run all Python tests in workspace
@@ -240,6 +240,9 @@ Explore the detailed architecture and planning documents:
 | **Batch Ingestion (OLTP)** | [`docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md`](docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md) | Spark OLTP extraction to MinIO Landing and manifest validation |
 | **Bronze Ingestion (OLTP)** | [`docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md) | Spark ingestion of OLTP data from Landing to Iceberg Bronze tables |
 | **Bronze Ingestion (Logs)** | [`docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md) | Spark ingestion of Access Logs from Landing to Iceberg Bronze table (`web_events`) |
+| **Silver Ingestion (OLTP)** | [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md) | Spark ingestion of OLTP data from Bronze to Silver with MERGE |
+| **Silver Ingestion (Logs)** | [`docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md) | Spark ingestion of Access Logs from Bronze to Silver (`silver_logs`) |
+| **Gold Ingestion (Logs)** | [`docs/pipelines/batch/BUILD_LOGS_GOLD.md`](docs/pipelines/batch/BUILD_LOGS_GOLD.md) | Spark transformation of Silver logs to Gold Fact and Data Marts |
 | **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and smoke testing |
 | **Startup Sequence** | [`docs/runbook/STARTUP_FLOW.md`](docs/runbook/STARTUP_FLOW.md) | Service bootstrap sequence, migrations, and health checks |
 | **Runbook Index** | [`docs/runbook/README.md`](docs/runbook/README.md) | Central index for operational tasks, commands, and validation |

@@ -72,11 +72,11 @@ flowchart LR
 │   └── tests/                            # Generator distribution & SQL tests (54 tests)
 ├── pipelines/
 │   ├── config/                           # Lakehouse table configurations (default.yml)
-│   ├── src/lakehouse/                    # Core library (config, cursor, landing, spark, validate)
-│   ├── src/jobs/                         # Spark batch jobs (extract_oltp.py, ingest_bronze.py, ingest_logs_to_bronze.py, ingest_oltp_to_bronze.py)
-│   └── tests/                            # Pipeline, bronze & cursor tests (49 tests)
+│   ├── src/jobs/                         # Spark batch jobs organized by domain (jobs/logs/, jobs/oltp/)
+│   ├── src/lakehouse/                    # Core library and domain logic (lakehouse/logs/, lakehouse/oltp/, common)
+│   └── tests/                            # Pipeline, bronze, silver & gold tests (54 tests)
 ├── airflow/
-│   ├── dags/                             # Airflow DAGs (lakehouse_oltp_pipeline.py, lakehouse_logs_pipeline.py, etc.)
+│   ├── dags/                             # Airflow DAGs (lakehouse_logs_pipeline.py, ingest_oltp_batch.py, ingest_oltp_landing_to_bronze.py, ingest_oltp_silver.py)
 │   └── logs/                             # Airflow operational logs
 ├── infrastructure/
 │   ├── docker/                           # Custom images (Airflow, Superset)
@@ -171,16 +171,15 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | Layer | OLTP | Logs |
 |---|---|---|
 | Landing → Bronze | Done (16/16 tables) | Done (`web_events`) |
-| Bronze → Silver | Done (16/16 tables) | Done (`web_events`) |
-| Silver → Gold | Pending | Pending |
+| Bronze → Silver | Done (16/16 tables) | Done (`silver_logs`) |
+| Silver → Gold | Pending (Star schema marts) | Done (`fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand`) |
 
 ### Airflow DAGs
 
-| DAG | Status | Schedule |
-|---|---|---|
-| `ingest_oltp_batch` | Done | Hourly |
-| `ingest_oltp_landing_to_bronze` | Done | Daily 2 AM |
-| `ingest_logs_15m_to_bronze` | Done | Every 15 min |
-| `ingest_oltp_bronze_to_silver` | Done | Daily 2 AM |
-| `ingest_logs_bronze_to_silver` | Done | Every 2 hours |
-| Silver → Gold | Pending | - |
+| DAG | Status | Schedule | Description |
+|---|---|---|---|
+| `lakehouse_logs_pipeline` | Done | Every 2 hours | Unified Master Logs DAG: Staging → Bronze → Silver → Gold |
+| `ingest_oltp_batch` | Done | Hourly | MySQL OLTP extraction to MinIO Landing Zone |
+| `ingest_oltp_landing_to_bronze` | Done | Daily 2 AM | Landing Parquet ingestion to Iceberg Bronze tables |
+| `ingest_oltp_bronze_to_silver` | Done | Daily 2 AM | Bronze to Silver MERGE, PII pseudonymization & quarantine |
+| OLTP Silver → Gold | Pending | Daily 2 AM | Star schema (`dim_*`, `fact_*`), sales marts |

@@ -2,7 +2,7 @@ import argparse
 import json
 
 from lakehouse.config import load_config
-from lakehouse.extract import run_extract
+from lakehouse.oltp.extract import run_extract
 from lakehouse.spark import spark_session
 
 

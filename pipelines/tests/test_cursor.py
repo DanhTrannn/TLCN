@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from lakehouse.cursor import (
+from lakehouse.oltp.cursor import (
     CURSOR_DIR,
     CursorState,
     build_cursor_advancements,

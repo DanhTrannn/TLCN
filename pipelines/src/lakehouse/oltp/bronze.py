@@ -1,5 +1,14 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, current_timestamp, input_file_name, lit
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyspark.sql import SparkSession
+
+try:
+    from pyspark.sql.functions import col, current_timestamp, input_file_name, lit
+except ImportError:
+    col = current_timestamp = input_file_name = lit = None  # type: ignore
 
 
 def ingest_to_bronze(

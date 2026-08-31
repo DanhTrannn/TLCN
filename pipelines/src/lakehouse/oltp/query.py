@@ -1,4 +1,4 @@
-from lakehouse.cursor import CursorState
+from lakehouse.oltp.cursor import CursorState
 
 
 def build_range_predicate(

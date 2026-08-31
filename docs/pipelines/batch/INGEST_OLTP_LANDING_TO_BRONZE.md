@@ -37,7 +37,7 @@ lakehouse.bronze.<table_name>
 
 ## Spark Job
 
-**Application:** `/opt/project/pipelines/src/jobs/ingest_oltp_to_bronze.py`
+**Application:** `/opt/project/pipelines/src/jobs/oltp/ingest_oltp_to_bronze.py`
 
 **Arguments:**
 | Argument | Required | Description |

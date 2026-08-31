@@ -1,11 +1,13 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
+import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
-SPARK_APP = "/opt/project/pipelines/src/jobs/ingest_oltp_to_bronze.py"
+VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
+SPARK_APP = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_to_bronze.py"
 
 DEFAULT_ARGS = {
     "owner": "batch",
@@ -16,16 +18,16 @@ DEFAULT_ARGS = {
 
 def begin_run(**context) -> None:
     context["ti"].xcom_push(
-        key="extract_date", value=datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        key="extract_date", value=pendulum.now("UTC").strftime("%Y-%m-%d")
     )
 
 
 with DAG(
     dag_id="ingest_oltp_landing_to_bronze",
     default_args=DEFAULT_ARGS,
-    schedule="0 2 * * *",  # Daily at 2 AM UTC
+    schedule="0 2 * * *",  # Daily at 2 AM
     catchup=False,
-    start_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
+    start_date=pendulum.datetime(2026, 8, 15, tz=VN_TZ),
     description="Ingest OLTP data from MinIO Landing Zone to Iceberg Bronze tables",
 ) as dag:
 

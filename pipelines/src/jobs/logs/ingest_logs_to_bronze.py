@@ -4,7 +4,7 @@ import sys
 
 from pyspark.sql.functions import col, input_file_name, lit
 
-from lakehouse.logs_bronze import (
+from lakehouse.logs.bronze import (
     BRONZE_EVENTS_TABLE,
     BRONZE_QUARANTINE_TABLE,
     OTEL_LOG_SCHEMA,
@@ -31,8 +31,8 @@ def parse_arguments() -> argparse.Namespace:
     )
     args = parser.parse_args()
 
-    if not args.replay_date and (not args.ingest_date or not args.ingest_hour):
-        parser.error("Either --replay-date or both --ingest-date and --ingest-hour must be provided.")
+    if not args.replay_date and not args.ingest_date:
+        parser.error("Either --ingest-date or --replay-date must be provided.")
 
     return args
 
@@ -51,10 +51,13 @@ def main() -> None:
         landing_glob = f"s3a://{bucket}/landing/logs/ingest_date={args.replay_date}/*/*/*.jsonl.gz"
     else:
         query_date = args.ingest_date
-        landing_glob = (
-            f"s3a://{bucket}/landing/logs/"
-            f"ingest_date={args.ingest_date}/ingest_hour={args.ingest_hour}/service=ecommerce-api/*.jsonl.gz"
-        )
+        if args.ingest_hour:
+            landing_glob = (
+                f"s3a://{bucket}/landing/logs/"
+                f"ingest_date={args.ingest_date}/ingest_hour={args.ingest_hour}/service=ecommerce-api/*.jsonl.gz"
+            )
+        else:
+            landing_glob = f"s3a://{bucket}/landing/logs/ingest_date={args.ingest_date}/*/*/*.jsonl.gz"
 
     print(f"[{args.run_id}] Scanning landing path: {landing_glob}")
 

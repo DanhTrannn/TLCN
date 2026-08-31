@@ -1,10 +1,17 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.window import Window
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame, SparkSession
+
+try:
+    from pyspark.sql import functions as F
+    from pyspark.sql.window import Window
+except ImportError:
+    F = Window = None  # type: ignore
 
 
 @dataclass

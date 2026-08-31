@@ -1,17 +1,20 @@
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
+import pendulum
 from airflow import DAG
-from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.task_group import TaskGroup
 
 from lakehouse.validate import s3_client
 
-SPARK_APP_BRONZE = "/opt/project/pipelines/src/jobs/ingest_logs_to_bronze.py"
-SPARK_APP_SILVER = "/opt/project/pipelines/src/jobs/ingest_logs_silver.py"
+VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
+
+SPARK_APP_BRONZE = "/opt/project/pipelines/src/jobs/logs/ingest_logs_to_bronze.py"
+SPARK_APP_SILVER = "/opt/project/pipelines/src/jobs/logs/ingest_logs_silver.py"
+SPARK_APP_GOLD = "/opt/project/pipelines/src/jobs/logs/build_logs_gold.py"
 
 DEFAULT_ARGS = {
     "owner": "lakehouse",
@@ -22,7 +25,7 @@ DEFAULT_ARGS = {
 
 def begin_run(**context) -> None:
     run_id = uuid.uuid4().hex
-    ingest_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    ingest_date = pendulum.now("UTC").strftime("%Y-%m-%d")
     context["ti"].xcom_push(key="run_id", value=run_id)
     context["ti"].xcom_push(key="ingest_date", value=ingest_date)
 
@@ -60,9 +63,9 @@ def discover_landing_logs(**context) -> int:
 with DAG(
     dag_id="lakehouse_logs_pipeline",
     default_args=DEFAULT_ARGS,
-    schedule="0 */2 * * *",  # Every 2 hours (micro-batch or continuous interval)
+    schedule="0 */2 * * *",  # Every 2 hours
     catchup=False,
-    start_date=datetime(2026, 8, 15, tzinfo=timezone.utc),
+    start_date=pendulum.datetime(2026, 8, 15, tz=VN_TZ),
     description="End-to-End Medallion Lakehouse Logs Pipeline: Staging -> Bronze -> Silver -> Gold",
     tags=["lakehouse", "logs", "medallion", "production"],
 ) as dag:
@@ -117,13 +120,18 @@ with DAG(
             ],
         )
 
-    # 4. GOLD LAYER (Ready for Web Traffic Facts & Route Performance Marts)
+    # 4. GOLD LAYER (Star Schema Fact & Data Marts)
     with TaskGroup(
         group_id="gold_layer",
-        tooltip="Build Traffic Facts, Search Demand Marts & Latency Aggregates",
+        tooltip="Build Web Event Facts, Route Latency & Product Demand Data Marts",
     ) as tg_gold:
-        gold_placeholder = EmptyOperator(
-            task_id="gold_traffic_marts_ready",
+        spark_gold = SparkSubmitOperator(
+            task_id="build_logs_gold",
+            application=SPARK_APP_GOLD,
+            application_args=[
+                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
+                "--ingest-date", "{{ ti.xcom_pull(task_ids='begin_run', key='ingest_date') }}",
+            ],
         )
 
     # Pipeline End-to-End Orchestration: Staging -> Bronze -> Silver -> Gold

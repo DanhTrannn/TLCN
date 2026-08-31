@@ -18,7 +18,7 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-from lakehouse.silver import MergeResult, merge_oltp_table
+from lakehouse.oltp.silver import MergeResult, merge_oltp_table
 
 
 @pytest.fixture(scope="session")

@@ -25,6 +25,7 @@ This directory contains the architecture specifications, data schemas, operation
 - [`pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md): Spark ingestion of structured access logs from Landing Zone to Iceberg Bronze table (`web_events`).
 - [`pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md): Spark ingestion of OLTP data from Bronze to Silver with MERGE, PII pseudonymization, and quarantine routing.
 - [`pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md): Spark ingestion of access logs from Bronze to Silver with anti-join dedup and struct flattening.
+- [`pipelines/batch/BUILD_LOGS_GOLD.md`](pipelines/batch/BUILD_LOGS_GOLD.md): Spark transformation of Silver logs to Gold Fact (`fact_web_events`) and Data Marts (`mart_hourly_route_metrics`, `mart_daily_product_demand`).
 
 ### Operations and Deployment
 
@@ -52,12 +53,11 @@ This directory contains the architecture specifications, data schemas, operation
 
 | DAG | Status | Tables | Notes |
 |---|---|---|---|
+| `lakehouse_logs_pipeline` | Done | 4 layers | Master Logs DAG: Landing → Bronze → Silver → Gold |
 | `ingest_oltp_batch` | Done | 16/16 | MySQL → Landing (Parquet + manifests) |
-| `ingest_logs_15m_to_bronze` | Done | 1/1 | Access logs → Bronze (`web_events`) |
 | `ingest_oltp_landing_to_bronze` | Done | 16/16 | Landing → Bronze (auto-discover run_id) |
 | `ingest_oltp_bronze_to_silver` | Done | 16/16 | Bronze → Silver (MERGE, PII, quarantine) |
-| `ingest_logs_bronze_to_silver` | Done | 1/1 | Bronze → Silver (anti-join dedup, struct flattening) |
-| Silver → Gold | Pending | - | Star schema, marts |
+| OLTP Silver → Gold | Pending | - | Star schema (`dim_*`, `fact_*`), sales marts |
 | Iceberg maintenance | Pending | - | Compaction, snapshot expiration, orphan cleanup |
 
 ### Validation
@@ -68,9 +68,10 @@ This directory contains the architecture specifications, data schemas, operation
 | Landing → Bronze ingestion | Pass | 16 tables, 0 skipped, 0 quarantine |
 | Bronze table counts (Trino) | Pass | Matches source (e.g. orders: 12,000) |
 | Polaris catalog + RBAC | Pass | Spark write, Trino read-only |
-| Access logs → Bronze | Pass | `web_events` table |
+| Access logs → Bronze | Pass | `web_events` table (1,193+ events) |
 | OLTP Bronze → Silver | Pass | 16 tables, MERGE, PII pseudonymization, quarantine |
-| Logs Bronze → Silver | Pass | `web_events` anti-join dedup, struct flattening |
+| Logs Bronze → Silver | Pass | `silver_logs` window dedup, struct flattening |
+| Logs Silver → Gold | Pass | `fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand` |
 
 ---
 

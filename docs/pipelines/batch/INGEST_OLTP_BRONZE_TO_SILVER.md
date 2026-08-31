@@ -1354,8 +1354,8 @@ git commit -m "feat(pipelines): add Silver logs anti-join dedup module"
 ### Task 5: Spark Submit Jobs for Silver
 
 **Files:**
-- Create: `pipelines/src/jobs/ingest_oltp_silver.py`
-- Create: `pipelines/src/jobs/ingest_logs_silver.py`
+- Create: `pipelines/src/jobs/oltp/ingest_oltp_silver.py`
+- Create: `pipelines/src/jobs/logs/ingest_logs_silver.py`
 
 **Interfaces:**
 - OLTP job: argparse with --config-path, --run-id, --bronze-date. Reads Bronze tables, calls merge_oltp_table for each.
@@ -1368,8 +1368,8 @@ import argparse
 import sys
 
 from lakehouse.config import load_config
-from lakehouse.silver import merge_oltp_table
-from lakehouse.silver_ddl import ensure_silver_tables
+from lakehouse.oltp.silver import merge_oltp_table
+from lakehouse.oltp.silver_ddl import ensure_silver_tables
 from lakehouse.spark import spark_session
 
 
@@ -1492,7 +1492,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
 CONFIG_PATH = os.environ["PIPELINE_CONFIG_PATH"]
-SPARK_APP = "/opt/project/pipelines/src/jobs/ingest_oltp_silver.py"
+SPARK_APP = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_silver.py"
 
 DEFAULT_ARGS = {
     "owner": "batch",
@@ -1543,7 +1543,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
-SPARK_APP = "/opt/project/pipelines/src/jobs/ingest_logs_silver.py"
+SPARK_APP = "/opt/project/pipelines/src/jobs/logs/ingest_logs_silver.py"
 
 DEFAULT_ARGS = {
     "owner": "batch",

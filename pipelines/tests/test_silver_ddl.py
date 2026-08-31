@@ -1,4 +1,4 @@
-from lakehouse.silver_ddl import (
+from lakehouse.oltp.silver_ddl import (
     SILVER_TABLE_DDL,
     SILVER_QUARANTINE_DDL,
     SILVER_QUARANTINE_TABLE,

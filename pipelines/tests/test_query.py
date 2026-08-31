@@ -1,5 +1,5 @@
-from lakehouse.cursor import CursorState
-from lakehouse.query import build_range_predicate
+from lakehouse.oltp.cursor import CursorState
+from lakehouse.oltp.query import build_range_predicate
 
 
 def test_no_cursor_no_watermark_returns_empty():

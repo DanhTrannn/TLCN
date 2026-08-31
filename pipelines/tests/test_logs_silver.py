@@ -20,7 +20,7 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-from lakehouse.logs_silver import ingest_logs_to_silver, ensure_logs_silver_tables
+from lakehouse.logs.silver import ingest_logs_to_silver, ensure_logs_silver_tables
 
 
 @pytest.fixture(scope="session")

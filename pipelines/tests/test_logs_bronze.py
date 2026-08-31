@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from lakehouse.logs_bronze import (
+from lakehouse.logs.bronze import (
     BRONZE_EVENTS_DDL,
     BRONZE_EVENTS_TABLE,
     BRONZE_QUARANTINE_DDL,
