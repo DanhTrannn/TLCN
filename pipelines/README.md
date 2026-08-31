@@ -48,31 +48,20 @@ pipelines/
 
 ## 2. Ingestion Pipelines
 
-### 2.1. OLTP Incremental Ingestion (`ingest_oltp_batch` DAG)
-- **Schedule:** Hourly (`0 * * * *`).
-- **Flow:** Extracts 16 allowed operational tables using composite cursors `(cursor_field, pk)`.
-- **Landing Format:** Immutable Parquet files with cryptographic `manifest.json`.
-- **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md`](../docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md).
-
-### 2.2. Web Access Logs Ingestion (`ingest_logs_15m_to_bronze` DAG)
-- **Schedule:** Every 15 minutes (`*/15 * * * *`).
-- **Flow:** Discovers new rotated gzip JSON log batches, performs high-performance anti-join via partition pruning, appends records to `lakehouse.bronze.web_events`, and routes corrupt records to `lakehouse.quarantine.bronze_corrupt_logs`.
+### 2.1. Unified Master Access Logs Pipeline (`lakehouse_logs_pipeline` DAG)
+- **Schedule:** Every 2 hours (`0 */2 * * *`).
+- **Architecture:** Unified End-to-End DAG with 4 visual `TaskGroup` layers:
+  1. `staging_layer`: `check_minio_landing` → `discover_landing_logs` (probes Landing S3 bucket and discovers log batches).
+  2. `bronze_layer`: `ingest_logs_to_bronze` (parses OpenTelemetry JSON, anti-join via partition pruning, appends to `web_events`).
+  3. `silver_layer`: `ingest_logs_to_silver` (window deduplication by `event_id`, flattens nested structs, appends to `silver_logs`).
+  4. `gold_layer`: `gold_traffic_marts_ready` (modular entrypoint ready for Web Traffic Facts & Route Performance Marts).
 - **Documentation:** [`docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](../docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md).
 
-### 2.3. OLTP Landing → Bronze (`ingest_oltp_landing_to_bronze` DAG)
-- **Schedule:** Daily at 2 AM UTC (`0 2 * * *`).
-- **Flow:** Auto-discovers latest `run_id` from Landing zone, reads Parquet files, and ingests into Iceberg Bronze tables with lineage metadata (`_run_id`, `_source_file`, `_ingested_at_utc`). Gracefully skips tables with no landing data.
-- **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](../docs/pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md).
-
-### 2.4. OLTP Bronze → Silver (`ingest_oltp_bronze_to_silver` DAG)
-- **Schedule:** Daily at 2 AM UTC (`0 2 * * *`).
-- **Flow:** Reads all 16 Bronze tables, deduplicates by PK, applies business rule validation (8 rules), routes violations to quarantine, pseudonymizes PII (customers), and performs MERGE (upsert for mutable, append for append-only) into Silver Iceberg tables.
-- **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md).
-
-### 2.5. Logs Bronze → Silver (`ingest_logs_bronze_to_silver` DAG)
-- **Schedule:** Every 2 hours (`0 */2 * * *`).
-- **Flow:** Reads Bronze `web_events` table, deduplicates by `event_id` using `row_number()` window, flattens nested OpenTelemetry structs into flat columns, and appends to Silver `silver_logs` table.
-- **Documentation:** [`docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md).
+### 2.2. OLTP Ingestion Pipelines
+- **Extraction to Landing (`ingest_oltp_batch`):** Hourly incremental extraction of 16 tables via composite cursors.
+- **Landing to Bronze (`ingest_oltp_landing_to_bronze`):** Daily 2 AM auto-discovery of Landing files and ingestion into Iceberg Bronze tables.
+- **Bronze to Silver (`ingest_oltp_silver`):** Daily 2 AM deduplication, PII pseudonymization, business rule validation, quarantine routing, and ACID MERGE into Silver tables.
+- **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md`](../docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md) & [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md).
 
 ---
 
@@ -80,19 +69,18 @@ pipelines/
 
 ### Completed
 
-| DAG | Schedule | Source → Target | Tables | Notes |
+| DAG | Schedule | Source → Target | Architecture | Notes |
 |---|---|---|---|---|
-| `ingest_oltp_batch` | Hourly | MySQL → Landing | 16/16 | Composite cursors, MD5 manifests |
-| `ingest_logs_15m_to_bronze` | 15 min | Fluent Bit → Bronze | 1/1 | `web_events`, anti-join dedup |
-| `ingest_oltp_landing_to_bronze` | Daily 2 AM | Landing → Bronze | 16/16 | Auto-discover `run_id` from Landing |
-| `ingest_oltp_bronze_to_silver` | Daily 2 AM | Bronze → Silver | 16/16 | MERGE, PII pseudonymization, quarantine |
-| `ingest_logs_bronze_to_silver` | 2 hours | Bronze → Silver | 1/1 | Anti-join dedup, struct flattening |
+| `lakehouse_logs_pipeline` | 2 hours | MinIO Landing → Bronze → Silver → (Gold) | **Master Unified DAG** | 4 TaskGroups (`staging`, `bronze`, `silver`, `gold`) |
+| `ingest_oltp_batch` | Hourly | MySQL → Landing | Modular DAG | Composite cursors, MD5 manifests |
+| `ingest_oltp_landing_to_bronze` | Daily 2 AM | Landing → Bronze | Modular DAG | Auto-discover `run_id` from Landing |
+| `ingest_oltp_silver` | Daily 2 AM | Bronze → Silver | Modular DAG | MERGE, PII pseudonymization, quarantine |
 
 ### Pending
 
 | DAG | Schedule | Source → Target | Notes |
 |---|---|---|---|
-| Silver → Gold | - | Silver → Gold | Star schema (`dim_*`, `fact_*`), marts |
+| Silver → Gold Tasks | - | Silver → Gold | Star schema (`dim_*`, `fact_*`), analytical marts |
 | Iceberg maintenance | - | - | Compaction, snapshot expiration, orphan cleanup |
 
 ### Validation Results

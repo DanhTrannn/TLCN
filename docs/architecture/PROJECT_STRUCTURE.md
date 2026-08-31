@@ -76,7 +76,7 @@ flowchart LR
 │   ├── src/jobs/                         # Spark batch jobs (extract_oltp.py, ingest_bronze.py, ingest_logs_to_bronze.py, ingest_oltp_to_bronze.py)
 │   └── tests/                            # Pipeline, bronze & cursor tests (49 tests)
 ├── airflow/
-│   ├── dags/                             # Airflow DAGs (ingest_oltp_batch.py, ingest_logs_15m_to_bronze.py, ingest_oltp_landing_to_bronze.py)
+│   ├── dags/                             # Airflow DAGs (lakehouse_oltp_pipeline.py, lakehouse_logs_pipeline.py, etc.)
 │   └── logs/                             # Airflow operational logs
 ├── infrastructure/
 │   ├── docker/                           # Custom images (Airflow, Superset)
