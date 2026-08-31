@@ -14,7 +14,7 @@ def spark():
 
 
 def test_build_landing_path():
-    from jobs.ingest_oltp_to_bronze import build_landing_path
+    from jobs.oltp.ingest_oltp_to_bronze import build_landing_path
 
     path = build_landing_path(
         bucket="lakehouse",
@@ -26,14 +26,14 @@ def test_build_landing_path():
 
 
 def test_build_target_table():
-    from jobs.ingest_oltp_to_bronze import build_target_table
+    from jobs.oltp.ingest_oltp_to_bronze import build_target_table
 
     assert build_target_table("orders") == "lakehouse.bronze.orders"
     assert build_target_table("customers") == "lakehouse.bronze.customers"
 
 
 def test_build_quarantine_table():
-    from jobs.ingest_oltp_to_bronze import build_quarantine_table
+    from jobs.oltp.ingest_oltp_to_bronze import build_quarantine_table
 
     assert build_quarantine_table("orders") == "lakehouse.quarantine.orders_errors"
     assert build_quarantine_table("customers") == "lakehouse.quarantine.customers_errors"
