@@ -13,7 +13,6 @@ The source application serves as the system of record for e-commerce transaction
 - **Data Engineering Integration:** Strict surrogate PKs, UTC `updated_at` timestamps for composite cursor extraction, and exclusion of authentication credentials from analytical access.
 
 ---
-
 ## 2. Architecture and Data Flow
 
 The application follows a clean 3-tier architecture, strictly decoupled from the analytical data lakehouse components:
