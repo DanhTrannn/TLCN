@@ -458,6 +458,50 @@ export function updateAdminCustomer(publicId: string, status: "active" | "inacti
   });
 }
 
+export interface CityOption {
+  code: string;
+  name: string;
+  store_count: number;
+}
+
+export async function getCities(): Promise<CityOption[]> {
+  return apiFetch<CityOption[]>("/api/v1/locations/cities");
+}
+
+export interface StoreStock {
+  store_code: string;
+  store_name: string;
+  variant_public_id: string;
+  sku: string;
+  size_code: string;
+  color_code: string;
+  price_vnd: number;
+  on_hand: number;
+}
+
+export interface VariantAvailability {
+  variant_public_id: string;
+  sku: string;
+  size_code: string;
+  color_code: string;
+  price_vnd: number;
+  total_on_hand: number;
+  in_stock: boolean;
+  stores: StoreStock[];
+}
+
+export interface ProductAvailability {
+  product_slug: string;
+  product_name: string;
+  variants: VariantAvailability[];
+}
+
+export async function getProductAvailability(slug: string, cityCode: string): Promise<ProductAvailability> {
+  return apiFetch<ProductAvailability>(
+    `/api/v1/catalog/products/${encodeURIComponent(slug)}/availability?city_code=${encodeURIComponent(cityCode)}`
+  );
+}
+
 export function formatVnd(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
   return new Intl.NumberFormat("vi-VN").format(amount) + "₫";

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { CitySelector } from "@/components/CitySelector";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
 
@@ -107,6 +108,7 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-2">
+            <CitySelector />
             {customer?.role === "admin" ? (
               <Link className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-accent hover:bg-accent/5 lg:inline-flex" href="/admin">
                 <Icon name="dashboard" size={17} />

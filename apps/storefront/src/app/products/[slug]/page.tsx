@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ProductReviews } from "@/components/ProductReviews";
+import { StoreAvailabilityBox } from "@/components/StoreAvailabilityBox";
 import { Icon } from "@/components/ui/Icon";
 import {
   ApiError,
@@ -193,6 +194,10 @@ export default function ProductDetailPage() {
           <div className="mt-7 grid gap-3 border-t border-line pt-6 sm:grid-cols-2">
             <div className="flex gap-3 rounded-2xl bg-surface p-4 shadow-sm"><Icon className="shrink-0 text-moss" name="truck" /><div><p className="text-sm font-semibold">Giao hàng rõ ràng</p><p className="mt-1 text-xs leading-5 text-muted">Miễn phí từ 500.000₫</p></div></div>
             <div className="flex gap-3 rounded-2xl bg-surface p-4 shadow-sm"><Icon className="shrink-0 text-moss" name="shield" /><div><p className="text-sm font-semibold">Tồn kho thực tế</p><p className="mt-1 text-xs leading-5 text-muted">Kiểm tra lại khi checkout</p></div></div>
+          </div>
+
+          <div className="mt-6">
+            <StoreAvailabilityBox slug={product.slug} variantPublicId={selectedVariant} />
           </div>
         </section>
       </div>

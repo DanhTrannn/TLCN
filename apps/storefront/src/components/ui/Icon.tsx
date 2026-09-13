@@ -19,6 +19,7 @@ export type IconName =
   | "shield"
   | "sparkles"
   | "star"
+  | "store"
   | "ticket"
   | "trash"
   | "truck"
@@ -51,6 +52,7 @@ export function Icon({ name, size = 20, filled = false, ...props }: IconProps) {
     shield: <><path d="M12 3 4.5 6v5c0 5 3.2 8.2 7.5 10 4.3-1.8 7.5-5 7.5-10V6L12 3Z" /><path d="m9 12 2 2 4-4" /></>,
     sparkles: <><path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z" /><path d="m5 14 .8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14ZM19 13l.6 1.4L21 15l-1.4.6L19 17l-.6-1.4L17 15l1.4-.6L19 13Z" /></>,
     star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
+    store: <><path d="M3 9v11h18V9" /><path d="M1 9l2-6h18l2 6" /><path d="M10 21v-6h4v6" /><path d="M6 9v0a3 3 0 0 0 6 0v0M12 9v0a3 3 0 0 0 6 0v0" /></>,
     ticket: <><path d="M3 8a2 2 0 0 0 0 4v4h18v-4a2 2 0 0 0 0-4V4H3v4Z" /><path d="M13 7v2M13 13v2" /></>,
     trash: <><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6" /></>,
     truck: <><path d="M3 6h11v10H3V6ZM14 10h4l3 3v3h-7v-6Z" /><circle cx="7" cy="18" r="2" /><circle cx="18" cy="18" r="2" /></>,

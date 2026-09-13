@@ -65,6 +65,15 @@ def get_current_admin(customer: Customer = Depends(get_current_customer)) -> Cus
     return customer
 
 
+STAFF_ROLES = frozenset({"admin", "store_manager", "city_planner"})
+
+
+def get_current_staff(customer: Customer = Depends(get_current_customer)) -> Customer:
+    if customer.role not in STAFF_ROLES:
+        raise forbidden("Chỉ nhân viên mới có quyền truy cập.")
+    return customer
+
+
 def verify_csrf(request: Request) -> None:
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return

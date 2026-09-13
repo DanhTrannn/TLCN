@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy.orm import Session
 
-from app.core.errors import VALIDATION_ERROR, AppError
-from app.db.deps import get_current_admin, get_db, verify_csrf
+from app.core.errors import VALIDATION_ERROR, AppError, not_found
+from app.db.deps import get_current_admin, get_current_staff, get_db, verify_csrf
 from app.models.customer import Customer
+from app.models.multicity import Store, StoreInventory
+from app.models.catalog import ProductVariant
+from app.modules.admin.branch_inventory_schemas import BranchInventoryItem, UpdateStockRequest
+from app.modules.admin.branch_inventory_service import check_store_inventory_permission
 from app.modules.admin.schemas import (
     AdminCustomerResponse,
     AdminOrderResponse,
@@ -176,4 +180,86 @@ def patch_customer(
     _: None = Depends(verify_csrf),
 ) -> Response:
     update_customer_status(admin.customer_id, public_id, payload.status)
+    return Response(status_code=204)
+
+
+@router.get("/branch-inventory", response_model=list[BranchInventoryItem])
+def list_branch_inventory(
+    store_id: int | None = Query(default=None, gt=0),
+    city_id: int | None = Query(default=None, gt=0),
+    actor: Customer = Depends(get_current_staff),
+    db: Session = Depends(get_db),
+) -> list[BranchInventoryItem]:
+    stmt = (
+        select(
+            StoreInventory,
+            Store.name.label("store_name"),
+            Store.city_id,
+            Store.city_id.label("city_id_label"),
+            ProductVariant.sku.label("variant_sku"),
+            ProductVariant.size_code,
+            ProductVariant.color_code,
+            ProductVariant.price_vnd,
+        )
+        .join(Store, Store.store_id == StoreInventory.store_id)
+        .join(ProductVariant, ProductVariant.variant_id == StoreInventory.variant_id)
+    )
+
+    if actor.role == "store_manager":
+        stmt = stmt.where(Store.store_id == actor.store_id)
+    elif actor.role == "city_planner":
+        stmt = stmt.where(Store.city_id == actor.city_id)
+
+    if store_id is not None:
+        check_store_inventory_permission(actor, store_id, 0)
+        stmt = stmt.where(Store.store_id == store_id)
+    if city_id is not None:
+        stmt = stmt.where(Store.city_id == city_id)
+
+    rows = db.execute(stmt).all()
+    return [
+        BranchInventoryItem(
+            store_id=row.StoreInventory.store_id,
+            store_name=row.store_name,
+            city_id=row.city_id,
+            city_name="",
+            variant_id=row.StoreInventory.variant_id,
+            variant_sku=row.variant_sku,
+            size_code=row.size_code,
+            color_code=row.color_code,
+            price_vnd=row.price_vnd,
+            on_hand=row.StoreInventory.on_hand,
+            opening_on_hand=row.StoreInventory.opening_on_hand,
+        )
+        for row in rows
+    ]
+
+
+@router.patch("/branch-inventory", status_code=204)
+def update_branch_stock(
+    payload: UpdateStockRequest,
+    actor: Customer = Depends(get_current_staff),
+    _: None = Depends(verify_csrf),
+    db: Session = Depends(get_db),
+) -> Response:
+    inventory = db.execute(
+        select(StoreInventory).where(
+            StoreInventory.store_id == payload.store_id,
+            StoreInventory.variant_id == payload.variant_id,
+        )
+    ).scalar_one_or_none()
+    if inventory is None:
+        raise not_found("Không tìm thấy tồn kho cho store và variant này.")
+
+    store = db.execute(
+        select(Store).where(Store.store_id == payload.store_id)
+    ).scalar_one_or_none()
+    if store is None:
+        raise not_found("Không tìm thấy cửa hàng.")
+
+    check_store_inventory_permission(actor, payload.store_id, store.city_id)
+
+    inventory.on_hand = payload.on_hand
+    inventory.version += 1
+    db.flush()
     return Response(status_code=204)

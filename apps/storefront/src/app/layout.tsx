@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { LocationProvider } from "@/components/LocationContext";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -18,9 +19,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="vi">
       <body>
         <AuthProvider>
-          <Header />
-          {children}
-          <Footer />
+          <LocationProvider>
+            <Header />
+            {children}
+            <Footer />
+          </LocationProvider>
         </AuthProvider>
       </body>
     </html>

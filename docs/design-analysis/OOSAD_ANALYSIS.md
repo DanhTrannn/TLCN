@@ -1,0 +1,2133 @@
+# OOSAD Analysis - D&K E-Commerce Data Platform
+
+> **Phương pháp:** Object-Oriented Systems Analysis and Design (OOSAD) - Alan Dennis  
+> **Hệ thống:** D&K E-Commerce Data Platform  
+> **Mục tiêu:** Phân tích và thiết kế hệ thống cho báo cáo Khóa luận tốt nghiệp  
+> **Cấu trúc:** 2 Phần (Web OLTP + Data Lakehouse) + Kiểm tra tính nhất quán
+
+---
+
+## MỤC LỤC
+
+### PHẦN I: WEB OLTP SYSTEM (Customer/Admin)
+1. [Actors](#11-xác-định-actors)
+2. [Use-Case Diagrams](#12-use-case-diagrams)
+3. [Detailed Use-Case Descriptions (SVDPI)](#13-detailed-use-case-descriptions)
+4. [Activity Diagrams](#14-activity-diagrams)
+5. [System Sequence Diagrams](#15-system-sequence-diagrams)
+6. [Class Diagrams](#16-class-diagrams)
+
+### PHẦN II: DATA LAKEHOUSE (DE/DA)
+1. [Actors](#21-xác-định-actors)
+2. [System Use-Case Diagrams](#22-system-use-case-diagrams)
+3. [Component Diagrams](#23-component-diagrams)
+4. [Data Flow Diagrams](#24-data-flow-diagrams)
+5. [Activity Diagrams](#25-activity-diagrams)
+6. [Sequence Diagrams](#26-sequence-diagrams)
+
+### PHẦN III: KIỂM TRA TÍNH NHẤT QUÁN
+1. [Balancing Matrix](#31-balancing-matrix)
+2. [Coverage Verification](#32-coverage-verification)
+
+---
+
+# PHẦN I: WEB OLTP SYSTEM
+
+> **Phạm vi:** Hệ thống thương mại điện tử trực tuyến  
+> **Actors:** Customer, Admin  
+> **Stack:** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy, Alembic
+
+---
+
+## 1.1 Xác định Actors
+
+### Bảng tổng hợp Actors (OLTP)
+
+| Actor | Vai trò | Mô tả | Giao diện |
+|-------|---------|-------|-----------|
+| **Customer** | Khách hàng | Người dùng cuối mua sắm trên nền tảng | Next.js Storefront (Port 3000) |
+| **Admin** | Quản trị viên | Quản lý cửa hàng, sản phẩm, đơn hàng | Next.js Admin Console (Port 3000/admin) |
+
+### Actor Relationship Diagram
+
+```mermaid
+classDiagram
+    class Actor {
+        <<abstract>>
+        +name: String
+        +role: String
+        +description: String
+    }
+    
+    class Customer {
+        +customerId: String
+        +email: String
+        +fullName: String
+        +phone: String
+        +browseProducts()
+        +searchProducts()
+        +manageCart()
+        +checkout()
+        +trackOrders()
+        +writeReviews()
+    }
+    
+    class Admin {
+        +adminId: String
+        +email: String
+        +permissions: List
+        +manageProducts()
+        +manageCategories()
+        +manageInventory()
+        +manageCoupons()
+        +manageOrders()
+        +viewReports()
+    }
+    
+    Actor <|-- Customer : extends
+    Actor <|-- Admin : extends
+```
+
+---
+
+## 1.2 Use-Case Diagrams
+
+### 1.2.1 Customer Domain
+
+```mermaid
+graph TB
+    subgraph "Customer Domain"
+        UC1[Browse Products]
+        UC2[Search Products]
+        UC3[View Product Details]
+        UC4[Manage Cart]
+        UC5[Checkout]
+        UC6[Track Orders]
+        UC7[Write Reviews]
+        UC8[Manage Wishlist]
+    end
+    
+    Customer((Customer))
+    
+    Customer --> UC1
+    Customer --> UC2
+    Customer --> UC3
+    Customer --> UC4
+    Customer --> UC5
+    Customer --> UC6
+    Customer --> UC7
+    Customer --> UC8
+    
+    UC4 -->|<<include>>| UC5
+    UC5 -->|<<include>>| UC6
+    UC1 -->|<<extend>>| UC3
+    UC2 -->|<<extend>>| UC3
+    UC8 -->|<<extend>>| UC4
+```
+
+### 1.2.2 Admin Domain
+
+```mermaid
+graph TB
+    subgraph "Admin Domain"
+        UC9[Manage Products]
+        UC10[Manage Categories]
+        UC11[Manage Inventory]
+        UC12[Manage Coupons]
+        UC13[Manage Orders]
+        UC14[View Reports]
+    end
+    
+    Admin((Admin))
+    
+    Admin --> UC9
+    Admin --> UC10
+    Admin --> UC11
+    Admin --> UC12
+    Admin --> UC13
+    Admin --> UC14
+    
+    UC9 -->|<<include>>| UC10
+    UC9 -->|<<include>>| UC11
+    UC13 -->|<<extend>>| UC14
+    UC11 -->|<<extend>>| UC14
+```
+
+---
+
+## 1.3 Detailed Use-Case Descriptions
+
+### UC1: Browse Products
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC1 |
+| **Use-Case Name** | Browse Products |
+| **Actor(s)** | Customer |
+| **Description** | Customer browses product catalog by category |
+| **Precondition** | System has products in database |
+| **Postcondition** | Products displayed to customer |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **selects** category **from** navigation menu |
+| 2 | - | System | System **retrieves** products **from** database |
+| 3 | - | System | System **displays** product list **to** customer |
+| 4 | Customer | System | Customer **applies** filters **to** product list |
+| 5 | - | System | System **filters** products **by** criteria |
+| 6 | Customer | System | Customer **paginates** through results |
+| 7 | - | System | System **returns** paginated results **to** customer |
+
+---
+
+### UC2: Search Products
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC2 |
+| **Use-Case Name** | Search Products |
+| **Actor(s)** | Customer |
+| **Description** | Customer searches for products by keyword |
+| **Precondition** | System has products in database |
+| **Postcondition** | Search results displayed |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **enters** search keyword **into** search box |
+| 2 | - | System | System **processes** search query **using** full-text search |
+| 3 | - | System | System **ranks** results **by** relevance |
+| 4 | - | System | System **displays** search results **to** customer |
+| 5 | Customer | System | Customer **clicks** on product **from** results |
+| 6 | - | System | System **logs** search event **to** access stream |
+
+---
+
+### UC3: View Product Details
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC3 |
+| **Use-Case Name** | View Product Details |
+| **Actor(s)** | Customer |
+| **Description** | Customer views detailed product information |
+| **Precondition** | Product exists in database |
+| **Postcondition** | Product details displayed |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **selects** product **from** list |
+| 2 | - | System | System **retrieves** product details **from** database |
+| 3 | - | System | System **loads** product images **from** CDN |
+| 4 | - | System | System **displays** product page **to** customer |
+| 5 | - | System | System **shows** related products **to** customer |
+| 6 | - | System | System **logs** product view **to** access stream |
+
+---
+
+### UC4: Manage Cart
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC4 |
+| **Use-Case Name** | Manage Cart |
+| **Actor(s)** | Customer |
+| **Description** | Customer adds, updates, or removes items from cart |
+| **Precondition** | Customer is logged in |
+| **Postcondition** | Cart updated with changes |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **adds** product **to** cart |
+| 2 | - | System | System **validates** stock availability **for** product |
+| 3 | - | System | System **creates** cart item **in** database |
+| 4 | - | System | System **updates** cart total |
+| 5 | Customer | System | Customer **updates** quantity **in** cart |
+| 6 | - | System | System **validates** new quantity **against** stock |
+| 7 | - | System | System **recalculates** cart total |
+| 8 | Customer | System | Customer **removes** item **from** cart |
+| 9 | - | System | System **deletes** cart item **from** database |
+| 10 | - | System | System **logs** cart changes **to** access stream |
+
+---
+
+### UC5: Checkout
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC5 |
+| **Use-Case Name** | Checkout |
+| **Actor(s)** | Customer |
+| **Description** | Customer completes purchase of items in cart |
+| **Precondition** | Customer is logged in, cart is not empty, items are in stock |
+| **Postcondition** | Order created, payment processed, inventory updated |
+| **Priority** | High |
+| **Business Rule** | Checkout is atomic - single transaction |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **selects** items **from** cart **for** checkout |
+| 2 | - | System | System **validates** stock availability **for** each item |
+| 3 | - | System | System **calculates** total price **including** taxes and shipping |
+| 4 | - | System | System **displays** order summary **to** customer |
+| 5 | Customer | System | Customer **provides** shipping address **to** system |
+| 6 | Customer | System | Customer **selects** payment method **from** available options |
+| 7 | Customer | System | Customer **confirms** order **to** system |
+| 8 | - | System | System **creates** order record **in** MySQL database |
+| 9 | - | System | System **creates** order items **in** MySQL database |
+| 10 | - | System | System **processes** payment **through** payment gateway |
+| 11 | - | System | System **updates** inventory levels **for** purchased items |
+| 12 | - | System | System **sends** confirmation email **to** customer |
+| 13 | - | System | System **logs** transaction details **to** access log stream |
+
+#### Alternative Flows
+
+| Alt Step | Condition | SVDPI Statement |
+|----------|-----------|-----------------|
+| 2a | Stock unavailable | System **notifies** customer **about** out-of-stock items |
+| 10a | Payment failed | System **cancels** order **and** **restores** inventory |
+
+---
+
+### UC6: Track Orders
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC6 |
+| **Use-Case Name** | Track Orders |
+| **Actor(s)** | Customer |
+| **Description** | Customer views order history and status |
+| **Precondition** | Customer is logged in, has orders |
+| **Postcondition** | Order list displayed |
+| **Priority** | Medium |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **accesses** order history page |
+| 2 | - | System | System **retrieves** orders **from** database |
+| 3 | - | System | System **displays** order list **to** customer |
+| 4 | Customer | System | Customer **selects** order **from** list |
+| 5 | - | System | System **retrieves** order details **from** database |
+| 6 | - | System | System **displays** order details **to** customer |
+
+---
+
+### UC7: Write Reviews
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC7 |
+| **Use-Case Name** | Write Reviews |
+| **Actor(s)** | Customer |
+| **Description** | Customer writes review for purchased product |
+| **Precondition** | Customer has completed order containing product |
+| **Postcondition** | Review saved to database |
+| **Priority** | Medium |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **selects** product **from** order |
+| 2 | - | System | System **verifies** purchase history **for** customer |
+| 3 | Customer | System | Customer **writes** review content **into** form |
+| 4 | Customer | System | Customer **selects** rating **from** star options |
+| 5 | Customer | System | Customer **submits** review **to** system |
+| 6 | - | System | System **validates** review content |
+| 7 | - | System | System **saves** review **to** database |
+| 8 | - | System | System **logs** review event **to** access stream |
+
+---
+
+### UC8: Manage Wishlist
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC8 |
+| **Use-Case Name** | Manage Wishlist |
+| **Actor(s)** | Customer |
+| **Description** | Customer adds or removes products from wishlist |
+| **Precondition** | Customer is logged in |
+| **Postcondition** | Wishlist updated |
+| **Priority** | Low |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **adds** product **to** wishlist |
+| 2 | - | System | System **creates** wishlist item **in** database |
+| 3 | Customer | System | Customer **views** wishlist page |
+| 4 | - | System | System **retrieves** wishlist items **from** database |
+| 5 | - | System | System **displays** wishlist **to** customer |
+| 6 | Customer | System | Customer **removes** product **from** wishlist |
+| 7 | - | System | System **deletes** wishlist item **from** database |
+
+---
+
+### UC9: Manage Products (Admin)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC9 |
+| **Use-Case Name** | Manage Products |
+| **Actor(s)** | Admin |
+| **Description** | Admin creates, updates, or archives products |
+| **Precondition** | Admin is authenticated |
+| **Postcondition** | Product changes saved to database |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Admin | System | Admin **navigates** to product management page |
+| 2 | - | System | System **displays** product list **to** admin |
+| 3 | Admin | System | Admin **clicks** add product button |
+| 4 | - | System | System **displays** product form **to** admin |
+| 5 | Admin | System | Admin **enters** product details **into** form |
+| 6 | Admin | System | Admin **uploads** product images **to** system |
+| 7 | Admin | System | Admin **saves** product **to** system |
+| 8 | - | System | System **validates** product data |
+| 9 | - | System | System **creates** product record **in** database |
+| 10 | - | System | System **logs** admin action **to** audit trail |
+
+---
+
+### UC10: Manage Categories (Admin)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC10 |
+| **Use-Case Name** | Manage Categories |
+| **Actor(s)** | Admin |
+| **Description** | Admin creates, updates, or deletes product categories |
+| **Precondition** | Admin is authenticated |
+| **Postcondition** | Category changes saved |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Admin | System | Admin **navigates** to category management page |
+| 2 | - | System | System **displays** category tree **to** admin |
+| 3 | Admin | System | Admin **adds** new category **to** tree |
+| 4 | - | System | System **validates** category name |
+| 5 | - | System | System **creates** category record **in** database |
+| 6 | Admin | System | Admin **updates** category details |
+| 7 | - | System | System **saves** category changes |
+
+---
+
+### UC11: Manage Inventory (Admin)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC11 |
+| **Use-Case Name** | Manage Inventory |
+| **Actor(s)** | Admin |
+| **Description** | Admin updates product inventory levels |
+| **Precondition** | Admin is authenticated, products exist |
+| **Postcondition** | Inventory levels updated |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Admin | System | Admin **navigates** to inventory page |
+| 2 | - | System | System **displays** inventory levels **to** admin |
+| 3 | Admin | System | Admin **selects** product variant |
+| 4 | Admin | System | Admin **enters** new stock quantity |
+| 5 | Admin | System | Admin **confirms** inventory update |
+| 6 | - | System | System **validates** quantity change |
+| 7 | - | System | System **updates** inventory record **in** database |
+| 8 | - | System | System **logs** inventory change **to** audit trail |
+
+---
+
+### UC12: Manage Coupons (Admin)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC12 |
+| **Use-Case Name** | Manage Coupons |
+| **Actor(s)** | Admin |
+| **Description** | Admin creates or deactivates promotional coupons |
+| **Precondition** | Admin is authenticated |
+| **Postcondition** | Coupon changes saved |
+| **Priority** | Medium |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Admin | System | Admin **navigates** to coupon management page |
+| 2 | - | System | System **displays** coupon list **to** admin |
+| 3 | Admin | System | Admin **creates** new coupon |
+| 4 | Admin | System | Admin **sets** coupon parameters **in** form |
+| 5 | - | System | System **validates** coupon rules |
+| 6 | - | System | System **creates** coupon record **in** database |
+| 7 | Admin | System | Admin **deactivates** existing coupon |
+| 8 | - | System | System **marks** coupon as inactive |
+
+---
+
+### UC13: Manage Orders (Admin)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC13 |
+| **Use-Case Name** | Manage Orders |
+| **Actor(s)** | Admin |
+| **Description** | Admin views and processes customer orders |
+| **Precondition** | Admin is authenticated, orders exist |
+| **Postcondition** | Order status updated |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Admin | System | Admin **navigates** to order management page |
+| 2 | - | System | System **displays** order list **to** admin |
+| 3 | Admin | System | Admin **filters** orders **by** status |
+| 4 | Admin | System | Admin **selects** order **from** list |
+| 5 | - | System | System **displays** order details **to** admin |
+| 6 | Admin | System | Admin **updates** order status |
+| 7 | - | System | System **validates** status transition |
+| 8 | - | System | System **saves** status change **to** database |
+| 9 | - | System | System **sends** status update email **to** customer |
+
+---
+
+### UC14: View Reports (Admin)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC14 |
+| **Use-Case Name** | View Reports |
+| **Actor(s)** | Admin |
+| **Description** | Admin views sales and business reports |
+| **Precondition** | Admin is authenticated |
+| **Postcondition** | Reports displayed |
+| **Priority** | Medium |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Admin | System | Admin **navigates** to reports page |
+| 2 | - | System | System **retrieves** sales data **from** database |
+| 3 | - | System | System **calculates** report metrics |
+| 4 | - | System | System **displays** dashboard **to** admin |
+| 5 | Admin | System | Admin **selects** date range |
+| 6 | - | System | System **filters** data **by** date range |
+| 7 | - | System | System **updates** report display |
+
+---
+
+## 1.4 Activity Diagrams
+
+### 1.4.1 UC1: Browse Products
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Customer opens category page]
+    A --> B[System loads category tree]
+    B --> C[Customer selects category]
+    C --> D[System queries products]
+    D --> E[Display product grid]
+    E --> F{Apply filters?}
+    F -->|Yes| G[Customer selects filter options]
+    G --> H[System filters products]
+    H --> I[Update product grid]
+    F -->|No| I
+    I --> J{More pages?}
+    J -->|Yes| K[Customer clicks next page]
+    K --> L[System loads next page]
+    L --> I
+    J -->|No| M{View product?}
+    M -->|Yes| N([End: Navigate to UC3])
+    M -->|No| O([End])
+```
+
+### 1.4.2 UC2: Search Products
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Customer enters search term]
+    A --> B[System processes search query]
+    B --> C[System ranks results by relevance]
+    C --> D[Display search results]
+    D --> E{Refine search?}
+    E -->|Yes| F[Customer modifies search term]
+    F --> B
+    E -->|No| G{Click product?}
+    G -->|Yes| H([End: Navigate to UC3])
+    G -->|No| I([End])
+```
+
+### 1.4.3 UC3: View Product Details
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[System loads product page]
+    A --> B[Display product info]
+    B --> C[Load product images]
+    C --> D[Show variant options]
+    D --> E[Display reviews]
+    E --> F[Show related products]
+    F --> G{Add to cart?}
+    G -->|Yes| H([End: Navigate to UC4])
+    G -->|No| I{Add to wishlist?}
+    I -->|Yes| J([End: Navigate to UC8])
+    I -->|No| K{Browse more?}
+    K -->|Yes| L([End: Back to UC1/UC2])
+    K -->|No| M([End])
+```
+
+### 1.4.4 UC4: Manage Cart
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Customer views cart]
+    A --> B{Action?}
+    
+    B -->|Add item| C[Customer selects product]
+    C --> D[System validates stock]
+    D --> E{In stock?}
+    E -->|No| F[Show out of stock message]
+    F --> A
+    E -->|Yes| G[System adds to cart]
+    G --> H[Update cart total]
+    H --> A
+    
+    B -->|Update qty| I[Customer changes quantity]
+    I --> J[System validates new qty]
+    J --> K{Valid?}
+    K -->|No| L[Show error message]
+    L --> A
+    K -->|Yes| M[Update cart item]
+    M --> H
+    
+    B -->|Remove item| N[Customer removes item]
+    N --> O[System deletes cart item]
+    O --> H
+    
+    B -->|Checkout| P([End: Navigate to UC5])
+```
+
+### 1.4.5 UC5: Checkout
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Display cart summary]
+    A --> B{All items in stock?}
+    
+    B -->|No| C[Show out-of-stock warning]
+    C --> D[Customer removes items]
+    D --> E{Cart empty?}
+    E -->|Yes| F[Return to shopping]
+    E -->|No| A
+    
+    B -->|Yes| G[Calculate order total]
+    G --> H[Apply taxes and shipping]
+    H --> I[Display order summary]
+    
+    I --> J[Customer enters shipping address]
+    J --> K[Validate shipping address]
+    K --> L{Address valid?}
+    L -->|No| M[Show validation error]
+    M --> J
+    L -->|Yes| N[Customer selects payment method]
+    
+    N --> O[Customer confirms order]
+    O --> P[Begin database transaction]
+    P --> Q[Create order record]
+    Q --> R[Create order items]
+    R --> S[Reserve inventory]
+    S --> T[Commit transaction]
+    
+    T --> U[Process payment]
+    U --> V{Payment successful?}
+    
+    V -->|No| W[Begin rollback transaction]
+    W --> X[Cancel order]
+    X --> Y[Release inventory]
+    Y --> Z[Commit rollback]
+    Z --> AA[Show payment error]
+    AA --> N
+    
+    V -->|Yes| AB[Update order status to PAID]
+    AB --> AC[Send confirmation email]
+    AC --> AD[Log to access stream]
+    AD --> End([End: Checkout complete])
+```
+
+### 1.4.6 UC6: Track Orders
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Customer accesses order history]
+    A --> B[System retrieves orders]
+    B --> C[Display order list]
+    C --> D{Select order?}
+    D -->|Yes| E[Customer clicks order]
+    E --> F[System loads order details]
+    F --> G[Display order details]
+    G --> H{Track shipment?}
+    H -->|Yes| I[Show tracking info]
+    I --> J[Display delivery status]
+    H -->|No| K{Return to list?}
+    K -->|Yes| C
+    K -->|No| L([End])
+    D -->|No| L
+```
+
+### 1.4.7 UC7: Write Reviews
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Customer selects product]
+    A --> B[System verifies purchase]
+    B --> C{Purchased?}
+    C -->|No| D[Show not eligible message]
+    D --> End([End])
+    C -->|Yes| E[Display review form]
+    E --> F[Customer writes review]
+    F --> G[Customer selects rating]
+    G --> H[Customer submits review]
+    H --> I[System validates content]
+    I --> J{Valid?}
+    J -->|No| K[Show validation error]
+    K --> F
+    J -->|Yes| L[Save review to database]
+    L --> M[Log review event]
+    M --> End
+```
+
+### 1.4.8 UC8: Manage Wishlist
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A{Action?}
+    
+    A -->|Add| B[Customer clicks add to wishlist]
+    B --> C[System creates wishlist item]
+    C --> D[Show success message]
+    D --> End([End])
+    
+    A -->|View| E[Customer opens wishlist]
+    E --> F[System loads wishlist items]
+    F --> G[Display wishlist]
+    G --> H{Remove item?}
+    H -->|Yes| I[Customer removes item]
+    I --> J[System deletes item]
+    J --> G
+    H -->|No| K{Add to cart?}
+    K -->|Yes| L([End: Navigate to UC4])
+    K -->|No| M([End])
+    
+    A -->|Remove| N[Customer selects item]
+    N --> O[System removes from wishlist]
+    O --> End
+```
+
+### 1.4.9 UC9: Manage Products (Admin)
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Admin opens product management]
+    A --> B[Display product list]
+    B --> C{Action?}
+    
+    C -->|Add| D[Admin clicks add button]
+    D --> E[Display product form]
+    E --> F[Admin enters product details]
+    F --> G[Admin uploads images]
+    G --> H[Admin saves product]
+    H --> I{Valid?}
+    I -->|No| J[Show validation errors]
+    J --> F
+    I -->|Yes| K[Create product record]
+    K --> L[Log admin action]
+    L --> B
+    
+    C -->|Edit| M[Admin selects product]
+    M --> N[Load product data]
+    N --> O[Display edit form]
+    O --> P[Admin modifies details]
+    P --> Q[Admin saves changes]
+    Q --> I
+    
+    C -->|Archive| R[Admin selects product]
+    R --> S[Confirm archive]
+    S --> T[Mark product as archived]
+    T --> L
+```
+
+### 1.4.10 UC10: Manage Categories (Admin)
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Admin opens category management]
+    A --> B[Display category tree]
+    B --> C{Action?}
+    
+    C -->|Add| D[Admin clicks add category]
+    D --> E[Enter category name]
+    E --> F[Select parent category]
+    F --> G[Save category]
+    G --> H[Update category tree]
+    H --> B
+    
+    C -->|Edit| I[Admin selects category]
+    I --> J[Modify category details]
+    J --> K[Save changes]
+    K --> H
+    
+    C -->|Delete| L[Admin selects category]
+    L --> M[Check for products]
+    M --> N{Has products?}
+    N -->|Yes| O[Show cannot delete message]
+    O --> B
+    N -->|No| P[Confirm deletion]
+    P --> Q[Delete category]
+    Q --> H
+```
+
+### 1.4.11 UC11: Manage Inventory (Admin)
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Admin opens inventory page]
+    A --> B[Display inventory levels]
+    B --> C{Action?}
+    
+    C -->|Update stock| D[Admin selects variant]
+    D --> E[Enter new quantity]
+    E --> F[Provide reason]
+    F --> G[Save inventory change]
+    G --> H[Update inventory record]
+    H --> I[Log inventory change]
+    I --> B
+    
+    C -->|View history| J[Admin selects variant]
+    J --> K[System retrieves history]
+    K --> L[Display inventory history]
+    L --> B
+    
+    C -->|Low stock alert| M[Show low stock items]
+    M --> N[Admin reviews alerts]
+    N --> B
+```
+
+### 1.4.12 UC12: Manage Coupons (Admin)
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Admin opens coupon management]
+    A --> B[Display coupon list]
+    B --> C{Action?}
+    
+    C -->|Create| D[Admin clicks create coupon]
+    D --> E[Enter coupon code]
+    E --> F[Set discount type]
+    F --> G[Set validity period]
+    G --> H[Set usage limits]
+    H --> I[Save coupon]
+    I --> J[Create coupon record]
+    J --> B
+    
+    C -->|Deactivate| K[Admin selects coupon]
+    K --> L[Confirm deactivation]
+    L --> M[Mark coupon inactive]
+    M --> B
+    
+    C -->|View stats| N[Admin selects coupon]
+    N --> O[System calculates usage]
+    O --> P[Display coupon stats]
+    P --> B
+```
+
+### 1.4.13 UC13: Manage Orders (Admin)
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Admin opens order management]
+    A --> B[Display order list]
+    B --> C{Filter by status}
+    C --> D[Show filtered orders]
+    D --> E{Action?}
+    
+    E -->|View details| F[Admin selects order]
+    F --> G[Display order details]
+    G --> H[Show customer info]
+    H --> I[Show order items]
+    I --> J{Update status?}
+    J -->|Yes| K[Admin selects new status]
+    K --> L{Valid transition?}
+    L -->|No| M[Show invalid transition]
+    M --> G
+    L -->|Yes| N[Save status change]
+    N --> O[Send notification email]
+    O --> B
+    J -->|No| B
+    
+    E -->|Process refund| P[Admin initiates refund]
+    P --> Q[Verify refund eligibility]
+    Q --> R[Process refund]
+    R --> S[Update order status]
+    S --> B
+```
+
+### 1.4.14 UC14: View Reports (Admin)
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Admin opens reports page]
+    A --> B[Load dashboard]
+    B --> C[Display summary metrics]
+    C --> D{Select report type}
+    
+    D -->|Sales| E[Show sales dashboard]
+    E --> F[Display revenue chart]
+    F --> G[Show top products]
+    
+    D -->|Orders| H[Show order dashboard]
+    H --> I[Display order status distribution]
+    I --> J[Show average order value]
+    
+    D -->|Customers| K[Show customer dashboard]
+    K --> L[Display new vs returning]
+    L --> M[Show customer segments]
+    
+    G --> N{Change date range?}
+    I --> N
+    M --> N
+    N -->|Yes| O[Admin selects date range]
+    O --> P[Filter data by date]
+    P --> C
+    N -->|No| Q([End])
+```
+
+---
+
+## 1.5 System Sequence Diagrams
+
+### 1.5.1 UC1: Browse Products Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Click category
+    FE->>API: GET /categories/{id}/products
+    API->>DB: SELECT products WHERE category_id = ?
+    DB-->>API: products[]
+    API-->>FE: ProductListResponse
+    FE-->>C: Display product grid
+    
+    C->>FE: Apply filter (price range)
+    FE->>API: GET /products?category=X&min_price=Y&max_price=Z
+    API->>DB: SELECT products WITH filters
+    DB-->>API: filteredProducts[]
+    API-->>FE: FilteredProductList
+    FE-->>C: Update product grid
+```
+
+### 1.5.2 UC2: Search Products Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Enter search term
+    FE->>API: GET /products/search?q=keyword
+    API->>DB: SELECT MATCHES against keyword
+    DB-->>API: searchResults[]
+    API->>API: Rank by relevance
+    API-->>FE: SearchResultsResponse
+    FE-->>C: Display search results
+    
+    Note over C,DB: Log search event
+    API->>API: Log to access stream
+```
+
+### 1.5.3 UC3: View Product Details Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Click product
+    FE->>API: GET /products/{id}
+    API->>DB: SELECT product WITH variants
+    DB-->>API: productDetails
+    API->>DB: SELECT reviews WHERE product_id = ?
+    DB-->>API: reviews[]
+    API->>DB: SELECT related products
+    DB-->>API: relatedProducts[]
+    API-->>FE: ProductDetailResponse
+    FE-->>C: Display product page
+    
+    Note over C,DB: Log product view
+    API->>API: Log to access stream
+```
+
+### 1.5.4 UC4: Manage Cart Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Add product to cart
+    FE->>API: POST /cart/items
+    API->>DB: SELECT inventory WHERE variant_id = ?
+    DB-->>API: stockLevel
+    
+    alt In stock
+        API->>DB: INSERT cart_item
+        API->>DB: UPDATE cart total
+        DB-->>API: success
+        API-->>FE: CartItemAdded
+        FE-->>C: Show success message
+    else Out of stock
+        API-->>FE: OutOfStockError
+        FE-->>C: Show out of stock message
+    end
+```
+
+### 1.5.5 UC5: Checkout Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    participant PG as Payment Gateway
+    
+    C->>FE: Proceed to checkout
+    FE->>API: GET /cart/{cartId}
+    API->>DB: SELECT cart_items JOIN products
+    DB-->>API: cartItems[]
+    API-->>FE: CartResponse
+    FE-->>C: Display cart summary
+    
+    C->>FE: Enter shipping address
+    FE->>API: POST /addresses
+    API->>DB: INSERT address
+    DB-->>API: addressId
+    API-->>FE: AddressResponse
+    
+    C->>FE: Confirm order
+    FE->>API: POST /orders/checkout
+    Note over API,DB: Begin Transaction
+    API->>DB: INSERT orders
+    API->>DB: INSERT order_items
+    API->>DB: UPDATE inventory
+    DB-->>API: Transaction committed
+    
+    API->>PG: ProcessPayment
+    PG-->>API: PaymentResult(success)
+    
+    API->>DB: UPDATE order status
+    API->>API: Log to access stream
+    API-->>FE: OrderConfirmation
+    FE-->>C: Display confirmation
+```
+
+### 1.5.6 UC6: Track Orders Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Access order history
+    FE->>API: GET /orders
+    API->>DB: SELECT orders WHERE customer_id = ?
+    DB-->>API: orders[]
+    API-->>FE: OrderListResponse
+    FE-->>C: Display order list
+    
+    C->>FE: Select order
+    FE->>API: GET /orders/{id}
+    API->>DB: SELECT order WITH items
+    DB-->>API: orderDetails
+    API->>DB: SELECT status_history
+    DB-->>API: statusHistory[]
+    API-->>FE: OrderDetailResponse
+    FE-->>C: Display order details
+```
+
+### 1.5.7 UC7: Write Reviews Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Select product to review
+    FE->>API: GET /orders/{orderId}/items/{itemId}/review eligibility
+    API->>DB: SELECT order WHERE customer_id = ? AND status = 'completed'
+    DB-->>API: orderExists
+    
+    alt Eligible
+        API-->>FE: EligibleResponse
+        FE-->>C: Display review form
+        C->>FE: Submit review
+        FE->>API: POST /reviews
+        API->>DB: INSERT product_review
+        DB-->>API: reviewId
+        API-->>FE: ReviewCreated
+        FE-->>C: Show success message
+    else Not eligible
+        API-->>FE: NotEligibleError
+        FE-->>C: Show not eligible message
+    end
+```
+
+### 1.5.8 UC8: Manage Wishlist Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Add to wishlist
+    FE->>API: POST /wishlist
+    API->>DB: INSERT wishlist_item
+    DB-->>API: success
+    API-->>FE: WishlistItemAdded
+    FE-->>C: Show success message
+    
+    C->>FE: View wishlist
+    FE->>API: GET /wishlist
+    API->>DB: SELECT wishlist_items WITH products
+    DB-->>API: wishlistItems[]
+    API-->>FE: WishlistResponse
+    FE-->>C: Display wishlist
+    
+    C->>FE: Remove from wishlist
+    FE->>API: DELETE /wishlist/{itemId}
+    API->>DB: DELETE wishlist_item
+    DB-->>API: success
+    API-->>FE: WishlistItemRemoved
+    FE-->>C: Update wishlist display
+```
+
+### 1.5.9 UC9: Manage Products (Admin) Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    A->>FE: Navigate to products
+    FE->>API: GET /admin/products
+    API->>DB: SELECT products
+    DB-->>API: products[]
+    API-->>FE: ProductListResponse
+    FE-->>A: Display product list
+    
+    A->>FE: Click add product
+    FE-->>A: Display product form
+    
+    A->>FE: Submit new product
+    FE->>API: POST /admin/products
+    API->>DB: INSERT product
+    DB-->>API: productId
+    API-->>FE: ProductCreated
+    FE-->>A: Show success message
+```
+
+### 1.5.10 UC10: Manage Categories (Admin) Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    A->>FE: Navigate to categories
+    FE->>API: GET /admin/categories
+    API->>DB: SELECT categories
+    DB-->>API: categories[]
+    API-->>FE: CategoryTreeResponse
+    FE-->>A: Display category tree
+    
+    A->>FE: Add category
+    FE->>API: POST /admin/categories
+    API->>DB: INSERT category
+    DB-->>API: categoryId
+    API-->>FE: CategoryCreated
+    FE-->>A: Update category tree
+```
+
+### 1.5.11 UC11: Manage Inventory (Admin) Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    A->>FE: Navigate to inventory
+    FE->>API: GET /admin/inventory
+    API->>DB: SELECT inventory WITH variants
+    DB-->>API: inventoryLevels[]
+    API-->>FE: InventoryResponse
+    FE-->>A: Display inventory levels
+    
+    A->>FE: Update stock quantity
+    FE->>API: PUT /admin/inventory/{variantId}
+    API->>DB: UPDATE inventory SET quantity = ?
+    API->>DB: INSERT inventory_history
+    DB-->>API: success
+    API-->>FE: InventoryUpdated
+    FE-->>A: Show updated levels
+```
+
+### 1.5.12 UC12: Manage Coupons (Admin) Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    A->>FE: Navigate to coupons
+    FE->>API: GET /admin/coupons
+    API->>DB: SELECT coupons
+    DB-->>API: coupons[]
+    API-->>FE: CouponListResponse
+    FE-->>A: Display coupon list
+    
+    A->>FE: Create coupon
+    FE->>API: POST /admin/coupons
+    API->>DB: INSERT coupon
+    DB-->>API: couponId
+    API-->>FE: CouponCreated
+    FE-->>A: Show success message
+```
+
+### 1.5.13 UC13: Manage Orders (Admin) Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    participant EMAIL as Email Service
+    
+    A->>FE: Navigate to orders
+    FE->>API: GET /admin/orders
+    API->>DB: SELECT orders
+    DB-->>API: orders[]
+    API-->>FE: OrderListResponse
+    FE-->>A: Display order list
+    
+    A->>FE: Update order status
+    FE->>API: PUT /admin/orders/{orderId}/status
+    API->>DB: UPDATE orders SET status = ?
+    API->>DB: INSERT order_status_history
+    DB-->>API: success
+    API->>EMAIL: Send status update email
+    API-->>FE: OrderStatusUpdated
+    FE-->>A: Show updated status
+```
+
+### 1.5.14 UC14: View Reports (Admin) Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Admin
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    A->>FE: Access reports
+    FE->>API: GET /admin/reports/sales?period=monthly
+    API->>DB: SELECT SUM(total) GROUP BY month
+    DB-->>API: salesData[]
+    API->>DB: SELECT COUNT(orders) GROUP BY status
+    DB-->>API: orderStats[]
+    API->>DB: SELECT TOP products
+    DB-->>API: topProducts[]
+    API-->>FE: ReportResponse
+    FE-->>A: Display sales dashboard
+```
+
+---
+
+## 1.6 Class Diagrams
+
+### 1.6.1 Domain Model - Core Entities
+
+```mermaid
+classDiagram
+    class Customer {
+        +customerId: UUID
+        +email: String
+        +fullName: String
+        +phone: String
+        +createdAt: DateTime
+        +updatedAt: DateTime
+        +register()
+        +updateProfile()
+        +getOrders()
+    }
+    
+    class Category {
+        +categoryId: UUID
+        +name: String
+        +slug: String
+        +parentId: UUID?
+        +isActive: Boolean
+        +create()
+        +update()
+        +archive()
+    }
+    
+    class Product {
+        +productId: UUID
+        +name: String
+        +slug: String
+        +description: String
+        +categoryId: UUID
+        +isActive: Boolean
+        +createdAt: DateTime
+        +create()
+        +update()
+        +archive()
+    }
+    
+    class ProductVariant {
+        +variantId: UUID
+        +productId: UUID
+        +sku: String
+        +price: Integer
+        +stockQuantity: Integer
+        +isActive: Boolean
+        +updateStock()
+        +isActive()
+    }
+    
+    class Cart {
+        +cartId: UUID
+        +customerId: UUID
+        +createdAt: DateTime
+        +addItem()
+        +removeItem()
+        +updateQuantity()
+        +getTotal()
+    }
+    
+    class CartItem {
+        +cartItemId: UUID
+        +cartId: UUID
+        +variantId: UUID
+        +quantity: Integer
+        +createdAt: DateTime
+    }
+    
+    class Order {
+        +orderId: UUID
+        +customerId: UUID
+        +status: OrderStatus
+        +totalAmount: Integer
+        +shippingAddress: JSON
+        +createdAt: DateTime
+        +create()
+        +updateStatus()
+        +cancel()
+    }
+    
+    class OrderItem {
+        +orderItemId: UUID
+        +orderId: UUID
+        +variantId: UUID
+        +quantity: Integer
+        +unitPrice: Integer
+    }
+    
+    class Payment {
+        +paymentId: UUID
+        +orderId: UUID
+        +amount: Integer
+        +method: String
+        +status: PaymentStatus
+        +processedAt: DateTime
+    }
+    
+    Customer "1" --> "*" Cart : has
+    Customer "1" --> "*" Order : places
+    Category "1" --> "*" Product : contains
+    Category "0..1" --> "*" Category : parent
+    Product "1" --> "*" ProductVariant : has
+    Cart "1" --> "*" CartItem : contains
+    CartItem "*" --> "1" ProductVariant : references
+    Order "1" --> "*" OrderItem : contains
+    Order "1" --> "0..1" Payment : has
+    OrderItem "*" --> "1" ProductVariant : references
+```
+
+### 1.6.2 Enumeration Types
+
+```mermaid
+classDiagram
+    class OrderStatus {
+        <<enumeration>>
+        PENDING
+        PAID
+        CONFIRMED
+        SHIPPED
+        COMPLETED
+        CANCELLED
+    }
+    
+    class PaymentStatus {
+        <<enumeration>>
+        PENDING
+        SUCCESS
+        FAILED
+        REFUNDED
+    }
+    
+    class CouponType {
+        <<enumeration>>
+        PERCENTAGE
+        FIXED_AMOUNT
+    }
+```
+
+### 1.6.3 Supporting Entities
+
+```mermaid
+classDiagram
+    class Address {
+        +addressId: UUID
+        +customerId: UUID
+        +fullName: String
+        +phone: String
+        +addressLine1: String
+        +addressLine2: String?
+        +city: String
+        +district: String
+        +ward: String
+        +isDefault: Boolean
+    }
+    
+    class Coupon {
+        +couponId: UUID
+        +code: String
+        +type: CouponType
+        +value: Integer
+        +minOrderAmount: Integer
+        +maxUsageCount: Integer
+        +currentUsageCount: Integer
+        +validFrom: DateTime
+        +validUntil: DateTime
+        +isActive: Boolean
+        +validate()
+        +apply()
+    }
+    
+    class CouponRedemption {
+        +redemptionId: UUID
+        +couponId: UUID
+        +orderId: UUID
+        +customerId: UUID
+        +redeemedAt: DateTime
+    }
+    
+    class ProductReview {
+        +reviewId: UUID
+        +productId: UUID
+        +customerId: UUID
+        +orderId: UUID
+        +rating: Integer
+        +comment: String?
+        +createdAt: DateTime
+    }
+    
+    class OrderStatusHistory {
+        +historyId: UUID
+        +orderId: UUID
+        +status: OrderStatus
+        +changedAt: DateTime
+        +changedBy: String?
+        +notes: String?
+    }
+    
+    class WishlistItem {
+        +wishlistItemId: UUID
+        +customerId: UUID
+        +productId: UUID
+        +createdAt: DateTime
+    }
+    
+    Address "1" --> "1" Customer : belongs to
+    Coupon "1" --> "*" CouponRedemption : tracks
+    ProductReview "*" --> "1" Customer : written by
+    ProductReview "*" --> "1" Product : for
+    OrderStatusHistory "*" --> "1" Order : belongs to
+    WishlistItem "*" --> "1" Customer : belongs to
+    WishlistItem "*" --> "1" Product : references
+```
+
+---
+
+# PHẦN II: DATA LAKEHOUSE
+
+> **Phạm vi:** Nền tảng dữ liệu phân tích  
+> **Actors:** Data Engineer, Data Analyst  
+> **Stack:** Apache Spark, Iceberg, Polaris, Airflow, Trino, Superset, MinIO
+
+---
+
+## 2.1 Xác định Actors
+
+### Bảng tổng hợp Actors (Data Platform)
+
+| Actor | Vai trò | Mô tả | Giao diện |
+|-------|---------|-------|-----------|
+| **Data Engineer** | Kỹ sư dữ liệu | Quản lý ETL pipeline, data quality, catalog | Airflow, Spark CLI, Polaris Console |
+| **Data Analyst** | Phân tích dữ liệu | Truy vấn, tạo dashboard, build ML features | Trino/Hue, Superset, Jupyter |
+
+---
+
+## 2.2 System Use-Case Diagrams
+
+### 2.2.1 Data Platform Domain
+
+```mermaid
+graph TB
+    subgraph "Data Platform Domain"
+        UC15[Configure ETL Pipeline]
+        UC16[Monitor Data Ingestion]
+        UC17[Manage Iceberg Catalog]
+        UC18[Query Analytical Data]
+        UC19[Create BI Dashboards]
+        UC20[Generate ML Features]
+        UC21[Run Batch Jobs]
+        UC22[Validate Data Quality]
+        UC23[Troubleshoot Failures]
+    end
+    
+    DE((Data Engineer))
+    DA((Data Analyst))
+    
+    DE --> UC15
+    DE --> UC16
+    DE --> UC17
+    DE --> UC21
+    DE --> UC22
+    DE --> UC23
+    
+    DA --> UC18
+    DA --> UC19
+    DA --> UC20
+    
+    UC15 -->|<<include>>| UC21
+    UC16 -->|<<include>>| UC22
+    UC18 -->|<<extend>>| UC19
+    UC18 -->|<<extend>>| UC20
+    UC22 -->|<<extend>>| UC23
+```
+
+### 2.2.2 Data Pipeline Flow
+
+```mermaid
+graph LR
+    subgraph "OLTP Sources"
+        MySQL[(MySQL 8.4)]
+        FastAPI[(FastAPI Logs)]
+    end
+    
+    subgraph "Landing Zone"
+        MinIO[(MinIO S3)]
+    end
+    
+    subgraph "Medallion Layers"
+        Bronze[(Bronze Layer)]
+        Silver[(Silver Layer)]
+        Gold[(Gold Layer)]
+    end
+    
+    subgraph "Serving Layer"
+        Trino[(Trino)]
+        Superset[(Superset)]
+        ML[(ML Features)]
+    end
+    
+    MySQL -->|Extract| MinIO
+    FastAPI -->|Fluent Bit| MinIO
+    MinIO -->|Ingest| Bronze
+    Bronze -->|Transform| Silver
+    Silver -->|Aggregate| Gold
+    Gold -->|Query| Trino
+    Trino -->|Visualize| Superset
+    Gold -->|Engineer| ML
+```
+
+---
+
+## 2.3 Component Diagrams
+
+### 2.3.1 System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Data Ingestion Layer"
+        AF[Airflow 2.10.5]
+        SP[Spark 3.5.9]
+        FB[Fluent Bit 4.2.3]
+    end
+    
+    subgraph "Storage Layer"
+        S3[(MinIO S3)]
+        POL[Polaris 1.6.0]
+    end
+    
+    subgraph "Processing Layer"
+        ICE[(Iceberg 1.10.1)]
+    end
+    
+    subgraph "Query Layer"
+        TR[Trino 483]
+    end
+    
+    subgraph "Presentation Layer"
+        SU[Superset 4.1.2]
+        HU[Hue 4.11.0]
+    end
+    
+    AF --> SP
+    SP --> S3
+    FB --> S3
+    S3 --> ICE
+    POL --> ICE
+    ICE --> TR
+    TR --> SU
+    TR --> HU
+```
+
+### 2.3.2 ETL Component Diagram
+
+```mermaid
+graph TB
+    subgraph "Airflow DAGs"
+        D1[ingest_oltp_batch]
+        D2[ingest_oltp_landing_to_bronze]
+        D3[ingest_oltp_silver]
+        D4[logs_pipeline]
+    end
+    
+    subgraph "Spark Jobs"
+        J1[extract_oltp.py]
+        J2[ingest_oltp_to_bronze.py]
+        J3[ingest_oltp_silver.py]
+        J4[ingest_logs_to_bronze.py]
+        J5[ingest_logs_silver.py]
+        J6[build_logs_gold.py]
+    end
+    
+    subgraph "Shared Libraries"
+        L1[spark.py]
+        L2[config.py]
+        L3[landing.py]
+        L4[validate.py]
+    end
+    
+    D1 --> J1
+    D2 --> J2
+    D3 --> J3
+    D4 --> J4
+    D4 --> J5
+    D4 --> J6
+    
+    J1 --> L1
+    J1 --> L2
+    J1 --> L3
+    J2 --> L1
+    J3 --> L1
+    J3 --> L4
+```
+
+---
+
+## 2.4 Data Flow Diagrams
+
+### 2.4.1 Medallion Architecture Flow
+
+```mermaid
+flowchart TB
+    subgraph "Landing Zone"
+        L1[OLTP Parquet Files]
+        L2[Access Log JSONL.gz]
+    end
+    
+    subgraph "Bronze Layer - Raw"
+        B1[Read Parquet files]
+        B2[Parse JSONL files]
+        B3[Add lineage metadata]
+        B4[Append to Bronze tables]
+        B5[Quarantine corrupt records]
+    end
+    
+    subgraph "Silver Layer - Cleansed"
+        S1[Deduplicate by PK]
+        S2[Standardize timestamps]
+        S3[Parse JSON fields]
+        S4[UPSERT/MERGE mutable tables]
+        S5[Pseudonymize PII]
+        S6[Validate business rules]
+        S7[Quarantine invalid records]
+    end
+    
+    subgraph "Gold Layer - Business"
+        G1[Build dimension tables]
+        G2[Build fact tables]
+        G3[Build summary marts]
+        G4[Run reconciliation checks]
+        G5[Publish Gold tables]
+    end
+    
+    L1 --> B1
+    L2 --> B2
+    B1 --> B3
+    B2 --> B3
+    B3 --> B4
+    B3 --> B5
+    
+    B4 --> S1
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+    S5 --> S6
+    S6 --> S7
+    
+    S6 --> G1
+    S6 --> G2
+    G1 --> G3
+    G2 --> G3
+    G3 --> G4
+    G4 --> G5
+```
+
+### 2.4.2 OLTP Extraction Flow
+
+```mermaid
+flowchart TD
+    Start([Start: DAG triggered]) --> A[Load table configurations]
+    A --> B[Read cursor state]
+    B --> C[Connect to MySQL]
+    C --> D{Connected?}
+    
+    D -->|No| E[Log error]
+    E --> F[Alert engineer]
+    F --> End1([End: Failed])
+    
+    D -->|Yes| G[Build incremental query]
+    G --> H[Execute query]
+    H --> I{Data returned?}
+    
+    I -->|No| J[Log no changes]
+    J --> End2([End: No changes])
+    
+    I -->|Yes| L[Convert to DataFrame]
+    L --> M[Write Parquet to MinIO]
+    M --> N{Write success?}
+    
+    N -->|No| O[Retry up to 3 times]
+    O --> P{Retries exhausted?}
+    P -->|Yes| Q[Log failure]
+    Q --> F
+    P -->|No| M
+    
+    N -->|Yes| R[Generate MD5 manifest]
+    R --> S[Upload manifest]
+    S --> T[Update cursor state]
+    T --> U[Validate manifest]
+    U --> V{Valid?}
+    
+    V -->|No| W[Quarantine files]
+    W --> F
+    V -->|Yes| X[Log success]
+    X --> End3([End: Success])
+```
+
+### 2.4.3 Access Log Ingestion Flow
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[FluentBit tails Docker logs]
+    A --> B[Buffer log entries]
+    B --> C{Buffer full or timer?}
+    C -->|No| B
+    C -->|Yes| D[Compress as gzip]
+    D --> E[Generate S3 path]
+    E --> F[Upload to MinIO]
+    F --> G{Upload success?}
+    G -->|No| H[Retry upload]
+    H --> F
+    G -->|Yes| I[Clear buffer]
+    I --> B
+```
+
+---
+
+## 2.5 Activity Diagrams
+
+### 2.5.1 UC15: Configure ETL Pipeline
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Data Engineer opens config]
+    A --> B[Edit table configurations]
+    B --> C[Set cursor fields]
+    C --> D[Define primary keys]
+    D --> E[Configure schedule]
+    E --> F[Save config]
+    F --> G[Validate config]
+    G --> H{Valid?}
+    H -->|No| I[Show errors]
+    I --> B
+    H -->|Yes| J[Deploy to Airflow]
+    J --> End([End])
+```
+
+### 2.5.2 UC16: Monitor Data Ingestion
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Open Airflow dashboard]
+    A --> B[Check DAG status]
+    B --> C{Any failures?}
+    C -->|Yes| D[View error logs]
+    D --> E[Identify failed task]
+    E --> F[Retry or fix]
+    C -->|No| G[Check task durations]
+    G --> H[Review data volumes]
+    H --> I[Check latency metrics]
+    I --> End([End])
+```
+
+### 2.5.3 UC21: Run Batch Jobs
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Navigate to DAGs page]
+    A --> B[Display DAG list]
+    B --> C{Action?}
+    
+    C -->|Trigger| D[Select DAG]
+    D --> E[Configure parameters]
+    E --> F[Trigger DAG run]
+    F --> G[Monitor execution]
+    G --> H{Success?}
+    H -->|Yes| I[Log completion]
+    H -->|No| J[View error logs]
+    J --> K[Troubleshoot issue]
+    K --> L([End: Navigate to UC23])
+    
+    C -->|View history| M[Select DAG]
+    M --> N[Display run history]
+    N --> O[Show task durations]
+    O --> B
+    
+    C -->|Pause/Resume| P[Toggle DAG state]
+    P --> B
+    
+    I --> B
+```
+
+### 2.5.4 UC22: Validate Data Quality
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Select target layer]
+    A --> B[Read data statistics]
+    B --> C[Check null ratios]
+    C --> D[Validate data types]
+    D --> E[Verify integrity]
+    E --> F[Generate quality score]
+    F --> G{Score acceptable?}
+    
+    G -->|No| H[Generate detailed report]
+    H --> I[Alert data engineer]
+    I --> End1([End: Issues found])
+    
+    G -->|Yes| J[Log quality metrics]
+    J --> End2([End: Passed])
+```
+
+---
+
+## 2.6 Sequence Diagrams
+
+### 2.6.1 UC15: Configure ETL Pipeline Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DE as Data Engineer
+    participant CLI as Spark CLI
+    participant YML as YAML Config
+    participant MN as MinIO S3
+    
+    DE->>CLI: Run config command
+    CLI->>YML: Read current config
+    YML-->>CLI: configData
+    CLI-->>DE: Display config
+    
+    DE->>CLI: Update config
+    CLI->>YML: Write new config
+    CLI->>MN: Upload to S3
+    MN-->>CLI: uploadSuccess
+    CLI-->>DE: Config updated
+```
+
+### 2.6.2 UC16: Monitor Data Ingestion Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DE as Data Engineer
+    participant AF as Apache Airflow
+    participant SP as Apache Spark
+    participant MN as MinIO S3
+    
+    DE->>AF: Access web UI
+    AF-->>DE: DAG dashboard
+    
+    DE->>AF: Click DAG
+    AF->>AF: Load DAG runs
+    AF-->>DE: Run history
+    
+    DE->>AF: View task logs
+    AF->>SP: Get task output
+    SP-->>AF: taskLogs
+    AF-->>DE: Display logs
+```
+
+### 2.6.3 UC18: Query Analytical Data Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DA as Data Analyst
+    participant TR as Trino
+    participant PC as Polaris Catalog
+    participant IC as Iceberg Tables
+    
+    DA->>TR: Submit SQL query
+    TR->>TR: Parse query
+    TR->>TR: Generate execution plan
+    TR->>PC: Resolve table locations
+    PC-->>TR: tableMetadata
+    TR->>IC: Read data files
+    IC-->>TR: queryResults
+    TR->>TR: Aggregate results
+    TR-->>DA: ResultSet
+```
+
+### 2.6.4 UC19: Create BI Dashboards Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DA as Data Analyst
+    participant SU as Apache Superset
+    participant TR as Trino
+    
+    DA->>SU: Create new dashboard
+    SU-->>DA: Dashboard canvas
+    
+    DA->>SU: Add chart widget
+    SU-->>DA: Chart configuration
+    
+    DA->>SU: Select Trino data source
+    DA->>SU: Write SQL query
+    SU->>TR: Execute query
+    TR-->>SU: Query results
+    SU->>SU: Render visualization
+    SU-->>DA: Chart preview
+    
+    DA->>SU: Save dashboard
+    SU->>SU: Store configuration
+```
+
+### 2.6.5 UC20: Generate ML Features Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DA as Data Analyst
+    participant SP as Apache Spark
+    participant IC as Iceberg Tables
+    participant FS as Feature Store
+    
+    DA->>SP: Trigger feature job
+    SP->>IC: Read Gold snapshots
+    IC-->>SP: transactionData
+    
+    SP->>SP: Calculate purchase history
+    SP->>SP: Calculate product features
+    SP->>SP: Generate time features
+    SP->>SP: Generate repurchase labels
+    
+    SP->>FS: Write features
+    FS-->>SP: writeSuccess
+    SP->>SP: Validate distributions
+    SP->>DA: Job completed
+```
+
+### 2.6.6 UC23: Troubleshoot Failures Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DE as Data Engineer
+    participant AF as Apache Airflow
+    participant SP as Apache Spark
+    
+    AF->>DE: Send failure alert
+    DE->>AF: Access error logs
+    AF-->>DE: errorLogs
+    
+    DE->>DE: Analyze error
+    DE->>SP: Check Spark UI
+    SP-->>DE: jobMetrics
+    
+    DE->>DE: Identify root cause
+    DE->>AF: Retry failed task
+    AF->>SP: Re-execute task
+    
+    alt Success
+        SP->>AF: Task completed
+        AF->>DE: Resolution notification
+    else Still failing
+        SP->>AF: Task failed again
+        AF->>DE: Escalation required
+    end
+```
+
+---
+
+# PHẦN III: KIỂM TRA TÍNH NHẤT QUÁN
+
+## 3.1 Balancing Matrix
+
+| Functional Element | Actors | Use Cases | Activities | Sequences |
+|-------------------|--------|-----------|------------|-----------|
+| **Customer** | ✅ | UC1-UC8 | ✅ UC1-UC8 | ✅ UC1-UC8 |
+| **Admin** | ✅ | UC9-UC14 | ✅ UC9-UC14 | ✅ UC9-UC14 |
+| **Data Engineer** | ✅ | UC15-UC17, UC21-UC23 | ✅ UC15-16, UC21-22 | ✅ UC15-16, UC23 |
+| **Data Analyst** | ✅ | UC18-UC20 | - | ✅ UC18-20 |
+
+---
+
+## 3.2 Coverage Verification
+
+### Web OLTP Coverage
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| All actors have use cases | ✅ | Customer: 8 UCs, Admin: 6 UCs |
+| All use cases have actors | ✅ | No orphan use cases |
+| Use case flows use SVDPI | ✅ | All 14 flows verified |
+| Activity diagrams match use cases | ✅ | All 14 activity diagrams |
+| Sequence diagrams match use cases | ✅ | All 14 sequence diagrams |
+| Class diagrams cover domain | ✅ | Core entities + enums |
+| Include/Extend relationships valid | ✅ | No circular dependencies |
+
+### Data Lakehouse Coverage
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| All actors have use cases | ✅ | DE: 6 UCs, DA: 3 UCs |
+| All use cases have actors | ✅ | No orphan use cases |
+| Use case flows use SVDPI | ✅ | All 9 flows verified |
+| Component diagrams show architecture | ✅ | System + ETL components |
+| Data flow diagrams show pipeline | ✅ | Medallion + Extraction flows |
+| Activity diagrams match use cases | ✅ | 4 main activity diagrams |
+| Sequence diagrams match use cases | ✅ | 6 sequence diagrams |
+
+### Diagram Count Summary
+
+| Diagram Type | Web OLTP | Data Lakehouse | Total |
+|--------------|----------|----------------|-------|
+| Use-Case Diagrams | 2 | 2 | 4 |
+| Use-Case Descriptions | 14 | 9 | 23 |
+| Activity Diagrams | 14 | 4 | 18 |
+| Sequence Diagrams | 14 | 6 | 20 |
+| Class Diagrams | 3 | - | 3 |
+| Component Diagrams | - | 2 | 2 |
+| Data Flow Diagrams | - | 3 | 3 |
+| **Total** | **47** | **26** | **73** |
+
+---
+
+> **Kết thúc phân tích OOSAD**  
+> **Hệ thống:** D&K E-Commerce Data Platform  
+> **Phương pháp:** Object-Oriented Systems Analysis and Design (Alan Dennis)
