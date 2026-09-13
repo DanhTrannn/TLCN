@@ -97,12 +97,13 @@ def get_product_availability(
                     ProductVariant.price_vnd,
                     StoreInventory.on_hand,
                 )
-                .join(StoreInventory, StoreInventory.variant_id == v.variant_id)
+                .select_from(StoreInventory)
                 .join(Store, Store.store_id == StoreInventory.store_id)
+                .join(ProductVariant, ProductVariant.variant_id == StoreInventory.variant_id)
                 .where(
                     StoreInventory.store_id.in_(city_store_ids),
                     StoreInventory.on_hand > 0,
-                    ProductVariant.variant_id == v.variant_id,
+                    StoreInventory.variant_id == v.variant_id,
                 )
                 .order_by(Store.name)
             ).all()
