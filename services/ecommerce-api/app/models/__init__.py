@@ -2,6 +2,7 @@ from app.models.cart import Cart, CartItem
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer, CustomerCredential
 from app.models.inventory import Inventory
+from app.models.multicity import City, Store, StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
 from app.models.review import ProductReview
@@ -11,6 +12,7 @@ __all__ = [
     "Cart",
     "CartItem",
     "Category",
+    "City",
     "Product",
     "ProductVariant",
     "Customer",
@@ -24,5 +26,7 @@ __all__ = [
     "Coupon",
     "CouponRedemption",
     "ProductReview",
+    "Store",
+    "StoreInventory",
     "WishlistItem",
 ]

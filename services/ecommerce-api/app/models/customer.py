@@ -16,6 +16,16 @@ class Customer(Base):
     role: Mapped[str] = mapped_column(String(16), nullable=False, default="customer")
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    city_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("cities.city_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    store_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("stores.store_id", ondelete="SET NULL"),
+        nullable=True,
+    )
     data_origin: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
     generation_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     anonymized_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
@@ -33,7 +43,7 @@ class Customer(Base):
 
     __table_args__ = (
         CheckConstraint("status in ('active','inactive')", name="status"),
-        CheckConstraint("role in ('customer','admin')", name="role"),
+        CheckConstraint("role in ('customer','admin','store_manager','city_planner')", name="role"),
         CheckConstraint("data_origin in ('manual','synthetic')", name="data_origin"),
         Index("uq_customers_public_id", "public_id", unique=True),
         Index("ix_customers_role_status_id", "role", "status", "customer_id"),
