@@ -28,6 +28,7 @@ def register(payload: RegisterRequest, response: Response) -> CustomerResponse:
         display_name=customer.display_name,
         email=str(payload.email).strip().lower(),
         role=customer.role,
+        store_id=customer.store_id,
     )
 
 
@@ -40,6 +41,7 @@ def login(payload: LoginRequest, response: Response) -> CustomerResponse:
         display_name=customer.display_name,
         email=email_normalized,
         role=customer.role,
+        store_id=customer.store_id,
     )
 
 
@@ -60,4 +62,5 @@ def me(
         display_name=customer.display_name,
         email=_email_for(db, customer.customer_id),
         role=customer.role,
+        store_id=customer.store_id,
     )

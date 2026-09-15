@@ -8,6 +8,7 @@ export interface Customer {
   display_name: string;
   email: string;
   role: "customer" | "admin" | "store_manager" | "city_planner";
+  store_id?: number | null;
 }
 
 export interface Category {

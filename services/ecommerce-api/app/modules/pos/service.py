@@ -14,6 +14,7 @@ from app.modules.pos.schemas import POSTransactionRequest
 
 
 def search_products(db: Session, store_id: int, query: str) -> list[dict]:
+    q = query.strip()
     stmt = (
         select(
             ProductVariant.variant_id,
@@ -35,10 +36,14 @@ def search_products(db: Session, store_id: int, query: str) -> list[dict]:
         .where(ProductVariant.is_active == True)  # noqa: E712
         .where(Product.is_active == True)  # noqa: E712
         .where(
-            (ProductVariant.sku.ilike(f"%{query}%"))
-            | (Product.name.ilike(f"%{query}%"))
+            (ProductVariant.sku.ilike(f"{q}%"))
+            | (Product.name.ilike(f"%{q}%"))
         )
-        .limit(20)
+        .order_by(
+            func.bin(ProductVariant.sku).desc(),
+            ProductVariant.sku.asc(),
+        )
+        .limit(8)
     )
     rows = db.execute(stmt).all()
     return [dict(row._mapping) for row in rows]

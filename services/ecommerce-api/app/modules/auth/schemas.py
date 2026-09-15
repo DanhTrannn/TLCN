@@ -21,3 +21,4 @@ class CustomerResponse(BaseModel):
     display_name: str
     email: str
     role: str
+    store_id: int | None = None

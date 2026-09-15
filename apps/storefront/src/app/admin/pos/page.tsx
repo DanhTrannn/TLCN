@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
@@ -16,53 +16,80 @@ interface PosItem {
   quantity: number;
 }
 
+interface SearchResult {
+  variant_id: number;
+  product_name: string;
+  sku: string;
+  size_code: string;
+  color_code: string;
+  price_vnd: number;
+  store_stock: number;
+  global_stock: number;
+}
+
 export default function PosPage() {
   const { customer } = useAuth();
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [searchCode, setSearchCode] = useState("");
-  const [searchResult, setSearchResult] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [selectedItem, setSelectedItem] = useState<SearchResult | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [cart, setCart] = useState<PosItem[]>([]);
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const storeId = customer?.store_id;
+
   const searchProduct = useCallback(async () => {
-    if (!searchCode.trim()) return;
+    if (!searchCode.trim() || !storeId) return;
     setSearching(true);
     setError(null);
+    setSelectedItem(null);
     try {
       const response = await fetch(
-        `/api/v1/pos/products?store_id=1&search=${encodeURIComponent(searchCode.trim())}`,
+        `/api/v1/pos/products?store_id=${storeId}&search=${encodeURIComponent(searchCode.trim())}`,
         { credentials: "include" }
       );
       if (!response.ok) throw new ApiError("Không tìm thấy sản phẩm", response.status);
-      const results = await response.json();
-      setSearchResult(results[0] || null);
+      const results: SearchResult[] = await response.json();
+      setSearchResults(results);
+      if (results.length === 1) {
+        setSelectedItem(results[0]);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Lỗi tìm kiếm");
+      setSearchResults([]);
     } finally {
       setSearching(false);
     }
-  }, [searchCode]);
+  }, [searchCode, storeId]);
 
   const addToCart = useCallback(() => {
-    if (!searchResult) return;
+    if (!selectedItem) return;
     setCart((prev) => {
-      const existing = prev.find((i) => i.variant_id === searchResult.variant_id);
+      const existing = prev.find((i) => i.variant_id === selectedItem.variant_id);
       if (existing) {
         return prev.map((i) =>
-          i.variant_id === searchResult.variant_id
+          i.variant_id === selectedItem.variant_id
             ? { ...i, quantity: i.quantity + quantity }
             : i
         );
       }
-      return [...prev, { ...searchResult, quantity }];
+      return [...prev, { ...selectedItem, quantity }];
     });
     setSearchCode("");
-    setSearchResult(null);
+    setSearchResults([]);
+    setSelectedItem(null);
     setQuantity(1);
-  }, [searchResult, quantity]);
+    inputRef.current?.focus();
+  }, [selectedItem, quantity]);
+
+  const selectFromList = useCallback((item: SearchResult) => {
+    setSelectedItem(item);
+    setQuantity(1);
+  }, []);
 
   const removeFromCart = useCallback((variantId: number) => {
     setCart((prev) => prev.filter((i) => i.variant_id !== variantId));
@@ -71,7 +98,7 @@ export default function PosPage() {
   const total = cart.reduce((sum, item) => sum + item.price_vnd * item.quantity, 0);
 
   const submitTransaction = useCallback(async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || !storeId) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -80,7 +107,7 @@ export default function PosPage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          store_id: 1,
+          store_id: storeId,
           items: cart.map((i) => ({ variant_id: i.variant_id, quantity: i.quantity })),
           payment_method: "cash",
           amount_received_vnd: total,
@@ -96,22 +123,32 @@ export default function PosPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [cart, total, router]);
+  }, [cart, total, storeId, router]);
+
+  if (!storeId) {
+    return (
+      <main className="page-shell">
+        <h1 className="page-heading">Bán hàng tại quầy</h1>
+        <p className="mt-4 text-muted">Tài khoản này không gắn cửa hàng nào.</p>
+      </main>
+    );
+  }
 
   return (
     <main className="page-shell">
       <header>
         <h1 className="page-heading">Bán hàng tại quầy</h1>
-        <p className="mt-2 text-muted">Store: {customer?.display_name || "N/A"}</p>
+        <p className="mt-2 text-muted">Cửa hàng: {customer?.display_name}</p>
       </header>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_400px]">
         <section className="surface-card p-5">
-          <h2 className="font-semibold">Nhập sản phẩm</h2>
+          <h2 className="font-semibold">Tìm sản phẩm</h2>
           <div className="mt-4 flex gap-2">
             <input
+              ref={inputRef}
               className="form-control flex-1"
-              placeholder="Nhập mã sản phẩm (SKU)"
+              placeholder="Nhập tên hoặc mã SP (SKU)"
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && searchProduct()}
@@ -121,15 +158,45 @@ export default function PosPage() {
             </button>
           </div>
 
-          {searchResult && (
+          {searchResults.length > 0 && !selectedItem && (
+            <div className="mt-4 rounded-xl border divide-y">
+              {searchResults.map((item) => (
+                <button
+                  key={item.variant_id}
+                  className="flex w-full items-center justify-between p-3 text-left hover:bg-sand/40 transition"
+                  onClick={() => selectFromList(item)}
+                >
+                  <div>
+                    <p className="font-medium">{item.product_name}</p>
+                    <p className="text-xs text-muted">
+                      {item.sku} | {item.size_code} | {item.color_code}
+                    </p>
+                  </div>
+                  <div className="text-right text-sm">
+                    <p className="font-semibold">{formatVnd(item.price_vnd)}</p>
+                    <p className="text-muted">Kho: {item.store_stock}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {selectedItem && (
             <div className="mt-4 rounded-xl border p-4">
-              <p className="font-medium">{searchResult.product_name}</p>
-              <p className="text-sm text-muted">
-                SKU: {searchResult.sku} | Size: {searchResult.size_code} | Màu: {searchResult.color_code}
-              </p>
-              <p className="text-sm text-muted">
-                Giá: {formatVnd(searchResult.price_vnd)} | Tồn kho: {searchResult.store_stock}
-              </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-medium">{selectedItem.product_name}</p>
+                  <p className="text-sm text-muted">
+                    SKU: {selectedItem.sku} | Size: {selectedItem.size_code} | Màu: {selectedItem.color_code}
+                  </p>
+                  <p className="text-sm text-muted">
+                    Giá: {formatVnd(selectedItem.price_vnd)} | Tồn kho: {selectedItem.store_stock}
+                  </p>
+                </div>
+                <button className="text-muted hover:text-ink" onClick={() => { setSelectedItem(null); setSearchResults([]); }}>
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
               <div className="mt-3 flex items-center gap-2">
                 <input
                   className="form-control w-20"
@@ -141,6 +208,10 @@ export default function PosPage() {
                 <button className="button-primary" onClick={addToCart}>Thêm vào giỏ</button>
               </div>
             </div>
+          )}
+
+          {searchResults.length === 0 && searchCode && !searching && (
+            <p className="mt-4 text-muted">Không tìm thấy sản phẩm nào.</p>
           )}
         </section>
 
