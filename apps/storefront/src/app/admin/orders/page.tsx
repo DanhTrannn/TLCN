@@ -11,6 +11,7 @@ import { formatVietnamDateTime } from "@/lib/datetime";
 
 export default function AdminOrdersPage() {
   const [status, setStatus] = useState("");
+  const [channelFilter, setChannelFilter] = useState<string>("all");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
@@ -22,13 +23,13 @@ export default function AdminOrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      setOrders(await getAdminOrders(status || undefined));
+      setOrders(await getAdminOrders(status || undefined, channelFilter === "all" ? undefined : channelFilter));
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : "Không tải được đơn hàng");
     } finally {
       setLoading(false);
     }
-  }, [status]);
+  }, [status, channelFilter]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -60,6 +61,11 @@ export default function AdminOrdersPage() {
             <option value="">Tất cả</option><option value="paid">Chờ xác nhận</option><option value="payment_failed">Thanh toán lỗi</option><option value="confirmed">Đã xác nhận</option><option value="completed">Hoàn tất</option><option value="cancelled">Đã hủy</option>
           </select>
         </label>
+        <label className="field-label min-w-40" htmlFor="admin-order-channel">Kênh
+          <select className="admin-input" id="admin-order-channel" onChange={(event) => setChannelFilter(event.target.value)} value={channelFilter}>
+            <option value="all">Tất cả</option><option value="online">Online</option><option value="pos">POS</option>
+          </select>
+        </label>
       </header>
 
       {error ? <div className="feedback-error mt-5">{error}</div> : null}
@@ -76,12 +82,13 @@ export default function AdminOrdersPage() {
       ) : (
         <div className="admin-table-shell mt-6">
           <table>
-            <thead><tr><th>Đơn hàng</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <thead><tr><th>Đơn hàng</th><th>Khách hàng</th><th>Kênh</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
               {orders.map((order) => (
                 <tr key={order.order_number}>
                   <td><Link className="font-semibold hover:text-accent" href={`/admin/orders/${order.order_number}`}>{order.order_number}</Link><p className="mt-1 text-xs text-muted">{formatVietnamDateTime(order.created_at)} · {order.item_count} món</p></td>
                   <td><p className="font-medium">{order.customer_name}</p><p className="text-xs text-muted">{order.customer_email}</p></td>
+                  <td><span className="text-sm">{order.channel === "pos" ? "POS" : "Online"}</span></td>
                   <td className="font-semibold">{formatVnd(order.total_vnd)}</td>
                   <td><OrderStatusBadge status={order.status} /></td>
                   <td>

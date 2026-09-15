@@ -226,6 +226,7 @@ export interface AdminOrder {
   total_vnd: number;
   item_count: number;
   created_at: string;
+  channel: string;
 }
 
 export interface AdminCustomer {
@@ -437,8 +438,11 @@ export function updateAdminVariant(
   });
 }
 
-export function getAdminOrders(status?: string) {
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+export function getAdminOrders(status?: string, channel?: string) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (channel) params.set("channel", channel);
+  const query = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<AdminOrder[]>(`/api/v1/admin/orders${query}`);
 }
 
