@@ -9,6 +9,7 @@ export interface Customer {
   email: string;
   role: "customer" | "admin" | "store_manager" | "city_planner";
   store_id?: number | null;
+  store_name?: string | null;
 }
 
 export interface Category {

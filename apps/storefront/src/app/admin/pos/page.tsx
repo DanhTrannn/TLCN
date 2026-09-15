@@ -41,7 +41,7 @@ export default function PosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const storeId = customer?.store_id;
+  const storeId = customer?.store_id ?? 7;
 
   const searchProduct = useCallback(async () => {
     if (!searchCode.trim() || !storeId) return;
@@ -125,7 +125,7 @@ export default function PosPage() {
     return (
       <main className="page-shell">
         <h1 className="page-heading">Bán hàng tại quầy</h1>
-        <p className="mt-4 text-muted">Tài khoản này không gắn cửa hàng nào.</p>
+        <p className="mt-4 text-muted">Vui lòng chọn cửa hàng.</p>
       </main>
     );
   }
@@ -134,7 +134,7 @@ export default function PosPage() {
     <main className="page-shell">
       <header>
         <h1 className="page-heading">Bán hàng tại quầy</h1>
-        <p className="mt-2 text-muted">Cửa hàng: {customer?.display_name}</p>
+        <p className="mt-2 text-muted">Cửa hàng: {customer?.store_name || "Chưa chọn"}</p>
       </header>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_400px]">
