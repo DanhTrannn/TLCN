@@ -15,6 +15,7 @@ import {
   type CheckoutQuote,
 } from "@/lib/commerce";
 import { useAuth } from "@/lib/auth";
+import { PROVINCES, getWardsForProvince } from "@/lib/vietnam-addresses";
 
 export default function CheckoutPage() {
   const { customer, loading: authLoading } = useAuth();
@@ -31,7 +32,9 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [ward, setWard] = useState("");
+  const [province, setProvince] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -144,7 +147,7 @@ export default function CheckoutPage() {
       const result = await checkoutWithCoupon(idempotencyKey.current, {
         receiver_name: receiverName.trim(),
         receiver_phone: receiverPhone.trim(),
-        shipping_address_text: address.trim(),
+        shipping_address_text: [streetAddress.trim(), ward, province].filter(Boolean).join(", "),
         coupon_code: appliedCouponCode,
       });
       router.push(`/checkout/result/${encodeURIComponent(result.order_number)}`);
@@ -212,8 +215,20 @@ export default function CheckoutPage() {
               <label className="field-label" htmlFor="receiver-phone">Số điện thoại
                 <input autoComplete="tel" className="form-control" id="receiver-phone" inputMode="tel" value={receiverPhone} onChange={(event) => setReceiverPhone(event.target.value)} required />
               </label>
-              <label className="field-label sm:col-span-2" htmlFor="shipping-address">Địa chỉ giao hàng
-                <textarea autoComplete="street-address" className="form-control min-h-28 resize-y" id="shipping-address" rows={3} value={address} onChange={(event) => setAddress(event.target.value)} required />
+              <label className="field-label" htmlFor="province">Tỉnh/Thành phố
+                <select className="form-control" id="province" value={province} onChange={(event) => { setProvince(event.target.value); setWard(""); }} required>
+                  <option value="">Chọn tỉnh/thành</option>
+                  {PROVINCES.map((p) => <option key={p.code} value={p.name}>{p.name}</option>)}
+                </select>
+              </label>
+              <label className="field-label" htmlFor="ward">Phường/Xã
+                <select className="form-control" id="ward" value={ward} onChange={(event) => setWard(event.target.value)} required disabled={!province}>
+                  <option value="">Chọn phường/xã</option>
+                  {getWardsForProvince(province).map((w) => <option key={w.code} value={w.name}>{w.name}</option>)}
+                </select>
+              </label>
+              <label className="field-label sm:col-span-2" htmlFor="street-address">Số nhà, đường
+                <input autoComplete="street-address" className="form-control" id="street-address" placeholder="Ví dụ: 123 Nguyễn Huệ" value={streetAddress} onChange={(event) => setStreetAddress(event.target.value)} required />
               </label>
             </div>
           </section>
