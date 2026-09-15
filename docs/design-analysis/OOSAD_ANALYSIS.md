@@ -9,7 +9,7 @@
 
 ## MỤC LỤC
 
-### PHẦN I: WEB OLTP SYSTEM (Customer/Admin)
+### PHẦN I: WEB OLTP SYSTEM (Customer/Admin/Staff)
 1. [Actors](#11-xác-định-actors)
 2. [Use-Case Diagrams](#12-use-case-diagrams)
 3. [Detailed Use-Case Descriptions (SVDPI)](#13-detailed-use-case-descriptions)
@@ -34,7 +34,7 @@
 # PHẦN I: WEB OLTP SYSTEM
 
 > **Phạm vi:** Hệ thống thương mại điện tử trực tuyến  
-> **Actors:** Customer, Admin  
+> **Actors:** Customer, Admin, Store Manager, City Planner  
 > **Stack:** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy, Alembic
 
 ---
@@ -46,7 +46,9 @@
 | Actor | Vai trò | Mô tả | Giao diện |
 |-------|---------|-------|-----------|
 | **Customer** | Khách hàng | Người dùng cuối mua sắm trên nền tảng | Next.js Storefront (Port 3000) |
-| **Admin** | Quản trị viên | Quản lý cửa hàng, sản phẩm, đơn hàng | Next.js Admin Console (Port 3000/admin) |
+| **Admin** | Quản trị viên | Quản lý cửa hàng, sản phẩm, đơn hàng tổng quát | Next.js Admin Console (Port 3000/admin) |
+| **Store Manager** | Quản lý cửa hàng | Quản lý tồn kho tại cửa hàng được phân công | Next.js Admin Console (Port 3000/admin) |
+| **City Planner** | Quản lý thành phố | Quản lý tất cả cửa hàng trong thành phố được phân công | Next.js Admin Console (Port 3000/admin) |
 
 ### Actor Relationship Diagram
 
@@ -60,32 +62,58 @@ classDiagram
     }
     
     class Customer {
-        +customerId: String
+        +customerId: UUID
         +email: String
-        +fullName: String
-        +phone: String
+        +displayName: String
+        +role: String
+        +cityId: UUID?
+        +storeId: UUID?
         +browseProducts()
         +searchProducts()
         +manageCart()
         +checkout()
         +trackOrders()
         +writeReviews()
+        +selectCity()
+        +checkStoreAvailability()
     }
     
     class Admin {
-        +adminId: String
+        +adminId: UUID
         +email: String
-        +permissions: List
+        +role: "admin"
         +manageProducts()
-        +manageCategories()
         +manageInventory()
         +manageCoupons()
         +manageOrders()
         +viewReports()
+        +manageBranchInventory()
+    }
+    
+    class StoreManager {
+        +managerId: UUID
+        +storeId: UUID
+        +cityId: UUID
+        +role: "store_manager"
+        +viewBranchInventory()
+        +updateBranchStock()
+    }
+    
+    class CityPlanner {
+        +plannerId: UUID
+        +cityId: UUID
+        +role: "city_planner"
+        +viewCityStores()
+        +manageCityInventory()
     }
     
     Actor <|-- Customer : extends
     Actor <|-- Admin : extends
+    Actor <|-- StoreManager : extends
+    Actor <|-- CityPlanner : extends
+    
+    StoreManager "1" --> "1" Store : manages
+    CityPlanner "1" --> "1" City : manages
 ```
 
 ---
@@ -105,6 +133,8 @@ graph TB
         UC6[Track Orders]
         UC7[Write Reviews]
         UC8[Manage Wishlist]
+        UC15[Select City/Location]
+        UC16[Check Store Availability]
     end
     
     Customer((Customer))
@@ -117,40 +147,48 @@ graph TB
     Customer --> UC6
     Customer --> UC7
     Customer --> UC8
+    Customer --> UC15
+    Customer --> UC16
     
     UC4 -->|<<include>>| UC5
     UC5 -->|<<include>>| UC6
     UC1 -->|<<extend>>| UC3
     UC2 -->|<<extend>>| UC3
     UC8 -->|<<extend>>| UC4
+    UC16 -->|<<include>>| UC15
+    UC3 -->|<<extend>>| UC16
 ```
 
-### 1.2.2 Admin Domain
+### 1.2.2 Admin Domain (with Staff Roles)
 
 ```mermaid
 graph TB
     subgraph "Admin Domain"
         UC9[Manage Products]
-        UC10[Manage Categories]
         UC11[Manage Inventory]
         UC12[Manage Coupons]
         UC13[Manage Orders]
-        UC14[View Reports]
+        UC17[Manage Branch Inventory]
+    end
+    
+    subgraph "Staff Roles"
+        StoreManager((Store Manager))
+        CityPlanner((City Planner))
     end
     
     Admin((Admin))
     
     Admin --> UC9
-    Admin --> UC10
     Admin --> UC11
     Admin --> UC12
     Admin --> UC13
-    Admin --> UC14
+    Admin --> UC17
     
-    UC9 -->|<<include>>| UC10
+    StoreManager --> UC17
+    CityPlanner --> UC17
+    
     UC9 -->|<<include>>| UC11
-    UC13 -->|<<extend>>| UC14
-    UC11 -->|<<extend>>| UC14
+    UC17 -->|<<extend>>| UC11
 ```
 
 ---
@@ -543,6 +581,93 @@ graph TB
 
 ---
 
+### UC15: Select City/Location
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC15 |
+| **Use-Case Name** | Select City/Location |
+| **Actor(s)** | Customer |
+| **Description** | Customer selects their city to view location-specific product availability |
+| **Precondition** | System has cities and stores configured |
+| **Postcondition** | Selected city saved to localStorage; product availability filtered by city |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Customer | System | Customer **clicks** city selector **in** header |
+| 2 | - | System | System **fetches** active cities **from** /api/v1/locations/cities |
+| 3 | - | System | System **displays** city list **with** store count **to** customer |
+| 4 | Customer | System | Customer **selects** city **from** dropdown |
+| 5 | - | System | System **saves** selected city code **to** localStorage |
+| 6 | - | System | System **refreshes** product availability **for** selected city |
+
+---
+
+### UC16: Check Store Availability
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC16 |
+| **Use-Case Name** | Check Store Availability |
+| **Actor(s)** | Customer |
+| **Description** | Customer views product availability breakdown by store in selected city |
+| **Precondition** | Customer has selected a city; product exists |
+| **Postcondition** | Store-level availability displayed to customer |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | - | System | System **loads** product detail page |
+| 2 | - | System | System **fetches** availability **from** /api/v1/catalog/products/{slug}/availability |
+| 3 | - | System | System **displays** city pool total **to** customer |
+| 4 | - | System | System **lists** each store **with** stock quantity |
+| 5 | Customer | System | Customer **views** per-store availability **in** StoreAvailabilityBox |
+
+---
+
+### UC17: Manage Branch Inventory (Staff)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC17 |
+| **Use-Case Name** | Manage Branch Inventory |
+| **Actor(s)** | Admin, Store Manager, City Planner |
+| **Description** | Staff updates inventory quantities at stores within their permission scope |
+| **Precondition** | Staff is authenticated with appropriate role |
+| **Postcondition** | Inventory levels updated with permission check |
+| **Priority** | High |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Staff | System | Staff **navigates** to branch inventory page |
+| 2 | - | System | System **checks** role permissions **for** staff |
+| 3 | - | System | System **filters** stores **by** permission scope |
+| 4 | - | System | System **displays** inventory list **to** staff |
+| 5 | Staff | System | Staff **selects** product variant |
+| 6 | Staff | System | Staff **enters** new stock quantity |
+| 7 | Staff | System | Staff **confirms** inventory update |
+| 8 | - | System | System **validates** permission **for** target store |
+| 9 | - | System | System **updates** store_inventory record **in** database |
+| 10 | - | System | System **increments** version **for** optimistic locking |
+
+#### Permission Rules
+
+| Role | Scope | Can Edit |
+|------|-------|----------|
+| **Admin** | All stores | Full access |
+| **City Planner** | Stores in assigned city | City-scoped |
+| **Store Manager** | Assigned store only | Store-scoped |
+| **Customer** | None | No access |
+
+---
+
 ## 1.4 Activity Diagrams
 
 ### 1.4.1 UC1: Browse Products
@@ -926,6 +1051,68 @@ flowchart TD
     O --> P[Filter data by date]
     P --> C
     N -->|No| Q([End])
+```
+
+### 1.4.15 UC15: Select City/Location
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Customer clicks city selector]
+    A --> B[System fetches active cities]
+    B --> C[Display city list with store count]
+    C --> D{Customer selects city?}
+    D -->|Yes| E[Save city code to localStorage]
+    E --> F[Refresh product availability]
+    F --> End([End])
+    D -->|No| G[Close dropdown]
+    G --> End
+```
+
+### 1.4.16 UC16: Check Store Availability
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[System loads product page]
+    A --> B[Check selected city from context]
+    B --> C{City selected?}
+    C -->|No| D[Hide availability box]
+    D --> End([End])
+    C -->|Yes| E[Fetch availability from API]
+    E --> F{Data loaded?}
+    F -->|No| G[Show loading skeleton]
+    G --> E
+    F -->|Yes| H[Display city pool total]
+    H --> I[List stores with stock]
+    I --> J[Show per-store availability]
+    J --> End
+```
+
+### 1.4.17 UC17: Manage Branch Inventory
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Staff navigates to branch inventory]
+    A --> B[System checks staff role]
+    B --> C{Role valid?}
+    C -->|No| D[Show permission error]
+    D --> End([End])
+    C -->|Yes| E[Filter stores by permission scope]
+    E --> F[Display inventory list]
+    F --> G{Action?}
+    
+    G -->|View| H[Show inventory details]
+    H --> F
+    
+    G -->|Update| I[Staff selects variant]
+    I --> J[Staff enters new quantity]
+    J --> K[System validates permission]
+    K --> L{Authorized?}
+    L -->|No| M[Show forbidden error]
+    M --> F
+    L -->|Yes| N[Update store_inventory]
+    N --> O[Increment version]
+    O --> P[Show success message]
+    P --> F
 ```
 
 ---
@@ -1315,6 +1502,89 @@ sequenceDiagram
     FE-->>A: Display sales dashboard
 ```
 
+### 1.5.15 UC15: Select City/Location Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: Click city selector
+    FE->>API: GET /api/v1/locations/cities
+    API->>DB: SELECT cities WHERE is_active = true
+    DB-->>API: cities[]
+    API-->>FE: CityResponse[]
+    FE-->>C: Display city list
+    
+    C->>FE: Select city
+    FE->>FE: Save to localStorage(dk_selected_city_code)
+    FE->>FE: Update LocationContext
+    FE-->>C: City selected, availability refreshed
+```
+
+### 1.5.16 UC16: Check Store Availability Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Customer
+    participant FE as Next.js Storefront
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    C->>FE: View product detail page
+    FE->>FE: Get selectedCity from LocationContext
+    
+    alt City selected
+        FE->>API: GET /api/v1/catalog/products/{slug}/availability?city_code={code}
+        API->>DB: SELECT cities WHERE code = ?
+        DB-->>API: city
+        API->>DB: SELECT stores WHERE city_id = ?
+        DB-->>API: stores[]
+        API->>DB: SELECT store_inventory JOIN variants
+        DB-->>API: inventory[]
+        API-->>FE: ProductAvailabilityResponse
+        FE-->>C: Display StoreAvailabilityBox
+    else No city selected
+        FE-->>C: Hide availability box
+    end
+```
+
+### 1.5.17 UC17: Manage Branch Inventory Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Staff (Admin/Manager/Planner)
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    S->>FE: Navigate to branch inventory
+    FE->>API: GET /api/v1/admin/branch-inventory
+    API->>DB: SELECT store_inventory JOIN stores JOIN variants
+    DB-->>API: inventory[]
+    API-->>FE: BranchInventoryItem[]
+    FE-->>S: Display inventory list
+    
+    S->>FE: Update stock quantity
+    FE->>API: PATCH /api/v1/admin/branch-inventory
+    API->>API: check_store_inventory_permission(actor, store_id)
+    
+    alt Authorized
+        API->>DB: UPDATE store_inventory SET on_hand = ?, version = version + 1
+        DB-->>API: success
+        API-->>FE: 204 No Content
+        FE-->>S: Stock updated
+    else Forbidden
+        API-->>FE: 403 Forbidden
+        FE-->>S: Permission error
+    end
+```
+
 ---
 
 ## 1.6 Class Diagrams
@@ -1324,10 +1594,16 @@ sequenceDiagram
 ```mermaid
 classDiagram
     class Customer {
-        +customerId: UUID
+        +customerId: BIGINT UNSIGNED
+        +publicId: UUID
         +email: String
-        +fullName: String
-        +phone: String
+        +displayName: String
+        +passwordHash: String
+        +role: customer|admin|store_manager|city_planner
+        +status: active|disabled
+        +cityId: BIGINT UNSIGNED?
+        +storeId: BIGINT UNSIGNED?
+        +dataOrigin: manual|synthetic
         +createdAt: DateTime
         +updatedAt: DateTime
         +register()
@@ -1336,38 +1612,41 @@ classDiagram
     }
     
     class Category {
-        +categoryId: UUID
+        +categoryId: BIGINT UNSIGNED
+        +publicId: UUID
+        +code: String
         +name: String
-        +slug: String
-        +parentId: UUID?
+        +parentCategoryId: BIGINT UNSIGNED?
         +isActive: Boolean
-        +create()
-        +update()
-        +archive()
+        +createdAt: DateTime
+        +updatedAt: DateTime
     }
     
     class Product {
-        +productId: UUID
+        +productId: BIGINT UNSIGNED
+        +publicId: UUID
         +name: String
         +slug: String
-        +description: String
-        +categoryId: UUID
+        +description: String?
+        +imageUrl: String?
+        +categoryId: BIGINT UNSIGNED
         +isActive: Boolean
+        +archivedAt: DateTime?
         +createdAt: DateTime
-        +create()
-        +update()
-        +archive()
+        +updatedAt: DateTime
     }
     
     class ProductVariant {
-        +variantId: UUID
-        +productId: UUID
+        +variantId: BIGINT UNSIGNED
+        +publicId: UUID
+        +productId: BIGINT UNSIGNED
         +sku: String
-        +price: Integer
-        +stockQuantity: Integer
+        +sizeCode: String
+        +colorCode: String
+        +priceVnd: Integer
         +isActive: Boolean
-        +updateStock()
-        +isActive()
+        +createdAt: DateTime
+        +updatedAt: DateTime
     }
     
     class Cart {
@@ -1433,28 +1712,38 @@ classDiagram
 
 ```mermaid
 classDiagram
+    class CustomerRole {
+        <<enumeration>>
+        customer
+        admin
+        store_manager
+        city_planner
+    }
+    
     class OrderStatus {
         <<enumeration>>
-        PENDING
-        PAID
-        CONFIRMED
-        SHIPPED
-        COMPLETED
-        CANCELLED
+        paid
+        confirmed
+        completed
+        cancelled
     }
     
     class PaymentStatus {
         <<enumeration>>
-        PENDING
-        SUCCESS
-        FAILED
-        REFUNDED
+        succeeded
+        failed
     }
     
     class CouponType {
         <<enumeration>>
-        PERCENTAGE
-        FIXED_AMOUNT
+        percentage
+        fixed_amount
+    }
+    
+    class CustomerStatus {
+        <<enumeration>>
+        active
+        disabled
     }
 ```
 
@@ -1531,6 +1820,54 @@ classDiagram
     OrderStatusHistory "*" --> "1" Order : belongs to
     WishlistItem "*" --> "1" Customer : belongs to
     WishlistItem "*" --> "1" Product : references
+```
+
+### 1.6.4 Multi-City & Store Entities
+
+```mermaid
+classDiagram
+    class City {
+        +cityId: BIGINT UNSIGNED
+        +code: String(32)
+        +name: String(120)
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class Store {
+        +storeId: BIGINT UNSIGNED
+        +cityId: BIGINT UNSIGNED
+        +code: String(32)
+        +name: String(120)
+        +address: String(500)
+        +phone: String(32)
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class StoreInventory {
+        +storeId: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +onHand: BIGINT UNSIGNED
+        +openingOnHand: BIGINT UNSIGNED
+        +version: BIGINT UNSIGNED
+        +updatedAt: DateTime
+    }
+    
+    class Customer {
+        <<updated>>
+        +cityId: BIGINT UNSIGNED?
+        +storeId: BIGINT UNSIGNED?
+        +role: customer|admin|store_manager|city_planner
+    }
+    
+    City "1" --> "*" Store : contains
+    Store "1" --> "*" StoreInventory : tracks
+    ProductVariant "1" --> "*" StoreInventory : has
+    Customer "0..1" --> "1" City : assigned to
+    Customer "0..1" --> "1" Store : works at
 ```
 
 ---
