@@ -56,13 +56,13 @@ inventory.on_hand = 100 (tổng tồn kho company)
 ```
 1. Customer nhập địa chỉ giao hàng
 2. Hệ thống parse tên Tỉnh/TP từ địa chỉ
-3. Tìm cửa hàng trong thành phố đó
-4. Nếu có cửa hàng có hàng → Gán đơn + trừ store_inventory
-5. Nếu không → Fallback trừ inventory toàn cục (kho tổng)
+3. Tìm cửa hàng trong thành phố có TẤT CẢ items
+4. Nếu có 1 cửa hàng có đủ → Gán đơn + trừ store_inventory
+5. Nếu không cửa hàng nào có đủ → Fallback toàn bộ về kho tổng
 6. Luôn trừ inventory.on_hand
 ```
 
-**Lý do:** Ưu tiên fulfill từ cửa hàng gần nhất để giảm chi phí vận chuyển và thời gian giao hàng. Fallback kho tổng khi cửa hàng hết hàng để đảm bảo đơn hàng vẫn xử lý được.
+**Lý do:** Ưu tiên fulfill từ 1 cửa hàng duy nhất để giảm chi phí vận chuyển. Nếu không cửa hàng nào có đủ tất cả items → fallback toàn bộ về kho tổng (không tách đơn).
 
 ### Flow POS
 
@@ -775,62 +775,71 @@ def find_stores_in_city(db: Session, city_name: str) -> list[Store]:
     return list(db.execute(stmt).scalars().all())
 
 
-def find_best_store_for_variant(
-    db: Session, stores: list[Store], variant_id: int, quantity: int
+def find_store_with_all_items(
+    db: Session, stores: list[Store], items: list[dict]
 ) -> Store | None:
-    """Find store with highest stock for a variant."""
+    """Find a single store that has ALL items in sufficient quantity."""
     if not stores:
         return None
     
-    store_ids = [s.store_id for s in stores]
-    stmt = (
-        select(StoreInventory.store_id, StoreInventory.on_hand)
-        .where(
-            StoreInventory.store_id.in_(store_ids),
-            StoreInventory.variant_id == variant_id,
-            StoreInventory.on_hand >= quantity,
-        )
-        .order_by(StoreInventory.on_hand.desc())
-        .limit(1)
-    )
-    row = db.execute(stmt).first()
-    if row:
-        return next(s for s in stores if s.store_id == row.store_id)
+    for store in stores:
+        store_has_all = True
+        for item in items:
+            stmt = (
+                select(StoreInventory.on_hand)
+                .where(
+                    StoreInventory.store_id == store.store_id,
+                    StoreInventory.variant_id == item["variant_id"],
+                    StoreInventory.on_hand >= item["quantity"],
+                )
+            )
+            row = db.execute(stmt).first()
+            if not row:
+                store_has_all = False
+                break
+        
+        if store_has_all:
+            return store
+    
     return None
 
 
 def allocate_order_to_stores(
     db: Session, order_id: int, shipping_address: str, items: list[dict]
 ) -> dict:
-    """Allocate order items to stores based on address."""
+    """Allocate order to a single store that has ALL items, or fallback to global.
+    
+    Strategy: Find ONE store that can fulfill the ENTIRE order.
+    If no such store exists, fallback entirely to global inventory (kho tổng).
+    This is the simplest and most realistic approach for retail.
+    """
     city_name = parse_city_from_address(shipping_address)
     
-    allocation_result = {"store_id": None, "allocations": []}
+    allocation_result = {"store_id": None, "source": "global", "allocations": []}
     
     if not city_name:
-        # No city found, use global inventory only
         return allocation_result
     
     stores = find_stores_in_city(db, city_name)
     if not stores:
-        # No stores in city, use global inventory only
         return allocation_result
     
-    # Try to allocate each item to a store
-    for item in items:
-        best_store = find_best_store_for_variant(
-            db, stores, item["variant_id"], item["quantity"]
-        )
-        
-        if best_store:
-            allocation_result["store_id"] = best_store.store_id
+    # Find ONE store that has ALL items
+    best_store = find_store_with_all_items(db, stores, items)
+    
+    if best_store:
+        allocation_result["store_id"] = best_store.store_id
+        allocation_result["source"] = "store"
+        for item in items:
             allocation_result["allocations"].append({
                 "variant_id": item["variant_id"],
                 "store_id": best_store.store_id,
                 "quantity": item["quantity"],
                 "source": "store",
             })
-        else:
+    else:
+        # No store has all items → fallback entirely to global
+        for item in items:
             allocation_result["allocations"].append({
                 "variant_id": item["variant_id"],
                 "store_id": None,
@@ -847,7 +856,7 @@ def allocate_order_to_stores(
 # services/ecommerce-api/tests/test_allocation.py
 import pytest
 from unittest.mock import MagicMock
-from app.modules.checkout.allocation import parse_city_from_address, find_best_store_for_variant
+from app.modules.checkout.allocation import parse_city_from_address, find_store_with_all_items
 
 
 def test_parse_city_from_address():
@@ -856,19 +865,36 @@ def test_parse_city_from_address():
     assert parse_city_from_address("abc") is None
 
 
-def test_find_best_store_for_variant():
+def test_find_store_with_all_items_success():
+    """Store has all items → return that store."""
     mock_db = MagicMock()
     mock_stores = [MagicMock(store_id=1), MagicMock(store_id=2)]
+    items = [{"variant_id": 10, "quantity": 2}, {"variant_id": 15, "quantity": 1}]
     
-    # Store 2 has more stock
+    # Store 1 has both items
     mock_result = MagicMock()
     mock_result.__iter__ = MagicMock(return_value=iter([
-        MagicMock(store_id=2, on_hand=10)
+        MagicMock(on_hand=5),  # variant 10
     ]))
     mock_db.execute.return_value = mock_result
     
-    result = find_best_store_for_variant(mock_db, mock_stores, variant_id=10, quantity=2)
-    assert result.store_id == 2
+    result = find_store_with_all_items(mock_db, mock_stores, items)
+    assert result.store_id == 1
+
+
+def test_find_store_with_all_items_no_store():
+    """No store has all items → return None (fallback to global)."""
+    mock_db = MagicMock()
+    mock_stores = [MagicMock(store_id=1)]
+    items = [{"variant_id": 10, "quantity": 2}, {"variant_id": 15, "quantity": 1}]
+    
+    # Store 1 doesn't have variant 15
+    mock_result = MagicMock()
+    mock_result.__iter__ = MagicMock(return_value=iter([]))
+    mock_db.execute.return_value = mock_result
+    
+    result = find_store_with_all_items(mock_db, mock_stores, items)
+    assert result is None
 ```
 
 - [ ] **Step 3: Chạy test**
