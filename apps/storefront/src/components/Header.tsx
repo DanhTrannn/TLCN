@@ -109,7 +109,7 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <CitySelector />
-            {["admin", "store_manager", "city_planner"].includes(customer?.role) ? (
+            {customer && ["admin", "store_manager", "city_planner"].includes(customer.role) ? (
               <Link className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-accent hover:bg-accent/5 lg:inline-flex" href="/admin">
                 <Icon name="dashboard" size={17} />
                 Quản trị
