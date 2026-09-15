@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0011"
-down_revision = "0010"
+down_revision = "0010_multi_city_stores_inventory"
 branch_labels = None
 depends_on = None
 
@@ -18,6 +18,8 @@ def upgrade() -> None:
     op.add_column("orders", sa.Column("staff_id", sa.BigInteger(), nullable=True))
     op.create_index("ix_orders_channel", "orders", ["channel"])
     op.create_index("ix_orders_store_id", "orders", ["store_id"])
+    op.execute("ALTER TABLE orders MODIFY COLUMN store_id BIGINT UNSIGNED NULL")
+    op.execute("ALTER TABLE orders MODIFY COLUMN staff_id BIGINT UNSIGNED NULL")
     op.create_foreign_key("fk_orders_store", "orders", "stores", ["store_id"], ["store_id"])
 
 def downgrade() -> None:
