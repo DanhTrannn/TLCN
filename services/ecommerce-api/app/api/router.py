@@ -13,6 +13,7 @@ from app.modules.orders.router import internal_router as internal_orders_router
 from app.modules.orders.router import router as orders_router
 from app.modules.reviews.router import admin_router as admin_reviews_router
 from app.modules.reviews.router import router as reviews_router
+from app.modules.pos.router import router as pos_router
 from app.modules.wishlist.router import router as wishlist_router
 
 api_router = APIRouter()
@@ -30,6 +31,7 @@ v1_router.include_router(location_router)
 v1_router.include_router(checkout_router)
 v1_router.include_router(orders_router)
 v1_router.include_router(reviews_router)
+v1_router.include_router(pos_router)
 v1_router.include_router(wishlist_router)
 api_router.include_router(v1_router)
 

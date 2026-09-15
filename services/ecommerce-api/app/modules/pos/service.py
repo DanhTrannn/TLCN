@@ -22,7 +22,7 @@ def search_products(db: Session, store_id: int, query: str) -> list[dict]:
             ProductVariant.size_code,
             ProductVariant.color_code,
             ProductVariant.price_vnd,
-            func.coalesce(StoreInventory.on_hand, 0).label("store_on_hand"),
+            func.coalesce(StoreInventory.on_hand, 0).label("store_stock"),
             func.coalesce(Inventory.on_hand, 0).label("global_stock"),
         )
         .join(Product, Product.product_id == ProductVariant.product_id)
