@@ -8,8 +8,10 @@ The source application serves as the system of record for e-commerce transaction
 
 ### 1.1. Core Capabilities
 - **Customer:** Account registration, login, profile management, catalog browsing, faceted filtering, search, multi-item wishlist, and active shopping cart.
-- **Checkout:** Atomic checkout flow with stock deduction, coupon validation, and simulated payment success.
-- **Admin Operations:** Product catalog management, archive controls, inventory oversight, promotion lifecycle, customer accounts, and post-publication review moderation.
+- **Checkout:** Atomic checkout flow with structured address (province/ward/street), stock deduction, coupon validation, and simulated payment success.
+- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions, deduct both global and store inventory atomically.
+- **Admin Operations:** Product catalog management, archive controls, inventory oversight, promotion lifecycle, customer accounts, post-publication review moderation, and POS order management.
+- **Multi-City Inventory:** Store-level inventory tracking, city-based product availability, and store assignment for staff.
 - **Data Engineering Integration:** Strict surrogate PKs, UTC `updated_at` timestamps for composite cursor extraction, and exclusion of authentication credentials from analytical access.
 
 ---
@@ -30,7 +32,7 @@ Short Transactions         Structured Access Logs (stdout)
       /                          \
      ▼                            ▼
 MySQL 8.4 (OLTP)              Fluent Bit
-  (17 tables)             (15-min micro-batches)
+  (19 tables)             (15-min micro-batches)
      │                            │
      └─────────────┬──────────────┘
                    ▼
@@ -59,11 +61,21 @@ MySQL 8.4 (OLTP)              Fluent Bit
 - Requires authentication and client-generated `Idempotency-Key` headers.
 - Re-validates catalog pricing, coupon criteria, and inventory availability at checkout time.
 - Valid checkouts atomically create a `paid` order, decrement inventory, insert payment (`succeeded`), and record order status history.
+- Checkout address uses structured fields: province (34 provinces post-1/7/2025 merger), ward, and street.
+- Online orders are allocated to a single store in customer's city if all items available; otherwise fallback to global inventory.
 - Order State Machine:
   ```text
   paid ──(admin confirm)──▶ confirmed ──(admin complete)──▶ completed
   paid ──(cancel)─────────▶ cancelled (restores stock, full refund, releases coupon)
   ```
+
+### 3.4. POS (Point of Sale)
+- Staff sell at store counter using dedicated POS page (`/admin/pos`).
+- Search products by SKU prefix or product name, showing up to 8 results with store stock.
+- Create completed transactions immediately (no confirmation flow).
+- Deducts both `inventory` (global) and `store_inventory` (per-store) atomically.
+- Order marked with `channel='pos'`, `store_id`, and `staff_id`.
+- POS orders bypass coupon, shipping fee, and idempotency key.
 
 ### 3.4. Product Reviews
 - Customers can review items from `completed` orders only (verified purchase).

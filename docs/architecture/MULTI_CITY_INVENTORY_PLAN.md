@@ -1,7 +1,8 @@
 # Multi-City & Store-Level Inventory Architecture
 
-> **Status:** Implementation Plan  
+> **Status:** Implemented  
 > **Date:** 2026-09-09  
+> **Last Updated:** 2026-09-15  
 > **Spec:** [MANAGEMENT_INFO_TECHNICAL_SPEC.md](./MANAGEMENT_INFO_TECHNICAL_SPEC.md)
 
 ---
@@ -340,12 +341,16 @@ interface LocationContextType {
 - Create: `database/seeds/vietnam_locations.py`
 - Test: `services/ecommerce-api/tests/test_location_seed.py`
 
-**Seed Data:**
+**Seed Data (Đã implement):**
 | City | Code | Stores |
 |------|------|--------|
-| TP. Hồ Chí Minh | HCM | D&K Nguyễn Trãi (Q1), D&K Crescent Mall (Q7) |
-| Hà Nội | HN | D&K Tràng Tiền (Hoàn Kiếm), D&K Cầu Giấy |
-| Đà Nẵng | DN | D&K Bạch Đằng (Hải Châu) |
+| TP. Hồ Chí Minh | HCM | Trung tâm Sài Gòn, Cửa hàng Thủ Đức |
+| Hà Nội | HN | Cửa hàng Hoàn Kiếm |
+| Đà Nẵng | DN | Cửa hàng Sơn Trà |
+| Cần Thơ | CT | Cửa hàng Ninh Kiều |
+| Hải Phòng | HP | Cửa hàng Hồng Bàng |
+
+**5 cities, 6 stores** theo dữ liệu thực tế sau migration 0010.
 
 **Test:**
 ```python

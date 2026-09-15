@@ -3,7 +3,7 @@
 ## 0. Phạm vi và nguồn quyết định
 
 Tài liệu này mô tả schema OLTP hiện hành của source website sau migration
-`0009_reviews_publish_immediately`.
+`0012_pos_search_index`.
 Thiết kế tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
 Schema có 17 bảng nghiệp vụ. Pipeline DE được đọc 16 bảng; `customer_credentials` bị loại vì chứa thông tin xác thực.
@@ -14,6 +14,7 @@ Không có bảng analytics/star schema trong MySQL ecommerce.
 - Checkout yêu cầu đăng nhập và active cart có hàng hợp lệ.
 - Add-to-cart không giữ hàng; checkout kiểm tra và trừ `inventory.on_hand` atomically.
 - Thanh toán nội bộ thành công ngay khi checkout hợp lệ; không random và không gọi cổng ngoài.
+- POS (Point of Sale): nhân viên bán hàng tại quầy, tạo đơn `completed` ngay, trừ cả `inventory` và `store_inventory`.
 - Order đi theo state machine:
 
 ```text
@@ -62,6 +63,10 @@ coupons 1--n orders
 coupons 1--n coupon_redemptions n--1 orders
 order_items 1--0..1 product_reviews
 customers 1--n product_reviews
+cities 1--n stores
+stores 1--n store_inventory n--1 product_variants
+customers n--0..1 stores (store_manager assigned store)
+customers n--0..1 cities (city_planner assigned city)
 ```
 
 ## 4. Catalogue bảng và grain
@@ -89,12 +94,15 @@ customers 1--n product_reviews
 | Catalog | `categories` | Một category | Mutable/inactive |
 | Catalog | `products` | Một product | Mutable/inactive/archive terminal |
 | Catalog | `product_variants` | Một tổ hợp size-color/product | Mutable/inactive |
-| Inventory | `inventory` | Một balance/variant | Mutable, khóa khi checkout/cancel |
+| Inventory | `inventory` | Một balance/variant (kho tổng) | Mutable, khóa khi checkout/cancel |
+| Location | `cities` | Một thành phố | Mutable |
+| Location | `stores` | Một cửa hàng trong thành phố | Mutable |
+| Inventory | `store_inventory` | Một balance/variant/store (kho cửa hàng) | Mutable, khóa khi POS/cancel |
 | Cart | `carts` | Một chu kỳ cart/customer | Mutable lifecycle |
 | Cart | `cart_items` | Một variant/cart | Mutable/logical removal |
 | Wishlist | `wishlist_items` | Một product từng wishlist/customer | Mutable presence |
 | Promotion | `coupons` | Một coupon code | Mutable configuration/counter/archive terminal |
-| Order | `orders` | Một kết quả checkout/cart | Mutable state, snapshot amount |
+| Order | `orders` | Một kết quả checkout/cart hoặc POS transaction | Mutable state, snapshot amount |
 | Order | `order_items` | Một variant line/order | Append-only snapshot |
 | Payment | `payments` | Một payment/order | Append-only trong TLCN |
 | Promotion | `coupon_redemptions` | Một redemption/order | Mutable redeemed/released |
@@ -110,9 +118,9 @@ customers 1--n product_reviews
 
 Mục đích: identity nghiệp vụ, profile, role và trạng thái account.
 
-Cột chính: `customer_id` PK, `public_id` UK, `email_normalized` UK, `full_name`, `phone`, `role`, `status`, `pii_anonymized_at`, `data_origin`, `generation_run_id`, `created_at`, `updated_at`.
+Cột chính: `customer_id` PK, `public_id` UK, `email_normalized` UK, `full_name`, `phone`, `role`, `status`, `city_id` FK nullable, `store_id` FK nullable, `pii_anonymized_at`, `data_origin`, `generation_run_id`, `created_at`, `updated_at`.
 
-Invariant: role/status thuộc tập cho phép; anonymize không xóa PK/FK. Index phục vụ login lookup, customer list và incremental extraction.
+Invariant: role thuộc tập `{'customer', 'admin', 'store_manager', 'city_planner'}`; status thuộc `{'active', 'inactive'}`; `store_manager` phải có `store_id`; `city_planner` phải có `city_id`; anonymize không xóa PK/FK. Index phục vụ login lookup, customer list và incremental extraction.
 
 #### `customer_credentials`
 
@@ -152,6 +160,32 @@ Invariant: unique `(product_id, size_code, color_code)` ngăn trùng tổ hợp;
 Cột chính: `variant_id` PK/FK, `opening_on_hand`, `on_hand`, `version`, `updated_at`.
 
 Invariant: `0 <= on_hand <= opening_on_hand`; TLCN không có reservation/backorder. `version` tăng khi checkout hoặc cancel để phát hiện thay đổi và hỗ trợ extraction.
+
+### 5.2b. Location và store inventory
+
+#### `cities`
+
+Mục đích: danh sách thành phố nơi có cửa hàng.
+
+Cột chính: `city_id` PK, `code` UK (ví dụ: HCM, HN, DN), `name`, `is_active`, timestamps.
+
+Invariant: `code` unique; city inactive không tạo store mới.
+
+#### `stores`
+
+Mục đích: cửa hàng vật lý trong thành phố.
+
+Cột chính: `store_id` PK, `city_id` FK, `code` UK, `name`, `address`, `phone`, `is_active`, timestamps.
+
+Invariant: `code` unique; store thuộc đúng một city; store inactive không nhận đơn mới.
+
+#### `store_inventory`
+
+Mục đích: tồn kho tại từng cửa hàng, song song với `inventory` (kho tổng).
+
+Cột chính: `(store_id, variant_id)` composite PK, `opening_on_hand`, `on_hand`, `version`, timestamps.
+
+Invariant: `0 <= on_hand <= opening_on_hand`; SUM(`store_inventory.on_hand`) <= `inventory.on_hand`; `version` tăng khi POS transaction hoặc cancel. Dữ liệu POS phải trừ cả `inventory` và `store_inventory` atomically.
 
 ### 5.3. Cart và wishlist
 
@@ -208,7 +242,7 @@ Invariant: một order tối đa một redemption; status/timestamp nhất quán
 
 #### `orders`
 
-Cột identity/ownership: `order_id` PK, `order_number` UK, `cart_id` FK/UK, `customer_id` FK, `checkout_idempotency_key` UK.
+Cột identity/ownership: `order_id` PK, `order_number` UK, `cart_id` FK/UK, `customer_id` FK, `checkout_idempotency_key` UK, `store_id` FK nullable, `staff_id` FK nullable, `channel` VARCHAR(16) NOT NULL DEFAULT 'online'.
 
 Cột snapshot tiền: `currency_code`, `subtotal_vnd`, `discount_amount_vnd`, `shipping_fee_vnd`, `total_vnd`.
 
@@ -221,6 +255,9 @@ Cột lifecycle: `status`, `paid_at`, `confirmed_at`, `completed_at`, `cancelled
 Invariant:
 
 - `currency_code = 'VND'`;
+- `channel` thuộc `{'online', 'pos'}`;
+- POS order phải có `store_id` và `staff_id`, status mặc định `completed`;
+- Online order có thể có `store_id` (allocation) và `staff_id` null;
 - `discount_amount_vnd <= subtotal_vnd`;
 - `total_vnd = subtotal_vnd - discount_amount_vnd + shipping_fee_vnd`;
 - không coupon thì toàn bộ coupon snapshot null và discount bằng 0;
@@ -351,6 +388,18 @@ Isolation: `READ COMMITTED`. Lock order là điểm tuần tự hóa.
 - Không cascade sang variant, wishlist hoặc order item để giữ tham chiếu và snapshot
   lịch sử.
 
+### TX-09 — POS transaction (bán tại quầy)
+
+Isolation: `READ COMMITTED`.
+
+1. Validate store active và staff có quyền truy cập store.
+2. Với mỗi variant: kiểm tra tồn kho cửa hàng (`store_inventory.on_hand >= quantity`).
+3. Tính server-side subtotal, total (không shipping fee, không coupon).
+4. Insert order `completed` với `channel='pos'`, `store_id`, `staff_id`, `paid_at=now`, `completed_at=now`.
+5. Insert order items, payment `succeeded`, status history `paid -> completed` với `transition_source='pos'`.
+6. Giảm `store_inventory.on_hand` và `inventory.on_hand` atomically, tăng `version`.
+7. Commit; mọi lỗi rollback toàn bộ.
+
 ## 7. Thứ tự khóa và xử lý race
 
 Thứ tự chuẩn khi transaction chạm nhiều aggregate:
@@ -400,7 +449,9 @@ Reconciliation cốt lõi:
 - mọi review phải trỏ đến completed purchased order item;
 - review `approved` auto-publish có thể không có moderator; review `rejected` phải đủ
   moderator/time/reason;
-- inventory: `opening_on_hand - units của order không cancelled = on_hand` trong phạm vi không adjustment.
+- inventory: `opening_on_hand - units của order không cancelled = on_hand` trong phạm vi không adjustment;
+- store_inventory: SUM(`store_inventory.on_hand`) <= `inventory.on_hand`;
+- POS order: `channel='pos'`, `store_id` NOT NULL, `staff_id` NOT NULL, status=`completed`.
 
 PII ở customer/order shipping snapshot phải được phân loại và mask/anonymize ở downstream. OLTP là source of truth; lakehouse chỉ dẫn xuất.
 

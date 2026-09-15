@@ -28,7 +28,7 @@ The **D&K E-Commerce Data Platform** is a batch data lakehouse monorepo. It extr
 
 Building an analytical environment for an operational e-commerce database can place a high load on production systems. This platform provides a robust data lakehouse pattern to offload analytical queries, track historical access patterns, and train machine learning models without impacting operational performance.
 
-The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 17 relational tables, a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
+The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 19 relational tables, a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
 
 ## Features
 
@@ -37,6 +37,9 @@ The repository includes everything needed to run the data platform locally, incl
 - **Repurchase Modeling:** Generate point-in-time training features and 30-day repurchase labels from validated Gold transaction snapshots.
 - **Deterministic Data Generator:** Generate 12 months of realistic Vietnamese e-commerce transactions and matching 30-day access logs using calibrated market distributions.
 - **Idempotent Ingestion:** Multi-threaded Spark extractor with composite cursor tracking `(cursor_field, pk)` and cryptographic manifest validation.
+- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions with dual inventory deduction.
+- **Multi-City Inventory:** Store-level inventory tracking across 5 cities and 6 stores, with city-based product availability.
+- **Structured Checkout:** Address form with 34 Vietnamese provinces (post-1/7/2025 merger), wards, and street fields.
 
 ## Quick Start
 
@@ -80,6 +83,7 @@ Once the services are running, access the following dashboards and endpoints:
 |---|---|---|---|
 | **Storefront** | 3000 | `http://localhost:3000` | (Public) |
 | **Admin Console** | 3000 | `http://localhost:3000/admin` | `admin@web.local` / `Admin@12345` |
+| **POS (Point of Sale)** | 3000 | `http://localhost:3000/admin/pos` | `store.manager@dk.local` / `Admin@12345` |
 | **Backend API Docs** | 8000 | `http://localhost:8000/docs` | (Public Swagger UI) |
 | **MinIO S3 Console** | 9001 | `http://localhost:9001` | `minioadmin` / `password` |
 | **Polaris Catalog Console** | 8183 | `http://localhost:8183` | `admin` / `password` (Realm: `POLARIS`) |

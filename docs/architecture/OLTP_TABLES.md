@@ -1,8 +1,6 @@
 # OLTP Table Reference
 
-Mô tả chi tiết 16 bảng MySQL OLTP trong hệ thống D&K E-Commerce. `customer_credentials` bị loại khỏi lakehouse pipeline vì chứa thông tin xác thực.
-
-Nguồn真相 (source of truth): Alembic migrations `0001`–`0009`.
+Mô tả chi tiết 19 bảng MySQL OLTP trong hệ thống D&K E-Commerce.
 
 ---
 
@@ -14,18 +12,21 @@ Nguồn真相 (source of truth): Alembic migrations `0001`–`0009`.
 | 2 | `categories` | Catalog | Một category | Mutable/inactive | `(updated_at, category_id)` |
 | 3 | `products` | Catalog | Một product | Mutable/archive terminal | `(updated_at, product_id)` |
 | 4 | `product_variants` | Catalog | Một tổ hợp size-color/product | Mutable/inactive | `(updated_at, variant_id)` |
-| 5 | `inventory` | Inventory | Một balance/variant | Mutable, khóa khi checkout/cancel | `(updated_at, variant_id)` |
-| 6 | `carts` | Cart | Một chu kỳ cart/customer | Mutable lifecycle | `(updated_at, cart_id)` |
-| 7 | `cart_items` | Cart | Một variant/cart | Mutable/logical removal | `(updated_at, cart_item_id)` |
-| 8 | `wishlist_items` | Wishlist | Một product từng wishlist/customer | Mutable presence | `(updated_at, wishlist_item_id)` |
-| 9 | `coupons` | Promotion | Một coupon code | Mutable/archive terminal | `(updated_at, coupon_id)` |
-| 10 | `coupon_redemptions` | Promotion | Một redemption/order | Mutable redeemed/released | `(updated_at, coupon_redemption_id)` |
-| 11 | `orders` | Order | Một kết quả checkout/cart | Mutable state, snapshot amount | `(updated_at, order_id)` |
-| 12 | `order_items` | Order | Một variant line/order | Append-only snapshot | `(created_at, order_item_id)` |
-| 13 | `payments` | Payment | Một payment/order | Append-only | `(created_at, payment_id)` |
-| 14 | `refunds` | Refund | Một full refund/payment | Append-only | `(created_at, refund_id)` |
-| 15 | `order_status_history` | History | Một transition/order | Append-only | `(created_at, order_status_history_id)` |
-| 16 | `product_reviews` | Review | Một review/order_item | Mutable visibility | `(updated_at, review_id)` |
+| 5 | `inventory` | Inventory | Một balance/variant (kho tổng) | Mutable, khóa khi checkout/cancel | `(updated_at, variant_id)` |
+| 6 | `cities` | Location | Một thành phố | Mutable | `(updated_at, city_id)` |
+| 7 | `stores` | Location | Một cửa hàng | Mutable | `(updated_at, store_id)` |
+| 8 | `store_inventory` | Inventory | Một balance/variant/store | Mutable, khóa khi POS/cancel | `(updated_at, store_id, variant_id)` |
+| 9 | `carts` | Cart | Một chu kỳ cart/customer | Mutable lifecycle | `(updated_at, cart_id)` |
+| 10 | `cart_items` | Cart | Một variant/cart | Mutable/logical removal | `(updated_at, cart_item_id)` |
+| 11 | `wishlist_items` | Wishlist | Một product từng wishlist/customer | Mutable presence | `(updated_at, wishlist_item_id)` |
+| 12 | `coupons` | Promotion | Một coupon code | Mutable/archive terminal | `(updated_at, coupon_id)` |
+| 13 | `coupon_redemptions` | Promotion | Một redemption/order | Mutable redeemed/released | `(updated_at, coupon_redemption_id)` |
+| 14 | `orders` | Order | Một kết quả checkout/POS | Mutable state, snapshot amount | `(updated_at, order_id)` |
+| 15 | `order_items` | Order | Một variant line/order | Append-only snapshot | `(created_at, order_item_id)` |
+| 16 | `payments` | Payment | Một payment/order | Append-only | `(created_at, payment_id)` |
+| 17 | `refunds` | Refund | Một full refund/payment | Append-only | `(created_at, refund_id)` |
+| 18 | `order_status_history` | History | Một transition/order | Append-only | `(created_at, order_status_history_id)` |
+| 19 | `product_reviews` | Review | Một review/order_item | Mutable visibility | `(updated_at, review_id)` |
 
 ---
 
@@ -51,8 +52,10 @@ Nguồn真相 (source of truth): Alembic migrations `0001`–`0009`.
 | `customer_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key nội bộ |
 | `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 — public identifier |
 | `display_name` | `VARCHAR(120)` | NOT NULL | Tên hiển thị |
-| `role` | `VARCHAR(16)` | NOT NULL, DEFAULT `'customer'` | `customer` hoặc `admin` |
+| `role` | `VARCHAR(16)` | NOT NULL, DEFAULT `'customer'` | `customer`, `admin`, `store_manager`, `city_planner` |
 | `status` | `VARCHAR(16)` | NOT NULL, DEFAULT `'active'` | `active` hoặc `inactive` |
+| `city_id` | `BIGINT UNSIGNED` | FK → `cities.city_id`, NULLABLE, ON DELETE SET NULL | Thành phố được assign (city_planner) |
+| `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE, ON DELETE SET NULL | Cửa hàng được assign (store_manager) |
 | `data_origin` | `VARCHAR(16)` | NOT NULL, DEFAULT `'manual'` | `manual` hoặc `synthetic` |
 | `generation_run_id` | `VARCHAR(64)` | NULLABLE | ID lần generate (synthetic data) |
 | `anonymized_at` | `DATETIME(6)` | NULLABLE | Thời điểm PII bị ẩn danh hóa |
@@ -61,7 +64,7 @@ Nguồn真相 (source of truth): Alembic migrations `0001`–`0009`.
 
 **Check constraints**:
 - `status IN ('active', 'inactive')`
-- `role IN ('customer', 'admin')`
+- `role IN ('customer', 'admin', 'store_manager', 'city_planner')`
 - `data_origin IN ('manual', 'synthetic')`
 
 **Indexes**:
@@ -69,7 +72,7 @@ Nguồn真相 (source of truth): Alembic migrations `0001`–`0009`.
 - `ix_customers_role_status_id` — `(role, status, customer_id)`
 - `ix_customers_updated_at_customer_id` — extraction cursor
 
-**Invariant**: Anonymize không xóa PK/FK. Role/status thuộc tập cho phép.
+**Invariant**: Anonymize không xóa PK/FK. `store_manager` phải có `store_id`. `city_planner` phải có `city_id`.
 
 ---
 
