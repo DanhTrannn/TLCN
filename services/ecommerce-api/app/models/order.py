@@ -52,6 +52,10 @@ class Order(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
 
+    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("stores.store_id"), nullable=True)
+    channel: Mapped[str] = mapped_column(String(16), nullable=False, default="online")
+    staff_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("customers.customer_id"), nullable=True)
+
     items: Mapped[list["OrderItem"]] = relationship(back_populates="order")
     payment: Mapped["Payment"] = relationship(back_populates="order", uselist=False)
     status_history: Mapped[list["OrderStatusHistory"]] = relationship(back_populates="order")
