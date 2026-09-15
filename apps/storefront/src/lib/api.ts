@@ -7,7 +7,7 @@ export interface Customer {
   public_id: string;
   display_name: string;
   email: string;
-  role: "customer" | "admin";
+  role: "customer" | "admin" | "store_manager" | "city_planner";
 }
 
 export interface Category {
@@ -234,7 +234,7 @@ export interface AdminCustomer {
   display_name: string;
   email: string;
   status: "active" | "inactive";
-  role: "customer" | "admin";
+  role: "customer" | "admin" | "store_manager" | "city_planner";
   created_at: string;
 }
 

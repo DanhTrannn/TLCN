@@ -24,7 +24,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (customer.role !== "admin") {
+  const staffRoles = ["admin", "store_manager", "city_planner"];
+  if (!staffRoles.includes(customer.role)) {
     return (
       <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
         <section className="surface-card p-8 text-center">
