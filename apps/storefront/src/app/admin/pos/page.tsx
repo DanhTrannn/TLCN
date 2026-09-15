@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
 import { ApiError, formatVnd } from "@/lib/api";
+import { apiFetch } from "@/lib/api-client";
 
 interface PosItem {
   variant_id: number;
@@ -48,12 +49,9 @@ export default function PosPage() {
     setError(null);
     setSelectedItem(null);
     try {
-      const response = await fetch(
-        `/api/v1/pos/products?store_id=${storeId}&search=${encodeURIComponent(searchCode.trim())}`,
-        { credentials: "include" }
+      const results = await apiFetch<SearchResult[]>(
+        `/api/v1/pos/products?store_id=${storeId}&search=${encodeURIComponent(searchCode.trim())}`
       );
-      if (!response.ok) throw new ApiError("Không tìm thấy sản phẩm", response.status);
-      const results: SearchResult[] = await response.json();
       setSearchResults(results);
       if (results.length === 1) {
         setSelectedItem(results[0]);
@@ -102,10 +100,10 @@ export default function PosPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/pos/transactions", {
+      const result = await apiFetch<{
+        order_number: string;
+      }>("/api/v1/pos/transactions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           store_id: storeId,
           items: cart.map((i) => ({ variant_id: i.variant_id, quantity: i.quantity })),
@@ -113,8 +111,6 @@ export default function PosPage() {
           amount_received_vnd: total,
         }),
       });
-      if (!response.ok) throw new ApiError("Tạo đơn thất bại", response.status);
-      const result = await response.json();
       alert(`Đơn ${result.order_number} đã tạo thành công!`);
       setCart([]);
       router.refresh();
