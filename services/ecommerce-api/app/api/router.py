@@ -14,6 +14,8 @@ from app.modules.orders.router import router as orders_router
 from app.modules.reviews.router import admin_router as admin_reviews_router
 from app.modules.reviews.router import router as reviews_router
 from app.modules.pos.router import router as pos_router
+from app.modules.store.router import admin_store_router
+from app.modules.city.router import admin_city_router
 from app.modules.wishlist.router import router as wishlist_router
 
 api_router = APIRouter()
@@ -22,6 +24,8 @@ api_router.include_router(health_router)
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(auth_router)
 v1_router.include_router(admin_router)
+v1_router.include_router(admin_store_router)
+v1_router.include_router(admin_city_router)
 v1_router.include_router(admin_coupons_router)
 v1_router.include_router(admin_reviews_router)
 v1_router.include_router(coupons_router)

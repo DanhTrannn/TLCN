@@ -110,9 +110,12 @@ export function Header() {
           <div className="flex items-center gap-2">
             <CitySelector />
             {customer && ["admin", "store_manager", "city_planner"].includes(customer.role) ? (
-              <Link className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-accent hover:bg-accent/5 lg:inline-flex" href="/admin">
+              <Link
+                className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-accent hover:bg-accent/5 lg:inline-flex"
+                href={customer.role === "store_manager" ? "/store" : customer.role === "city_planner" ? "/city" : "/admin"}
+              >
                 <Icon name="dashboard" size={17} />
-                Quản trị
+                {customer.role === "store_manager" ? "Cửa hàng" : customer.role === "city_planner" ? "Thành phố" : "Quản trị"}
               </Link>
             ) : null}
             {loading ? null : customer ? (
