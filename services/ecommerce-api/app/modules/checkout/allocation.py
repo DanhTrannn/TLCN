@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.multicity import City, Store, StoreInventory
@@ -72,6 +72,22 @@ def find_store_with_all_items(
     return None
 
 
+def deduct_store_inventory(db: Session, store_id: int, items: list[dict]) -> None:
+    """Deduct StoreInventory for allocated items."""
+    for item in items:
+        result = db.execute(
+            update(StoreInventory)
+            .where(
+                StoreInventory.store_id == store_id,
+                StoreInventory.variant_id == item["variant_id"],
+                StoreInventory.on_hand >= item["quantity"],
+            )
+            .values(on_hand=StoreInventory.on_hand - item["quantity"])
+        )
+        if result.rowcount != 1:
+            raise ValueError(f"Không đủ tồn kho cửa hàng cho variant {item['variant_id']}")
+
+
 def allocate_order_to_stores(
     db: Session, order_id: int, shipping_address: str, items: list[dict]
 ) -> dict:
@@ -90,6 +106,8 @@ def allocate_order_to_stores(
     best_store = find_store_with_all_items(db, stores, items)
 
     if best_store:
+        deduction_items = [{"variant_id": item["variant_id"], "quantity": item["quantity"]} for item in items]
+        deduct_store_inventory(db, best_store.store_id, deduction_items)
         allocation_result["store_id"] = best_store.store_id
         allocation_result["source"] = "store"
         for item in items:

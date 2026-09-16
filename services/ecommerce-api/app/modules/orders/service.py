@@ -16,6 +16,7 @@ from app.core.ids import uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Product, ProductVariant
 from app.models.inventory import Inventory
+from app.models.multicity import StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
 from app.models.review import ProductReview
@@ -475,6 +476,26 @@ def cancel_order(
             inventory_row.on_hand = restored_on_hand
             inventory_row.version += 1
             inventory_row.updated_at = now
+
+        if order.store_id is not None:
+            store_inv_rows = (
+                db.execute(
+                    select(StoreInventory)
+                    .where(
+                        StoreInventory.store_id == order.store_id,
+                        StoreInventory.variant_id.in_(variant_ids),
+                    )
+                    .order_by(StoreInventory.variant_id)
+                    .with_for_update()
+                )
+                .scalars()
+                .all()
+            )
+            store_inv_map = {row.variant_id: row for row in store_inv_rows}
+            for item in item_rows:
+                si = store_inv_map.get(item.variant_id)
+                if si is not None:
+                    si.on_hand = si.on_hand + item.quantity
 
         if redemption is not None and coupon is not None and redemption.status == "redeemed":
             if coupon.used_count <= 0:
