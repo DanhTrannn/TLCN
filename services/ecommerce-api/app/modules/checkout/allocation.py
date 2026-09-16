@@ -4,11 +4,19 @@ from sqlalchemy.orm import Session
 from app.models.multicity import City, Store, StoreInventory
 
 
+CITY_PREFIXES = ["Thành phố", "TP.", "TP", "Tỉnh", "T."]
+
+
 def parse_city_from_address(address: str) -> str | None:
     """Parse city name from shipping address."""
     parts = [p.strip() for p in address.split(",")]
     if len(parts) >= 3:
-        return parts[-1]
+        city = parts[-1]
+        for prefix in CITY_PREFIXES:
+            if city.startswith(prefix):
+                city = city[len(prefix):].strip()
+                break
+        return city if city else None
     return None
 
 
@@ -17,15 +25,22 @@ def find_stores_in_city(db: Session, city_name: str) -> list[Store]:
     stmt = (
         select(Store)
         .join(City, City.city_id == Store.city_id)
-        .where(
-            (City.name == city_name)
-            | (City.name.contains(city_name))
-            | (city_name.contains(City.name))
-        )
+        .where(City.name.contains(city_name))
         .where(Store.is_active == True)  # noqa: E712
         .where(City.is_active == True)  # noqa: E712
     )
-    return list(db.execute(stmt).scalars().all())
+    results = list(db.execute(stmt).scalars().all())
+    if not results:
+        # Try reverse: city name contains the parsed name
+        stmt = (
+            select(Store)
+            .join(City, City.city_id == Store.city_id)
+            .where(City.name.like(f"%{city_name}%"))
+            .where(Store.is_active == True)  # noqa: E712
+            .where(City.is_active == True)  # noqa: E712
+        )
+        results = list(db.execute(stmt).scalars().all())
+    return results
 
 
 def find_store_with_all_items(
