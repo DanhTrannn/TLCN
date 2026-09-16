@@ -17,7 +17,11 @@ def find_stores_in_city(db: Session, city_name: str) -> list[Store]:
     stmt = (
         select(Store)
         .join(City, City.city_id == Store.city_id)
-        .where(City.name == city_name)
+        .where(
+            (City.name == city_name)
+            | (City.name.contains(city_name))
+            | (city_name.contains(City.name))
+        )
         .where(Store.is_active == True)  # noqa: E712
         .where(City.is_active == True)  # noqa: E712
     )
