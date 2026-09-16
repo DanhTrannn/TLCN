@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { apiFetch } from "@/lib/api-client";
-import { formatVnd } from "@/lib/api";
-import { formatVietnamDateTime } from "@/lib/datetime";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
+import { Icon } from "@/components/ui/Icon";
+import { ApiError, formatVnd } from "@/lib/api";
+import { cancelStoreOrder, confirmStoreOrder } from "@/lib/commerce";
+import { formatVietnamDateTime } from "@/lib/datetime";
+import { apiFetch } from "@/lib/api-client";
 
 interface StoreOrder {
   order_number: string;
   customer_name: string;
+  customer_email: string;
   status: string;
   total_vnd: number;
   item_count: number;
@@ -19,61 +22,143 @@ interface StoreOrder {
 }
 
 export default function StoreOrdersPage() {
+  const [status, setStatus] = useState("");
   const [orders, setOrders] = useState<StoreOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [busyOrder, setBusyOrder] = useState<string | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("Cửa hàng không thể xử lý đơn");
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (statusFilter) params.set("status", statusFilter);
-    apiFetch<StoreOrder[]>(`/api/v1/admin/store/orders?${params}`)
-      .then(setOrders)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [statusFilter]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (status) params.set("status", status);
+      const data = await apiFetch<StoreOrder[]>(`/api/v1/admin/store/orders?${params}`);
+      setOrders(data);
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : "Không tải được đơn hàng");
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function mutate(orderNumber: string, action: () => Promise<unknown>, fallbackMessage: string) {
+    setBusyOrder(orderNumber);
+    setError(null);
+    try {
+      await action();
+      setCancellingOrder(null);
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : fallbackMessage);
+    } finally {
+      setBusyOrder(null);
+    }
+  }
+
+  function submitCancel() {
+    if (!cancellingOrder || cancelReason.trim().length < 3) return;
+    void mutate(cancellingOrder, () => cancelStoreOrder(cancellingOrder, cancelReason.trim()), "Không hủy được đơn hàng");
+  }
 
   return (
-    <div>
-      <h1 className="admin-heading">Đơn hàng cửa hàng</h1>
+    <section>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="admin-heading">Đơn hàng cửa hàng</h1>
+          <p className="mt-2 text-sm leading-6 text-muted">Xác nhận đơn đã thanh toán; khách hàng sẽ hoàn tất sau khi nhận hàng.</p>
+        </div>
+        <label className="field-label min-w-52" htmlFor="store-order-status">Trạng thái
+          <select className="admin-input" id="store-order-status" onChange={(event) => setStatus(event.target.value)} value={status}>
+            <option value="">Tất cả</option>
+            <option value="paid">Chờ xác nhận</option>
+            <option value="payment_failed">Thanh toán lỗi</option>
+            <option value="confirmed">Đã xác nhận</option>
+            <option value="completed">Hoàn tất</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+        </label>
+      </header>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {["", "paid", "confirmed", "completed", "cancelled"].map((s) => (
-          <button
-            key={s}
-            onClick={() => { setStatusFilter(s); setLoading(true); }}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-              statusFilter === s ? "bg-ink text-paper" : "bg-surface text-muted hover:text-ink"
-            }`}
-          >
-            {s || "Tất cả"}
-          </button>
-        ))}
-      </div>
+      {error ? <div className="feedback-error mt-5">{error}</div> : null}
+      {cancellingOrder ? (
+        <section className="mt-5 rounded-2xl border border-danger/20 bg-danger/5 p-5">
+          <div className="flex items-center gap-3">
+            <Icon className="text-danger" name="alert" />
+            <div>
+              <h2 className="font-semibold">Hủy đơn {cancellingOrder}</h2>
+              <p className="text-sm text-muted">Thao tác sẽ hoàn tiền và cập nhật tồn kho theo trạng thái thực tế.</p>
+            </div>
+          </div>
+          <label className="field-label mt-4" htmlFor="store-cancel-reason">Lý do hủy
+            <input autoFocus className="form-control" id="store-cancel-reason" maxLength={500} onChange={(event) => setCancelReason(event.target.value)} value={cancelReason} />
+          </label>
+          <div className="mt-4 flex justify-end gap-2">
+            <button className="button-ghost" onClick={() => setCancellingOrder(null)} type="button">Bỏ qua</button>
+            <button className="button-accent" disabled={cancelReason.trim().length < 3 || busyOrder === cancellingOrder} onClick={submitCancel} type="button">Xác nhận hủy</button>
+          </div>
+        </section>
+      ) : null}
 
       {loading ? (
-        <div className="admin-panel mt-4 animate-pulse text-muted">Đang tải…</div>
-      ) : orders.length === 0 ? (
-        <div className="admin-panel mt-4 text-muted">Chưa có đơn hàng.</div>
+        <div className="mt-6 h-72 animate-pulse rounded-2xl bg-sand/60" />
       ) : (
-        <div className="mt-4 space-y-3">
-          {orders.map((order) => (
-            <Link
-              key={order.order_number}
-              href={`/store/orders/${order.order_number}`}
-              className="admin-row flex items-center justify-between gap-4"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">#{order.order_number}</p>
-                <p className="text-xs text-muted">{order.customer_name}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <OrderStatusBadge status={order.status} />
-                <span className="text-sm font-semibold text-ink whitespace-nowrap">{formatVnd(order.total_vnd)}</span>
-              </div>
-            </Link>
-          ))}
+        <div className="admin-table-shell mt-6">
+          <table>
+            <thead>
+              <tr>
+                <th>Đơn hàng</th>
+                <th>Khách hàng</th>
+                <th>Kênh</th>
+                <th>Tổng tiền</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => (
+                <tr key={order.order_number}>
+                  <td>
+                    <Link className="font-semibold hover:text-accent" href={`/store/orders/${order.order_number}`}>{order.order_number}</Link>
+                    <p className="mt-1 text-xs text-muted">{formatVietnamDateTime(order.created_at)} · {order.item_count} món</p>
+                  </td>
+                  <td>
+                    <p className="font-medium">{order.customer_name}</p>
+                    <p className="text-xs text-muted">{order.customer_email}</p>
+                  </td>
+                  <td><span className="text-sm">{order.channel === "pos" ? "POS" : "Online"}</span></td>
+                  <td className="font-semibold">{formatVnd(order.total_vnd)}</td>
+                  <td><OrderStatusBadge status={order.status} /></td>
+                  <td>
+                    <div className="flex justify-end gap-2">
+                      {order.status === "paid" ? (
+                        <>
+                          <button className="button-secondary px-4 text-danger" disabled={busyOrder === order.order_number} onClick={() => { setCancellingOrder(order.order_number); setCancelReason("Cửa hàng không thể xử lý đơn"); }} type="button">Hủy</button>
+                          <button className="button-primary px-4" disabled={busyOrder === order.order_number} onClick={() => void mutate(order.order_number, () => confirmStoreOrder(order.order_number), "Không xác nhận được đơn hàng")} type="button"><Icon name="check" size={16} />Xác nhận</button>
+                        </>
+                      ) : null}
+                      {order.status !== "paid" ? (
+                        <Link className="button-secondary px-4" href={`/store/orders/${order.order_number}`}>Chi tiết</Link>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {orders.length === 0 ? (
+            <div className="p-10 text-center">
+              <Icon className="mx-auto text-moss" name="receipt" size={24} />
+              <p className="mt-3 text-muted">Không có đơn hàng phù hợp.</p>
+            </div>
+          ) : null}
         </div>
       )}
-    </div>
+    </section>
   );
 }

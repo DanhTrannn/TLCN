@@ -250,6 +250,33 @@ export function cancelAdminOrder(orderNumber: string, reason: string) {
   );
 }
 
+export function confirmStoreOrder(orderNumber: string) {
+  return apiFetch<OrderTransition>(
+    `/api/v1/admin/store/orders/${encodeURIComponent(orderNumber)}/confirm`,
+    {
+      method: "POST",
+      headers: mutationHeaders(crypto.randomUUID()),
+    }
+  );
+}
+
+export function cancelStoreOrder(orderNumber: string, reason: string) {
+  return apiFetch<OrderTransition>(
+    `/api/v1/admin/store/orders/${encodeURIComponent(orderNumber)}/cancel`,
+    {
+      method: "POST",
+      headers: mutationHeaders(crypto.randomUUID()),
+      body: JSON.stringify({ reason }),
+    }
+  );
+}
+
+export function getStoreOrderDetail(orderNumber: string) {
+  return apiFetch<CommerceOrderDetail>(
+    `/api/v1/admin/store/orders/${encodeURIComponent(orderNumber)}`
+  );
+}
+
 export function createOrderItemReview(
   orderNumber: string,
   orderItemPublicId: string,

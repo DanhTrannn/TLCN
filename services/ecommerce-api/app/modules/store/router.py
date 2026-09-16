@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.orm import Session
 
 from app.core.errors import forbidden, not_found
-from app.db.deps import get_current_staff, get_db
+from app.db.deps import get_current_staff, get_db, verify_csrf
 from app.models.customer import Customer
 from app.models.multicity import Store
 from sqlalchemy import select
-from app.modules.orders.schemas import OrderDetailResponse
+from app.modules.orders.schemas import CancelOrderRequest, OrderDetailResponse, OrderTransitionResponse
+from app.modules.orders.service import cancel_order, confirm_order
 from app.modules.store.schemas import (
     StoreDashboardResponse,
     StoreInventoryItem,
@@ -74,6 +75,44 @@ def store_order_detail(
 ) -> OrderDetailResponse:
     resolved_store_id = _resolve_store_id(db, actor, store_id)
     return get_store_order_detail(db, resolved_store_id, order_number)
+
+
+@admin_store_router.post("/orders/{order_number}/confirm", response_model=OrderTransitionResponse)
+def store_confirm_order(
+    order_number: str,
+    store_id: int | None = Query(default=None, gt=0),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    actor: Customer = Depends(get_current_staff),
+    db: Session = Depends(get_db),
+) -> OrderTransitionResponse:
+    resolved_store_id = _resolve_store_id(db, actor, store_id)
+    get_store_order_detail(db, resolved_store_id, order_number)
+    if not idempotency_key:
+        raise forbidden("Yêu cầu idempotency key.")
+    return confirm_order(order_number, idempotency_key, transition_source="admin")
+
+
+@admin_store_router.post("/orders/{order_number}/cancel", response_model=OrderTransitionResponse)
+def store_cancel_order(
+    order_number: str,
+    payload: CancelOrderRequest,
+    store_id: int | None = Query(default=None, gt=0),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    actor: Customer = Depends(get_current_staff),
+    db: Session = Depends(get_db),
+) -> OrderTransitionResponse:
+    resolved_store_id = _resolve_store_id(db, actor, store_id)
+    get_store_order_detail(db, resolved_store_id, order_number)
+    if not idempotency_key:
+        raise forbidden("Yêu cầu idempotency key.")
+    return cancel_order(
+        order_number,
+        actor_customer_id=actor.customer_id,
+        owner_customer_id=None,
+        reason=payload.reason,
+        idempotency_key=idempotency_key,
+        transition_source="admin",
+    )
 
 
 @admin_store_router.get("/inventory", response_model=list[StoreInventoryItem])
