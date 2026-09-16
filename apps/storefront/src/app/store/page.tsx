@@ -92,7 +92,7 @@ export default function StoreDashboardPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link className="group min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent/25 hover:shadow-admin" href="/store/pos">
           <div className="flex items-center justify-between">
-            <Icon className="text-moss" name="cart" size={20} />
+            <Icon className="text-moss" name="bag" size={20} />
             <Icon className="text-muted transition group-hover:translate-x-1 group-hover:text-accent" name="arrow-right" size={17} />
           </div>
           <p className="mt-4 text-sm text-muted">Bán hàng</p>

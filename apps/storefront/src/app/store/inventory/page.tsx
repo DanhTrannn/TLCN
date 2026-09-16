@@ -156,7 +156,7 @@ export default function StoreInventoryPage() {
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
               >
-                <Icon name="arrow-left" size={14} />
+                <Icon className="rotate-180" name="arrow-right" size={14} />
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <button
