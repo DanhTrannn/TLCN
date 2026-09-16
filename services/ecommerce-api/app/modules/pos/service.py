@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, OUT_OF_STOCK, RESOURCE_NOT_FOUND
-from app.core.ids import new_order_number
+from app.core.ids import new_order_number, new_payment_reference, uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Product, ProductVariant
 from app.models.inventory import Inventory
@@ -50,9 +50,9 @@ def search_products(db: Session, store_id: int, query: str) -> list[dict]:
 
 
 def create_pos_transaction(
-    db: Session, request: POSTransactionRequest, staff_id: int
+    request: POSTransactionRequest, staff_id: int
 ) -> dict:
-    with run_in_transaction(db):
+    def _work(db: Session) -> dict:
         # Validate store exists and is active
         store = db.execute(
             select(Store).where(Store.store_id == request.store_id, Store.is_active == True)  # noqa: E712
@@ -152,6 +152,7 @@ def create_pos_transaction(
             shipping_address_text=store.address or "",
             data_origin="manual",
             paid_at=now,
+            confirmed_at=now,
             completed_at=now,
         )
         db.add(order)
@@ -160,9 +161,12 @@ def create_pos_transaction(
         # Create order items
         for item_data in order_items:
             order_item = OrderItem(
+                public_id=uuid7(),
                 order_id=order.order_id,
                 variant_id=item_data["variant_id"],
-                product_public_id_snapshot=item_data["product_public_id"],
+                product_public_id_snapshot=uuid7(),
+                category_code_snapshot="",
+                category_name_snapshot="",
                 product_name_snapshot=item_data["product_name"],
                 sku_snapshot=item_data["sku"],
                 size_code_snapshot=item_data["size_code"],
@@ -170,14 +174,20 @@ def create_pos_transaction(
                 unit_price_vnd=item_data["unit_price_vnd"],
                 quantity=item_data["quantity"],
                 line_total_vnd=item_data["line_total_vnd"],
+                created_at=now,
             )
             db.add(order_item)
 
         # Create payment
         payment = Payment(
             order_id=order.order_id,
+            payment_reference=new_payment_reference(),
+            payment_idempotency_key=f"pos:{order.order_number}",
             status="succeeded",
+            currency_code="VND",
             amount_vnd=total,
+            attempted_at=now,
+            created_at=now,
         )
         db.add(payment)
 
@@ -186,7 +196,10 @@ def create_pos_transaction(
             order_id=order.order_id,
             from_status=None,
             to_status="completed",
-            transition_source="pos",
+            transition_source="admin",
+            transition_idempotency_key=f"pos:{order.order_number}:completed",
+            transitioned_at=now,
+            created_at=now,
         )
         db.add(history)
 
@@ -203,3 +216,5 @@ def create_pos_transaction(
             "total_vnd": total,
             "created_at": now.isoformat(),
         }
+
+    return run_in_transaction(_work)

@@ -21,8 +21,7 @@ def list_products(
 @router.post("/transactions", response_model=POSTransactionResponse)
 def create_transaction(
     request: POSTransactionRequest,
-    db: Session = Depends(get_db),
     staff=Depends(get_current_staff),
 ):
-    result = create_pos_transaction(db, request, staff_id=staff.customer_id)
+    result = create_pos_transaction(request, staff_id=staff.customer_id)
     return result
