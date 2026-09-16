@@ -58,42 +58,29 @@ classDiagram
         <<abstract>>
         +name: String
         +role: String
-        +description: String
     }
     
     class Customer {
-        +customerId: UUID
         +email: String
-        +displayName: String
-        +role: String
-        +cityId: UUID?
-        +storeId: UUID?
+        +role: "customer"
         +browseProducts()
-        +searchProducts()
         +manageCart()
         +checkout()
         +trackOrders()
         +writeReviews()
-        +selectCity()
-        +checkStoreAvailability()
     }
     
     class Admin {
-        +adminId: UUID
         +email: String
         +role: "admin"
         +manageProducts()
         +manageInventory()
         +manageCoupons()
         +manageOrders()
-        +viewReports()
-        +manageBranchInventory()
     }
     
     class StoreManager {
-        +managerId: UUID
-        +storeId: UUID
-        +cityId: UUID
+        +email: String
         +role: "store_manager"
         +sellAtCounter()
         +manageStoreOrders()
@@ -102,21 +89,17 @@ classDiagram
     }
     
     class CityPlanner {
-        +plannerId: UUID
-        +cityId: UUID
+        +email: String
         +role: "city_planner"
         +viewCityStores()
         +viewCityOrders()
         +viewCityInventory()
     }
     
-    Actor <|-- Customer : extends
-    Actor <|-- Admin : extends
-    Actor <|-- StoreManager : extends
-    Actor <|-- CityPlanner : extends
-    
-    StoreManager "1" --> "1" Store : manages
-    CityPlanner "1" --> "1" City : manages
+    Actor <|-- Customer
+    Actor <|-- Admin
+    Actor <|-- StoreManager
+    Actor <|-- CityPlanner
 ```
 
 ---
@@ -126,85 +109,85 @@ classDiagram
 ### 1.2.1 Customer Domain
 
 ```mermaid
-graph TB
-    subgraph "Customer Domain"
-        UC1[Browse Products]
-        UC2[Search Products]
-        UC3[View Product Details]
-        UC4[Manage Cart]
-        UC5[Checkout]
-        UC6[Track Orders]
-        UC7[Write Reviews]
-        UC8[Manage Wishlist]
-        UC15[Select City/Location]
-        UC16[Check Store Availability]
-    end
-    
-    Customer((Customer))
-    
-    Customer --> UC1
-    Customer --> UC2
-    Customer --> UC3
-    Customer --> UC4
-    Customer --> UC5
-    Customer --> UC6
-    Customer --> UC7
-    Customer --> UC8
-    Customer --> UC15
-    Customer --> UC16
-    
-    UC4 -->|<<include>>| UC5
-    UC5 -->|<<include>>| UC6
-    UC1 -->|<<extend>>| UC3
-    UC2 -->|<<extend>>| UC3
-    UC8 -->|<<extend>>| UC4
-    UC16 -->|<<include>>| UC15
-    UC3 -->|<<extend>>| UC16
+useCaseDiagram
+    actor "Customer" as C
+
+    package "Hệ thống Thương mại Điện tử" {
+        usecase "Duyệt sản phẩm" as UC1
+        usecase "Tìm kiếm sản phẩm" as UC2
+        usecase "Xem chi tiết sản phẩm" as UC3
+        usecase "Quản lý giỏ hàng" as UC4
+        usecase "Thanh toán" as UC5
+        usecase "Theo dõi đơn hàng" as UC6
+        usecase "Viết đánh giá" as UC7
+        usecase "Quản lý danh sách yêu thích" as UC8
+        usecase "Chọn thành phố" as UC15
+        usecase "Kiểm tra tồn kho cửa hàng" as UC16
+    }
+
+    C --> UC1
+    C --> UC2
+    C --> UC3
+    C --> UC4
+    C --> UC5
+    C --> UC6
+    C --> UC7
+    C --> UC8
+    C --> UC15
+    C --> UC16
+
+    UC4 ..> UC5 : <<include>>
+    UC5 ..> UC6 : <<include>>
+    UC1 ..> UC3 : <<extend>>
+    UC2 ..> UC3 : <<extend>>
+    UC8 ..> UC4 : <<extend>>
+    UC16 ..> UC15 : <<include>>
+    UC3 ..> UC16 : <<extend>>
 ```
 
 ### 1.2.2 Admin / Store Manager / City Planner Domains
 
 ```mermaid
-graph TB
-    subgraph "Admin Domain"
-        UC9[Manage Products]
-        UC11[Manage Inventory]
-        UC12[Manage Coupons]
-        UC13[Manage Orders]
-    end
-    
-    subgraph "Store Manager Domain"
-        UC20[Sell at Counter - POS]
-        UC21[Manage Store Orders]
-        UC22[View Store Inventory]
-        UC23[Manage Store Staff]
-    end
-    
-    subgraph "City Planner Domain"
-        UC24[View City Stores]
-        UC25[View City Orders]
-        UC26[View City Inventory]
-    end
-    
-    Admin((Admin))
-    StoreManager((Store Manager))
-    CityPlanner((City Planner))
-    
-    Admin --> UC9
-    Admin --> UC11
-    Admin --> UC12
-    Admin --> UC13
-    
-    StoreManager --> UC20
-    StoreManager --> UC21
-    StoreManager --> UC22
-    StoreManager --> UC23
-    
-    CityPlanner --> UC24
-    CityPlanner --> UC25
-    CityPlanner --> UC26
-    
-    UC9 -->|<<include>>| UC11
+useCaseDiagram
+    actor "Admin" as A
+    actor "Store Manager" as SM
+    actor "City Planner" as CP
+
+    package "Admin Domain" {
+        usecase "Quản lý sản phẩm" as UC9
+        usecase "Quản lý tồn kho" as UC11
+        usecase "Quản lý mã giảm giá" as UC12
+        usecase "Quản lý đơn hàng" as UC13
+    }
+
+    package "Store Manager Domain" {
+        usecase "Bán hàng tại quầy (POS)" as UC20
+        usecase "Quản lý đơn hàng cửa hàng" as UC21
+        usecase "Xem tồn kho cửa hàng" as UC22
+        usecase "Quản lý nhân viên" as UC23
+    }
+
+    package "City Planner Domain" {
+        usecase "Xem cửa hàng thành phố" as UC24
+        usecase "Xem đơn hàng thành phố" as UC25
+        usecase "Xem tồn kho thành phố" as UC26
+    }
+
+    A --> UC9
+    A --> UC11
+    A --> UC12
+    A --> UC13
+
+    SM --> UC20
+    SM --> UC21
+    SM --> UC22
+    SM --> UC23
+
+    CP --> UC24
+    CP --> UC25
+    CP --> UC26
+
+    UC9 ..> UC11 : <<include>>
 ```
 
 ---
