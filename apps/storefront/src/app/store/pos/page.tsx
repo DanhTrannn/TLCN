@@ -28,6 +28,12 @@ interface SearchResult {
   global_stock: number;
 }
 
+interface OrderSuccess {
+  order_number: string;
+  total_vnd: number;
+  items: PosItem[];
+}
+
 export default function StorePosPage() {
   const { customer } = useAuth();
   const router = useRouter();
@@ -40,6 +46,7 @@ export default function StorePosPage() {
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastOrder, setLastOrder] = useState<OrderSuccess | null>(null);
 
   const storeId = customer?.store_id ?? 7;
 
@@ -102,6 +109,7 @@ export default function StorePosPage() {
     try {
       const result = await apiFetch<{
         order_number: string;
+        total_vnd: number;
       }>("/api/v1/pos/transactions", {
         method: "POST",
         body: JSON.stringify({
@@ -111,7 +119,7 @@ export default function StorePosPage() {
           amount_received_vnd: total,
         }),
       });
-      alert(`Đơn ${result.order_number} đã tạo thành công!`);
+      setLastOrder({ order_number: result.order_number, total_vnd: result.total_vnd, items: [...cart] });
       setCart([]);
       router.refresh();
     } catch (err) {
@@ -251,6 +259,42 @@ export default function StorePosPage() {
           </button>
         </section>
       </div>
+
+      {lastOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-paper p-8 shadow-lift">
+            <div className="flex flex-col items-center text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success">
+                <Icon name="check" size={32} />
+              </span>
+              <h2 className="mt-4 text-xl font-bold text-ink">Tạo đơn thành công!</h2>
+              <p className="mt-1 font-mono text-sm text-muted">#{lastOrder.order_number}</p>
+            </div>
+
+            <div className="mt-6 space-y-2">
+              {lastOrder.items.map((item) => (
+                <div key={item.variant_id} className="flex items-center justify-between text-sm">
+                  <span className="text-muted">{item.product_name} x{item.quantity}</span>
+                  <span className="font-medium">{formatVnd(item.price_vnd * item.quantity)}</span>
+                </div>
+              ))}
+              <div className="border-t border-line pt-2 mt-2">
+                <div className="flex justify-between font-bold">
+                  <span>Tổng thanh toán</span>
+                  <span className="text-accent">{formatVnd(lastOrder.total_vnd)}</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="button-primary mt-6 w-full"
+              onClick={() => setLastOrder(null)}
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

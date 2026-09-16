@@ -32,6 +32,8 @@ class StoreInventoryItem(BaseModel):
     store_name: str
     variant_id: int
     variant_sku: str
+    product_name: str
+    category_name: str
     size_code: str
     color_code: str
     price_vnd: int

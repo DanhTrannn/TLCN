@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import not_found
-from app.models.catalog import Product, ProductVariant
+from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer, CustomerCredential
 from app.models.multicity import Store, StoreInventory
 from app.models.order import Order, OrderItem, Payment
@@ -180,12 +180,16 @@ def list_store_inventory(db: Session, store_id: int) -> list[StoreInventoryItem]
             StoreInventory,
             Store.name.label("store_name"),
             ProductVariant.sku.label("variant_sku"),
+            Product.name.label("product_name"),
+            Category.name.label("category_name"),
             ProductVariant.size_code,
             ProductVariant.color_code,
             ProductVariant.price_vnd,
         )
         .join(Store, Store.store_id == StoreInventory.store_id)
         .join(ProductVariant, ProductVariant.variant_id == StoreInventory.variant_id)
+        .join(Product, Product.product_id == ProductVariant.product_id)
+        .join(Category, Category.category_id == Product.category_id)
         .where(StoreInventory.store_id == store_id)
         .order_by(StoreInventory.variant_id)
     ).all()
@@ -195,6 +199,8 @@ def list_store_inventory(db: Session, store_id: int) -> list[StoreInventoryItem]
             store_name=row.store_name,
             variant_id=row.StoreInventory.variant_id,
             variant_sku=row.variant_sku,
+            product_name=row.product_name,
+            category_name=row.category_name,
             size_code=row.size_code,
             color_code=row.color_code,
             price_vnd=row.price_vnd,
