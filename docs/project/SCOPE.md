@@ -22,12 +22,13 @@ Key capabilities include:
 The platform ingests data from two official sources. Real-time event streaming (e.g., Kafka/Flink) and client-side telemetry are explicitly out of scope for the batch architecture.
 
 ### 2.1. MySQL OLTP Database
-The system extracts data from **16 operational tables**:
+The system extracts data from **19 operational tables**:
 - `customers`, `categories`, `products`, `product_variants`
 - `carts`, `cart_items`, `wishlist_items`
 - `orders`, `order_items`, `order_status_history`
 - `payments`, `refunds`
 - `inventory`, `coupons`, `coupon_redemptions`, `product_reviews`
+- `cities`, `stores`, `store_inventory`
 
 **Strict Exclusion:** The `customer_credentials` table is strictly excluded to prevent password hashes and authentication secrets from entering the analytical environment.
 

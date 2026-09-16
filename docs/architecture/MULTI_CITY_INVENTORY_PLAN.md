@@ -145,6 +145,33 @@ erDiagram
 | `GET` | `/api/v1/admin/branch-inventory` | List inventory (scoped) | admin, city_planner, store_manager |
 | `PATCH` | `/api/v1/admin/branch-inventory` | Update store stock | Scoped by role |
 
+### Store Manager Endpoints (`/api/v1/admin/store/*`)
+
+| Method | Path | Description | Permission |
+|--------|------|-------------|------------|
+| `GET` | `/api/v1/admin/store/dashboard` | Store dashboard stats | store_manager |
+| `GET` | `/api/v1/admin/store/orders` | List store orders | store_manager |
+| `POST` | `/api/v1/admin/store/orders/{order_number}/confirm` | Confirm paid order | store_manager |
+| `POST` | `/api/v1/admin/store/orders/{order_number}/cancel` | Cancel order | store_manager |
+| `GET` | `/api/v1/admin/store/inventory` | List store inventory | store_manager |
+| `GET` | `/api/v1/admin/store/staff` | List store staff | store_manager |
+
+### City Planner Endpoints (`/api/v1/admin/city/*`)
+
+| Method | Path | Description | Permission |
+|--------|------|-------------|------------|
+| `GET` | `/api/v1/admin/city/dashboard` | City dashboard stats | city_planner |
+| `GET` | `/api/v1/admin/city/stores` | List stores in city | city_planner |
+| `GET` | `/api/v1/admin/city/orders` | List city orders | city_planner |
+| `GET` | `/api/v1/admin/city/inventory` | List city inventory | city_planner |
+
+### POS Endpoints (`/api/v1/pos/*`)
+
+| Method | Path | Description | Permission |
+|--------|------|-------------|------------|
+| `GET` | `/api/v1/pos/products` | Search products with store stock | store_manager |
+| `POST` | `/api/v1/pos/transactions` | Create POS transaction | store_manager |
+
 ---
 
 ## Implementation Tasks

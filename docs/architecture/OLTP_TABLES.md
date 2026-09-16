@@ -360,9 +360,9 @@ Mô tả chi tiết 19 bảng MySQL OLTP trong hệ thống D&K E-Commerce.
 |-----|------|-----------|-------|
 | `order_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
 | `order_number` | `VARCHAR(32)` | UK, NOT NULL | Mã đơn hàng hiển thị |
-| `cart_id` | `BIGINT UNSIGNED` | FK → `carts.cart_id`, UK, NOT NULL, ON DELETE RESTRICT | Cart đã checkout (1:1) |
+| `cart_id` | `BIGINT UNSIGNED` | FK → `carts.cart_id`, UK, NULLABLE, ON DELETE RESTRICT | Cart đã checkout (1:1 online, NULL cho POS) |
 | `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Chủ đơn |
-| `checkout_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key cho checkout |
+| `checkout_idempotency_key` | `VARCHAR(64)` | UK, NULLABLE | Idempotency key cho checkout (NULL cho POS) |
 | `status` | `VARCHAR(24)` | NOT NULL | Trạng thái hiện tại |
 | `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
 | `subtotal_vnd` | `BIGINT UNSIGNED` | NOT NULL | Tổng tiền hàng (trước giảm giá) |

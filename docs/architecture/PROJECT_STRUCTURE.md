@@ -64,7 +64,7 @@ flowchart LR
 │   └── ecommerce-api/                    # FastAPI backend with structured access logging
 ├── database/
 │   ├── alembic.ini                       # Alembic migration configuration
-│   ├── migrations/                       # Alembic schema versions (0001 to 0009)
+│   ├── migrations/                       # Alembic schema versions (0001 to 0013)
 │   └── seeds/                            # Master catalog seed scripts
 ├── generator/
 │   ├── configs/                          # Dataset scale scenarios (small, medium, large)

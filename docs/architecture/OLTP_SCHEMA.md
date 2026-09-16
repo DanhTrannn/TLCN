@@ -242,7 +242,7 @@ Invariant: một order tối đa một redemption; status/timestamp nhất quán
 
 #### `orders`
 
-Cột identity/ownership: `order_id` PK, `order_number` UK, `cart_id` FK/UK, `customer_id` FK, `checkout_idempotency_key` UK, `store_id` FK nullable, `staff_id` FK nullable, `channel` VARCHAR(16) NOT NULL DEFAULT 'online'.
+Cột identity/ownership: `order_id` PK, `order_number` UK, `cart_id` FK/UK nullable, `customer_id` FK, `checkout_idempotency_key` UK nullable, `store_id` FK nullable, `staff_id` FK nullable, `channel` VARCHAR(16) NOT NULL DEFAULT 'online'.
 
 Cột snapshot tiền: `currency_code`, `subtotal_vnd`, `discount_amount_vnd`, `shipping_fee_vnd`, `total_vnd`.
 
@@ -256,7 +256,7 @@ Invariant:
 
 - `currency_code = 'VND'`;
 - `channel` thuộc `{'online', 'pos'}`;
-- POS order phải có `store_id` và `staff_id`, status mặc định `completed`;
+- POS order phải có `store_id` và `staff_id`, status mặc định `completed`, `cart_id` và `checkout_idempotency_key` null;
 - Online order có thể có `store_id` (allocation) và `staff_id` null;
 - `discount_amount_vnd <= subtotal_vnd`;
 - `total_vnd = subtotal_vnd - discount_amount_vnd + shipping_fee_vnd`;
@@ -395,8 +395,8 @@ Isolation: `READ COMMITTED`.
 1. Validate store active và staff có quyền truy cập store.
 2. Với mỗi variant: kiểm tra tồn kho cửa hàng (`store_inventory.on_hand >= quantity`).
 3. Tính server-side subtotal, total (không shipping fee, không coupon).
-4. Insert order `completed` với `channel='pos'`, `store_id`, `staff_id`, `paid_at=now`, `completed_at=now`.
-5. Insert order items, payment `succeeded`, status history `paid -> completed` với `transition_source='pos'`.
+4. Insert order `completed` với `channel='pos'`, `store_id`, `staff_id`, `paid_at=now`, `completed_at=now`, `cart_id=null`, `checkout_idempotency_key=null`.
+5. Insert order items, payment `succeeded`, status history `paid -> completed` với `transition_source='admin'` (giới hạn DB constraint).
 6. Giảm `store_inventory.on_hand` và `inventory.on_hand` atomically, tăng `version`.
 7. Commit; mọi lỗi rollback toàn bộ.
 

@@ -46,9 +46,9 @@
 | Actor | Vai trò | Mô tả | Giao diện |
 |-------|---------|-------|-----------|
 | **Customer** | Khách hàng | Người dùng cuối mua sắm trên nền tảng | Next.js Storefront (Port 3000) |
-| **Admin** | Quản trị viên | Quản lý cửa hàng, sản phẩm, đơn hàng tổng quát | Next.js Admin Console (Port 3000/admin) |
-| **Store Manager** | Quản lý cửa hàng | Quản lý tồn kho tại cửa hàng được phân công | Next.js Admin Console (Port 3000/admin) |
-| **City Planner** | Quản lý thành phố | Quản lý tất cả cửa hàng trong thành phố được phân công | Next.js Admin Console (Port 3000/admin) |
+| **Admin** | Quản trị viên | Quản lý sản phẩm, đơn hàng, coupon tổng quát | Next.js Admin Console (Port 3000/admin) |
+| **Store Manager** | Quản lý cửa hàng | Bán hàng POS, quản lý đơn hàng và tồn kho tại cửa hàng được phân công | Next.js Store Console (Port 3000/store) |
+| **City Planner** | Quản lý thành phố | Giám sát cửa hàng, đơn hàng và tồn kho trong thành phố được phân công | Next.js City Console (Port 3000/city) |
 
 ### Actor Relationship Diagram
 
@@ -95,8 +95,10 @@ classDiagram
         +storeId: UUID
         +cityId: UUID
         +role: "store_manager"
-        +viewBranchInventory()
-        +updateBranchStock()
+        +sellAtCounter()
+        +manageStoreOrders()
+        +viewStoreInventory()
+        +manageStaff()
     }
     
     class CityPlanner {
@@ -104,7 +106,8 @@ classDiagram
         +cityId: UUID
         +role: "city_planner"
         +viewCityStores()
-        +manageCityInventory()
+        +viewCityOrders()
+        +viewCityInventory()
     }
     
     Actor <|-- Customer : extends
@@ -159,7 +162,7 @@ graph TB
     UC3 -->|<<extend>>| UC16
 ```
 
-### 1.2.2 Admin Domain (with Staff Roles)
+### 1.2.2 Admin / Store Manager / City Planner Domains
 
 ```mermaid
 graph TB
@@ -168,27 +171,40 @@ graph TB
         UC11[Manage Inventory]
         UC12[Manage Coupons]
         UC13[Manage Orders]
-        UC17[Manage Branch Inventory]
     end
     
-    subgraph "Staff Roles"
-        StoreManager((Store Manager))
-        CityPlanner((City Planner))
+    subgraph "Store Manager Domain"
+        UC20[Sell at Counter - POS]
+        UC21[Manage Store Orders]
+        UC22[View Store Inventory]
+        UC23[Manage Store Staff]
+    end
+    
+    subgraph "City Planner Domain"
+        UC24[View City Stores]
+        UC25[View City Orders]
+        UC26[View City Inventory]
     end
     
     Admin((Admin))
+    StoreManager((Store Manager))
+    CityPlanner((City Planner))
     
     Admin --> UC9
     Admin --> UC11
     Admin --> UC12
     Admin --> UC13
-    Admin --> UC17
     
-    StoreManager --> UC17
-    CityPlanner --> UC17
+    StoreManager --> UC20
+    StoreManager --> UC21
+    StoreManager --> UC22
+    StoreManager --> UC23
+    
+    CityPlanner --> UC24
+    CityPlanner --> UC25
+    CityPlanner --> UC26
     
     UC9 -->|<<include>>| UC11
-    UC17 -->|<<extend>>| UC11
 ```
 
 ---

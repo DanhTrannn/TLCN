@@ -39,6 +39,7 @@ The repository includes everything needed to run the data platform locally, incl
 - **Idempotent Ingestion:** Multi-threaded Spark extractor with composite cursor tracking `(cursor_field, pk)` and cryptographic manifest validation.
 - **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions with dual inventory deduction.
 - **Multi-City Inventory:** Store-level inventory tracking across 5 cities and 6 stores, with city-based product availability.
+- **Role-Based UI:** Separate admin panels for Admin (`/admin`), Store Manager (`/store`), and City Planner (`/city`) with role-scoped access.
 - **Structured Checkout:** Address form with 34 Vietnamese provinces (post-1/7/2025 merger), wards, and street fields.
 
 ## Quick Start
