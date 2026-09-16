@@ -20,7 +20,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const isAdminArea = pathname.startsWith("/admin");
+  const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/store") || pathname.startsWith("/city");
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -34,15 +34,17 @@ export function Header() {
   }
 
   if (isAdminArea) {
+    const roleHome = customer?.role === "store_manager" ? "/store" : customer?.role === "city_planner" ? "/city" : "/admin";
+    const roleLabel = customer?.role === "store_manager" ? "Cửa hàng" : customer?.role === "city_planner" ? "Thành phố" : "Admin";
     return (
       <header className="sticky top-0 z-50 border-b border-white/10 bg-ink text-paper shadow-[0_10px_32px_rgba(8,22,18,0.2)]">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
-          <Link className="group flex items-center gap-3" href="/admin">
+          <Link className="group flex items-center gap-3" href={roleHome}>
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-xs font-bold tracking-[0.12em] text-white transition group-hover:bg-danger">
               D&K
             </span>
             <span>
-              <span className="block text-sm font-semibold leading-tight">D&K Admin</span>
+              <span className="block text-sm font-semibold leading-tight">D&K {roleLabel}</span>
               <span className="block text-xs text-paper/60">Vận hành cửa hàng</span>
             </span>
           </Link>
