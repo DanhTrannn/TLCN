@@ -319,24 +319,25 @@ graph TB
 |------|-------|--------|-----------------|
 | 1 | Customer | System | Customer **selects** items **from** cart **for** checkout |
 | 2 | - | System | System **validates** stock availability **for** each item |
-| 3 | - | System | System **calculates** total price **including** taxes and shipping |
+| 3 | - | System | System **calculates** total price **including** shipping fee |
 | 4 | - | System | System **displays** order summary **to** customer |
-| 5 | Customer | System | Customer **provides** shipping address **to** system |
-| 6 | Customer | System | Customer **selects** payment method **from** available options |
-| 7 | Customer | System | Customer **confirms** order **to** system |
-| 8 | - | System | System **creates** order record **in** MySQL database |
-| 9 | - | System | System **creates** order items **in** MySQL database |
-| 10 | - | System | System **processes** payment **through** payment gateway |
-| 11 | - | System | System **updates** inventory levels **for** purchased items |
-| 12 | - | System | System **sends** confirmation email **to** customer |
-| 13 | - | System | System **logs** transaction details **to** access log stream |
+| 5 | Customer | System | Customer **enters** structured address **into** form (province, ward, street) |
+| 6 | Customer | System | Customer **applies** coupon **to** order (optional) |
+| 7 | - | System | System **calculates** discount **from** coupon |
+| 8 | Customer | System | Customer **confirms** order **to** system |
+| 9 | - | System | System **creates** order record **in** MySQL database |
+| 10 | - | System | System **creates** order items **in** MySQL database |
+| 11 | - | System | System **creates** payment record **as** succeeded (simulated) |
+| 12 | - | System | System **decrements** inventory levels **for** purchased items |
+| 13 | - | System | System **marks** cart **as** checked_out |
+| 14 | - | System | System **logs** transaction details **to** access log stream |
 
 #### Alternative Flows
 
 | Alt Step | Condition | SVDPI Statement |
 |----------|-----------|-----------------|
 | 2a | Stock unavailable | System **notifies** customer **about** out-of-stock items |
-| 10a | Payment failed | System **cancels** order **and** **restores** inventory |
+| 6a | Coupon invalid | System **notifies** customer **about** coupon error |
 
 ---
 
@@ -551,33 +552,32 @@ graph TB
 | 6 | Admin | System | Admin **updates** order status |
 | 7 | - | System | System **validates** status transition |
 | 8 | - | System | System **saves** status change **to** database |
-| 9 | - | System | System **sends** status update email **to** customer |
+| 9 | - | System | System **records** transition **in** order_status_history |
 
 ---
 
-### UC14: View Reports (Admin)
+### UC14: View Dashboard (Admin)
 
 | Field | Description |
 |-------|-------------|
 | **Use-Case ID** | UC14 |
-| **Use-Case Name** | View Reports |
+| **Use-Case Name** | View Dashboard |
 | **Actor(s)** | Admin |
-| **Description** | Admin views sales and business reports |
+| **Description** | Admin views overview dashboard with key metrics |
 | **Precondition** | Admin is authenticated |
-| **Postcondition** | Reports displayed |
+| **Postcondition** | Dashboard displayed |
 | **Priority** | Medium |
 
 #### Flow of Events (SVDPI)
 
 | Step | Actor | System | SVDPI Statement |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to reports page |
-| 2 | - | System | System **retrieves** sales data **from** database |
-| 3 | - | System | System **calculates** report metrics |
-| 4 | - | System | System **displays** dashboard **to** admin |
-| 5 | Admin | System | Admin **selects** date range |
-| 6 | - | System | System **filters** data **by** date range |
-| 7 | - | System | System **updates** report display |
+| 1 | Admin | System | Admin **navigates** to dashboard page |
+| 2 | - | System | System **retrieves** revenue data **from** database |
+| 3 | - | System | System **retrieves** order counts **from** database |
+| 4 | - | System | System **retrieves** product/customer counts **from** database |
+| 5 | - | System | System **identifies** low stock items **from** database |
+| 6 | - | System | System **displays** dashboard **to** admin |
 
 ---
 
@@ -668,7 +668,57 @@ graph TB
 
 ---
 
-## 1.4 Activity Diagrams
+### UC18: POS Transaction (Staff)
+
+| Field | Description |
+|-------|-------------|
+| **Use-Case ID** | UC18 |
+| **Use-Case Name** | POS Transaction |
+| **Actor(s)** | Admin, Store Manager, City Planner |
+| **Description** | Staff sells products at store counter using Point of Sale terminal |
+| **Precondition** | Staff is authenticated with appropriate role, store assigned |
+| **Postcondition** | Order created as completed, both global and store inventory decremented |
+| **Priority** | High |
+| **Business Rule** | POS creates completed order immediately, deducts dual inventory atomically |
+
+#### Flow of Events (SVDPI)
+
+| Step | Actor | System | SVDPI Statement |
+|------|-------|--------|-----------------|
+| 1 | Staff | System | Staff **navigates** to POS page **at** /admin/pos |
+| 2 | - | System | System **displays** search input **to** staff |
+| 3 | Staff | System | Staff **enters** product keyword **into** search box |
+| 4 | - | System | System **searches** products **by** SKU prefix or name |
+| 5 | - | System | System **returns** up to 8 results **with** store stock |
+| 6 | Staff | System | Staff **selects** product **from** results |
+| 7 | Staff | System | Staff **enters** quantity **for** product |
+| 8 | Staff | System | Staff **adds** product **to** cart |
+| 9 | Staff | System | Staff **repeats** steps 3-8 **for** additional products |
+| 10 | - | System | System **displays** cart **with** items and total |
+| 11 | Staff | System | Staff **confirms** transaction **to** system |
+| 12 | - | System | System **validates** store inventory **for** each item |
+| 13 | - | System | System **creates** order **with** channel='pos', status='completed' |
+| 14 | - | System | System **creates** payment record **as** succeeded |
+| 15 | - | System | System **decrements** store_inventory **for** each item |
+| 16 | - | System | System **decrements** inventory **for** each item |
+| 17 | - | System | System **displays** success message **with** order number |
+
+#### Alternative Flows
+
+| Alt Step | Condition | SVDPI Statement |
+|----------|-----------|-----------------|
+| 12a | Insufficient store stock | System **notifies** staff **about** out-of-stock items |
+
+#### Permission Rules
+
+| Role | Scope | Can POS |
+|------|-------|---------|
+| **Admin** | All stores | Yes |
+| **City Planner** | Stores in assigned city | Yes |
+| **Store Manager** | Assigned store only | Yes |
+| **Customer** | None | No access |
+
+---
 
 ### 1.4.1 UC1: Browse Products
 
@@ -1012,7 +1062,7 @@ flowchart TD
     L -->|No| M[Show invalid transition]
     M --> G
     L -->|Yes| N[Save status change]
-    N --> O[Send notification email]
+    N --> O[Record in order_status_history]
     O --> B
     J -->|No| B
     
@@ -1023,34 +1073,17 @@ flowchart TD
     S --> B
 ```
 
-### 1.4.14 UC14: View Reports (Admin)
+### 1.4.14 UC14: View Dashboard (Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens reports page]
-    A --> B[Load dashboard]
-    B --> C[Display summary metrics]
-    C --> D{Select report type}
-    
-    D -->|Sales| E[Show sales dashboard]
-    E --> F[Display revenue chart]
-    F --> G[Show top products]
-    
-    D -->|Orders| H[Show order dashboard]
-    H --> I[Display order status distribution]
-    I --> J[Show average order value]
-    
-    D -->|Customers| K[Show customer dashboard]
-    K --> L[Display new vs returning]
-    L --> M[Show customer segments]
-    
-    G --> N{Change date range?}
-    I --> N
-    M --> N
-    N -->|Yes| O[Admin selects date range]
-    O --> P[Filter data by date]
-    P --> C
-    N -->|No| Q([End])
+    Start([Start]) --> A[Admin opens dashboard]
+    A --> B[Load overview data]
+    B --> C[Display revenue and order metrics]
+    C --> D[Display customer and product counts]
+    D --> E[Load low stock alerts]
+    E --> F[Display low stock products]
+    F --> End([End])
 ```
 
 ### 1.4.15 UC15: Select City/Location
@@ -1113,6 +1146,46 @@ flowchart TD
     N --> O[Increment version]
     O --> P[Show success message]
     P --> F
+```
+
+### 1.4.18 UC18: POS Transaction
+
+```mermaid
+flowchart TD
+    Start([Start]) --> A[Staff navigates to POS page]
+    A --> B[System checks staff role]
+    B --> C{Role valid?}
+    C -->|No| D[Show permission error]
+    D --> End([End])
+    C -->|Yes| E[Display search input]
+    E --> F[Staff enters product keyword]
+    F --> G[System searches by SKU or name]
+    G --> H{Results found?}
+    H -->|No| I[Show no results message]
+    I --> F
+    H -->|Yes| J[Display results with store stock]
+    J --> K{Staff selects product?}
+    K -->|No| F
+    K -->|Yes| L[Staff enters quantity]
+    L --> M[System checks store inventory]
+    M --> N{Sufficient stock?}
+    N -->|No| O[Show insufficient stock error]
+    O --> J
+    N -->|Yes| P[Add product to cart]
+    P --> Q{Add more products?}
+    Q -->|Yes| F
+    Q -->|No| R[Display cart with total]
+    R --> S[Staff confirms transaction]
+    S --> T[System validates store inventory]
+    T --> U{All items available?}
+    U -->|No| V[Show out of stock error]
+    V --> R
+    U -->|Yes| W[Create order - channel=pos]
+    W --> X[Create payment - succeeded]
+    X --> Y[Deduct store_inventory]
+    Y --> Z[Deduct inventory]
+    Z --> AA[Show success with order number]
+    AA --> End([End])
 ```
 
 ---
@@ -1227,7 +1300,6 @@ sequenceDiagram
     participant FE as Next.js Storefront
     participant API as FastAPI Backend
     participant DB as MySQL Database
-    participant PG as Payment Gateway
     
     C->>FE: Proceed to checkout
     FE->>API: GET /cart/{cartId}
@@ -1236,24 +1308,17 @@ sequenceDiagram
     API-->>FE: CartResponse
     FE-->>C: Display cart summary
     
-    C->>FE: Enter shipping address
-    FE->>API: POST /addresses
-    API->>DB: INSERT address
-    DB-->>API: addressId
-    API-->>FE: AddressResponse
-    
+    C->>FE: Enter structured address (province, ward, street)
     C->>FE: Confirm order
     FE->>API: POST /orders/checkout
     Note over API,DB: Begin Transaction
-    API->>DB: INSERT orders
+    API->>DB: INSERT orders (with address text)
     API->>DB: INSERT order_items
+    API->>DB: INSERT payments (status=succeeded)
     API->>DB: UPDATE inventory
+    API->>DB: UPDATE carts SET status=checked_out
     DB-->>API: Transaction committed
     
-    API->>PG: ProcessPayment
-    PG-->>API: PaymentResult(success)
-    
-    API->>DB: UPDATE order status
     API->>API: Log to access stream
     API-->>FE: OrderConfirmation
     FE-->>C: Display confirmation
@@ -1461,7 +1526,6 @@ sequenceDiagram
     participant FE as Next.js Admin
     participant API as FastAPI Backend
     participant DB as MySQL Database
-    participant EMAIL as Email Service
     
     A->>FE: Navigate to orders
     FE->>API: GET /admin/orders
@@ -1475,12 +1539,11 @@ sequenceDiagram
     API->>DB: UPDATE orders SET status = ?
     API->>DB: INSERT order_status_history
     DB-->>API: success
-    API->>EMAIL: Send status update email
     API-->>FE: OrderStatusUpdated
     FE-->>A: Show updated status
 ```
 
-### 1.5.14 UC14: View Reports (Admin) Sequence
+### 1.5.14 UC14: View Dashboard (Admin) Sequence
 
 ```mermaid
 sequenceDiagram
@@ -1490,19 +1553,61 @@ sequenceDiagram
     participant API as FastAPI Backend
     participant DB as MySQL Database
     
-    A->>FE: Access reports
-    FE->>API: GET /admin/reports/sales?period=monthly
-    API->>DB: SELECT SUM(total) GROUP BY month
-    DB-->>API: salesData[]
-    API->>DB: SELECT COUNT(orders) GROUP BY status
-    DB-->>API: orderStats[]
-    API->>DB: SELECT TOP products
-    DB-->>API: topProducts[]
-    API-->>FE: ReportResponse
-    FE-->>A: Display sales dashboard
+    A->>FE: Navigate to dashboard
+    FE->>API: GET /admin/dashboard/overview
+    API->>DB: SELECT revenue/orders/customers/products
+    DB-->>API: overviewData
+    API-->>FE: OverviewResponse
+    FE-->>A: Display dashboard with key metrics
+    
+    FE->>API: GET /admin/dashboard/low-stock
+    API->>DB: SELECT products WHERE on_hand <= 5
+    DB-->>API: lowStockProducts[]
+    API-->>FE: LowStockResponse
+    FE-->>A: Display low stock alerts
 ```
 
-### 1.5.15 UC15: Select City/Location Sequence
+### 1.5.15 UC18: POS Transaction Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Staff
+    participant FE as Next.js Admin
+    participant API as FastAPI Backend
+    participant DB as MySQL Database
+    
+    S->>FE: Navigate to POS page
+    FE->>API: GET /auth/me
+    API-->>FE: staffId, storeId
+    
+    S->>FE: Enter search keyword
+    FE->>API: GET /pos/products?q={keyword}&store_id={storeId}
+    API->>DB: SELECT products WHERE (sku LIKE 'keyword%' OR name LIKE 'keyword%')
+    API->>DB: JOIN store_inventory WHERE store_id = ?
+    DB-->>API: productsWithStock[]
+    API-->>FE: ProductSearchResponse (up to 8)
+    FE-->>S: Display results with store stock
+    
+    S->>FE: Select product and enter quantity
+    S->>FE: Click add to cart
+    FE-->>S: Show in cart
+    
+    S->>FE: Confirm transaction
+    FE->>API: POST /pos/transactions
+    Note over API,DB: Begin Transaction
+    API->>DB: INSERT orders (channel=pos, status=completed, staff_id, store_id)
+    API->>DB: INSERT order_items
+    API->>DB: INSERT payments (status=succeeded)
+    API->>DB: UPDATE store_inventory SET on_hand = on_hand - qty
+    API->>DB: UPDATE inventory SET on_hand = on_hand - qty
+    DB-->>API: Transaction committed
+    
+    API-->>FE: OrderCreatedResponse
+    FE-->>S: Show success with order number
+```
+
+### 1.5.16 UC15: Select City/Location Sequence
 
 ```mermaid
 sequenceDiagram
@@ -1743,7 +1848,7 @@ classDiagram
     class CustomerStatus {
         <<enumeration>>
         active
-        disabled
+        inactive
     }
 ```
 
@@ -1751,75 +1856,129 @@ classDiagram
 
 ```mermaid
 classDiagram
-    class Address {
-        +addressId: UUID
-        +customerId: UUID
+    class Order {
+        <<implemented>>
+        +orderId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +orderNumber: String
+        +subtotal: BIGINT UNSIGNED
+        +shippingFee: BIGINT UNSIGNED
+        +discount: BIGINT UNSIGNED
+        +total: BIGINT UNSIGNED
+        +status: OrderStatus
+        +channel: OrderChannel
+        +storeId: BIGINT UNSIGNED?
+        +staffId: BIGINT UNSIGNED?
         +fullName: String
         +phone: String
-        +addressLine1: String
-        +addressLine2: String?
-        +city: String
-        +district: String
-        +ward: String
-        +isDefault: Boolean
-    }
-    
-    class Coupon {
-        +couponId: UUID
-        +code: String
-        +type: CouponType
-        +value: Integer
-        +minOrderAmount: Integer
-        +maxUsageCount: Integer
-        +currentUsageCount: Integer
-        +validFrom: DateTime
-        +validUntil: DateTime
-        +isActive: Boolean
-        +validate()
-        +apply()
-    }
-    
-    class CouponRedemption {
-        +redemptionId: UUID
-        +couponId: UUID
-        +orderId: UUID
-        +customerId: UUID
-        +redeemedAt: DateTime
-    }
-    
-    class ProductReview {
-        +reviewId: UUID
-        +productId: UUID
-        +customerId: UUID
-        +orderId: UUID
-        +rating: Integer
-        +comment: String?
+        +addressText: String
         +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class OrderItem {
+        <<implemented>>
+        +orderItemId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +quantity: Integer
+        +unitPrice: BIGINT UNSIGNED
     }
     
     class OrderStatusHistory {
-        +historyId: UUID
-        +orderId: UUID
+        <<implemented>>
+        +historyId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
         +status: OrderStatus
         +changedAt: DateTime
         +changedBy: String?
         +notes: String?
     }
     
-    class WishlistItem {
-        +wishlistItemId: UUID
-        +customerId: UUID
-        +productId: UUID
+    class Payment {
+        <<implemented>>
+        +paymentId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
+        +method: String
+        +amount: BIGINT UNSIGNED
+        +status: String
+        +transactionId: String?
+    }
+    
+    class Cart {
+        <<implemented>>
+        +cartId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class CartItem {
+        <<implemented>>
+        +cartItemId: BIGINT UNSIGNED
+        +cartId: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +quantity: Integer
+    }
+    
+    class Coupon {
+        <<implemented>>
+        +couponId: BIGINT UNSIGNED
+        +code: String
+        +discountType: String
+        +discountValue: BIGINT UNSIGNED
+        +minOrderAmount: BIGINT UNSIGNED
+        +maxUsageCount: Integer
+        +currentUsageCount: Integer
+        +validFrom: DateTime
+        +validUntil: DateTime
+        +isActive: Boolean
+    }
+    
+    class CouponRedemption {
+        <<implemented>>
+        +redemptionId: BIGINT UNSIGNED
+        +couponId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
+    }
+    
+    class ProductReview {
+        <<implemented>>
+        +reviewId: BIGINT UNSIGNED
+        +productId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +rating: Integer
+        +comment: String?
         +createdAt: DateTime
     }
     
-    Address "1" --> "1" Customer : belongs to
+    class WishlistItem {
+        <<implemented>>
+        +wishlistItemId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +productId: BIGINT UNSIGNED
+        +createdAt: DateTime
+    }
+    
+    class Inventory {
+        <<implemented>>
+        +variantId: BIGINT UNSIGNED
+        +onHand: BIGINT UNSIGNED
+        +reserved: BIGINT UNSIGNED
+        +available: BIGINT UNSIGNED
+        +version: BIGINT UNSIGNED
+    }
+    
+    Order "1" --> "*" OrderItem : contains
+    Order "1" --> "1" Payment : has
+    Order "1" --> "*" OrderStatusHistory : tracks
+    Cart "1" --> "*" CartItem : contains
     Coupon "1" --> "*" CouponRedemption : tracks
     ProductReview "*" --> "1" Customer : written by
     ProductReview "*" --> "1" Product : for
-    OrderStatusHistory "*" --> "1" Order : belongs to
     WishlistItem "*" --> "1" Customer : belongs to
     WishlistItem "*" --> "1" Product : references
+    Inventory "1" --> "1" ProductVariant : for
 ```
 
 ### 1.6.4 Multi-City & Store Entities
@@ -2419,8 +2578,7 @@ sequenceDiagram
 |-------------------|--------|-----------|------------|-----------|
 | **Customer** | ✅ | UC1-UC8 | ✅ UC1-UC8 | ✅ UC1-UC8 |
 | **Admin** | ✅ | UC9-UC14 | ✅ UC9-UC14 | ✅ UC9-UC14 |
-| **Data Engineer** | ✅ | UC15-UC17, UC21-UC23 | ✅ UC15-16, UC21-22 | ✅ UC15-16, UC23 |
-| **Data Analyst** | ✅ | UC18-UC20 | - | ✅ UC18-20 |
+| **Staff (POS)** | ✅ | UC18 | ✅ UC18 | ✅ UC18 |
 
 ---
 
@@ -2430,12 +2588,12 @@ sequenceDiagram
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| All actors have use cases | ✅ | Customer: 8 UCs, Admin: 6 UCs |
+| All actors have use cases | ✅ | Customer: 8 UCs, Admin: 7 UCs, Staff: 1 UC |
 | All use cases have actors | ✅ | No orphan use cases |
-| Use case flows use SVDPI | ✅ | All 14 flows verified |
-| Activity diagrams match use cases | ✅ | All 14 activity diagrams |
-| Sequence diagrams match use cases | ✅ | All 14 sequence diagrams |
-| Class diagrams cover domain | ✅ | Core entities + enums |
+| Use case flows use SVDPI | ✅ | All 15 flows verified |
+| Activity diagrams match use cases | ✅ | All 15 activity diagrams |
+| Sequence diagrams match use cases | ✅ | All 15 sequence diagrams |
+| Class diagrams cover domain | ✅ | Core entities + enums + Inventory |
 | Include/Extend relationships valid | ✅ | No circular dependencies |
 
 ### Data Lakehouse Coverage
@@ -2455,13 +2613,13 @@ sequenceDiagram
 | Diagram Type | Web OLTP | Data Lakehouse | Total |
 |--------------|----------|----------------|-------|
 | Use-Case Diagrams | 2 | 2 | 4 |
-| Use-Case Descriptions | 14 | 9 | 23 |
-| Activity Diagrams | 14 | 4 | 18 |
-| Sequence Diagrams | 14 | 6 | 20 |
+| Use-Case Descriptions | 15 | 9 | 24 |
+| Activity Diagrams | 15 | 4 | 19 |
+| Sequence Diagrams | 15 | 6 | 21 |
 | Class Diagrams | 3 | - | 3 |
 | Component Diagrams | - | 2 | 2 |
 | Data Flow Diagrams | - | 3 | 3 |
-| **Total** | **47** | **26** | **73** |
+| **Total** | **50** | **26** | **76** |
 
 ---
 
