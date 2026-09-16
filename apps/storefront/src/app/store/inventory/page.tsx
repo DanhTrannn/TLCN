@@ -21,7 +21,7 @@ export default function StoreInventoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<InventoryItem[]>("/admin/store/inventory")
+    apiFetch<InventoryItem[]>("/api/v1/admin/store/inventory")
       .then(setItems)
       .catch(console.error)
       .finally(() => setLoading(false));

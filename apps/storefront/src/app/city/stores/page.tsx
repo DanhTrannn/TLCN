@@ -19,7 +19,7 @@ export default function CityStoresPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<Store[]>("/admin/city/stores")
+    apiFetch<Store[]>("/api/v1/admin/city/stores")
       .then(setStores)
       .catch(console.error)
       .finally(() => setLoading(false));

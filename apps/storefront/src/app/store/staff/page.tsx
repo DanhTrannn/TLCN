@@ -18,7 +18,7 @@ export default function StoreStaffPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<StaffMember[]>("/admin/store/staff")
+    apiFetch<StaffMember[]>("/api/v1/admin/store/staff")
       .then(setStaff)
       .catch(console.error)
       .finally(() => setLoading(false));

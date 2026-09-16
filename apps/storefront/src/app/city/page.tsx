@@ -21,7 +21,7 @@ export default function CityDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<DashboardData>("/admin/city/dashboard")
+    apiFetch<DashboardData>("/api/v1/admin/city/dashboard")
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));

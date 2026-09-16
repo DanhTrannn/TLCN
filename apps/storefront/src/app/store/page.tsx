@@ -21,7 +21,7 @@ export default function StoreDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<DashboardData>("/admin/store/dashboard")
+    apiFetch<DashboardData>("/api/v1/admin/store/dashboard")
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));

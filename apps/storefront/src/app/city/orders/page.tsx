@@ -26,7 +26,7 @@ export default function CityOrdersPage() {
   useEffect(() => {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
-    apiFetch<CityOrder[]>(`/admin/city/orders?${params}`)
+    apiFetch<CityOrder[]>(`/api/v1/admin/city/orders?${params}`)
       .then(setOrders)
       .catch(console.error)
       .finally(() => setLoading(false));

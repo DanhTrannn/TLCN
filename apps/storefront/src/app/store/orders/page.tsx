@@ -26,7 +26,7 @@ export default function StoreOrdersPage() {
   useEffect(() => {
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
-    apiFetch<StoreOrder[]>(`/admin/store/orders?${params}`)
+    apiFetch<StoreOrder[]>(`/api/v1/admin/store/orders?${params}`)
       .then(setOrders)
       .catch(console.error)
       .finally(() => setLoading(false));

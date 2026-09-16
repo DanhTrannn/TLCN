@@ -21,7 +21,7 @@ export default function CityInventoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<InventoryItem[]>("/admin/city/inventory")
+    apiFetch<InventoryItem[]>("/api/v1/admin/city/inventory")
       .then(setItems)
       .catch(console.error)
       .finally(() => setLoading(false));
