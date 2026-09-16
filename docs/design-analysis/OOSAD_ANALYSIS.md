@@ -109,85 +109,95 @@ classDiagram
 ### 1.2.1 Customer Domain
 
 ```mermaid
-useCaseDiagram
-    actor "Customer" as C
+graph LR
+    C(["Customer"])
 
-    package "Hệ thống Thương mại Điện tử" {
-        usecase "Duyệt sản phẩm" as UC1
-        usecase "Tìm kiếm sản phẩm" as UC2
-        usecase "Xem chi tiết sản phẩm" as UC3
-        usecase "Quản lý giỏ hàng" as UC4
-        usecase "Thanh toán" as UC5
-        usecase "Theo dõi đơn hàng" as UC6
-        usecase "Viết đánh giá" as UC7
-        usecase "Quản lý danh sách yêu thích" as UC8
-        usecase "Chọn thành phố" as UC15
-        usecase "Kiểm tra tồn kho cửa hàng" as UC16
-    }
+    subgraph SYS["Hệ thống Thương mại Điện tử"]
+        UC1(["Duyệt sản phẩm"])
+        UC2(["Tìm kiếm sản phẩm"])
+        UC3(["Xem chi tiết sản phẩm"])
+        UC4(["Quản lý giỏ hàng"])
+        UC5(["Thanh toán"])
+        UC6(["Theo dõi đơn hàng"])
+        UC7(["Viết đánh giá"])
+        UC8(["Quản lý danh sách yêu thích"])
+        UC15(["Chọn thành phố"])
+        UC16(["Kiểm tra tồn kho cửa hàng"])
+    end
 
-    C --> UC1
-    C --> UC2
-    C --> UC3
-    C --> UC4
-    C --> UC5
-    C --> UC6
-    C --> UC7
-    C --> UC8
-    C --> UC15
-    C --> UC16
+    C --- UC1
+    C --- UC2
+    C --- UC3
+    C --- UC4
+    C --- UC5
+    C --- UC6
+    C --- UC7
+    C --- UC8
+    C --- UC15
+    C --- UC16
 
-    UC4 ..> UC5 : <<include>>
-    UC5 ..> UC6 : <<include>>
-    UC1 ..> UC3 : <<extend>>
-    UC2 ..> UC3 : <<extend>>
-    UC8 ..> UC4 : <<extend>>
-    UC16 ..> UC15 : <<include>>
-    UC3 ..> UC16 : <<extend>>
+    UC4 -.-> UC5 : <<include>>
+    UC5 -.-> UC6 : <<include>>
+    UC1 -.-> UC3 : <<extend>>
+    UC2 -.-> UC3 : <<extend>>
+    UC8 -.-> UC4 : <<extend>>
+    UC16 -.-> UC15 : <<include>>
+    UC3 -.-> UC16 : <<extend>>
+
+    style SYS fill:#fff,stroke:#333,stroke-width:2px
+    style C fill:#1a1a2e,color:#fff,stroke:none
 ```
 
 ### 1.2.2 Admin / Store Manager / City Planner Domains
 
 ```mermaid
-useCaseDiagram
-    actor "Admin" as A
-    actor "Store Manager" as SM
-    actor "City Planner" as CP
+graph LR
+    A(["Admin"])
+    SM(["Store Manager"])
+    CP(["City Planner"])
 
-    package "Admin Domain" {
-        usecase "Quản lý sản phẩm" as UC9
-        usecase "Quản lý tồn kho" as UC11
-        usecase "Quản lý mã giảm giá" as UC12
-        usecase "Quản lý đơn hàng" as UC13
-    }
+    subgraph ADM["Admin Domain"]
+        UC9(["Quản lý sản phẩm"])
+        UC11(["Quản lý tồn kho"])
+        UC12(["Quản lý mã giảm giá"])
+        UC13(["Quản lý đơn hàng"])
+    end
 
-    package "Store Manager Domain" {
-        usecase "Bán hàng tại quầy (POS)" as UC20
-        usecase "Quản lý đơn hàng cửa hàng" as UC21
-        usecase "Xem tồn kho cửa hàng" as UC22
-        usecase "Quản lý nhân viên" as UC23
-    }
+    subgraph STM["Store Manager Domain"]
+        UC20(["Bán hàng tại quầy (POS)"])
+        UC21(["Quản lý đơn hàng cửa hàng"])
+        UC22(["Xem tồn kho cửa hàng"])
+        UC23(["Quản lý nhân viên"])
+    end
 
-    package "City Planner Domain" {
-        usecase "Xem cửa hàng thành phố" as UC24
-        usecase "Xem đơn hàng thành phố" as UC25
-        usecase "Xem tồn kho thành phố" as UC26
-    }
+    subgraph CTY["City Planner Domain"]
+        UC24(["Xem cửa hàng thành phố"])
+        UC25(["Xem đơn hàng thành phố"])
+        UC26(["Xem tồn kho thành phố"])
+    end
 
-    A --> UC9
-    A --> UC11
-    A --> UC12
-    A --> UC13
+    A --- UC9
+    A --- UC11
+    A --- UC12
+    A --- UC13
 
-    SM --> UC20
-    SM --> UC21
-    SM --> UC22
-    SM --> UC23
+    SM --- UC20
+    SM --- UC21
+    SM --- UC22
+    SM --- UC23
 
-    CP --> UC24
-    CP --> UC25
-    CP --> UC26
+    CP --- UC24
+    CP --- UC25
+    CP --- UC26
 
-    UC9 ..> UC11 : <<include>>
+    UC9 -.-> UC11 : <<include>>
+
+    style ADM fill:#fff,stroke:#333,stroke-width:2px
+    style STM fill:#fff,stroke:#333,stroke-width:2px
+    style CTY fill:#fff,stroke:#333,stroke-width:2px
+    style A fill:#1a1a2e,color:#fff,stroke:none
+    style SM fill:#1a1a2e,color:#fff,stroke:none
+    style CP fill:#1a1a2e,color:#fff,stroke:none
 ```
 
 ---
