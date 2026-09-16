@@ -28,19 +28,20 @@ def get_store_dashboard(db: Session, store_id: int) -> StoreDashboardResponse:
     now = datetime.now(UTC).replace(tzinfo=None)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    revenue_vnd = int(
+    today_revenue_vnd = int(
         db.scalar(
             select(func.coalesce(func.sum(Payment.amount_vnd), 0))
             .join(Order, Order.order_id == Payment.order_id)
             .where(
                 Order.store_id == store_id,
+                Order.created_at >= today_start,
                 Payment.status == "succeeded",
             )
         )
         or 0
     )
 
-    orders_today = int(
+    today_orders = int(
         db.scalar(
             select(func.count())
             .select_from(Order)
@@ -52,7 +53,37 @@ def get_store_dashboard(db: Session, store_id: int) -> StoreDashboardResponse:
         or 0
     )
 
-    low_stock_count = int(
+    total_orders = int(
+        db.scalar(
+            select(func.count())
+            .select_from(Order)
+            .where(Order.store_id == store_id)
+        )
+        or 0
+    )
+
+    completed_orders = int(
+        db.scalar(
+            select(func.count())
+            .select_from(Order)
+            .where(Order.store_id == store_id, Order.status == "completed")
+        )
+        or 0
+    )
+
+    total_revenue_vnd = int(
+        db.scalar(
+            select(func.coalesce(func.sum(Payment.amount_vnd), 0))
+            .join(Order, Order.order_id == Payment.order_id)
+            .where(
+                Order.store_id == store_id,
+                Payment.status == "succeeded",
+            )
+        )
+        or 0
+    )
+
+    low_stock_items = int(
         db.scalar(
             select(func.count())
             .select_from(StoreInventory)
@@ -64,11 +95,28 @@ def get_store_dashboard(db: Session, store_id: int) -> StoreDashboardResponse:
         or 0
     )
 
+    active_staff = int(
+        db.scalar(
+            select(func.count())
+            .select_from(Customer)
+            .where(
+                Customer.store_id == store_id,
+                Customer.role == "store_manager",
+                Customer.status == "active",
+            )
+        )
+        or 0
+    )
+
     return StoreDashboardResponse(
         store_name=store.name,
-        revenue_vnd=revenue_vnd,
-        orders_today=orders_today,
-        low_stock_count=low_stock_count,
+        today_orders=today_orders,
+        today_revenue_vnd=today_revenue_vnd,
+        total_orders=total_orders,
+        completed_orders=completed_orders,
+        total_revenue_vnd=total_revenue_vnd,
+        low_stock_items=low_stock_items,
+        active_staff=active_staff,
     )
 
 
@@ -130,22 +178,23 @@ def list_store_inventory(db: Session, store_id: int) -> list[StoreInventoryItem]
     rows = db.execute(
         select(
             StoreInventory,
-            ProductVariant.sku,
+            Store.name.label("store_name"),
+            ProductVariant.sku.label("variant_sku"),
             ProductVariant.size_code,
             ProductVariant.color_code,
             ProductVariant.price_vnd,
-            Product.name.label("product_name"),
         )
+        .join(Store, Store.store_id == StoreInventory.store_id)
         .join(ProductVariant, ProductVariant.variant_id == StoreInventory.variant_id)
-        .join(Product, Product.product_id == ProductVariant.product_id)
         .where(StoreInventory.store_id == store_id)
         .order_by(StoreInventory.variant_id)
     ).all()
     return [
         StoreInventoryItem(
+            store_id=row.StoreInventory.store_id,
+            store_name=row.store_name,
             variant_id=row.StoreInventory.variant_id,
-            sku=row.sku,
-            product_name=row.product_name,
+            variant_sku=row.variant_sku,
             size_code=row.size_code,
             color_code=row.color_code,
             price_vnd=row.price_vnd,
@@ -168,10 +217,10 @@ def list_store_staff(db: Session, store_id: int) -> list[StoreStaffMember]:
     ).all()
     return [
         StoreStaffMember(
-            customer_id=customer.customer_id,
             public_id=str(customer.public_id),
             display_name=customer.display_name,
             email=email,
+            role=customer.role,
             status=customer.status,
             created_at=customer.created_at,
         )

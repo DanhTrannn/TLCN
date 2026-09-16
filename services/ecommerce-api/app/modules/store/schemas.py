@@ -5,9 +5,13 @@ from pydantic import BaseModel, ConfigDict
 
 class StoreDashboardResponse(BaseModel):
     store_name: str
-    revenue_vnd: int
-    orders_today: int
-    low_stock_count: int
+    today_orders: int
+    today_revenue_vnd: int
+    total_orders: int
+    completed_orders: int
+    total_revenue_vnd: int
+    low_stock_items: int
+    active_staff: int
 
 
 class StoreOrderResponse(BaseModel):
@@ -24,9 +28,10 @@ class StoreOrderResponse(BaseModel):
 class StoreInventoryItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    store_id: int
+    store_name: str
     variant_id: int
-    sku: str
-    product_name: str
+    variant_sku: str
     size_code: str
     color_code: str
     price_vnd: int
@@ -37,9 +42,9 @@ class StoreInventoryItem(BaseModel):
 class StoreStaffMember(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    customer_id: int
     public_id: str
     display_name: str
     email: str
+    role: str
     status: str
     created_at: datetime
