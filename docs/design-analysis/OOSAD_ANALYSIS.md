@@ -110,19 +110,19 @@ classDiagram
 
 ```mermaid
 graph LR
-    C(["Customer"])
+    C["Customer"]
 
     subgraph SYS["Hệ thống Thương mại Điện tử"]
-        UC1(["Duyệt sản phẩm"])
-        UC2(["Tìm kiếm sản phẩm"])
-        UC3(["Xem chi tiết sản phẩm"])
-        UC4(["Quản lý giỏ hàng"])
-        UC5(["Thanh toán"])
-        UC6(["Theo dõi đơn hàng"])
-        UC7(["Viết đánh giá"])
-        UC8(["Quản lý danh sách yêu thích"])
-        UC15(["Chọn thành phố"])
-        UC16(["Kiểm tra tồn kho cửa hàng"])
+        UC1["Duyệt sản phẩm"]
+        UC2["Tìm kiếm sản phẩm"]
+        UC3["Xem chi tiết sản phẩm"]
+        UC4["Quản lý giỏ hàng"]
+        UC5["Thanh toán"]
+        UC6["Theo dõi đơn hàng"]
+        UC7["Viết đánh giá"]
+        UC8["Quản lý danh sách yêu thích"]
+        UC15["Chọn thành phố"]
+        UC16["Kiểm tra tồn kho cửa hàng"]
     end
 
     C --- UC1
@@ -136,44 +136,44 @@ graph LR
     C --- UC15
     C --- UC16
 
-    UC4 -.-> UC5 : <<include>>
-    UC5 -.-> UC6 : <<include>>
-    UC1 -.-> UC3 : <<extend>>
-    UC2 -.-> UC3 : <<extend>>
-    UC8 -.-> UC4 : <<extend>>
-    UC16 -.-> UC15 : <<include>>
-    UC3 -.-> UC16 : <<extend>>
+    UC4 -. "include" .-> UC5
+    UC5 -. "include" .-> UC6
+    UC1 -. "extend" .-> UC3
+    UC2 -. "extend" .-> UC3
+    UC8 -. "extend" .-> UC4
+    UC16 -. "include" .-> UC15
+    UC3 -. "extend" .-> UC16
 
-    style SYS fill:#fff,stroke:#333,stroke-width:2px
-    style C fill:#1a1a2e,color:#fff,stroke:none
+    style C fill:#1a1a2e,color:#fff
+    style SYS fill:#f9f9f9,stroke:#333
 ```
 
 ### 1.2.2 Admin / Store Manager / City Planner Domains
 
 ```mermaid
 graph LR
-    A(["Admin"])
-    SM(["Store Manager"])
-    CP(["City Planner"])
+    A["Admin"]
+    SM["Store Manager"]
+    CP["City Planner"]
 
     subgraph ADM["Admin Domain"]
-        UC9(["Quản lý sản phẩm"])
-        UC11(["Quản lý tồn kho"])
-        UC12(["Quản lý mã giảm giá"])
-        UC13(["Quản lý đơn hàng"])
+        UC9["Quản lý sản phẩm"]
+        UC11["Quản lý tồn kho"]
+        UC12["Quản lý mã giảm giá"]
+        UC13["Quản lý đơn hàng"]
     end
 
     subgraph STM["Store Manager Domain"]
-        UC20(["Bán hàng tại quầy (POS)"])
-        UC21(["Quản lý đơn hàng cửa hàng"])
-        UC22(["Xem tồn kho cửa hàng"])
-        UC23(["Quản lý nhân viên"])
+        UC20["Bán hàng tại quầy POS"]
+        UC21["Quản lý đơn hàng cửa hàng"]
+        UC22["Xem tồn kho cửa hàng"]
+        UC23["Quản lý nhân viên"]
     end
 
     subgraph CTY["City Planner Domain"]
-        UC24(["Xem cửa hàng thành phố"])
-        UC25(["Xem đơn hàng thành phố"])
-        UC26(["Xem tồn kho thành phố"])
+        UC24["Xem cửa hàng thành phố"]
+        UC25["Xem đơn hàng thành phố"]
+        UC26["Xem tồn kho thành phố"]
     end
 
     A --- UC9
@@ -190,14 +190,14 @@ graph LR
     CP --- UC25
     CP --- UC26
 
-    UC9 -.-> UC11 : <<include>>
+    UC9 -. "include" .-> UC11
 
-    style ADM fill:#fff,stroke:#333,stroke-width:2px
-    style STM fill:#fff,stroke:#333,stroke-width:2px
-    style CTY fill:#fff,stroke:#333,stroke-width:2px
-    style A fill:#1a1a2e,color:#fff,stroke:none
-    style SM fill:#1a1a2e,color:#fff,stroke:none
-    style CP fill:#1a1a2e,color:#fff,stroke:none
+    style A fill:#1a1a2e,color:#fff
+    style SM fill:#1a1a2e,color:#fff
+    style CP fill:#1a1a2e,color:#fff
+    style ADM fill:#f9f9f9,stroke:#333
+    style STM fill:#f9f9f9,stroke:#333
+    style CTY fill:#f9f9f9,stroke:#333
 ```
 
 ---
