@@ -1,41 +1,41 @@
-# OOSAD Analysis - D&K E-Commerce Data Platform
+# Phân tích OOSAD - Nền tảng Dữ liệu Thương mại Điện tử D&K
 
-> **Phương pháp:** Object-Oriented Systems Analysis and Design (OOSAD) - Alan Dennis  
-> **Hệ thống:** D&K E-Commerce Data Platform  
+> **Phương pháp:** Phân tích và Thiết kế Hệ thống Hướng đối tượng (OOSAD) - Alan Dennis  
+> **Hệ thống:** Nền tảng Dữ liệu Thương mại Điện tử D&K (D&K E-Commerce Data Platform)  
 > **Mục tiêu:** Phân tích và thiết kế hệ thống cho báo cáo Khóa luận tốt nghiệp  
-> **Cấu trúc:** 2 Phần (Web OLTP + Data Lakehouse) + Kiểm tra tính nhất quán
+> **Cấu trúc:** 2 Phần chính (Web OLTP + Data Lakehouse) + Kiểm tra tính nhất quán
 
 ---
 
 ## MỤC LỤC
 
-### PHẦN I: WEB OLTP SYSTEM (Customer/Admin/Staff)
-1. [Actors](#11-xác-định-actors)
-2. [Use-Case Diagrams](#12-use-case-diagrams)
-3. [Detailed Use-Case Descriptions (SVDPI)](#13-detailed-use-case-descriptions)
-4. [Activity Diagrams](#14-activity-diagrams)
-5. [System Sequence Diagrams](#15-system-sequence-diagrams)
-6. [Class Diagrams](#16-class-diagrams)
+### PHẦN I: HỆ THỐNG WEB OLTP (Khách hàng / Quản trị viên / Nhân viên)
+1. [Xác định Actors](#11-xác-định-actors)
+2. [Sơ đồ Use-Case (Use-Case Diagrams)](#12-use-case-diagrams)
+3. [Mô tả chi tiết Use-Case (Đặc tả SVDPI)](#13-detailed-use-case-descriptions)
+4. [Sơ đồ hoạt động (Activity Diagrams)](#14-activity-diagrams)
+5. [Sơ đồ tuần tự hệ thống (System Sequence Diagrams)](#15-system-sequence-diagrams)
+6. [Sơ đồ lớp (Class Diagrams)](#16-class-diagrams)
 
-### PHẦN II: DATA LAKEHOUSE (DE/DA)
-1. [Actors](#21-xác-định-actors)
-2. [System Use-Case Diagrams](#22-system-use-case-diagrams)
-3. [Component Diagrams](#23-component-diagrams)
-4. [Data Flow Diagrams](#24-data-flow-diagrams)
-5. [Activity Diagrams](#25-activity-diagrams)
-6. [Sequence Diagrams](#26-sequence-diagrams)
+### PHẦN II: NỀN TẢNG DATA LAKEHOUSE (Kỹ sư Dữ liệu / Chuyên viên Phân tích)
+1. [Xác định Actors](#21-xác-định-actors)
+2. [Sơ đồ Use-Case hệ thống (System Use-Case Diagrams)](#22-system-use-case-diagrams)
+3. [Sơ đồ thành phần (Component Diagrams)](#23-component-diagrams)
+4. [Sơ đồ luồng dữ liệu (Data Flow Diagrams)](#24-data-flow-diagrams)
+5. [Sơ đồ hoạt động (Activity Diagrams)](#25-activity-diagrams)
+6. [Sơ đồ tuần tự (Sequence Diagrams)](#26-sequence-diagrams)
 
 ### PHẦN III: KIỂM TRA TÍNH NHẤT QUÁN
-1. [Balancing Matrix](#31-balancing-matrix)
-2. [Coverage Verification](#32-coverage-verification)
+1. [Ma trận cân bằng (Balancing Matrix)](#31-balancing-matrix)
+2. [Kiểm tra độ bao phủ (Coverage Verification)](#32-coverage-verification)
 
 ---
 
-# PHẦN I: WEB OLTP SYSTEM
+# PHẦN I: HỆ THỐNG WEB OLTP
 
 > **Phạm vi:** Hệ thống thương mại điện tử trực tuyến  
-> **Actors:** Customer, Admin, Store Manager, City Planner  
-> **Stack:** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy, Alembic
+> **Tác nhân (Actors):** Customer (Khách hàng), Admin (Quản trị viên), Store Manager (Quản lý cửa hàng), City Planner (Quản lý thành phố)  
+> **Ngăn xếp công nghệ (Stack):** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy, Alembic
 
 ---
 
@@ -43,14 +43,14 @@
 
 ### Bảng tổng hợp Actors (OLTP)
 
-| Actor | Vai trò | Mô tả | Giao diện |
+| Actor (Tác nhân) | Vai trò | Mô tả | Giao diện |
 |-------|---------|-------|-----------|
-| **Customer** | Khách hàng | Người dùng cuối mua sắm trên nền tảng | Next.js Storefront (Port 3000) |
-| **Admin** | Quản trị viên | Quản lý sản phẩm, đơn hàng, coupon tổng quát | Next.js Admin Console (Port 3000/admin) |
-| **Store Manager** | Quản lý cửa hàng | Bán hàng POS, quản lý đơn hàng và tồn kho tại cửa hàng được phân công | Next.js Store Console (Port 3000/store) |
-| **City Planner** | Quản lý thành phố | Giám sát cửa hàng, đơn hàng và tồn kho trong thành phố được phân công | Next.js City Console (Port 3000/city) |
+| **Customer** | Khách hàng | Người dùng cuối duyệt xem và mua sắm sản phẩm trên nền tảng | Next.js Storefront (Cổng 3000) |
+| **Admin** | Quản trị viên | Quản lý toàn diện sản phẩm, danh mục, đơn hàng, tồn kho và mã giảm giá | Next.js Admin Console (Cổng 3000/admin) |
+| **Store Manager** | Quản lý cửa hàng | Bán hàng POS tại quầy, quản lý đơn hàng và kiểm soát tồn kho tại cửa hàng phụ trách | Next.js Store Console (Cổng 3000/store) |
+| **City Planner** | Quản lý thành phố | Giám sát danh sách cửa hàng, đơn hàng và cân đối tồn kho trong toàn thành phố được phân công | Next.js City Console (Cổng 3000/city) |
 
-### Actor Relationship Diagram
+### Sơ đồ mối quan hệ giữa các Actors (Actor Relationship Diagram)
 
 ```mermaid
 classDiagram
@@ -106,11 +106,11 @@ classDiagram
 
 ## 1.2 Use-Case Diagrams
 
-### 1.2.1 Customer Domain
+### 1.2.1 Phân hệ Khách hàng (Customer Domain)
 
 ```mermaid
 graph LR
-    C(["👤 Customer"])
+    C(["👤 Khách hàng (Customer)"])
 
     subgraph SYS["Hệ thống Thương mại Điện tử"]
         UC1(["Duyệt sản phẩm"])
@@ -148,29 +148,29 @@ graph LR
     style SYS fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
 
-### 1.2.2 Admin / Store Manager / City Planner Domains
+### 1.2.2 Phân hệ Quản trị viên / Quản lý cửa hàng / Quản lý thành phố
 
 ```mermaid
 graph LR
-    A(["👤 Admin"])
-    SM(["👤 Store Manager"])
-    CP(["👤 City Planner"])
+    A(["👤 Quản trị viên (Admin)"])
+    SM(["👤 Quản lý cửa hàng (Store Manager)"])
+    CP(["👤 Quản lý thành phố (City Planner)"])
 
-    subgraph ADM["Admin Domain"]
+    subgraph ADM["Phân hệ Quản trị viên (Admin)"]
         UC9(["Quản lý sản phẩm"])
         UC11(["Quản lý tồn kho"])
         UC12(["Quản lý mã giảm giá"])
         UC13(["Quản lý đơn hàng"])
     end
 
-    subgraph STM["Store Manager Domain"]
+    subgraph STM["Phân hệ Quản lý cửa hàng (Store Manager)"]
         UC20(["Bán hàng tại quầy POS"])
         UC21(["Quản lý đơn hàng cửa hàng"])
         UC22(["Xem tồn kho cửa hàng"])
         UC23(["Quản lý nhân viên"])
     end
 
-    subgraph CTY["City Planner Domain"]
+    subgraph CTY["Phân hệ Quản lý thành phố (City Planner)"]
         UC24(["Xem cửa hàng thành phố"])
         UC25(["Xem đơn hàng thành phố"])
         UC26(["Xem tồn kho thành phố"])
@@ -204,1061 +204,1063 @@ graph LR
 
 ## 1.3 Detailed Use-Case Descriptions
 
-### UC1: Browse Products
+### UC1: Duyệt sản phẩm (Browse Products)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC1 |
-| **Use-Case Name** | Browse Products |
-| **Actor(s)** | Customer |
-| **Description** | Customer browses product catalog by category |
-| **Precondition** | System has products in database |
-| **Postcondition** | Products displayed to customer |
-| **Priority** | High |
+| **Mã use case** | UC1 |
+| **Tên use case** | Duyệt sản phẩm (Browse Products) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng duyệt xem danh mục sản phẩm theo từng thể loại ngành hàng thời trang |
+| **Tiền điều kiện** | Hệ thống đã có dữ liệu sản phẩm trong cơ sở dữ liệu |
+| **Hậu điều kiện** | Danh sách sản phẩm được hiển thị trực quan cho khách hàng |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **selects** category **from** navigation menu |
-| 2 | - | System | System **retrieves** products **from** database |
-| 3 | - | System | System **displays** product list **to** customer |
-| 4 | Customer | System | Customer **applies** filters **to** product list |
-| 5 | - | System | System **filters** products **by** criteria |
-| 6 | Customer | System | Customer **paginates** through results |
-| 7 | - | System | System **returns** paginated results **to** customer |
+| 1 | Khách hàng | Hệ thống | Khách hàng **chọn** danh mục **từ** menu điều hướng |
+| 2 | - | Hệ thống | Hệ thống **truy xuất** danh sách sản phẩm **từ** cơ sở dữ liệu |
+| 3 | - | Hệ thống | Hệ thống **hiển thị** danh sách sản phẩm **cho** khách hàng |
+| 4 | Khách hàng | Hệ thống | Khách hàng **áp dụng** bộ lọc **lên** danh sách sản phẩm |
+| 5 | - | Hệ thống | Hệ thống **lọc** các sản phẩm **theo** tiêu chí đã chọn |
+| 6 | Khách hàng | Hệ thống | Khách hàng **chuyển trang** qua các kết quả sản phẩm |
+| 7 | - | Hệ thống | Hệ thống **trả về** kết quả phân trang **cho** khách hàng |
 
 ---
 
-### UC2: Search Products
+### UC2: Tìm kiếm sản phẩm (Search Products)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC2 |
-| **Use-Case Name** | Search Products |
-| **Actor(s)** | Customer |
-| **Description** | Customer searches for products by keyword |
-| **Precondition** | System has products in database |
-| **Postcondition** | Search results displayed |
-| **Priority** | High |
+| **Mã use case** | UC2 |
+| **Tên use case** | Tìm kiếm sản phẩm (Search Products) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng tìm kiếm sản phẩm thông qua từ khóa |
+| **Tiền điều kiện** | Hệ thống đã có dữ liệu sản phẩm trong cơ sở dữ liệu |
+| **Hậu điều kiện** | Danh sách kết quả tìm kiếm phù hợp được hiển thị |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **enters** search keyword **into** search box |
-| 2 | - | System | System **processes** search query **using** full-text search |
-| 3 | - | System | System **ranks** results **by** relevance |
-| 4 | - | System | System **displays** search results **to** customer |
-| 5 | Customer | System | Customer **clicks** on product **from** results |
-| 6 | - | System | System **logs** search event **to** access stream |
+| 1 | Khách hàng | Hệ thống | Khách hàng **nhập** từ khóa tìm kiếm **vào** ô tìm kiếm |
+| 2 | - | Hệ thống | Hệ thống **xử lý** truy vấn tìm kiếm **bằng** cơ chế tìm kiếm toàn văn (full-text search) |
+| 3 | - | Hệ thống | Hệ thống **xếp hạng** kết quả **theo** mức độ liên quan |
+| 4 | - | Hệ thống | Hệ thống **hiển thị** kết quả tìm kiếm **cho** khách hàng |
+| 5 | Khách hàng | Hệ thống | Khách hàng **nhấp chọn** sản phẩm **từ** danh sách kết quả |
+| 6 | - | Hệ thống | Hệ thống **ghi nhật ký** sự kiện tìm kiếm **vào** luồng sự kiện truy cập (access stream) |
 
 ---
 
-### UC3: View Product Details
+### UC3: Xem chi tiết sản phẩm (View Product Details)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC3 |
-| **Use-Case Name** | View Product Details |
-| **Actor(s)** | Customer |
-| **Description** | Customer views detailed product information |
-| **Precondition** | Product exists in database |
-| **Postcondition** | Product details displayed |
-| **Priority** | High |
+| **Mã use case** | UC3 |
+| **Tên use case** | Xem chi tiết sản phẩm (View Product Details) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng xem thông tin chi tiết của một sản phẩm (hình ảnh, giá, mô tả, biến thể kích thước/màu sắc) |
+| **Tiền điều kiện** | Sản phẩm tồn tại và đang kích hoạt trong cơ sở dữ liệu |
+| **Hậu điều kiện** | Trang chi tiết sản phẩm được hiển thị đầy đủ |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **selects** product **from** list |
-| 2 | - | System | System **retrieves** product details **from** database |
-| 3 | - | System | System **loads** product images **from** CDN |
-| 4 | - | System | System **displays** product page **to** customer |
-| 5 | - | System | System **shows** related products **to** customer |
-| 6 | - | System | System **logs** product view **to** access stream |
+| 1 | Khách hàng | Hệ thống | Khách hàng **chọn** sản phẩm **từ** danh sách |
+| 2 | - | Hệ thống | Hệ thống **truy xuất** thông tin chi tiết sản phẩm **từ** cơ sở dữ liệu |
+| 3 | - | Hệ thống | Hệ thống **tải** hình ảnh sản phẩm **từ** CDN / kho lưu trữ |
+| 4 | - | Hệ thống | Hệ thống **hiển thị** trang chi tiết sản phẩm **cho** khách hàng |
+| 5 | - | Hệ thống | Hệ thống **hiển thị** các sản phẩm liên quan **cho** khách hàng |
+| 6 | - | Hệ thống | Hệ thống **ghi nhật ký** sự kiện xem sản phẩm **vào** luồng truy cập |
 
 ---
 
-### UC4: Manage Cart
+### UC4: Quản lý giỏ hàng (Manage Cart)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC4 |
-| **Use-Case Name** | Manage Cart |
-| **Actor(s)** | Customer |
-| **Description** | Customer adds, updates, or removes items from cart |
-| **Precondition** | Customer is logged in |
-| **Postcondition** | Cart updated with changes |
-| **Priority** | High |
+| **Mã use case** | UC4 |
+| **Tên use case** | Quản lý giỏ hàng (Manage Cart) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng thêm sản phẩm, cập nhật số lượng hoặc xóa sản phẩm khỏi giỏ hàng |
+| **Tiền điều kiện** | Khách hàng đã đăng nhập vào hệ thống |
+| **Hậu điều kiện** | Giỏ hàng được cập nhật chính xác trạng thái mới nhất |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **adds** product **to** cart |
-| 2 | - | System | System **validates** stock availability **for** product |
-| 3 | - | System | System **creates** cart item **in** database |
-| 4 | - | System | System **updates** cart total |
-| 5 | Customer | System | Customer **updates** quantity **in** cart |
-| 6 | - | System | System **validates** new quantity **against** stock |
-| 7 | - | System | System **recalculates** cart total |
-| 8 | Customer | System | Customer **removes** item **from** cart |
-| 9 | - | System | System **deletes** cart item **from** database |
-| 10 | - | System | System **logs** cart changes **to** access stream |
+| 1 | Khách hàng | Hệ thống | Khách hàng **thêm** sản phẩm **vào** giỏ hàng |
+| 2 | - | Hệ thống | Hệ thống **kiểm tra** tính khả dụng của tồn kho **cho** sản phẩm |
+| 3 | - | Hệ thống | Hệ thống **tạo** mục giỏ hàng (cart item) **trong** cơ sở dữ liệu |
+| 4 | - | Hệ thống | Hệ thống **cập nhật** tổng số tiền giỏ hàng |
+| 5 | Khách hàng | Hệ thống | Khách hàng **cập nhật** số lượng sản phẩm **trong** giỏ hàng |
+| 6 | - | Hệ thống | Hệ thống **xác thực** số lượng mới **so với** lượng hàng tồn |
+| 7 | - | Hệ thống | Hệ thống **tính lại** tổng giá trị giỏ hàng |
+| 8 | Khách hàng | Hệ thống | Khách hàng **xóa** sản phẩm **khỏi** giỏ hàng |
+| 9 | - | Hệ thống | Hệ thống **xóa** mục giỏ hàng **khỏi** cơ sở dữ liệu |
+| 10 | - | Hệ thống | Hệ thống **ghi nhật ký** thay đổi giỏ hàng **vào** luồng sự kiện |
 
 ---
 
-### UC5: Checkout
+### UC5: Thanh toán (Checkout)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC5 |
-| **Use-Case Name** | Checkout |
-| **Actor(s)** | Customer |
-| **Description** | Customer completes purchase of items in cart |
-| **Precondition** | Customer is logged in, cart is not empty, items are in stock |
-| **Postcondition** | Order created, payment processed, inventory updated |
-| **Priority** | High |
-| **Business Rule** | Checkout is atomic - single transaction |
+| **Mã use case** | UC5 |
+| **Tên use case** | Thanh toán (Checkout) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng hoàn tất việc mua các mặt hàng trong giỏ hàng |
+| **Tiền điều kiện** | Khách hàng đã đăng nhập, giỏ hàng không trống và các sản phẩm còn hàng |
+| **Hậu điều kiện** | Đơn hàng được tạo, thanh toán thành công, tồn kho được trừ tự động |
+| **Mức độ ưu tiên** | Cao (High) |
+| **Quy tắc kinh doanh** | Quá trình thanh toán phải đảm bảo tính nguyên tử (Atomic) - thực thi trong một giao dịch cơ sở dữ liệu duy nhất |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **selects** items **from** cart **for** checkout |
-| 2 | - | System | System **validates** stock availability **for** each item |
-| 3 | - | System | System **calculates** total price **including** shipping fee |
-| 4 | - | System | System **displays** order summary **to** customer |
-| 5 | Customer | System | Customer **enters** structured address **into** form (province, ward, street) |
-| 6 | Customer | System | Customer **applies** coupon **to** order (optional) |
-| 7 | - | System | System **calculates** discount **from** coupon |
-| 8 | Customer | System | Customer **confirms** order **to** system |
-| 9 | - | System | System **creates** order record **in** MySQL database |
-| 10 | - | System | System **creates** order items **in** MySQL database |
-| 11 | - | System | System **creates** payment record **as** succeeded (simulated) |
-| 12 | - | System | System **decrements** inventory levels **for** purchased items |
-| 13 | - | System | System **marks** cart **as** checked_out |
-| 14 | - | System | System **logs** transaction details **to** access log stream |
+| 1 | Khách hàng | Hệ thống | Khách hàng **chọn** các sản phẩm **từ** giỏ hàng **để** thanh toán |
+| 2 | - | Hệ thống | Hệ thống **kiểm tra** tồn kho thực tế **cho** từng sản phẩm |
+| 3 | - | Hệ thống | Hệ thống **tính toán** tổng số tiền **bao gồm** phí vận chuyển |
+| 4 | - | Hệ thống | Hệ thống **hiển thị** bảng tóm tắt đơn hàng **cho** khách hàng |
+| 5 | Khách hàng | Hệ thống | Khách hàng **nhập** thông tin địa chỉ giao hàng **vào** biểu mẫu (tỉnh/thành, phường/xã, địa chỉ cụ thể) |
+| 6 | Khách hàng | Hệ thống | Khách hàng **áp dụng** mã giảm giá **vào** đơn hàng (tùy chọn) |
+| 7 | - | Hệ thống | Hệ thống **tính toán** số tiền giảm giá **từ** mã khuyến mãi |
+| 8 | Khách hàng | Hệ thống | Khách hàng **xác nhận** đặt hàng **với** hệ thống |
+| 9 | - | Hệ thống | Hệ thống **tạo** bản ghi đơn hàng (orders) **trong** cơ sở dữ liệu MySQL |
+| 10 | - | Hệ thống | Hệ thống **tạo** các mục chi tiết đơn hàng (order_items) **trong** cơ sở dữ liệu MySQL |
+| 11 | - | Hệ thống | Hệ thống **tạo** bản ghi thanh toán (payments) **với** trạng thái thành công (succeeded) |
+| 12 | - | Hệ thống | Hệ thống **trừ** số lượng tồn kho **cho** các sản phẩm đã mua |
+| 13 | - | Hệ thống | Hệ thống **đánh dấu** giỏ hàng **ở trạng thái** đã thanh toán (checked_out) |
+| 14 | - | Hệ thống | Hệ thống **ghi nhật ký** chi tiết giao dịch **vào** luồng sự kiện truy cập |
 
-#### Alternative Flows
+#### Luồng ngoại lệ
 
-| Alt Step | Condition | SVDPI Statement |
+| Bước ngoại lệ | Điều kiện | Phát biểu SVDPI |
 |----------|-----------|-----------------|
-| 2a | Stock unavailable | System **notifies** customer **about** out-of-stock items |
-| 6a | Coupon invalid | System **notifies** customer **about** coupon error |
+| 2a | Sản phẩm hết hàng | Hệ thống **thông báo** tới khách hàng **về** sản phẩm đã hết hàng trong kho |
+| 6a | Mã giảm giá không hợp lệ | Hệ thống **thông báo** tới khách hàng **về** lỗi áp dụng mã khuyến mãi |
 
 ---
 
-### UC6: Track Orders
+### UC6: Theo dõi đơn hàng (Track Orders)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC6 |
-| **Use-Case Name** | Track Orders |
-| **Actor(s)** | Customer |
-| **Description** | Customer views order history and status |
-| **Precondition** | Customer is logged in, has orders |
-| **Postcondition** | Order list displayed |
-| **Priority** | Medium |
+| **Mã use case** | UC6 |
+| **Tên use case** | Theo dõi đơn hàng (Track Orders) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng xem lịch sử đơn hàng và tiến trình xử lý, giao nhận của đơn |
+| **Tiền điều kiện** | Khách hàng đã đăng nhập và đã có ít nhất một đơn hàng |
+| **Hậu điều kiện** | Lịch sử và thông tin chi tiết đơn hàng được hiển thị |
+| **Mức độ ưu tiên** | Trung bình (Medium) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **accesses** order history page |
-| 2 | - | System | System **retrieves** orders **from** database |
-| 3 | - | System | System **displays** order list **to** customer |
-| 4 | Customer | System | Customer **selects** order **from** list |
-| 5 | - | System | System **retrieves** order details **from** database |
-| 6 | - | System | System **displays** order details **to** customer |
+| 1 | Khách hàng | Hệ thống | Khách hàng **truy cập** trang lịch sử đơn hàng |
+| 2 | - | Hệ thống | Hệ thống **truy xuất** danh sách đơn hàng **từ** cơ sở dữ liệu |
+| 3 | - | Hệ thống | Hệ thống **hiển thị** danh sách đơn hàng **cho** khách hàng |
+| 4 | Khách hàng | Hệ thống | Khách hàng **chọn** một đơn hàng cụ thể **từ** danh sách |
+| 5 | - | Hệ thống | Hệ thống **truy xuất** thông tin chi tiết đơn hàng **từ** cơ sở dữ liệu |
+| 6 | - | Hệ thống | Hệ thống **hiển thị** chi tiết đơn hàng và lịch sử trạng thái **cho** khách hàng |
 
 ---
 
-### UC7: Write Reviews
+### UC7: Viết đánh giá (Write Reviews)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC7 |
-| **Use-Case Name** | Write Reviews |
-| **Actor(s)** | Customer |
-| **Description** | Customer writes review for purchased product |
-| **Precondition** | Customer has completed order containing product |
-| **Postcondition** | Review saved to database |
-| **Priority** | Medium |
+| **Mã use case** | UC7 |
+| **Tên use case** | Viết đánh giá (Write Reviews) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng viết đánh giá và xếp hạng sao cho sản phẩm đã mua thành công |
+| **Tiền điều kiện** | Khách hàng có đơn hàng đã hoàn thành (completed) chứa sản phẩm đó |
+| **Hậu điều kiện** | Đánh giá được lưu vào cơ sở dữ liệu và hiển thị |
+| **Mức độ ưu tiên** | Trung bình (Medium) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **selects** product **from** order |
-| 2 | - | System | System **verifies** purchase history **for** customer |
-| 3 | Customer | System | Customer **writes** review content **into** form |
-| 4 | Customer | System | Customer **selects** rating **from** star options |
-| 5 | Customer | System | Customer **submits** review **to** system |
-| 6 | - | System | System **validates** review content |
-| 7 | - | System | System **saves** review **to** database |
-| 8 | - | System | System **logs** review event **to** access stream |
+| 1 | Khách hàng | Hệ thống | Khách hàng **chọn** sản phẩm **từ** đơn hàng đã hoàn tất |
+| 2 | - | Hệ thống | Hệ thống **xác minh** quyền đánh giá dựa trên lịch sử mua hàng **cho** khách hàng |
+| 3 | Khách hàng | Hệ thống | Khách hàng **nhập** nội dung nhận xét **vào** biểu mẫu |
+| 4 | Khách hàng | Hệ thống | Khách hàng **chọn** điểm đánh giá **từ** các tùy chọn số sao (1-5 sao) |
+| 5 | Khách hàng | Hệ thống | Khách hàng **gửi** đánh giá **lên** hệ thống |
+| 6 | - | Hệ thống | Hệ thống **kiểm tra tính hợp lệ** của nội dung đánh giá |
+| 7 | - | Hệ thống | Hệ thống **lưu** đánh giá **vào** cơ sở dữ liệu |
+| 8 | - | Hệ thống | Hệ thống **ghi nhật ký** sự kiện đánh giá **vào** luồng truy cập |
 
 ---
 
-### UC8: Manage Wishlist
+### UC8: Quản lý danh sách yêu thích (Manage Wishlist)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC8 |
-| **Use-Case Name** | Manage Wishlist |
-| **Actor(s)** | Customer |
-| **Description** | Customer adds or removes products from wishlist |
-| **Precondition** | Customer is logged in |
-| **Postcondition** | Wishlist updated |
-| **Priority** | Low |
+| **Mã use case** | UC8 |
+| **Tên use case** | Quản lý danh sách yêu thích (Manage Wishlist) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng lưu trữ hoặc loại bỏ các sản phẩm yêu thích để mua sau |
+| **Tiền điều kiện** | Khách hàng đã đăng nhập vào hệ thống |
+| **Hậu điều kiện** | Danh sách yêu thích được cập nhật |
+| **Mức độ ưu tiên** | Thấp (Low) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **adds** product **to** wishlist |
-| 2 | - | System | System **creates** wishlist item **in** database |
-| 3 | Customer | System | Customer **views** wishlist page |
-| 4 | - | System | System **retrieves** wishlist items **from** database |
-| 5 | - | System | System **displays** wishlist **to** customer |
-| 6 | Customer | System | Customer **removes** product **from** wishlist |
-| 7 | - | System | System **deletes** wishlist item **from** database |
+| 1 | Khách hàng | Hệ thống | Khách hàng **thêm** sản phẩm **vào** danh sách yêu thích |
+| 2 | - | Hệ thống | Hệ thống **tạo** mục yêu thích **trong** cơ sở dữ liệu |
+| 3 | Khách hàng | Hệ thống | Khách hàng **truy cập** trang danh sách yêu thích |
+| 4 | - | Hệ thống | Hệ thống **truy xuất** các mục yêu thích **từ** cơ sở dữ liệu |
+| 5 | - | Hệ thống | Hệ thống **hiển thị** danh sách yêu thích **cho** khách hàng |
+| 6 | Khách hàng | Hệ thống | Khách hàng **xóa** sản phẩm **khỏi** danh sách yêu thích |
+| 7 | - | Hệ thống | Hệ thống **xóa** mục yêu thích **khỏi** cơ sở dữ liệu |
 
 ---
 
-### UC9: Manage Products (Admin)
+### UC9: Quản lý sản phẩm (Manage Products - Admin)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC9 |
-| **Use-Case Name** | Manage Products |
-| **Actor(s)** | Admin |
-| **Description** | Admin creates, updates, or archives products |
-| **Precondition** | Admin is authenticated |
-| **Postcondition** | Product changes saved to database |
-| **Priority** | High |
+| **Mã use case** | UC9 |
+| **Tên use case** | Quản lý sản phẩm (Manage Products) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin) |
+| **Mô tả tóm tắt** | Quản trị viên thêm mới, chỉnh sửa thông tin hoặc lưu trữ/ẩn sản phẩm |
+| **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
+| **Hậu điều kiện** | Thông tin sản phẩm được lưu thay đổi vào cơ sở dữ liệu |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to product management page |
-| 2 | - | System | System **displays** product list **to** admin |
-| 3 | Admin | System | Admin **clicks** add product button |
-| 4 | - | System | System **displays** product form **to** admin |
-| 5 | Admin | System | Admin **enters** product details **into** form |
-| 6 | Admin | System | Admin **uploads** product images **to** system |
-| 7 | Admin | System | Admin **saves** product **to** system |
-| 8 | - | System | System **validates** product data |
-| 9 | - | System | System **creates** product record **in** database |
-| 10 | - | System | System **logs** admin action **to** audit trail |
+| 1 | Quản trị viên | Hệ thống | Quản trị viên **truy cập** trang quản lý sản phẩm |
+| 2 | - | Hệ thống | Hệ thống **hiển thị** danh sách sản phẩm **cho** quản trị viên |
+| 3 | Quản trị viên | Hệ thống | Quản trị viên **nhấp chọn** nút thêm sản phẩm mới |
+| 4 | - | Hệ thống | Hệ thống **hiển thị** biểu mẫu nhập sản phẩm **cho** quản trị viên |
+| 5 | Quản trị viên | Hệ thống | Quản trị viên **nhập** chi tiết thông tin sản phẩm **vào** biểu mẫu |
+| 6 | Quản trị viên | Hệ thống | Quản trị viên **tải lên** hình ảnh sản phẩm **lên** hệ thống |
+| 7 | Quản trị viên | Hệ thống | Quản trị viên **lưu** sản phẩm **vào** hệ thống |
+| 8 | - | Hệ thống | Hệ thống **xác thực** dữ liệu sản phẩm |
+| 9 | - | Hệ thống | Hệ thống **tạo** bản ghi sản phẩm **trong** cơ sở dữ liệu |
+| 10 | - | Hệ thống | Hệ thống **ghi nhật ký** hành động của quản trị viên **vào** nhật ký kiểm toán (audit trail) |
 
 ---
 
-### UC10: Manage Categories (Admin)
+### UC10: Quản lý danh mục (Manage Categories - Admin)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC10 |
-| **Use-Case Name** | Manage Categories |
-| **Actor(s)** | Admin |
-| **Description** | Admin creates, updates, or deletes product categories |
-| **Precondition** | Admin is authenticated |
-| **Postcondition** | Category changes saved |
-| **Priority** | High |
+| **Mã use case** | UC10 |
+| **Tên use case** | Quản lý danh mục (Manage Categories) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin) |
+| **Mô tả tóm tắt** | Quản trị viên thêm, sửa hoặc xóa cây phân cấp danh mục ngành hàng |
+| **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
+| **Hậu điều kiện** | Cấu trúc danh mục được cập nhật |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to category management page |
-| 2 | - | System | System **displays** category tree **to** admin |
-| 3 | Admin | System | Admin **adds** new category **to** tree |
-| 4 | - | System | System **validates** category name |
-| 5 | - | System | System **creates** category record **in** database |
-| 6 | Admin | System | Admin **updates** category details |
-| 7 | - | System | System **saves** category changes |
+| 1 | Quản trị viên | Hệ thống | Quản trị viên **truy cập** trang quản lý danh mục |
+| 2 | - | Hệ thống | Hệ thống **hiển thị** cây danh mục phân cấp **cho** quản trị viên |
+| 3 | Quản trị viên | Hệ thống | Quản trị viên **thêm** danh mục mới **vào** cây danh mục |
+| 4 | - | Hệ thống | Hệ thống **kiểm tra** tên và mã danh mục hợp lệ |
+| 5 | - | Hệ thống | Hệ thống **tạo** bản ghi danh mục **trong** cơ sở dữ liệu |
+| 6 | Quản trị viên | Hệ thống | Quản trị viên **cập nhật** thông tin chi tiết danh mục |
+| 7 | - | Hệ thống | Hệ thống **lưu** các thay đổi danh mục vào cơ sở dữ liệu |
 
 ---
 
-### UC11: Manage Inventory (Admin)
+### UC11: Quản lý tồn kho (Manage Inventory - Admin)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC11 |
-| **Use-Case Name** | Manage Inventory |
-| **Actor(s)** | Admin |
-| **Description** | Admin updates product inventory levels |
-| **Precondition** | Admin is authenticated, products exist |
-| **Postcondition** | Inventory levels updated |
-| **Priority** | High |
+| **Mã use case** | UC11 |
+| **Tên use case** | Quản lý tồn kho (Manage Inventory) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin) |
+| **Mô tả tóm tắt** | Quản trị viên theo dõi và cập nhật số lượng tồn kho tổng thể của từng biến thể |
+| **Tiền điều kiện** | Quản trị viên đã xác thực, sản phẩm và biến thể đã tồn tại |
+| **Hậu điều kiện** | Số lượng tồn kho được điều chỉnh chính xác |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to inventory page |
-| 2 | - | System | System **displays** inventory levels **to** admin |
-| 3 | Admin | System | Admin **selects** product variant |
-| 4 | Admin | System | Admin **enters** new stock quantity |
-| 5 | Admin | System | Admin **confirms** inventory update |
-| 6 | - | System | System **validates** quantity change |
-| 7 | - | System | System **updates** inventory record **in** database |
-| 8 | - | System | System **logs** inventory change **to** audit trail |
+| 1 | Quản trị viên | Hệ thống | Quản trị viên **truy cập** trang quản lý tồn kho |
+| 2 | - | Hệ thống | Hệ thống **hiển thị** mức tồn kho hiện tại **cho** quản trị viên |
+| 3 | Quản trị viên | Hệ thống | Quản trị viên **chọn** biến thể sản phẩm cần điều chỉnh |
+| 4 | Quản trị viên | Hệ thống | Quản trị viên **nhập** số lượng tồn kho mới |
+| 5 | Quản trị viên | Hệ thống | Quản trị viên **xác nhận** cập nhật tồn kho |
+| 6 | - | Hệ thống | Hệ thống **xác thực** tính hợp lệ của số lượng thay đổi |
+| 7 | - | Hệ thống | Hệ thống **cập nhật** bản ghi tồn kho **trong** cơ sở dữ liệu |
+| 8 | - | Hệ thống | Hệ thống **ghi nhật ký** biến động tồn kho **vào** nhật ký kiểm toán |
 
 ---
 
-### UC12: Manage Coupons (Admin)
+### UC12: Quản lý mã giảm giá (Manage Coupons - Admin)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC12 |
-| **Use-Case Name** | Manage Coupons |
-| **Actor(s)** | Admin |
-| **Description** | Admin creates or deactivates promotional coupons |
-| **Precondition** | Admin is authenticated |
-| **Postcondition** | Coupon changes saved |
-| **Priority** | Medium |
+| **Mã use case** | UC12 |
+| **Tên use case** | Quản lý mã giảm giá (Manage Coupons) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin) |
+| **Mô tả tóm tắt** | Quản trị viên tạo mới, sửa đổi hạn dùng hoặc vô hiệu hóa các mã khuyến mãi |
+| **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
+| **Hậu điều kiện** | Thông tin mã giảm giá được lưu trữ và kích hoạt |
+| **Mức độ ưu tiên** | Trung bình (Medium) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to coupon management page |
-| 2 | - | System | System **displays** coupon list **to** admin |
-| 3 | Admin | System | Admin **creates** new coupon |
-| 4 | Admin | System | Admin **sets** coupon parameters **in** form |
-| 5 | - | System | System **validates** coupon rules |
-| 6 | - | System | System **creates** coupon record **in** database |
-| 7 | Admin | System | Admin **deactivates** existing coupon |
-| 8 | - | System | System **marks** coupon as inactive |
+| 1 | Quản trị viên | Hệ thống | Quản trị viên **truy cập** trang quản lý mã giảm giá |
+| 2 | - | Hệ thống | Hệ thống **hiển thị** danh sách coupon hiện có **cho** quản trị viên |
+| 3 | Quản trị viên | Hệ thống | Quản trị viên **tạo** một mã coupon mới |
+| 4 | Quản trị viên | Hệ thống | Quản trị viên **thiết lập** các thông số giảm giá **trong** biểu mẫu |
+| 5 | - | Hệ thống | Hệ thống **kiểm tra** các điều kiện và ràng buộc của coupon |
+| 6 | - | Hệ thống | Hệ thống **tạo** bản ghi coupon **trong** cơ sở dữ liệu |
+| 7 | Quản trị viên | Hệ thống | Quản trị viên **vô hiệu hóa** mã coupon đang hoạt động |
+| 8 | - | Hệ thống | Hệ thống **đánh dấu** trạng thái coupon là không kích hoạt |
 
 ---
 
-### UC13: Manage Orders (Admin)
+### UC13: Quản lý đơn hàng (Manage Orders - Admin)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC13 |
-| **Use-Case Name** | Manage Orders |
-| **Actor(s)** | Admin |
-| **Description** | Admin views and processes customer orders |
-| **Precondition** | Admin is authenticated, orders exist |
-| **Postcondition** | Order status updated |
-| **Priority** | High |
+| **Mã use case** | UC13 |
+| **Tên use case** | Quản lý đơn hàng (Manage Orders) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin) |
+| **Mô tả tóm tắt** | Quản trị viên xem xét và xử lý chuyển đổi trạng thái của đơn hàng |
+| **Tiền điều kiện** | Quản trị viên đã xác thực, đơn hàng đã phát sinh trong hệ thống |
+| **Hậu điều kiện** | Trạng thái đơn hàng được cập nhật và lưu vết lịch sử |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to order management page |
-| 2 | - | System | System **displays** order list **to** admin |
-| 3 | Admin | System | Admin **filters** orders **by** status |
-| 4 | Admin | System | Admin **selects** order **from** list |
-| 5 | - | System | System **displays** order details **to** admin |
-| 6 | Admin | System | Admin **updates** order status |
-| 7 | - | System | System **validates** status transition |
-| 8 | - | System | System **saves** status change **to** database |
-| 9 | - | System | System **records** transition **in** order_status_history |
+| 1 | Quản trị viên | Hệ thống | Quản trị viên **truy cập** trang quản lý đơn hàng |
+| 2 | - | Hệ thống | Hệ thống **hiển thị** danh sách đơn hàng **cho** quản trị viên |
+| 3 | Quản trị viên | Hệ thống | Quản trị viên **lọc** đơn hàng **theo** trạng thái |
+| 4 | Quản trị viên | Hệ thống | Quản trị viên **chọn** một đơn hàng **từ** danh sách |
+| 5 | - | Hệ thống | Hệ thống **hiển thị** chi tiết đơn hàng **cho** quản trị viên |
+| 6 | Quản trị viên | Hệ thống | Quản trị viên **cập nhật** trạng thái đơn hàng (xác nhận, hoàn tất, hủy) |
+| 7 | - | Hệ thống | Hệ thống **kiểm tra** tính hợp lệ của luồng chuyển đổi trạng thái |
+| 8 | - | Hệ thống | Hệ thống **lưu** thay đổi trạng thái **vào** cơ sở dữ liệu |
+| 9 | - | Hệ thống | Hệ thống **ghi lại** sự kiện chuyển đổi **trong** bảng order_status_history |
 
 ---
 
-### UC14: View Dashboard (Admin)
+### UC14: Xem bảng điều khiển (View Dashboard - Admin)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC14 |
-| **Use-Case Name** | View Dashboard |
-| **Actor(s)** | Admin |
-| **Description** | Admin views overview dashboard with key metrics |
-| **Precondition** | Admin is authenticated |
-| **Postcondition** | Dashboard displayed |
-| **Priority** | Medium |
+| **Mã use case** | UC14 |
+| **Tên use case** | Xem bảng điều khiển (View Dashboard) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin) |
+| **Mô tả tóm tắt** | Quản trị viên xem tổng quan các chỉ số vận hành và kinh doanh then chốt |
+| **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
+| **Hậu điều kiện** | Bảng điều khiển hiển thị đầy đủ các chỉ số thống kê |
+| **Mức độ ưu tiên** | Trung bình (Medium) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Admin | System | Admin **navigates** to dashboard page |
-| 2 | - | System | System **retrieves** revenue data **from** database |
-| 3 | - | System | System **retrieves** order counts **from** database |
-| 4 | - | System | System **retrieves** product/customer counts **from** database |
-| 5 | - | System | System **identifies** low stock items **from** database |
-| 6 | - | System | System **displays** dashboard **to** admin |
+| 1 | Quản trị viên | Hệ thống | Quản trị viên **truy cập** trang bảng điều khiển (dashboard) |
+| 2 | - | Hệ thống | Hệ thống **truy xuất** số liệu doanh thu **từ** cơ sở dữ liệu |
+| 3 | - | Hệ thống | Hệ thống **truy xuất** số lượng đơn hàng theo giai đoạn **từ** cơ sở dữ liệu |
+| 4 | - | Hệ thống | Hệ thống **truy xuất** tổng số lượng sản phẩm và khách hàng **từ** cơ sở dữ liệu |
+| 5 | - | Hệ thống | Hệ thống **nhận diện** các mặt hàng sắp hết kho **từ** cơ sở dữ liệu |
+| 6 | - | Hệ thống | Hệ thống **hiển thị** các thẻ chỉ số và biểu đồ **cho** quản trị viên |
 
 ---
 
-### UC15: Select City/Location
+### UC15: Chọn thành phố / địa điểm (Select City/Location)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC15 |
-| **Use-Case Name** | Select City/Location |
-| **Actor(s)** | Customer |
-| **Description** | Customer selects their city to view location-specific product availability |
-| **Precondition** | System has cities and stores configured |
-| **Postcondition** | Selected city saved to localStorage; product availability filtered by city |
-| **Priority** | High |
+| **Mã use case** | UC15 |
+| **Tên use case** | Chọn thành phố / địa điểm (Select City/Location) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng chủ động chọn tỉnh/thành phố để xem tính sẵn có của hàng hóa theo khu vực |
+| **Tiền điều kiện** | Hệ thống đã thiết lập danh mục các thành phố và cửa hàng hoạt động |
+| **Hậu điều kiện** | Mã thành phố được lưu trữ trong localStorage; tình trạng tồn kho sản phẩm được cập nhật theo khu vực |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Customer | System | Customer **clicks** city selector **in** header |
-| 2 | - | System | System **fetches** active cities **from** /api/v1/locations/cities |
-| 3 | - | System | System **displays** city list **with** store count **to** customer |
-| 4 | Customer | System | Customer **selects** city **from** dropdown |
-| 5 | - | System | System **saves** selected city code **to** localStorage |
-| 6 | - | System | System **refreshes** product availability **for** selected city |
+| 1 | Khách hàng | Hệ thống | Khách hàng **nhấp chọn** bộ chọn thành phố **trên** thanh tiêu đề (header) |
+| 2 | - | Hệ thống | Hệ thống **lấy** danh sách thành phố đang hoạt động **từ** API `/api/v1/locations/cities` |
+| 3 | - | Hệ thống | Hệ thống **hiển thị** danh sách thành phố **kèm** số lượng cửa hàng **cho** khách hàng |
+| 4 | Khách hàng | Hệ thống | Khách hàng **chọn** thành phố mong muốn **từ** danh sách thả xuống |
+| 5 | - | Hệ thống | Hệ thống **lưu** mã thành phố đã chọn **vào** localStorage trình duyệt |
+| 6 | - | Hệ thống | Hệ thống **làm mới** dữ liệu tồn kho sản phẩm **theo** thành phố đã chọn |
 
 ---
 
-### UC16: Check Store Availability
+### UC16: Kiểm tra tồn kho cửa hàng (Check Store Availability)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC16 |
-| **Use-Case Name** | Check Store Availability |
-| **Actor(s)** | Customer |
-| **Description** | Customer views product availability breakdown by store in selected city |
-| **Precondition** | Customer has selected a city; product exists |
-| **Postcondition** | Store-level availability displayed to customer |
-| **Priority** | High |
+| **Mã use case** | UC16 |
+| **Tên use case** | Kiểm tra tồn kho cửa hàng (Check Store Availability) |
+| **Tác nhân (Actors)** | Khách hàng (Customer) |
+| **Mô tả tóm tắt** | Khách hàng xem danh sách chi tiết các cửa hàng trong thành phố còn hàng cho biến thể đã chọn (theo phong cách CellphoneS) |
+| **Tiền điều kiện** | Khách hàng đã chọn thành phố; sản phẩm và biến thể tồn tại |
+| **Hậu điều kiện** | Tình trạng tồn kho theo từng chi nhánh được hiển thị trực quan |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | - | System | System **loads** product detail page |
-| 2 | - | System | System **fetches** availability **from** /api/v1/catalog/products/{slug}/availability |
-| 3 | - | System | System **displays** city pool total **to** customer |
-| 4 | - | System | System **lists** each store **with** stock quantity |
-| 5 | Customer | System | Customer **views** per-store availability **in** StoreAvailabilityBox |
+| 1 | - | Hệ thống | Hệ thống **tải** trang chi tiết sản phẩm |
+| 2 | - | Hệ thống | Hệ thống **truy xuất** dữ liệu tồn kho **từ** API `/api/v1/catalog/products/{slug}/availability` |
+| 3 | - | Hệ thống | Hệ thống **hiển thị** tổng tồn kho vùng (city pool total) **cho** khách hàng |
+| 4 | - | Hệ thống | Hệ thống **liệt kê** từng cửa hàng **kèm** số lượng còn hàng cụ thể |
+| 5 | Khách hàng | Hệ thống | Khách hàng **xem** danh sách cửa hàng còn hàng **trong** hộp hiển thị StoreAvailabilityBox |
 
 ---
 
-### UC17: Manage Branch Inventory (Staff)
+### UC17: Quản lý tồn kho chi nhánh (Manage Branch Inventory - Staff)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC17 |
-| **Use-Case Name** | Manage Branch Inventory |
-| **Actor(s)** | Admin, Store Manager, City Planner |
-| **Description** | Staff updates inventory quantities at stores within their permission scope |
-| **Precondition** | Staff is authenticated with appropriate role |
-| **Postcondition** | Inventory levels updated with permission check |
-| **Priority** | High |
+| **Mã use case** | UC17 |
+| **Tên use case** | Quản lý tồn kho chi nhánh (Manage Branch Inventory) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager), Quản lý thành phố (City Planner) |
+| **Mô tả tóm tắt** | Nhân viên cập nhật số lượng tồn kho tại các cửa hàng nằm trong phạm vi quyền hạn của mình |
+| **Tiền điều kiện** | Nhân viên đã đăng nhập và được gán vai trò cùng phạm vi cửa hàng/thành phố tương ứng |
+| **Hậu điều kiện** | Số lượng tồn kho tại cửa hàng được cập nhật kèm kiểm soát xung đột (optimistic locking) |
+| **Mức độ ưu tiên** | Cao (High) |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Staff | System | Staff **navigates** to branch inventory page |
-| 2 | - | System | System **checks** role permissions **for** staff |
-| 3 | - | System | System **filters** stores **by** permission scope |
-| 4 | - | System | System **displays** inventory list **to** staff |
-| 5 | Staff | System | Staff **selects** product variant |
-| 6 | Staff | System | Staff **enters** new stock quantity |
-| 7 | Staff | System | Staff **confirms** inventory update |
-| 8 | - | System | System **validates** permission **for** target store |
-| 9 | - | System | System **updates** store_inventory record **in** database |
-| 10 | - | System | System **increments** version **for** optimistic locking |
+| 1 | Nhân viên | Hệ thống | Nhân viên **truy cập** trang tồn kho chi nhánh |
+| 2 | - | Hệ thống | Hệ thống **kiểm tra** vai trò và quyền hạn **của** nhân viên |
+| 3 | - | Hệ thống | Hệ thống **lọc** danh sách cửa hàng **theo** phạm vi phân quyền |
+| 4 | - | Hệ thống | Hệ thống **hiển thị** danh sách tồn kho **cho** nhân viên |
+| 5 | Nhân viên | Hệ thống | Nhân viên **chọn** biến thể sản phẩm cần điều chỉnh |
+| 6 | Nhân viên | Hệ thống | Nhân viên **nhập** số lượng tồn kho thực tế mới |
+| 7 | Nhân viên | Hệ thống | Nhân viên **xác nhận** cập nhật tồn kho |
+| 8 | - | Hệ thống | Hệ thống **xác minh** quyền can thiệp **đối với** cửa hàng mục tiêu |
+| 9 | - | Hệ thống | Hệ thống **cập nhật** bản ghi store_inventory **trong** cơ sở dữ liệu |
+| 10 | - | Hệ thống | Hệ thống **tăng** giá trị version **để** kiểm soát khóa lạc quan (optimistic locking) |
 
-#### Permission Rules
+#### Quy tắc phân quyền (Permission Rules)
 
-| Role | Scope | Can Edit |
+| Vai trò (Role) | Phạm vi (Scope) | Quyền chỉnh sửa tồn kho |
 |------|-------|----------|
-| **Admin** | All stores | Full access |
-| **City Planner** | Stores in assigned city | City-scoped |
-| **Store Manager** | Assigned store only | Store-scoped |
-| **Customer** | None | No access |
+| **Admin** | Toàn bộ các cửa hàng toàn quốc | Toàn quyền xem và chỉnh sửa |
+| **City Planner** | Các cửa hàng trong thành phố được gán | Xem và chỉnh sửa trong thành phố phụ trách |
+| **Store Manager** | Duy nhất cửa hàng được phân công | Chỉnh sửa kho cửa hàng mình; xem chỉ đọc các kho khác trong thành phố |
+| **Customer** | Không có | Không có quyền truy cập |
 
 ---
 
-### UC18: POS Transaction (Staff)
+### UC18: Giao dịch bán hàng tại quầy POS (POS Transaction - Staff)
 
-| Field | Description |
+| Thuộc tính | Mô tả tóm tắt |
 |-------|-------------|
-| **Use-Case ID** | UC18 |
-| **Use-Case Name** | POS Transaction |
-| **Actor(s)** | Admin, Store Manager, City Planner |
-| **Description** | Staff sells products at store counter using Point of Sale terminal |
-| **Precondition** | Staff is authenticated with appropriate role, store assigned |
-| **Postcondition** | Order created as completed, both global and store inventory decremented |
-| **Priority** | High |
-| **Business Rule** | POS creates completed order immediately, deducts dual inventory atomically |
+| **Mã use case** | UC18 |
+| **Tên use case** | Giao dịch bán hàng tại quầy POS (POS Transaction) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager), Quản lý thành phố (City Planner) |
+| **Mô tả tóm tắt** | Nhân viên thực hiện bán hàng và thanh toán trực tiếp cho khách tại quầy cửa hàng thông qua giao diện POS |
+| **Tiền điều kiện** | Nhân viên đã xác thực quyền hợp lệ và được gán cửa hàng cụ thể |
+| **Hậu điều kiện** | Đơn hàng được tạo với trạng thái hoàn tất, trừ đồng thời cả tồn kho chi nhánh và tồn kho chung |
+| **Mức độ ưu tiên** | Cao (High) |
+| **Quy tắc kinh doanh** | Giao dịch POS tạo đơn hàng hoàn tất ngay lập tức, trừ tồn kho kép (dual inventory decrement) trong cùng một transaction |
 
-#### Flow of Events (SVDPI)
+#### Luồng sự kiện chính (SVDPI)
 
-| Step | Actor | System | SVDPI Statement |
+| Bước | Tác nhân | Hệ thống | Phát biểu SVDPI |
 |------|-------|--------|-----------------|
-| 1 | Staff | System | Staff **navigates** to POS page **at** /admin/pos |
-| 2 | - | System | System **displays** search input **to** staff |
-| 3 | Staff | System | Staff **enters** product keyword **into** search box |
-| 4 | - | System | System **searches** products **by** SKU prefix or name |
-| 5 | - | System | System **returns** up to 8 results **with** store stock |
-| 6 | Staff | System | Staff **selects** product **from** results |
-| 7 | Staff | System | Staff **enters** quantity **for** product |
-| 8 | Staff | System | Staff **adds** product **to** cart |
-| 9 | Staff | System | Staff **repeats** steps 3-8 **for** additional products |
-| 10 | - | System | System **displays** cart **with** items and total |
-| 11 | Staff | System | Staff **confirms** transaction **to** system |
-| 12 | - | System | System **validates** store inventory **for** each item |
-| 13 | - | System | System **creates** order **with** channel='pos', status='completed' |
-| 14 | - | System | System **creates** payment record **as** succeeded |
-| 15 | - | System | System **decrements** store_inventory **for** each item |
-| 16 | - | System | System **decrements** inventory **for** each item |
-| 17 | - | System | System **displays** success message **with** order number |
+| 1 | Nhân viên | Hệ thống | Nhân viên **truy cập** giao diện bán hàng POS **tại** `/admin/pos` |
+| 2 | - | Hệ thống | Hệ thống **hiển thị** ô tìm kiếm nhanh sản phẩm **cho** nhân viên |
+| 3 | Nhân viên | Hệ thống | Nhân viên **nhập** từ khóa sản phẩm hoặc mã SKU **vào** ô tìm kiếm |
+| 4 | - | Hệ thống | Hệ thống **tìm kiếm** sản phẩm **theo** tiền tố SKU hoặc tên |
+| 5 | - | Hệ thống | Hệ thống **trả về** tối đa 8 kết quả phù hợp **kèm** số lượng tồn tại cửa hàng |
+| 6 | Nhân viên | Hệ thống | Nhân viên **chọn** sản phẩm **từ** kết quả tìm kiếm |
+| 7 | Nhân viên | Hệ thống | Nhân viên **nhập** số lượng mua **cho** sản phẩm |
+| 8 | Nhân viên | Hệ thống | Nhân viên **thêm** sản phẩm **vào** giỏ hàng POS |
+| 9 | Nhân viên | Hệ thống | Nhân viên **lặp lại** bước 3-8 **cho** các sản phẩm tiếp theo |
+| 10 | - | Hệ thống | Hệ thống **hiển thị** danh sách giỏ hàng **kèm** tổng tiền cần thanh toán |
+| 11 | Nhân viên | Hệ thống | Nhân viên **xác nhận** giao dịch **lên** hệ thống |
+| 12 | - | Hệ thống | Hệ thống **kiểm tra** tồn kho thực tế tại cửa hàng **cho** từng món đồ |
+| 13 | - | Hệ thống | Hệ thống **tạo** đơn hàng **với** `channel='pos'` và `status='completed'` |
+| 14 | - | Hệ thống | Hệ thống **tạo** bản ghi thanh toán **với** `status='succeeded'` |
+| 15 | - | Hệ thống | Hệ thống **trừ** số lượng tồn kho cửa hàng trong `store_inventory` **cho** từng sản phẩm |
+| 16 | - | Hệ thống | Hệ thống **trừ** số lượng tồn kho tổng thể trong `inventory` **cho** từng sản phẩm |
+| 17 | - | Hệ thống | Hệ thống **hiển thị** thông báo thành công **kèm** mã đơn hàng vừa tạo |
 
-#### Alternative Flows
+#### Luồng ngoại lệ
 
-| Alt Step | Condition | SVDPI Statement |
+| Bước ngoại lệ | Điều kiện | Phát biểu SVDPI |
 |----------|-----------|-----------------|
-| 12a | Insufficient store stock | System **notifies** staff **about** out-of-stock items |
+| 12a | Tồn kho tại cửa hàng không đủ | Hệ thống **thông báo** tới nhân viên **về** việc hết hàng tại quầy |
 
-#### Permission Rules
+#### Quy tắc phân quyền
 
-| Role | Scope | Can POS |
+| Vai trò (Role) | Phạm vi (Scope) | Quyền bán hàng POS |
 |------|-------|---------|
-| **Admin** | All stores | Yes |
-| **City Planner** | Stores in assigned city | Yes |
-| **Store Manager** | Assigned store only | Yes |
-| **Customer** | None | No access |
+| **Admin** | Tất cả các cửa hàng | Có |
+| **City Planner** | Các cửa hàng trong thành phố được gán | Có |
+| **Store Manager** | Duy nhất cửa hàng được phân công | Có |
+| **Customer** | Không có | Không có quyền truy cập |
 
 ---
 
-### 1.4.1 UC1: Browse Products
+## 1.4 Sơ đồ hoạt động (Activity Diagrams)
+
+### 1.4.1 UC1: Sơ đồ hoạt động Duyệt sản phẩm (Browse Products)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Customer opens category page]
-    A --> B[System loads category tree]
-    B --> C[Customer selects category]
-    C --> D[System queries products]
-    D --> E[Display product grid]
-    E --> F{Apply filters?}
-    F -->|Yes| G[Customer selects filter options]
-    G --> H[System filters products]
-    H --> I[Update product grid]
-    F -->|No| I
-    I --> J{More pages?}
-    J -->|Yes| K[Customer clicks next page]
-    K --> L[System loads next page]
+    Start([Bắt đầu]) --> A[Khách hàng mở trang danh mục]
+    A --> B[Hệ thống tải cây danh mục]
+    B --> C[Khách hàng chọn danh mục]
+    C --> D[Hệ thống truy vấn sản phẩm]
+    D --> E[Hiển thị lưới sản phẩm]
+    E --> F{Áp dụng bộ lọc?}
+    F -->|Có| G[Khách hàng chọn tiêu chí lọc]
+    G --> H[Hệ thống lọc danh sách sản phẩm]
+    H --> I[Cập nhật lưới sản phẩm]
+    F -->|Không| I
+    I --> J{Xem trang tiếp theo?}
+    J -->|Có| K[Khách hàng nhấp chuyển trang]
+    K --> L[Hệ thống tải trang kết quả mới]
     L --> I
-    J -->|No| M{View product?}
-    M -->|Yes| N([End: Navigate to UC3])
-    M -->|No| O([End])
+    J -->|Không| M{Xem chi tiết sản phẩm?}
+    M -->|Có| N([Kết thúc: Chuyển sang UC3])
+    M -->|Không| O([Kết thúc])
 ```
 
-### 1.4.2 UC2: Search Products
+### 1.4.2 UC2: Sơ đồ hoạt động Tìm kiếm sản phẩm (Search Products)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Customer enters search term]
-    A --> B[System processes search query]
-    B --> C[System ranks results by relevance]
-    C --> D[Display search results]
-    D --> E{Refine search?}
-    E -->|Yes| F[Customer modifies search term]
+    Start([Bắt đầu]) --> A[Khách hàng nhập từ khóa tìm kiếm]
+    A --> B[Hệ thống xử lý truy vấn tìm kiếm]
+    B --> C[Hệ thống xếp hạng kết quả theo độ liên quan]
+    C --> D[Hiển thị kết quả tìm kiếm]
+    D --> E{Tinh chỉnh tìm kiếm?}
+    E -->|Có| F[Khách hàng chỉnh sửa từ khóa]
     F --> B
-    E -->|No| G{Click product?}
-    G -->|Yes| H([End: Navigate to UC3])
-    G -->|No| I([End])
+    E -->|Không| G{Chọn sản phẩm?}
+    G -->|Có| H([Kết thúc: Chuyển sang UC3])
+    G -->|Không| I([Kết thúc])
 ```
 
-### 1.4.3 UC3: View Product Details
+### 1.4.3 UC3: Sơ đồ hoạt động Xem chi tiết sản phẩm (View Product Details)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[System loads product page]
-    A --> B[Display product info]
-    B --> C[Load product images]
-    C --> D[Show variant options]
-    D --> E[Display reviews]
-    E --> F[Show related products]
-    F --> G{Add to cart?}
-    G -->|Yes| H([End: Navigate to UC4])
-    G -->|No| I{Add to wishlist?}
-    I -->|Yes| J([End: Navigate to UC8])
-    I -->|No| K{Browse more?}
-    K -->|Yes| L([End: Back to UC1/UC2])
-    K -->|No| M([End])
+    Start([Bắt đầu]) --> A[Hệ thống tải trang chi tiết sản phẩm]
+    A --> B[Hiển thị thông tin tổng quan sản phẩm]
+    B --> C[Tải danh sách hình ảnh]
+    C --> D[Hiển thị các tùy chọn biến thể màu sắc/kích thước]
+    D --> E[Hiển thị danh sách đánh giá]
+    E --> F[Hiển thị các sản phẩm liên quan]
+    F --> G{Thêm vào giỏ hàng?}
+    G -->|Có| H([Kết thúc: Chuyển sang UC4])
+    G -->|Không| I{Thêm vào danh sách yêu thích?}
+    I -->|Có| J([Kết thúc: Chuyển sang UC8])
+    I -->|Không| K{Tiếp tục duyệt hàng?}
+    K -->|Có| L([Kết thúc: Quay lại UC1/UC2])
+    K -->|Không| M([Kết thúc])
 ```
 
-### 1.4.4 UC4: Manage Cart
+### 1.4.4 UC4: Sơ đồ hoạt động Quản lý giỏ hàng (Manage Cart)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Customer views cart]
-    A --> B{Action?}
+    Start([Bắt đầu]) --> A[Khách hàng xem giỏ hàng]
+    A --> B{Thao tác lựa chọn?}
     
-    B -->|Add item| C[Customer selects product]
-    C --> D[System validates stock]
-    D --> E{In stock?}
-    E -->|No| F[Show out of stock message]
+    B -->|Thêm sản phẩm| C[Khách hàng chọn biến thể sản phẩm]
+    C --> D[Hệ thống kiểm tra tồn kho]
+    D --> E{Còn hàng?}
+    E -->|Không| F[Hiển thị thông báo hết hàng]
     F --> A
-    E -->|Yes| G[System adds to cart]
-    G --> H[Update cart total]
+    E -->|Có| G[Hệ thống thêm sản phẩm vào giỏ]
+    G --> H[Cập nhật tổng tiền giỏ hàng]
     H --> A
     
-    B -->|Update qty| I[Customer changes quantity]
-    I --> J[System validates new qty]
-    J --> K{Valid?}
-    K -->|No| L[Show error message]
+    B -->|Cập nhật số lượng| I[Khách hàng thay đổi số lượng]
+    I --> J[Hệ thống kiểm tra số lượng tồn kho]
+    J --> K{Hợp lệ?}
+    K -->|Không| L[Hiển thị thông báo lỗi số lượng]
     L --> A
-    K -->|Yes| M[Update cart item]
+    K -->|Có| M[Cập nhật số lượng mục giỏ hàng]
     M --> H
     
-    B -->|Remove item| N[Customer removes item]
-    N --> O[System deletes cart item]
+    B -->|Xóa sản phẩm| N[Khách hàng chọn xóa sản phẩm]
+    N --> O[Hệ thống xóa mục khỏi giỏ hàng]
     O --> H
     
-    B -->|Checkout| P([End: Navigate to UC5])
+    B -->|Thanh toán| P([Kết thúc: Chuyển sang UC5])
 ```
 
-### 1.4.5 UC5: Checkout
+### 1.4.5 UC5: Sơ đồ hoạt động Thanh toán (Checkout)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Display cart summary]
-    A --> B{All items in stock?}
+    Start([Bắt đầu]) --> A[Hiển thị tóm tắt giỏ hàng]
+    A --> B{Tất cả sản phẩm còn hàng?}
     
-    B -->|No| C[Show out-of-stock warning]
-    C --> D[Customer removes items]
-    D --> E{Cart empty?}
-    E -->|Yes| F[Return to shopping]
-    E -->|No| A
+    B -->|Không| C[Hiển thị cảnh báo sản phẩm hết hàng]
+    C --> D[Khách hàng xóa bỏ các mặt hàng hết kho]
+    D --> E{Giỏ hàng rỗng?}
+    E -->|Có| F[Quay về trang mua sắm]
+    E -->|Không| A
     
-    B -->|Yes| G[Calculate order total]
-    G --> H[Apply taxes and shipping]
-    H --> I[Display order summary]
+    B -->|Có| G[Tính tổng giá trị hàng hóa]
+    G --> H[Áp dụng mã giảm giá và tính phí vận chuyển]
+    H --> I[Hiển thị thông tin tổng kết đơn hàng]
     
-    I --> J[Customer enters shipping address]
-    J --> K[Validate shipping address]
-    K --> L{Address valid?}
-    L -->|No| M[Show validation error]
+    I --> J[Khách hàng nhập địa chỉ giao hàng chi tiết]
+    J --> K[Kiểm tra tính hợp lệ của địa chỉ]
+    K --> L{Địa chỉ hợp lệ?}
+    L -->|Không| M[Hiển thị thông báo lỗi biểu mẫu]
     M --> J
-    L -->|Yes| N[Customer selects payment method]
+    L -->|Có| N[Khách hàng chọn phương thức thanh toán]
     
-    N --> O[Customer confirms order]
-    O --> P[Begin database transaction]
-    P --> Q[Create order record]
-    Q --> R[Create order items]
-    R --> S[Reserve inventory]
-    S --> T[Commit transaction]
+    N --> O[Khách hàng xác nhận đặt hàng]
+    O --> P[Bắt đầu giao dịch cơ sở dữ liệu (Transaction)]
+    P --> Q[Tạo bản ghi đơn hàng (orders)]
+    Q --> R[Tạo danh sách chi tiết đơn hàng (order_items)]
+    R --> S[Khóa và trừ số lượng tồn kho]
+    S --> T[Xác nhận giao dịch (Commit transaction)]
     
-    T --> U[Process payment]
-    U --> V{Payment successful?}
+    T --> U[Xử lý giao dịch thanh toán]
+    U --> V{Thanh toán thành công?}
     
-    V -->|No| W[Begin rollback transaction]
-    W --> X[Cancel order]
-    X --> Y[Release inventory]
-    Y --> Z[Commit rollback]
-    Z --> AA[Show payment error]
+    V -->|Không| W[Bắt đầu giao dịch hoàn tác (Rollback)]
+    W --> X[Đánh dấu đơn hàng thất bại/hủy]
+    X --> Y[Hoàn trả số lượng tồn kho]
+    Y --> Z[Xác nhận hoàn tác (Commit rollback)]
+    Z --> AA[Hiển thị thông báo lỗi thanh toán]
     AA --> N
     
-    V -->|Yes| AB[Update order status to PAID]
-    AB --> AC[Send confirmation email]
-    AC --> AD[Log to access stream]
-    AD --> End([End: Checkout complete])
+    V -->|Có| AB[Cập nhật trạng thái đơn hàng sang ĐÃ THANH TOÁN]
+    AB --> AC[Gửi email xác nhận đơn hàng]
+    AC --> AD[Ghi nhật ký vào luồng sự kiện truy cập]
+    AD --> End([Kết thúc: Hoàn tất thanh toán])
 ```
 
-### 1.4.6 UC6: Track Orders
+### 1.4.6 UC6: Sơ đồ hoạt động Theo dõi đơn hàng (Track Orders)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Customer accesses order history]
-    A --> B[System retrieves orders]
-    B --> C[Display order list]
-    C --> D{Select order?}
-    D -->|Yes| E[Customer clicks order]
-    E --> F[System loads order details]
-    F --> G[Display order details]
-    G --> H{Track shipment?}
-    H -->|Yes| I[Show tracking info]
-    I --> J[Display delivery status]
-    H -->|No| K{Return to list?}
-    K -->|Yes| C
-    K -->|No| L([End])
-    D -->|No| L
+    Start([Bắt đầu]) --> A[Khách hàng mở trang lịch sử đơn hàng]
+    A --> B[Hệ thống truy xuất danh sách đơn hàng]
+    B --> C[Hiển thị danh sách các đơn hàng]
+    C --> D{Chọn xem đơn hàng?}
+    D -->|Có| E[Khách hàng nhấp chọn đơn hàng]
+    E --> F[Hệ thống tải thông tin chi tiết đơn]
+    F --> G[Hiển thị chi tiết và tiến trình đơn hàng]
+    G --> H{Theo dõi vận chuyển?}
+    H -->|Có| I[Hiển thị mã và thông tin vận đơn]
+    I --> J[Hiển thị lịch sử các mốc trạng thái]
+    H -->|Không| K{Quay lại danh sách?}
+    K -->|Có| C
+    K -->|Không| L([Kết thúc])
+    D -->|Không| L
 ```
 
-### 1.4.7 UC7: Write Reviews
+### 1.4.7 UC7: Sơ đồ hoạt động Viết đánh giá (Write Reviews)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Customer selects product]
-    A --> B[System verifies purchase]
-    B --> C{Purchased?}
-    C -->|No| D[Show not eligible message]
-    D --> End([End])
-    C -->|Yes| E[Display review form]
-    E --> F[Customer writes review]
-    F --> G[Customer selects rating]
-    G --> H[Customer submits review]
-    H --> I[System validates content]
-    I --> J{Valid?}
-    J -->|No| K[Show validation error]
+    Start([Bắt đầu]) --> A[Khách hàng chọn sản phẩm trong đơn đã mua]
+    A --> B[Hệ thống kiểm tra điều kiện mua hàng]
+    B --> C{Đã hoàn tất đơn hàng?}
+    C -->|Không| D[Hiển thị thông báo chưa đủ điều kiện đánh giá]
+    D --> End([Kết thúc])
+    C -->|Có| E[Hiển thị biểu mẫu gửi đánh giá]
+    E --> F[Khách hàng nhập nội dung đánh giá]
+    F --> G[Khách hàng chọn số sao đánh giá]
+    G --> H[Khách hàng nhấn nút gửi đánh giá]
+    H --> I[Hệ thống kiểm tra nội dung hợp lệ]
+    I --> J{Hợp lệ?}
+    J -->|Không| K[Hiển thị thông báo lỗi nhập liệu]
     K --> F
-    J -->|Yes| L[Save review to database]
-    L --> M[Log review event]
+    J -->|Có| L[Lưu đánh giá vào cơ sở dữ liệu]
+    L --> M[Ghi nhật ký sự kiện đánh giá]
     M --> End
 ```
 
-### 1.4.8 UC8: Manage Wishlist
+### 1.4.8 UC8: Sơ đồ hoạt động Quản lý danh sách yêu thích (Manage Wishlist)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A{Action?}
+    Start([Bắt đầu]) --> A{Thao tác mong muốn?}
     
-    A -->|Add| B[Customer clicks add to wishlist]
-    B --> C[System creates wishlist item]
-    C --> D[Show success message]
-    D --> End([End])
+    A -->|Thêm yêu thích| B[Khách hàng nhấp biểu tượng yêu thích]
+    B --> C[Hệ thống tạo bản ghi mục yêu thích]
+    C --> D[Hiển thị thông báo thêm thành công]
+    D --> End([Kết thúc])
     
-    A -->|View| E[Customer opens wishlist]
-    E --> F[System loads wishlist items]
-    F --> G[Display wishlist]
-    G --> H{Remove item?}
-    H -->|Yes| I[Customer removes item]
-    I --> J[System deletes item]
+    A -->|Xem danh sách| E[Khách hàng mở trang danh sách yêu thích]
+    E --> F[Hệ thống tải danh sách sản phẩm yêu thích]
+    F --> G[Hiển thị danh sách yêu thích]
+    G --> H{Xóa khỏi danh sách?}
+    H -->|Có| I[Khách hàng chọn xóa sản phẩm]
+    I --> J[Hệ thống xóa bản ghi khỏi cơ sở dữ liệu]
     J --> G
-    H -->|No| K{Add to cart?}
-    K -->|Yes| L([End: Navigate to UC4])
-    K -->|No| M([End])
+    H -->|Không| K{Thêm vào giỏ hàng?}
+    K -->|Có| L([Kết thúc: Chuyển sang UC4])
+    K -->|Không| M([Kết thúc])
     
-    A -->|Remove| N[Customer selects item]
-    N --> O[System removes from wishlist]
+    A -->|Xóa trực tiếp| N[Khách hàng chọn gỡ sản phẩm]
+    N --> O[Hệ thống gỡ bỏ khỏi cơ sở dữ liệu]
     O --> End
 ```
 
-### 1.4.9 UC9: Manage Products (Admin)
+### 1.4.9 UC9: Sơ đồ hoạt động Quản lý sản phẩm (Manage Products - Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens product management]
-    A --> B[Display product list]
-    B --> C{Action?}
+    Start([Bắt đầu]) --> A[Quản trị viên mở trang quản lý sản phẩm]
+    A --> B[Hiển thị bảng danh sách sản phẩm]
+    B --> C{Thao tác quản trị?}
     
-    C -->|Add| D[Admin clicks add button]
-    D --> E[Display product form]
-    E --> F[Admin enters product details]
-    F --> G[Admin uploads images]
-    G --> H[Admin saves product]
-    H --> I{Valid?}
-    I -->|No| J[Show validation errors]
+    C -->|Thêm mới| D[Quản trị viên nhấp nút thêm sản phẩm]
+    D --> E[Hiển thị biểu mẫu thêm sản phẩm]
+    E --> F[Quản trị viên nhập thông tin sản phẩm và biến thể]
+    F --> G[Quản trị viên tải lên hình ảnh]
+    G --> H[Quản trị viên nhấn lưu sản phẩm]
+    H --> I{Dữ liệu hợp lệ?}
+    I -->|Không| J[Hiển thị thông báo lỗi nhập liệu]
     J --> F
-    I -->|Yes| K[Create product record]
-    K --> L[Log admin action]
+    I -->|Có| K[Tạo bản ghi sản phẩm trong cơ sở dữ liệu]
+    K --> L[Ghi nhật ký thao tác quản trị]
     L --> B
     
-    C -->|Edit| M[Admin selects product]
-    M --> N[Load product data]
-    N --> O[Display edit form]
-    O --> P[Admin modifies details]
-    P --> Q[Admin saves changes]
+    C -->|Chỉnh sửa| M[Quản trị viên chọn sản phẩm cần sửa]
+    M --> N[Tải thông tin chi tiết sản phẩm]
+    N --> O[Hiển thị biểu mẫu chỉnh sửa]
+    O --> P[Quản trị viên cập nhật thông tin]
+    P --> Q[Quản trị viên nhấn lưu thay đổi]
     Q --> I
     
-    C -->|Archive| R[Admin selects product]
-    R --> S[Confirm archive]
-    S --> T[Mark product as archived]
+    C -->|Lưu trữ / Ẩn| R[Quản trị viên chọn sản phẩm cần ẩn]
+    R --> S[Xác nhận thao tác lưu trữ]
+    S --> T[Đánh dấu sản phẩm đã lưu trữ (is_active = false)]
     T --> L
 ```
 
-### 1.4.10 UC10: Manage Categories (Admin)
+### 1.4.10 UC10: Sơ đồ hoạt động Quản lý danh mục (Manage Categories - Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens category management]
-    A --> B[Display category tree]
-    B --> C{Action?}
+    Start([Bắt đầu]) --> A[Quản trị viên mở trang quản lý danh mục]
+    A --> B[Hiển thị cây phân cấp danh mục]
+    B --> C{Thao tác quản trị?}
     
-    C -->|Add| D[Admin clicks add category]
-    D --> E[Enter category name]
-    E --> F[Select parent category]
-    F --> G[Save category]
-    G --> H[Update category tree]
+    C -->|Thêm mới| D[Quản trị viên nhấp thêm danh mục]
+    D --> E[Nhập tên và mã danh mục]
+    E --> F[Chọn danh mục cha nếu có]
+    F --> G[Nhấn lưu danh mục]
+    G --> H[Cập nhật cây danh mục]
     H --> B
     
-    C -->|Edit| I[Admin selects category]
-    I --> J[Modify category details]
-    J --> K[Save changes]
+    C -->|Chỉnh sửa| I[Quản trị viên chọn danh mục]
+    I --> J[Chỉnh sửa thông tin chi tiết]
+    J --> K[Lưu thông tin cập nhật]
     K --> H
     
-    C -->|Delete| L[Admin selects category]
-    L --> M[Check for products]
-    M --> N{Has products?}
-    N -->|Yes| O[Show cannot delete message]
+    C -->|Xóa| L[Quản trị viên chọn danh mục muốn xóa]
+    L --> M[Kiểm tra sản phẩm ràng buộc]
+    M --> N{Còn sản phẩm liên kết?}
+    N -->|Có| O[Hiển thị cảnh báo không thể xóa]
     O --> B
-    N -->|No| P[Confirm deletion]
-    P --> Q[Delete category]
+    N -->|Không| P[Xác nhận xóa danh mục]
+    P --> Q[Xóa bản ghi khỏi cơ sở dữ liệu]
     Q --> H
 ```
 
-### 1.4.11 UC11: Manage Inventory (Admin)
+### 1.4.11 UC11: Sơ đồ hoạt động Quản lý tồn kho (Manage Inventory - Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens inventory page]
-    A --> B[Display inventory levels]
-    B --> C{Action?}
+    Start([Bắt đầu]) --> A[Quản trị viên mở trang quản lý tồn kho]
+    A --> B[Hiển thị mức tồn kho hiện tại]
+    B --> C{Thao tác?}
     
-    C -->|Update stock| D[Admin selects variant]
-    D --> E[Enter new quantity]
-    E --> F[Provide reason]
-    F --> G[Save inventory change]
-    G --> H[Update inventory record]
-    H --> I[Log inventory change]
+    C -->|Cập nhật tồn kho| D[Chọn biến thể sản phẩm]
+    D --> E[Nhập số lượng tồn kho mới]
+    E --> F[Nhập lý do điều chỉnh]
+    F --> G[Lưu cập nhật tồn kho]
+    G --> H[Cập nhật bản ghi cơ sở dữ liệu]
+    H --> I[Ghi nhật ký biến động kho]
     I --> B
     
-    C -->|View history| J[Admin selects variant]
-    J --> K[System retrieves history]
-    K --> L[Display inventory history]
+    C -->|Xem lịch sử| J[Chọn biến thể sản phẩm]
+    J --> K[Hệ thống truy xuất lịch sử thay đổi]
+    K --> L[Hiển thị biểu đồ/bảng lịch sử kho]
     L --> B
     
-    C -->|Low stock alert| M[Show low stock items]
-    M --> N[Admin reviews alerts]
+    C -->|Cảnh báo kho thấp| M[Hiển thị danh sách sản phẩm sắp hết]
+    M --> N[Quản trị viên xem xét và lên kế hoạch nhập hàng]
     N --> B
 ```
 
-### 1.4.12 UC12: Manage Coupons (Admin)
+### 1.4.12 UC12: Sơ đồ hoạt động Quản lý mã giảm giá (Manage Coupons - Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens coupon management]
-    A --> B[Display coupon list]
-    B --> C{Action?}
+    Start([Bắt đầu]) --> A[Quản trị viên mở trang quản lý coupon]
+    A --> B[Hiển thị danh sách các mã giảm giá]
+    B --> C{Thao tác?}
     
-    C -->|Create| D[Admin clicks create coupon]
-    D --> E[Enter coupon code]
-    E --> F[Set discount type]
-    F --> G[Set validity period]
-    G --> H[Set usage limits]
-    H --> I[Save coupon]
-    I --> J[Create coupon record]
+    C -->|Tạo mới| D[Nhấp tạo mã coupon]
+    D --> E[Nhập mã ký tự coupon]
+    E --> F[Thiết lập loại giảm giá và giá trị]
+    F --> G[Thiết lập thời hạn hiệu lực]
+    G --> H[Thiết lập giới hạn số lượt dùng]
+    H --> I[Lưu thông tin coupon]
+    I --> J[Tạo bản ghi trong cơ sở dữ liệu]
     J --> B
     
-    C -->|Deactivate| K[Admin selects coupon]
-    K --> L[Confirm deactivation]
-    L --> M[Mark coupon inactive]
+    C -->|Vô hiệu hóa| K[Chọn coupon muốn ngưng]
+    K --> L[Xác nhận vô hiệu hóa]
+    L --> M[Cập nhật trạng thái isActive = false]
     M --> B
     
-    C -->|View stats| N[Admin selects coupon]
-    N --> O[System calculates usage]
-    O --> P[Display coupon stats]
+    C -->|Xem thống kê| N[Chọn coupon cần xem]
+    N --> O[Hệ thống tính toán lượt sử dụng]
+    O --> P[Hiển thị thống kê hiệu quả coupon]
     P --> B
 ```
 
-### 1.4.13 UC13: Manage Orders (Admin)
+### 1.4.13 UC13: Sơ đồ hoạt động Quản lý đơn hàng (Manage Orders - Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens order management]
-    A --> B[Display order list]
-    B --> C{Filter by status}
-    C --> D[Show filtered orders]
-    D --> E{Action?}
+    Start([Bắt đầu]) --> A[Quản trị viên mở trang quản lý đơn hàng]
+    A --> B[Hiển thị danh sách đơn hàng]
+    B --> C{Lọc theo trạng thái}
+    C --> D[Hiển thị danh sách đơn đã lọc]
+    D --> E{Thao tác quản trị?}
     
-    E -->|View details| F[Admin selects order]
-    F --> G[Display order details]
-    G --> H[Show customer info]
-    H --> I[Show order items]
-    I --> J{Update status?}
-    J -->|Yes| K[Admin selects new status]
-    K --> L{Valid transition?}
-    L -->|No| M[Show invalid transition]
+    E -->|Xem chi tiết| F[Quản trị viên chọn đơn hàng]
+    F --> G[Hiển thị chi tiết đơn hàng]
+    G --> H[Hiển thị thông tin khách hàng và giao nhận]
+    H --> I[Hiển thị danh sách sản phẩm mua]
+    I --> J{Cập nhật trạng thái?}
+    J -->|Có| K[Chọn trạng thái mới]
+    K --> L{Luồng chuyển đổi hợp lệ?}
+    L -->|Không| M[Hiển thị thông báo chuyển đổi sai quy tắc]
     M --> G
-    L -->|Yes| N[Save status change]
-    N --> O[Record in order_status_history]
+    L -->|Có| N[Lưu thay đổi trạng thái vào cơ sở dữ liệu]
+    N --> O[Ghi nhận lịch sử vào order_status_history]
     O --> B
-    J -->|No| B
+    J -->|Không| B
     
-    E -->|Process refund| P[Admin initiates refund]
-    P --> Q[Verify refund eligibility]
-    Q --> R[Process refund]
-    R --> S[Update order status]
+    E -->|Xử lý hoàn tiền| P[Khởi tạo quy trình hoàn tiền]
+    P --> Q[Kiểm tra tính hợp lệ hoàn trả]
+    Q --> R[Thực hiện hoàn tiền qua cổng thanh toán]
+    R --> S[Cập nhật trạng thái đơn hàng sang đã hoàn tiền]
     S --> B
 ```
 
-### 1.4.14 UC14: View Dashboard (Admin)
+### 1.4.14 UC14: Sơ đồ hoạt động Xem bảng điều khiển (View Dashboard - Admin)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Admin opens dashboard]
-    A --> B[Load overview data]
-    B --> C[Display revenue and order metrics]
-    C --> D[Display customer and product counts]
-    D --> E[Load low stock alerts]
-    E --> F[Display low stock products]
-    F --> End([End])
+    Start([Bắt đầu]) --> A[Quản trị viên mở bảng điều khiển]
+    A --> B[Hệ thống tải dữ liệu tổng quan]
+    B --> C[Hiển thị doanh thu và số lượng đơn hàng]
+    C --> D[Hiển thị số lượng khách hàng và sản phẩm]
+    D --> E[Tải danh sách cảnh báo hàng sắp hết kho]
+    E --> F[Hiển thị bảng danh sách sản phẩm tồn kho thấp]
+    F --> End([Kết thúc])
 ```
 
-### 1.4.15 UC15: Select City/Location
+### 1.4.15 UC15: Sơ đồ hoạt động Chọn thành phố / địa điểm (Select City/Location)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Customer clicks city selector]
-    A --> B[System fetches active cities]
-    B --> C[Display city list with store count]
-    C --> D{Customer selects city?}
-    D -->|Yes| E[Save city code to localStorage]
-    E --> F[Refresh product availability]
-    F --> End([End])
-    D -->|No| G[Close dropdown]
+    Start([Bắt đầu]) --> A[Khách hàng nhấp bộ chọn thành phố trên thanh tiêu đề]
+    A --> B[Hệ thống tải danh sách các thành phố đang hoạt động]
+    B --> C[Hiển thị danh sách thành phố kèm số lượng cửa hàng]
+    C --> D{Khách hàng chọn thành phố?}
+    D -->|Có| E[Lưu mã thành phố vào localStorage trình duyệt]
+    E --> F[Làm mới tình trạng tồn kho sản phẩm theo khu vực]
+    F --> End([Kết thúc])
+    D -->|Không| G[Đóng hộp chọn]
     G --> End
 ```
 
-### 1.4.16 UC16: Check Store Availability
+### 1.4.16 UC16: Sơ đồ hoạt động Kiểm tra tồn kho cửa hàng (Check Store Availability)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[System loads product page]
-    A --> B[Check selected city from context]
-    B --> C{City selected?}
-    C -->|No| D[Hide availability box]
-    D --> End([End])
-    C -->|Yes| E[Fetch availability from API]
-    E --> F{Data loaded?}
-    F -->|No| G[Show loading skeleton]
+    Start([Bắt đầu]) --> A[Hệ thống tải trang chi tiết sản phẩm]
+    A --> B[Lấy thông tin thành phố đã chọn từ bộ nhớ/Context]
+    B --> C{Đã chọn thành phố?}
+    C -->|Không| D[Ẩn hộp tra cứu tồn kho cửa hàng]
+    D --> End([Kết thúc])
+    C -->|Có| E[Gọi API tra cứu tồn kho theo mã thành phố]
+    E --> F{Dữ liệu đã sẵn sàng?}
+    F -->|Không| G[Hiển thị hiệu ứng tải dữ liệu (loading skeleton)]
     G --> E
-    F -->|Yes| H[Display city pool total]
-    H --> I[List stores with stock]
-    I --> J[Show per-store availability]
+    F -->|Có| H[Hiển thị tổng số tồn kho toàn thành phố]
+    H --> I[Liệt kê danh sách từng cửa hàng chi nhánh]
+    I --> J[Hiển thị trạng thái còn hàng/hết hàng kèm số lượng cụ thể]
     J --> End
 ```
 
-### 1.4.17 UC17: Manage Branch Inventory
+### 1.4.17 UC17: Sơ đồ hoạt động Quản lý tồn kho chi nhánh (Manage Branch Inventory - Staff)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Staff navigates to branch inventory]
-    A --> B[System checks staff role]
-    B --> C{Role valid?}
-    C -->|No| D[Show permission error]
-    D --> End([End])
-    C -->|Yes| E[Filter stores by permission scope]
-    E --> F[Display inventory list]
-    F --> G{Action?}
+    Start([Bắt đầu]) --> A[Nhân viên truy cập trang tồn kho chi nhánh]
+    A --> B[Hệ thống kiểm tra vai trò người dùng]
+    B --> C{Vai trò hợp lệ?}
+    C -->|Không| D[Hiển thị thông báo từ chối truy cập 403]
+    D --> End([Kết thúc])
+    C -->|Có| E[Lọc danh sách cửa hàng theo phạm vi thẩm quyền]
+    E --> F[Hiển thị danh sách tồn kho cửa hàng]
+    F --> G{Thao tác?}
     
-    G -->|View| H[Show inventory details]
+    G -->|Xem chi tiết| H[Hiển thị chi tiết số lượng từng biến thể]
     H --> F
     
-    G -->|Update| I[Staff selects variant]
-    I --> J[Staff enters new quantity]
-    J --> K[System validates permission]
-    K --> L{Authorized?}
-    L -->|No| M[Show forbidden error]
+    G -->|Cập nhật| I[Nhân viên chọn biến thể sản phẩm]
+    I --> J[Nhân viên nhập số lượng tồn kho thực tế mới]
+    J --> K[Hệ thống xác minh quyền hạn trên cửa hàng mục tiêu]
+    K --> L{Có quyền chỉnh sửa?}
+    L -->|Không| M[Hiển thị thông báo không có quyền can thiệp]
     M --> F
-    L -->|Yes| N[Update store_inventory]
-    N --> O[Increment version]
-    O --> P[Show success message]
+    L -->|Có| N[Cập nhật bảng store_inventory trong cơ sở dữ liệu]
+    N --> O[Tăng số hiệu phiên bản version (Khóa lạc quan)]
+    O --> P[Hiển thị thông báo cập nhật thành công]
     P --> F
 ```
 
-### 1.4.18 UC18: POS Transaction
+### 1.4.18 UC18: Sơ đồ hoạt động Giao dịch bán hàng tại quầy POS (POS Transaction - Staff)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Staff navigates to POS page]
-    A --> B[System checks staff role]
-    B --> C{Role valid?}
-    C -->|No| D[Show permission error]
-    D --> End([End])
-    C -->|Yes| E[Display search input]
-    E --> F[Staff enters product keyword]
-    F --> G[System searches by SKU or name]
-    G --> H{Results found?}
-    H -->|No| I[Show no results message]
+    Start([Bắt đầu]) --> A[Nhân viên mở trang bán hàng POS]
+    A --> B[Hệ thống kiểm tra vai trò nhân viên và cửa hàng gán]
+    B --> C{Vai trò hợp lệ?}
+    C -->|Không| D[Hiển thị lỗi không có quyền truy cập]
+    D --> End([Kết thúc])
+    C -->|Có| E[Hiển thị giao diện quầy thu ngân và ô tìm kiếm]
+    E --> F[Nhân viên nhập từ khóa hoặc quét mã SKU sản phẩm]
+    F --> G[Hệ thống tìm kiếm theo tên hoặc tiền tố SKU]
+    G --> H{Tìm thấy kết quả?}
+    H -->|Không| I[Hiển thị thông báo không tìm thấy sản phẩm]
     I --> F
-    H -->|Yes| J[Display results with store stock]
-    J --> K{Staff selects product?}
-    K -->|No| F
-    K -->|Yes| L[Staff enters quantity]
-    L --> M[System checks store inventory]
-    M --> N{Sufficient stock?}
-    N -->|No| O[Show insufficient stock error]
+    H -->|Có| J[Hiển thị kết quả kèm số lượng tồn tại cửa hàng]
+    J --> K{Nhân viên chọn sản phẩm?}
+    K -->|Không| F
+    K -->|Có| L[Nhập số lượng khách mua]
+    L --> M[Hệ thống kiểm tra tồn kho tại cửa hàng]
+    M --> N{Đủ số lượng?}
+    N -->|Không| O[Hiển thị cảnh báo số lượng tồn kho không đủ]
     O --> J
-    N -->|Yes| P[Add product to cart]
-    P --> Q{Add more products?}
-    Q -->|Yes| F
-    Q -->|No| R[Display cart with total]
-    R --> S[Staff confirms transaction]
-    S --> T[System validates store inventory]
-    T --> U{All items available?}
-    U -->|No| V[Show out of stock error]
+    N -->|Có| P[Thêm sản phẩm vào danh sách đơn POS]
+    P --> Q{Thêm sản phẩm khác?}
+    Q -->|Có| F
+    Q -->|Không| R[Hiển thị tổng tiền và danh sách sản phẩm]
+    R --> S[Nhân viên nhấn xác nhận thanh toán]
+    S --> T[Hệ thống kiểm tra lại tồn kho toàn bộ giỏ hàng]
+    T --> U{Tất cả mặt hàng sẵn sàng?}
+    U -->|Không| V[Báo lỗi mặt hàng đã hết]
     V --> R
-    U -->|Yes| W[Create order - channel=pos]
-    W --> X[Create payment - succeeded]
-    X --> Y[Deduct store_inventory]
-    Y --> Z[Deduct inventory]
-    Z --> AA[Show success with order number]
-    AA --> End([End])
+    U -->|Có| W[Tạo bản ghi đơn hàng channel=pos, status=completed]
+    W --> X[Tạo bản ghi thanh toán status=succeeded]
+    X --> Y[Trừ số lượng trong store_inventory]
+    Y --> Z[Trừ số lượng trong inventory tổng]
+    Z --> AA[Hiển thị thông báo thành công kèm mã đơn hàng]
+    AA --> End([Kết thúc: Hoàn tất đơn POS])
 ```
 
 ---
 
-## 1.5 System Sequence Diagrams
+## 1.5 Sơ đồ tuần tự hệ thống (System Sequence Diagrams)
 
-### 1.5.1 UC1: Browse Products Sequence
+### 1.5.1 UC1: Sơ đồ tuần tự Duyệt sản phẩm (Browse Products Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Click category
+    C->>FE: Nhấp chọn danh mục
     FE->>API: GET /categories/{id}/products
     API->>DB: SELECT products WHERE category_id = ?
     DB-->>API: products[]
     API-->>FE: ProductListResponse
-    FE-->>C: Display product grid
+    FE-->>C: Hiển thị lưới sản phẩm
     
-    C->>FE: Apply filter (price range)
+    C->>FE: Áp dụng bộ lọc (khoảng giá, màu sắc)
     FE->>API: GET /products?category=X&min_price=Y&max_price=Z
     API->>DB: SELECT products WITH filters
     DB-->>API: filteredProducts[]
     API-->>FE: FilteredProductList
-    FE-->>C: Update product grid
+    FE-->>C: Cập nhật lưới sản phẩm đã lọc
 ```
 
-### 1.5.2 UC2: Search Products Sequence
+### 1.5.2 UC2: Sơ đồ tuần tự Tìm kiếm sản phẩm (Search Products Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Enter search term
+    C->>FE: Nhập từ khóa tìm kiếm
     FE->>API: GET /products/search?q=keyword
     API->>DB: SELECT MATCHES against keyword
     DB-->>API: searchResults[]
-    API->>API: Rank by relevance
+    API->>API: Xếp hạng kết quả theo độ liên quan
     API-->>FE: SearchResultsResponse
-    FE-->>C: Display search results
+    FE-->>C: Hiển thị kết quả tìm kiếm
     
-    Note over C,DB: Log search event
-    API->>API: Log to access stream
+    Note over C,DB: Ghi nhật ký sự kiện tìm kiếm
+    API->>API: Ghi log vào luồng sự kiện truy cập
 ```
 
-### 1.5.3 UC3: View Product Details Sequence
+### 1.5.3 UC3: Sơ đồ tuần tự Xem chi tiết sản phẩm (View Product Details Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Click product
+    C->>FE: Nhấp chọn sản phẩm
     FE->>API: GET /products/{id}
     API->>DB: SELECT product WITH variants
     DB-->>API: productDetails
@@ -1267,392 +1269,392 @@ sequenceDiagram
     API->>DB: SELECT related products
     DB-->>API: relatedProducts[]
     API-->>FE: ProductDetailResponse
-    FE-->>C: Display product page
+    FE-->>C: Hiển thị trang chi tiết sản phẩm
     
-    Note over C,DB: Log product view
-    API->>API: Log to access stream
+    Note over C,DB: Ghi nhật ký xem sản phẩm
+    API->>API: Ghi log vào luồng sự kiện truy cập
 ```
 
-### 1.5.4 UC4: Manage Cart Sequence
+### 1.5.4 UC4: Sơ đồ tuần tự Quản lý giỏ hàng (Manage Cart Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Add product to cart
+    C->>FE: Thêm sản phẩm vào giỏ
     FE->>API: POST /cart/items
     API->>DB: SELECT inventory WHERE variant_id = ?
     DB-->>API: stockLevel
     
-    alt In stock
+    alt Còn hàng trong kho
         API->>DB: INSERT cart_item
         API->>DB: UPDATE cart total
-        DB-->>API: success
+        DB-->>API: Thành công
         API-->>FE: CartItemAdded
-        FE-->>C: Show success message
-    else Out of stock
+        FE-->>C: Hiển thị thông báo thêm thành công
+    else Hết hàng
         API-->>FE: OutOfStockError
-        FE-->>C: Show out of stock message
+        FE-->>C: Hiển thị cảnh báo hết hàng
     end
 ```
 
-### 1.5.5 UC5: Checkout Sequence
+### 1.5.5 UC5: Sơ đồ tuần tự Thanh toán (Checkout Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Proceed to checkout
+    C->>FE: Tiến hành thanh toán
     FE->>API: GET /cart/{cartId}
     API->>DB: SELECT cart_items JOIN products
     DB-->>API: cartItems[]
     API-->>FE: CartResponse
-    FE-->>C: Display cart summary
+    FE-->>C: Hiển thị tóm tắt giỏ hàng
     
-    C->>FE: Enter structured address (province, ward, street)
-    C->>FE: Confirm order
+    C->>FE: Nhập địa chỉ chi tiết (tỉnh/thành, phường/xã, địa chỉ cụ thể)
+    C->>FE: Nhấn xác nhận đặt hàng
     FE->>API: POST /orders/checkout
-    Note over API,DB: Begin Transaction
-    API->>DB: INSERT orders (with address text)
-    API->>DB: INSERT order_items
+    Note over API,DB: Bắt đầu giao dịch (Begin Transaction)
+    API->>DB: INSERT orders (lưu địa chỉ và thông tin người nhận)
+    API->>DB: INSERT order_items (lưu snapshot thông tin sản phẩm)
     API->>DB: INSERT payments (status=succeeded)
-    API->>DB: UPDATE inventory
+    API->>DB: UPDATE inventory (trừ tồn kho)
     API->>DB: UPDATE carts SET status=checked_out
-    DB-->>API: Transaction committed
+    DB-->>API: Giao dịch xác nhận thành công (Transaction committed)
     
-    API->>API: Log to access stream
+    API->>API: Ghi log giao dịch vào luồng sự kiện truy cập
     API-->>FE: OrderConfirmation
-    FE-->>C: Display confirmation
+    FE-->>C: Hiển thị màn hình đặt hàng thành công
 ```
 
-### 1.5.6 UC6: Track Orders Sequence
+### 1.5.6 UC6: Sơ đồ tuần tự Theo dõi đơn hàng (Track Orders Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Access order history
+    C->>FE: Truy cập lịch sử đơn hàng
     FE->>API: GET /orders
     API->>DB: SELECT orders WHERE customer_id = ?
     DB-->>API: orders[]
     API-->>FE: OrderListResponse
-    FE-->>C: Display order list
+    FE-->>C: Hiển thị danh sách đơn hàng
     
-    C->>FE: Select order
+    C->>FE: Chọn đơn hàng cụ thể
     FE->>API: GET /orders/{id}
     API->>DB: SELECT order WITH items
     DB-->>API: orderDetails
     API->>DB: SELECT status_history
     DB-->>API: statusHistory[]
     API-->>FE: OrderDetailResponse
-    FE-->>C: Display order details
+    FE-->>C: Hiển thị chi tiết và tiến trình xử lý đơn hàng
 ```
 
-### 1.5.7 UC7: Write Reviews Sequence
+### 1.5.7 UC7: Sơ đồ tuần tự Viết đánh giá (Write Reviews Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Select product to review
+    C->>FE: Chọn sản phẩm cần đánh giá
     FE->>API: GET /orders/{orderId}/items/{itemId}/review eligibility
     API->>DB: SELECT order WHERE customer_id = ? AND status = 'completed'
     DB-->>API: orderExists
     
-    alt Eligible
+    alt Đủ điều kiện đánh giá
         API-->>FE: EligibleResponse
-        FE-->>C: Display review form
-        C->>FE: Submit review
+        FE-->>C: Hiển thị biểu mẫu nhập đánh giá
+        C->>FE: Gửi nhận xét và số sao
         FE->>API: POST /reviews
         API->>DB: INSERT product_review
         DB-->>API: reviewId
         API-->>FE: ReviewCreated
-        FE-->>C: Show success message
-    else Not eligible
+        FE-->>C: Hiển thị thông báo gửi đánh giá thành công
+    else Chưa đủ điều kiện
         API-->>FE: NotEligibleError
-        FE-->>C: Show not eligible message
+        FE-->>C: Hiển thị thông báo chưa thể đánh giá sản phẩm này
     end
 ```
 
-### 1.5.8 UC8: Manage Wishlist Sequence
+### 1.5.8 UC8: Sơ đồ tuần tự Quản lý danh sách yêu thích (Manage Wishlist Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Add to wishlist
+    C->>FE: Thêm sản phẩm vào yêu thích
     FE->>API: POST /wishlist
     API->>DB: INSERT wishlist_item
-    DB-->>API: success
+    DB-->>API: Thành công
     API-->>FE: WishlistItemAdded
-    FE-->>C: Show success message
+    FE-->>C: Hiển thị thông báo đã lưu vào danh sách yêu thích
     
-    C->>FE: View wishlist
+    C->>FE: Xem danh sách yêu thích
     FE->>API: GET /wishlist
     API->>DB: SELECT wishlist_items WITH products
     DB-->>API: wishlistItems[]
     API-->>FE: WishlistResponse
-    FE-->>C: Display wishlist
+    FE-->>C: Hiển thị danh sách yêu thích
     
-    C->>FE: Remove from wishlist
+    C->>FE: Gỡ bỏ khỏi danh sách yêu thích
     FE->>API: DELETE /wishlist/{itemId}
     API->>DB: DELETE wishlist_item
-    DB-->>API: success
+    DB-->>API: Thành công
     API-->>FE: WishlistItemRemoved
-    FE-->>C: Update wishlist display
+    FE-->>C: Cập nhật lại giao diện danh sách
 ```
 
-### 1.5.9 UC9: Manage Products (Admin) Sequence
+### 1.5.9 UC9: Sơ đồ tuần tự Quản lý sản phẩm (Manage Products Sequence - Admin)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as Admin
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant A as Quản trị viên (Admin)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    A->>FE: Navigate to products
+    A->>FE: Truy cập danh sách sản phẩm
     FE->>API: GET /admin/products
     API->>DB: SELECT products
     DB-->>API: products[]
     API-->>FE: ProductListResponse
-    FE-->>A: Display product list
+    FE-->>A: Hiển thị bảng sản phẩm
     
-    A->>FE: Click add product
-    FE-->>A: Display product form
+    A->>FE: Nhấp tạo mới sản phẩm
+    FE-->>A: Hiển thị biểu mẫu nhập liệu
     
-    A->>FE: Submit new product
+    A->>FE: Gửi thông tin sản phẩm mới
     FE->>API: POST /admin/products
     API->>DB: INSERT product
     DB-->>API: productId
     API-->>FE: ProductCreated
-    FE-->>A: Show success message
+    FE-->>A: Hiển thị thông báo thêm thành công
 ```
 
-### 1.5.10 UC10: Manage Categories (Admin) Sequence
+### 1.5.10 UC10: Sơ đồ tuần tự Quản lý danh mục (Manage Categories Sequence - Admin)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as Admin
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant A as Quản trị viên (Admin)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    A->>FE: Navigate to categories
+    A->>FE: Truy cập quản lý danh mục
     FE->>API: GET /admin/categories
     API->>DB: SELECT categories
     DB-->>API: categories[]
     API-->>FE: CategoryTreeResponse
-    FE-->>A: Display category tree
+    FE-->>A: Hiển thị cây danh mục
     
-    A->>FE: Add category
+    A->>FE: Thêm danh mục mới
     FE->>API: POST /admin/categories
     API->>DB: INSERT category
     DB-->>API: categoryId
     API-->>FE: CategoryCreated
-    FE-->>A: Update category tree
+    FE-->>A: Cập nhật cây danh mục trên giao diện
 ```
 
-### 1.5.11 UC11: Manage Inventory (Admin) Sequence
+### 1.5.11 UC11: Sơ đồ tuần tự Quản lý tồn kho (Manage Inventory Sequence - Admin)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as Admin
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant A as Quản trị viên (Admin)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    A->>FE: Navigate to inventory
+    A->>FE: Truy cập trang tồn kho
     FE->>API: GET /admin/inventory
     API->>DB: SELECT inventory WITH variants
     DB-->>API: inventoryLevels[]
     API-->>FE: InventoryResponse
-    FE-->>A: Display inventory levels
+    FE-->>A: Hiển thị danh sách tồn kho
     
-    A->>FE: Update stock quantity
+    A->>FE: Cập nhật số lượng tồn
     FE->>API: PUT /admin/inventory/{variantId}
     API->>DB: UPDATE inventory SET quantity = ?
     API->>DB: INSERT inventory_history
-    DB-->>API: success
+    DB-->>API: Thành công
     API-->>FE: InventoryUpdated
-    FE-->>A: Show updated levels
+    FE-->>A: Hiển thị số lượng tồn kho mới
 ```
 
-### 1.5.12 UC12: Manage Coupons (Admin) Sequence
+### 1.5.12 UC12: Sơ đồ tuần tự Quản lý mã giảm giá (Manage Coupons Sequence - Admin)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as Admin
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant A as Quản trị viên (Admin)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    A->>FE: Navigate to coupons
+    A->>FE: Truy cập trang mã giảm giá
     FE->>API: GET /admin/coupons
     API->>DB: SELECT coupons
     DB-->>API: coupons[]
     API-->>FE: CouponListResponse
-    FE-->>A: Display coupon list
+    FE-->>A: Hiển thị danh sách coupon
     
-    A->>FE: Create coupon
+    A->>FE: Tạo mã coupon mới
     FE->>API: POST /admin/coupons
     API->>DB: INSERT coupon
     DB-->>API: couponId
     API-->>FE: CouponCreated
-    FE-->>A: Show success message
+    FE-->>A: Hiển thị thông báo tạo thành công
 ```
 
-### 1.5.13 UC13: Manage Orders (Admin) Sequence
+### 1.5.13 UC13: Sơ đồ tuần tự Quản lý đơn hàng (Manage Orders Sequence - Admin)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as Admin
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant A as Quản trị viên (Admin)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    A->>FE: Navigate to orders
+    A->>FE: Mở trang danh sách đơn hàng
     FE->>API: GET /admin/orders
     API->>DB: SELECT orders
     DB-->>API: orders[]
     API-->>FE: OrderListResponse
-    FE-->>A: Display order list
+    FE-->>A: Hiển thị danh sách đơn hàng
     
-    A->>FE: Update order status
+    A->>FE: Cập nhật trạng thái đơn
     FE->>API: PUT /admin/orders/{orderId}/status
     API->>DB: UPDATE orders SET status = ?
     API->>DB: INSERT order_status_history
-    DB-->>API: success
+    DB-->>API: Thành công
     API-->>FE: OrderStatusUpdated
-    FE-->>A: Show updated status
+    FE-->>A: Hiển thị trạng thái đơn hàng đã đổi
 ```
 
-### 1.5.14 UC14: View Dashboard (Admin) Sequence
+### 1.5.14 UC14: Sơ đồ tuần tự Xem bảng điều khiển (View Dashboard Sequence - Admin)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant A as Admin
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant A as Quản trị viên (Admin)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    A->>FE: Navigate to dashboard
+    A->>FE: Mở trang Dashboard
     FE->>API: GET /admin/dashboard/overview
-    API->>DB: SELECT revenue/orders/customers/products
+    API->>DB: SELECT doanh thu/đơn hàng/khách hàng/sản phẩm
     DB-->>API: overviewData
     API-->>FE: OverviewResponse
-    FE-->>A: Display dashboard with key metrics
+    FE-->>A: Hiển thị bảng điều khiển chỉ số kinh doanh
     
     FE->>API: GET /admin/dashboard/low-stock
     API->>DB: SELECT products WHERE on_hand <= 5
     DB-->>API: lowStockProducts[]
     API-->>FE: LowStockResponse
-    FE-->>A: Display low stock alerts
+    FE-->>A: Hiển thị cảnh báo các sản phẩm sắp hết hàng
 ```
 
-### 1.5.15 UC18: POS Transaction Sequence
+### 1.5.15 UC18: Sơ đồ tuần tự Bán hàng tại quầy POS (POS Transaction Sequence - Staff)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant S as Staff
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant S as Nhân viên (Staff)
+    participant FE as Giao diện Admin POS (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    S->>FE: Navigate to POS page
+    S->>FE: Mở trang bán hàng POS
     FE->>API: GET /auth/me
     API-->>FE: staffId, storeId
     
-    S->>FE: Enter search keyword
+    S->>FE: Nhập từ khóa tìm sản phẩm
     FE->>API: GET /pos/products?q={keyword}&store_id={storeId}
     API->>DB: SELECT products WHERE (sku LIKE 'keyword%' OR name LIKE 'keyword%')
     API->>DB: JOIN store_inventory WHERE store_id = ?
     DB-->>API: productsWithStock[]
-    API-->>FE: ProductSearchResponse (up to 8)
-    FE-->>S: Display results with store stock
+    API-->>FE: ProductSearchResponse (tối đa 8 sản phẩm)
+    FE-->>S: Hiển thị danh sách sản phẩm kèm tồn kho chi nhánh
     
-    S->>FE: Select product and enter quantity
-    S->>FE: Click add to cart
-    FE-->>S: Show in cart
+    S->>FE: Chọn sản phẩm và nhập số lượng
+    S->>FE: Nhấn thêm vào đơn POS
+    FE-->>S: Hiển thị mục trong giỏ hàng POS
     
-    S->>FE: Confirm transaction
+    S->>FE: Xác nhận giao dịch
     FE->>API: POST /pos/transactions
-    Note over API,DB: Begin Transaction
+    Note over API,DB: Bắt đầu giao dịch (Begin Transaction)
     API->>DB: INSERT orders (channel=pos, status=completed, staff_id, store_id)
     API->>DB: INSERT order_items
     API->>DB: INSERT payments (status=succeeded)
     API->>DB: UPDATE store_inventory SET on_hand = on_hand - qty
     API->>DB: UPDATE inventory SET on_hand = on_hand - qty
-    DB-->>API: Transaction committed
+    DB-->>API: Giao dịch hoàn tất thành công (Transaction committed)
     
     API-->>FE: OrderCreatedResponse
-    FE-->>S: Show success with order number
+    FE-->>S: Hiển thị hóa đơn và mã đơn hàng vừa hoàn tất
 ```
 
-### 1.5.16 UC15: Select City/Location Sequence
+### 1.5.16 UC15: Sơ đồ tuần tự Chọn thành phố / địa điểm (Select City/Location Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: Click city selector
+    C->>FE: Nhấp chọn bộ chọn thành phố
     FE->>API: GET /api/v1/locations/cities
     API->>DB: SELECT cities WHERE is_active = true
     DB-->>API: cities[]
     API-->>FE: CityResponse[]
-    FE-->>C: Display city list
+    FE-->>C: Hiển thị danh sách thành phố kèm số lượng cửa hàng
     
-    C->>FE: Select city
-    FE->>FE: Save to localStorage(dk_selected_city_code)
-    FE->>FE: Update LocationContext
-    FE-->>C: City selected, availability refreshed
+    C->>FE: Chọn một thành phố
+    FE->>FE: Lưu vào localStorage (dk_selected_city_code)
+    FE->>FE: Cập nhật LocationContext
+    FE-->>C: Thành phố đã được chọn, làm mới tình trạng tồn kho
 ```
 
-### 1.5.16 UC16: Check Store Availability Sequence
+### 1.5.17 UC16: Sơ đồ tuần tự Kiểm tra tồn kho cửa hàng (Check Store Availability Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant C as Customer
-    participant FE as Next.js Storefront
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant C as Khách hàng (Customer)
+    participant FE as Giao diện Storefront (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    C->>FE: View product detail page
-    FE->>FE: Get selectedCity from LocationContext
+    C->>FE: Xem trang chi tiết sản phẩm
+    FE->>FE: Lấy selectedCity từ LocationContext
     
-    alt City selected
+    alt Đã chọn thành phố
         FE->>API: GET /api/v1/catalog/products/{slug}/availability?city_code={code}
         API->>DB: SELECT cities WHERE code = ?
         DB-->>API: city
@@ -1661,390 +1663,349 @@ sequenceDiagram
         API->>DB: SELECT store_inventory JOIN variants
         DB-->>API: inventory[]
         API-->>FE: ProductAvailabilityResponse
-        FE-->>C: Display StoreAvailabilityBox
-    else No city selected
-        FE-->>C: Hide availability box
+        FE-->>C: Hiển thị hộp StoreAvailabilityBox với số lượng từng cửa hàng
+    else Chưa chọn thành phố
+        FE-->>C: Ẩn hộp tra cứu tồn kho cửa hàng
     end
 ```
 
-### 1.5.17 UC17: Manage Branch Inventory Sequence
+### 1.5.18 UC17: Sơ đồ tuần tự Quản lý tồn kho chi nhánh (Manage Branch Inventory Sequence - Staff)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant S as Staff (Admin/Manager/Planner)
-    participant FE as Next.js Admin
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
+    participant S as Nhân viên (Admin/Manager/Planner)
+    participant FE as Giao diện Admin (Next.js)
+    participant API as Máy chủ API (FastAPI)
+    participant DB as Cơ sở dữ liệu MySQL
     
-    S->>FE: Navigate to branch inventory
+    S->>FE: Mở trang tồn kho chi nhánh
     FE->>API: GET /api/v1/admin/branch-inventory
     API->>DB: SELECT store_inventory JOIN stores JOIN variants
     DB-->>API: inventory[]
     API-->>FE: BranchInventoryItem[]
-    FE-->>S: Display inventory list
+    FE-->>S: Hiển thị danh sách tồn kho theo cửa hàng
     
-    S->>FE: Update stock quantity
+    S->>FE: Cập nhật số lượng tồn kho
     FE->>API: PATCH /api/v1/admin/branch-inventory
     API->>API: check_store_inventory_permission(actor, store_id)
     
-    alt Authorized
+    alt Hợp lệ về quyền hạn
         API->>DB: UPDATE store_inventory SET on_hand = ?, version = version + 1
-        DB-->>API: success
+        DB-->>API: Thành công
         API-->>FE: 204 No Content
-        FE-->>S: Stock updated
-    else Forbidden
+        FE-->>S: Cập nhật số lượng thành công
+    else Không có quyền (Forbidden)
         API-->>FE: 403 Forbidden
-        FE-->>S: Permission error
+        FE-->>S: Hiển thị thông báo không có quyền chỉnh sửa
     end
 ```
 
 ---
 
-## 1.6 Class Diagrams
+## 1.6 Sơ đồ lớp (Class Diagrams)
 
-### 1.6.1 Domain Model - Core Entities
+### 1.6.1 Toàn bộ thực thể OLTP (Complete OLTP Entities)
 
 ```mermaid
 classDiagram
     class Customer {
-        +customerId: BIGINT UNSIGNED
-        +publicId: UUID
-        +email: String
-        +displayName: String
-        +passwordHash: String
-        +role: customer|admin|store_manager|city_planner
-        +status: active|disabled
-        +cityId: BIGINT UNSIGNED?
-        +storeId: BIGINT UNSIGNED?
-        +dataOrigin: manual|synthetic
-        +createdAt: DateTime
-        +updatedAt: DateTime
-        +register()
-        +updateProfile()
-        +getOrders()
+        <<implemented>>
+        +customer_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +email: VARCHAR(254) UNIQUE
+        +display_name: VARCHAR(100)
+        +password_hash: VARCHAR(255)
+        +role: ENUM (customer|admin|store_manager|city_planner)
+        +status: ENUM (active|disabled)
+        +city_id: BIGINT UNSIGNED?
+        +store_id: BIGINT UNSIGNED?
+        +data_origin: ENUM (manual|synthetic)
+        +generation_run_id: VARCHAR(50)?
+        +anonymized_at: DATETIME?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class Category {
-        +categoryId: BIGINT UNSIGNED
-        +publicId: UUID
-        +code: String
-        +name: String
-        +parentCategoryId: BIGINT UNSIGNED?
-        +isActive: Boolean
-        +createdAt: DateTime
-        +updatedAt: DateTime
+        <<implemented>>
+        +category_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +code: VARCHAR(50) UNIQUE
+        +name: VARCHAR(100)
+        +parent_category_id: BIGINT UNSIGNED?
+        +is_active: BOOLEAN
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class Product {
-        +productId: BIGINT UNSIGNED
-        +publicId: UUID
-        +name: String
-        +slug: String
-        +description: String?
-        +imageUrl: String?
-        +categoryId: BIGINT UNSIGNED
-        +isActive: Boolean
-        +archivedAt: DateTime?
-        +createdAt: DateTime
-        +updatedAt: DateTime
+        <<implemented>>
+        +product_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +name: VARCHAR(255)
+        +slug: VARCHAR(255) UNIQUE
+        +description: TEXT?
+        +image_url: VARCHAR(500)?
+        +category_id: BIGINT UNSIGNED FK
+        +is_active: BOOLEAN
+        +archived_at: DATETIME?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class ProductVariant {
-        +variantId: BIGINT UNSIGNED
-        +publicId: UUID
-        +productId: BIGINT UNSIGNED
-        +sku: String
-        +sizeCode: String
-        +colorCode: String
-        +priceVnd: Integer
-        +isActive: Boolean
-        +createdAt: DateTime
-        +updatedAt: DateTime
+        <<implemented>>
+        +variant_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +product_id: BIGINT UNSIGNED FK
+        +sku: VARCHAR(50) UNIQUE
+        +size_code: VARCHAR(10)
+        +color_code: VARCHAR(20)
+        +price_vnd: BIGINT UNSIGNED
+        +is_active: BOOLEAN
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class Cart {
-        +cartId: UUID
-        +customerId: UUID
-        +createdAt: DateTime
-        +addItem()
-        +removeItem()
-        +updateQuantity()
-        +getTotal()
+        <<implemented>>
+        +cart_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +customer_id: BIGINT UNSIGNED FK
+        +status: ENUM
+        +active_customer_guard: VARCHAR(100)?
+        +checked_out_at: DATETIME?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class CartItem {
-        +cartItemId: UUID
-        +cartId: UUID
-        +variantId: UUID
-        +quantity: Integer
-        +createdAt: DateTime
+        <<implemented>>
+        +cart_item_id: BIGINT UNSIGNED PK
+        +cart_id: BIGINT UNSIGNED FK
+        +variant_id: BIGINT UNSIGNED FK
+        +quantity: INT UNSIGNED
+        +is_present: BOOLEAN
+        +first_added_at: DATETIME
+        +removed_at: DATETIME?
+        +updated_at: DATETIME
     }
     
-    class Order {
-        +orderId: UUID
-        +customerId: UUID
-        +status: OrderStatus
-        +totalAmount: Integer
-        +shippingAddress: JSON
-        +createdAt: DateTime
-        +create()
-        +updateStatus()
-        +cancel()
-    }
-    
-    class OrderItem {
-        +orderItemId: UUID
-        +orderId: UUID
-        +variantId: UUID
-        +quantity: Integer
-        +unitPrice: Integer
-    }
-    
-    class Payment {
-        +paymentId: UUID
-        +orderId: UUID
-        +amount: Integer
-        +method: String
-        +status: PaymentStatus
-        +processedAt: DateTime
-    }
-    
-    Customer "1" --> "*" Cart : has
-    Customer "1" --> "*" Order : places
-    Category "1" --> "*" Product : contains
-    Category "0..1" --> "*" Category : parent
-    Product "1" --> "*" ProductVariant : has
-    Cart "1" --> "*" CartItem : contains
-    CartItem "*" --> "1" ProductVariant : references
-    Order "1" --> "*" OrderItem : contains
-    Order "1" --> "0..1" Payment : has
-    OrderItem "*" --> "1" ProductVariant : references
-```
-
-### 1.6.2 Enumeration Types
-
-```mermaid
-classDiagram
-    class CustomerRole {
-        <<enumeration>>
-        customer
-        admin
-        store_manager
-        city_planner
-    }
-    
-    class OrderStatus {
-        <<enumeration>>
-        paid
-        confirmed
-        completed
-        cancelled
-    }
-    
-    class PaymentStatus {
-        <<enumeration>>
-        succeeded
-        failed
-    }
-    
-    class CouponType {
-        <<enumeration>>
-        percentage
-        fixed_amount
-    }
-    
-    class CustomerStatus {
-        <<enumeration>>
-        active
-        inactive
-    }
-```
-
-### 1.6.3 Supporting Entities
-
-```mermaid
-classDiagram
     class Order {
         <<implemented>>
-        +orderId: BIGINT UNSIGNED
-        +customerId: BIGINT UNSIGNED
-        +orderNumber: String
-        +subtotal: BIGINT UNSIGNED
-        +shippingFee: BIGINT UNSIGNED
-        +discount: BIGINT UNSIGNED
-        +total: BIGINT UNSIGNED
-        +status: OrderStatus
-        +channel: OrderChannel
-        +storeId: BIGINT UNSIGNED?
-        +staffId: BIGINT UNSIGNED?
-        +fullName: String
-        +phone: String
-        +addressText: String
-        +createdAt: DateTime
-        +updatedAt: DateTime
+        +order_id: BIGINT UNSIGNED PK
+        +order_number: VARCHAR(32) UNIQUE
+        +cart_id: BIGINT UNSIGNED?
+        +customer_id: BIGINT UNSIGNED FK
+        +checkout_idempotency_key: VARCHAR(100)?
+        +coupon_id: BIGINT UNSIGNED?
+        +status: ENUM
+        +currency_code: VARCHAR(3)
+        +subtotal_vnd: BIGINT UNSIGNED
+        +coupon_code_snapshot: VARCHAR(50)?
+        +coupon_type_snapshot: VARCHAR(20)?
+        +coupon_value_snapshot: BIGINT UNSIGNED?
+        +discount_amount_vnd: BIGINT UNSIGNED
+        +shipping_fee_vnd: BIGINT UNSIGNED
+        +total_vnd: BIGINT UNSIGNED
+        +receiver_name: VARCHAR(200)
+        +receiver_phone: VARCHAR(20)
+        +shipping_address_text: TEXT
+        +channel: ENUM (online|pos)
+        +store_id: BIGINT UNSIGNED?
+        +staff_id: BIGINT UNSIGNED?
+        +paid_at: DATETIME?
+        +confirmed_at: DATETIME?
+        +completed_at: DATETIME?
+        +cancelled_at: DATETIME?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class OrderItem {
         <<implemented>>
-        +orderItemId: BIGINT UNSIGNED
-        +orderId: BIGINT UNSIGNED
-        +variantId: BIGINT UNSIGNED
-        +quantity: Integer
-        +unitPrice: BIGINT UNSIGNED
+        +order_item_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +order_id: BIGINT UNSIGNED FK
+        +variant_id: BIGINT UNSIGNED FK
+        +product_public_id_snapshot: BINARY(16)
+        +category_code_snapshot: VARCHAR(50)?
+        +category_name_snapshot: VARCHAR(100)?
+        +product_name_snapshot: VARCHAR(255)
+        +sku_snapshot: VARCHAR(50)
+        +size_code_snapshot: VARCHAR(10)
+        +color_code_snapshot: VARCHAR(20)
+        +unit_price_vnd: BIGINT UNSIGNED
+        +quantity: INT UNSIGNED
+        +line_total_vnd: BIGINT UNSIGNED
+        +created_at: DATETIME
     }
     
     class OrderStatusHistory {
         <<implemented>>
-        +historyId: BIGINT UNSIGNED
-        +orderId: BIGINT UNSIGNED
-        +status: OrderStatus
-        +changedAt: DateTime
-        +changedBy: String?
-        +notes: String?
+        +order_status_history_id: BIGINT UNSIGNED PK
+        +order_id: BIGINT UNSIGNED FK
+        +from_status: ENUM?
+        +to_status: ENUM
+        +transition_source: ENUM
+        +reason: VARCHAR(500)?
+        +transition_idempotency_key: VARCHAR(100)?
+        +transitioned_at: DATETIME
+        +created_at: DATETIME
     }
     
     class Payment {
         <<implemented>>
-        +paymentId: BIGINT UNSIGNED
-        +orderId: BIGINT UNSIGNED
-        +method: String
-        +amount: BIGINT UNSIGNED
-        +status: String
-        +transactionId: String?
-    }
-    
-    class Cart {
-        <<implemented>>
-        +cartId: BIGINT UNSIGNED
-        +customerId: BIGINT UNSIGNED
-        +createdAt: DateTime
-        +updatedAt: DateTime
-    }
-    
-    class CartItem {
-        <<implemented>>
-        +cartItemId: BIGINT UNSIGNED
-        +cartId: BIGINT UNSIGNED
-        +variantId: BIGINT UNSIGNED
-        +quantity: Integer
+        +payment_id: BIGINT UNSIGNED PK
+        +payment_reference: VARCHAR(64) UNIQUE
+        +order_id: BIGINT UNSIGNED FK
+        +payment_idempotency_key: VARCHAR(100)?
+        +status: ENUM (pending|succeeded|failed|refunded)
+        +currency_code: VARCHAR(3)
+        +amount_vnd: BIGINT UNSIGNED
+        +failure_code: VARCHAR(50)?
+        +attempted_at: DATETIME
+        +created_at: DATETIME
     }
     
     class Coupon {
         <<implemented>>
-        +couponId: BIGINT UNSIGNED
-        +code: String
-        +discountType: String
-        +discountValue: BIGINT UNSIGNED
-        +minOrderAmount: BIGINT UNSIGNED
-        +maxUsageCount: Integer
-        +currentUsageCount: Integer
-        +validFrom: DateTime
-        +validUntil: DateTime
-        +isActive: Boolean
+        +coupon_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +code_normalized: VARCHAR(50) UNIQUE
+        +discount_type: ENUM (percentage|fixed_amount)
+        +discount_value: BIGINT UNSIGNED
+        +minimum_subtotal_vnd: BIGINT UNSIGNED
+        +starts_at: DATETIME
+        +ends_at: DATETIME
+        +is_active: BOOLEAN
+        +total_usage_limit: INT UNSIGNED?
+        +per_customer_usage_limit: INT UNSIGNED?
+        +used_count: INT UNSIGNED
+        +archived_at: DATETIME?
+        +archived_by_customer_id: BIGINT UNSIGNED?
+        +archive_reason: VARCHAR(500)?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class CouponRedemption {
         <<implemented>>
-        +redemptionId: BIGINT UNSIGNED
-        +couponId: BIGINT UNSIGNED
-        +orderId: BIGINT UNSIGNED
+        +coupon_redemption_id: BIGINT UNSIGNED PK
+        +coupon_id: BIGINT UNSIGNED FK
+        +order_id: BIGINT UNSIGNED FK
+        +customer_id: BIGINT UNSIGNED FK
+        +status: ENUM
+        +redeemed_at: DATETIME
+        +released_at: DATETIME?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class ProductReview {
         <<implemented>>
-        +reviewId: BIGINT UNSIGNED
-        +productId: BIGINT UNSIGNED
-        +customerId: BIGINT UNSIGNED
-        +rating: Integer
-        +comment: String?
-        +createdAt: DateTime
+        +review_id: BIGINT UNSIGNED PK
+        +public_id: BINARY(16) UNIQUE
+        +order_item_id: BIGINT UNSIGNED FK
+        +customer_id: BIGINT UNSIGNED FK
+        +product_id: BIGINT UNSIGNED FK
+        +rating: TINYINT
+        +content: TEXT?
+        +status: ENUM
+        +moderation_reason: VARCHAR(500)?
+        +moderated_by_customer_id: BIGINT UNSIGNED?
+        +moderated_at: DATETIME?
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class WishlistItem {
         <<implemented>>
-        +wishlistItemId: BIGINT UNSIGNED
-        +customerId: BIGINT UNSIGNED
-        +productId: BIGINT UNSIGNED
-        +createdAt: DateTime
+        +wishlist_item_id: BIGINT UNSIGNED PK
+        +customer_id: BIGINT UNSIGNED FK
+        +product_id: BIGINT UNSIGNED FK
+        +is_present: BOOLEAN
+        +first_added_at: DATETIME
+        +last_added_at: DATETIME?
+        +removed_at: DATETIME?
+        +updated_at: DATETIME
     }
     
     class Inventory {
         <<implemented>>
-        +variantId: BIGINT UNSIGNED
-        +onHand: BIGINT UNSIGNED
-        +reserved: BIGINT UNSIGNED
-        +available: BIGINT UNSIGNED
+        +variant_id: BIGINT UNSIGNED PK
+        +opening_on_hand: BIGINT UNSIGNED
+        +on_hand: BIGINT UNSIGNED
         +version: BIGINT UNSIGNED
+        +updated_at: DATETIME
     }
     
-    Order "1" --> "*" OrderItem : contains
-    Order "1" --> "1" Payment : has
-    Order "1" --> "*" OrderStatusHistory : tracks
-    Cart "1" --> "*" CartItem : contains
-    Coupon "1" --> "*" CouponRedemption : tracks
-    ProductReview "*" --> "1" Customer : written by
-    ProductReview "*" --> "1" Product : for
-    WishlistItem "*" --> "1" Customer : belongs to
-    WishlistItem "*" --> "1" Product : references
-    Inventory "1" --> "1" ProductVariant : for
-```
-
-### 1.6.4 Multi-City & Store Entities
-
-```mermaid
-classDiagram
     class City {
-        +cityId: BIGINT UNSIGNED
-        +code: String(32)
-        +name: String(120)
-        +isActive: Boolean
-        +createdAt: DateTime
-        +updatedAt: DateTime
+        <<implemented>>
+        +city_id: BIGINT UNSIGNED PK
+        +code: VARCHAR(32) UNIQUE
+        +name: VARCHAR(120)
+        +is_active: BOOLEAN
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class Store {
-        +storeId: BIGINT UNSIGNED
-        +cityId: BIGINT UNSIGNED
-        +code: String(32)
-        +name: String(120)
-        +address: String(500)
-        +phone: String(32)
-        +isActive: Boolean
-        +createdAt: DateTime
-        +updatedAt: DateTime
+        <<implemented>>
+        +store_id: BIGINT UNSIGNED PK
+        +city_id: BIGINT UNSIGNED FK
+        +code: VARCHAR(32) UNIQUE
+        +name: VARCHAR(120)
+        +address: VARCHAR(500)
+        +phone: VARCHAR(32)
+        +is_active: BOOLEAN
+        +created_at: DATETIME
+        +updated_at: DATETIME
     }
     
     class StoreInventory {
-        +storeId: BIGINT UNSIGNED
-        +variantId: BIGINT UNSIGNED
-        +onHand: BIGINT UNSIGNED
-        +openingOnHand: BIGINT UNSIGNED
+        <<implemented>>
+        +store_id: BIGINT UNSIGNED PK
+        +variant_id: BIGINT UNSIGNED PK
+        +on_hand: BIGINT UNSIGNED
+        +opening_on_hand: BIGINT UNSIGNED
         +version: BIGINT UNSIGNED
-        +updatedAt: DateTime
+        +updated_at: DATETIME
     }
     
-    class Customer {
-        <<updated>>
-        +cityId: BIGINT UNSIGNED?
-        +storeId: BIGINT UNSIGNED?
-        +role: customer|admin|store_manager|city_planner
-    }
-    
-    City "1" --> "*" Store : contains
-    Store "1" --> "*" StoreInventory : tracks
-    ProductVariant "1" --> "*" StoreInventory : has
-    Customer "0..1" --> "1" City : assigned to
-    Customer "0..1" --> "1" Store : works at
+    Category "1" --> "*" Product : chứa
+    Category "0..1" --> "*" Category : danh mục cha
+    Product "1" --> "*" ProductVariant : có
+    Customer "1" --> "*" Cart : sở hữu
+    Customer "1" --> "*" Order : đặt hàng
+    Cart "1" --> "*" CartItem : chứa
+    CartItem "*" --> "1" ProductVariant : tham chiếu
+    Order "1" --> "*" OrderItem : chứa
+    Order "1" --> "1" Payment : có
+    Order "1" --> "*" OrderStatusHistory : theo dõi lịch sử
+    OrderItem "*" --> "1" ProductVariant : tham chiếu
+    Coupon "1" --> "*" CouponRedemption : theo dõi sử dụng
+    CouponRedemption "*" --> "1" Customer : sử dụng bởi
+    ProductReview "*" --> "1" Customer : viết bởi
+    ProductReview "*" --> "1" Product : dành cho
+    WishlistItem "*" --> "1" Customer : thuộc về
+    WishlistItem "*" --> "1" Product : tham chiếu
+    Inventory "1" --> "1" ProductVariant : theo dõi tồn kho
+    City "1" --> "*" Store : bao gồm
+    Store "1" --> "*" StoreInventory : theo dõi tồn kho
+    ProductVariant "1" --> "*" StoreInventory : có trong kho
+    Customer "0..1" --> "1" City : phân công quản lý
+    Customer "0..1" --> "1" Store : làm việc tại
 ```
 
 ---
 
-# PHẦN II: DATA LAKEHOUSE
+# PHẦN II: NỀN TẢNG DATA LAKEHOUSE
 
-> **Phạm vi:** Nền tảng dữ liệu phân tích  
-> **Actors:** Data Engineer, Data Analyst  
-> **Stack:** Apache Spark, Iceberg, Polaris, Airflow, Trino, Superset, MinIO
+> **Phạm vi:** Nền tảng dữ liệu phân tích và báo cáo quản trị  
+> **Tác nhân (Actors):** Data Engineer (Kỹ sư dữ liệu), Data Analyst (Chuyên viên phân tích dữ liệu)  
+> **Ngăn xếp công nghệ (Stack):** Apache Spark, Apache Iceberg, Polaris Catalog, Apache Airflow, Trino, Apache Superset, MinIO S3
 
 ---
 
@@ -2052,33 +2013,33 @@ classDiagram
 
 ### Bảng tổng hợp Actors (Data Platform)
 
-| Actor | Vai trò | Mô tả | Giao diện |
+| Actor (Tác nhân) | Vai trò | Mô tả | Giao diện |
 |-------|---------|-------|-----------|
-| **Data Engineer** | Kỹ sư dữ liệu | Quản lý ETL pipeline, data quality, catalog | Airflow, Spark CLI, Polaris Console |
-| **Data Analyst** | Phân tích dữ liệu | Truy vấn, tạo dashboard, build ML features | Trino/Hue, Superset, Jupyter |
+| **Data Engineer** | Kỹ sư dữ liệu | Thiết kế, vận hành các đường ống ETL/ELT, kiểm soát chất lượng dữ liệu và quản lý metadata catalog | Giao diện Airflow, Spark CLI, Polaris Console |
+| **Data Analyst** | Chuyên viên phân tích | Khai thác truy vấn dữ liệu phân tích, xây dựng biểu đồ BI dashboard và tạo các đặc trưng phục vụ Machine Learning | Trino/Hue, Superset, Jupyter Notebook |
 
 ---
 
 ## 2.2 System Use-Case Diagrams
 
-### 2.2.1 Data Platform Domain
+### 2.2.1 Phân hệ Nền tảng Dữ liệu (Data Platform Domain)
 
 ```mermaid
 graph TB
-    subgraph "Data Platform Domain"
-        UC15[Configure ETL Pipeline]
-        UC16[Monitor Data Ingestion]
-        UC17[Manage Iceberg Catalog]
-        UC18[Query Analytical Data]
-        UC19[Create BI Dashboards]
-        UC20[Generate ML Features]
-        UC21[Run Batch Jobs]
-        UC22[Validate Data Quality]
-        UC23[Troubleshoot Failures]
+    subgraph "Phân hệ Nền tảng Dữ liệu (Data Platform Domain)"
+        UC15[Cấu hình luồng ETL]
+        UC16[Giám sát quá trình nạp dữ liệu]
+        UC17[Quản lý Iceberg Catalog]
+        UC18[Truy vấn dữ liệu phân tích]
+        UC19[Tạo bảng điều khiển BI]
+        UC20[Trích xuất đặc trưng ML]
+        UC21[Chạy tác vụ xử lý theo lô]
+        UC22[Kiểm tra chất lượng dữ liệu]
+        UC23[Xử lý và khắc phục sự cố lỗi]
     end
     
-    DE((Data Engineer))
-    DA((Data Analyst))
+    DE((Kỹ sư Dữ liệu<br>Data Engineer))
+    DA((Chuyên viên Phân tích<br>Data Analyst))
     
     DE --> UC15
     DE --> UC16
@@ -2098,71 +2059,71 @@ graph TB
     UC22 -->|<<extend>>| UC23
 ```
 
-### 2.2.2 Data Pipeline Flow
+### 2.2.2 Luồng xử lý đường ống dữ liệu (Data Pipeline Flow)
 
 ```mermaid
 graph LR
-    subgraph "OLTP Sources"
-        MySQL[(MySQL 8.4)]
-        FastAPI[(FastAPI Logs)]
+    subgraph "Nguồn dữ liệu OLTP"
+        MySQL[(Cơ sở dữ liệu MySQL 8.4)]
+        FastAPI[(Nhật ký sự kiện FastAPI)]
     end
     
-    subgraph "Landing Zone"
-        MinIO[(MinIO S3)]
+    subgraph "Vùng đệm tiếp nhận (Landing Zone)"
+        MinIO[(Lưu trữ MinIO S3)]
     end
     
-    subgraph "Medallion Layers"
-        Bronze[(Bronze Layer)]
-        Silver[(Silver Layer)]
-        Gold[(Gold Layer)]
+    subgraph "Các tầng kiến trúc Medallion"
+        Bronze[(Tầng Bronze<br>Dữ liệu thô)]
+        Silver[(Tầng Silver<br>Dữ liệu làm sạch)]
+        Gold[(Tầng Gold<br>Dữ liệu tổng hợp)]
     end
     
-    subgraph "Serving Layer"
-        Trino[(Trino)]
-        Superset[(Superset)]
-        ML[(ML Features)]
+    subgraph "Tầng dịch vụ phục vụ (Serving Layer)"
+        Trino[(Công cụ truy vấn Trino)]
+        Superset[(Bảng điều khiển Superset)]
+        ML[(Tập đặc trưng ML Features)]
     end
     
-    MySQL -->|Extract| MinIO
-    FastAPI -->|Fluent Bit| MinIO
-    MinIO -->|Ingest| Bronze
-    Bronze -->|Transform| Silver
-    Silver -->|Aggregate| Gold
-    Gold -->|Query| Trino
-    Trino -->|Visualize| Superset
-    Gold -->|Engineer| ML
+    MySQL -->|Trích xuất định kỳ| MinIO
+    FastAPI -->|Thu thập Fluent Bit| MinIO
+    MinIO -->|Nạp dữ liệu| Bronze
+    Bronze -->|Làm sạch & Chuẩn hóa| Silver
+    Silver -->|Tổng hợp nghiệp vụ| Gold
+    Gold -->|Truy vấn OLAP| Trino
+    Trino -->|Trực quan hóa| Superset
+    Gold -->|Huấn luyện mô hình| ML
 ```
 
 ---
 
 ## 2.3 Component Diagrams
 
-### 2.3.1 System Architecture Overview
+### 2.3.1 Sơ đồ kiến trúc thành phần tổng thể (System Architecture Overview)
 
 ```mermaid
 graph TB
-    subgraph "Data Ingestion Layer"
-        AF[Airflow 2.10.5]
-        SP[Spark 3.5.9]
-        FB[Fluent Bit 4.2.3]
+    subgraph "Tầng thu nạp dữ liệu (Data Ingestion Layer)"
+        AF[Bộ điều phối Airflow 2.10.5]
+        SP[Xử lý phân tán Spark 3.5.9]
+        FB[Bộ thu thập log Fluent Bit 4.2.3]
     end
     
-    subgraph "Storage Layer"
-        S3[(MinIO S3)]
-        POL[Polaris 1.6.0]
+    subgraph "Tầng lưu trữ đối tượng & Catalog"
+        S3[(Kho lưu trữ MinIO S3)]
+        POL[Quản lý Catalog Polaris 1.6.0]
     end
     
-    subgraph "Processing Layer"
-        ICE[(Iceberg 1.10.1)]
+    subgraph "Tầng định dạng bảng dữ liệu mở"
+        ICE[(Định dạng bảng Apache Iceberg 1.10.1)]
     end
     
-    subgraph "Query Layer"
-        TR[Trino 483]
+    subgraph "Tầng công cụ truy vấn phân tán (Query Layer)"
+        TR[Công cụ tính toán Trino 483]
     end
     
-    subgraph "Presentation Layer"
-        SU[Superset 4.1.2]
-        HU[Hue 4.11.0]
+    subgraph "Tầng hiển thị và phân tích (Presentation Layer)"
+        SU[Trực quan hóa Superset 4.1.2]
+        HU[Giao diện truy vấn Hue 4.11.0]
     end
     
     AF --> SP
@@ -2175,18 +2136,18 @@ graph TB
     TR --> HU
 ```
 
-### 2.3.2 ETL Component Diagram
+### 2.3.2 Sơ đồ thành phần đường ống ETL (ETL Component Diagram)
 
 ```mermaid
 graph TB
-    subgraph "Airflow DAGs"
+    subgraph "Các luồng điều phối Airflow (DAGs)"
         D1[ingest_oltp_batch]
         D2[ingest_oltp_landing_to_bronze]
         D3[ingest_oltp_silver]
         D4[logs_pipeline]
     end
     
-    subgraph "Spark Jobs"
+    subgraph "Các tác vụ xử lý Spark Jobs"
         J1[extract_oltp.py]
         J2[ingest_oltp_to_bronze.py]
         J3[ingest_oltp_silver.py]
@@ -2195,11 +2156,11 @@ graph TB
         J6[build_logs_gold.py]
     end
     
-    subgraph "Shared Libraries"
-        L1[spark.py]
-        L2[config.py]
-        L3[landing.py]
-        L4[validate.py]
+    subgraph "Thư viện dùng chung (Shared Libraries)"
+        L1[spark.py: Khởi tạo ngữ cảnh Spark]
+        L2[config.py: Nạp cấu hình hệ thống]
+        L3[landing.py: Xử lý tệp vùng Landing]
+        L4[validate.py: Kiểm tra chất lượng dữ liệu]
     end
     
     D1 --> J1
@@ -2221,39 +2182,39 @@ graph TB
 
 ## 2.4 Data Flow Diagrams
 
-### 2.4.1 Medallion Architecture Flow
+### 2.4.1 Sơ đồ luồng dữ liệu kiến trúc Medallion (Medallion Architecture Flow)
 
 ```mermaid
 flowchart TB
-    subgraph "Landing Zone"
-        L1[OLTP Parquet Files]
-        L2[Access Log JSONL.gz]
+    subgraph "Vùng đệm tiếp nhận (Landing Zone)"
+        L1[Tệp Parquet trích xuất từ OLTP]
+        L2[Tệp nhật ký sự kiện JSONL.gz]
     end
     
-    subgraph "Bronze Layer - Raw"
-        B1[Read Parquet files]
-        B2[Parse JSONL files]
-        B3[Add lineage metadata]
-        B4[Append to Bronze tables]
-        B5[Quarantine corrupt records]
+    subgraph "Tầng Bronze - Dữ liệu thô (Raw)"
+        B1[Đọc tệp Parquet]
+        B2[Phân tích cú pháp tệp JSONL]
+        B3[Bổ sung metadata nguồn gốc]
+        B4[Ghi chèn nối tiếp vào bảng Bronze]
+        B5[Cách ly các bản ghi hỏng/lỗi định dạng]
     end
     
-    subgraph "Silver Layer - Cleansed"
-        S1[Deduplicate by PK]
-        S2[Standardize timestamps]
-        S3[Parse JSON fields]
-        S4[UPSERT/MERGE mutable tables]
-        S5[Pseudonymize PII]
-        S6[Validate business rules]
-        S7[Quarantine invalid records]
+    subgraph "Tầng Silver - Dữ liệu chuẩn hóa (Cleansed)"
+        S1[Khử trùng lặp bản ghi theo khóa chính]
+        S2[Chuẩn hóa định dạng mốc thời gian]
+        S3[Phân tích cấu trúc các trường JSON]
+        S4[Thực hiện UPSERT/MERGE cho dữ liệu biến động]
+        S5[Khử định danh dữ liệu cá nhân PII]
+        S6[Kiểm tra tính toàn vẹn và quy tắc nghiệp vụ]
+        S7[Cách ly bản ghi không đạt chuẩn chất lượng]
     end
     
-    subgraph "Gold Layer - Business"
-        G1[Build dimension tables]
-        G2[Build fact tables]
-        G3[Build summary marts]
-        G4[Run reconciliation checks]
-        G5[Publish Gold tables]
+    subgraph "Tầng Gold - Dữ liệu tổng hợp kinh doanh (Business)"
+        G1[Xây dựng các bảng chiều Dimension]
+        G2[Xây dựng các bảng sự kiện Fact]
+        G3[Xây dựng các Data Mart tóm tắt]
+        G4[Thực hiện kiểm tra đối soát doanh thu/số dòng]
+        G5[Xuất bản dữ liệu phục vụ BI và ML]
     end
     
     L1 --> B1
@@ -2279,63 +2240,63 @@ flowchart TB
     G4 --> G5
 ```
 
-### 2.4.2 OLTP Extraction Flow
+### 2.4.2 Sơ đồ luồng trích xuất dữ liệu giao dịch OLTP (OLTP Extraction Flow)
 
 ```mermaid
 flowchart TD
-    Start([Start: DAG triggered]) --> A[Load table configurations]
-    A --> B[Read cursor state]
-    B --> C[Connect to MySQL]
-    C --> D{Connected?}
+    Start([Bắt đầu: DAG kích hoạt]) --> A[Nạp cấu hình danh sách bảng]
+    A --> B[Đọc trạng thái con trỏ trích xuất Cursor]
+    B --> C[Kết nối đến cơ sở dữ liệu MySQL]
+    C --> D{Kết nối thành công?}
     
-    D -->|No| E[Log error]
-    E --> F[Alert engineer]
-    F --> End1([End: Failed])
+    D -->|Không| E[Ghi nhận lỗi kết nối]
+    E --> F[Gửi cảnh báo đến kỹ sư dữ liệu]
+    F --> End1([Kết thúc: Thất bại])
     
-    D -->|Yes| G[Build incremental query]
-    G --> H[Execute query]
-    H --> I{Data returned?}
+    D -->|Có| G[Xây dựng câu lệnh truy vấn tăng dần]
+    G --> H[Thực thi truy vấn trích xuất dữ liệu]
+    H --> I{Có dữ liệu mới?}
     
-    I -->|No| J[Log no changes]
-    J --> End2([End: No changes])
+    I -->|Không| J[Ghi log không có bản ghi mới]
+    J --> End2([Kết thúc: Không có thay đổi])
     
-    I -->|Yes| L[Convert to DataFrame]
-    L --> M[Write Parquet to MinIO]
-    M --> N{Write success?}
+    I -->|Có| L[Chuyển đổi dữ liệu sang định dạng DataFrame]
+    L --> M[Ghi tệp Parquet lên MinIO S3]
+    M --> N{Ghi tệp thành công?}
     
-    N -->|No| O[Retry up to 3 times]
-    O --> P{Retries exhausted?}
-    P -->|Yes| Q[Log failure]
+    N -->|Không| O[Thử lại tối đa 3 lần]
+    O --> P{Hết số lần thử lại?}
+    P -->|Có| Q[Ghi nhận lỗi ghi tệp]
     Q --> F
-    P -->|No| M
+    P -->|Không| M
     
-    N -->|Yes| R[Generate MD5 manifest]
-    R --> S[Upload manifest]
-    S --> T[Update cursor state]
-    T --> U[Validate manifest]
-    U --> V{Valid?}
+    N -->|Có| R[Tạo tệp kê khai MD5 manifest]
+    R --> S[Tải tệp manifest lên MinIO]
+    S --> T[Cập nhật mốc con trỏ mới]
+    T --> U[Kiểm tra tính toàn vẹn của tệp manifest]
+    U --> V{Toàn vẹn?}
     
-    V -->|No| W[Quarantine files]
+    V -->|Không| W[Cách ly các tệp bị lỗi]
     W --> F
-    V -->|Yes| X[Log success]
-    X --> End3([End: Success])
+    V -->|Có| X[Ghi nhận hoàn tất thành công]
+    X --> End3([Kết thúc: Thành công])
 ```
 
-### 2.4.3 Access Log Ingestion Flow
+### 2.4.3 Sơ đồ luồng thu nạp nhật ký truy cập (Access Log Ingestion Flow)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[FluentBit tails Docker logs]
-    A --> B[Buffer log entries]
-    B --> C{Buffer full or timer?}
-    C -->|No| B
-    C -->|Yes| D[Compress as gzip]
-    D --> E[Generate S3 path]
-    E --> F[Upload to MinIO]
-    F --> G{Upload success?}
-    G -->|No| H[Retry upload]
+    Start([Bắt đầu]) --> A[Fluent Bit lắng nghe luồng log từ Docker]
+    A --> B[Lưu tạm vào bộ đệm Buffer]
+    B --> C{Bộ đệm đầy hoặc hết thời gian chờ?}
+    C -->|Chưa| B
+    C -->|Rồi| D[Nén dữ liệu theo chuẩn gzip]
+    D --> E[Tạo đường dẫn phân vùng theo thời gian trên S3]
+    E --> F[Tải tệp nén lên kho MinIO]
+    F --> G{Tải lên thành công?}
+    G -->|Không| H[Thử lại việc tải lên]
     H --> F
-    G -->|Yes| I[Clear buffer]
+    G -->|Có| I[Xóa bộ đệm và giải phóng bộ nhớ]
     I --> B
 ```
 
@@ -2343,237 +2304,237 @@ flowchart TD
 
 ## 2.5 Activity Diagrams
 
-### 2.5.1 UC15: Configure ETL Pipeline
+### 2.5.1 UC15: Sơ đồ hoạt động Cấu hình luồng ETL (Configure ETL Pipeline)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Data Engineer opens config]
-    A --> B[Edit table configurations]
-    B --> C[Set cursor fields]
-    C --> D[Define primary keys]
-    D --> E[Configure schedule]
-    E --> F[Save config]
-    F --> G[Validate config]
-    G --> H{Valid?}
-    H -->|No| I[Show errors]
+    Start([Bắt đầu]) --> A[Kỹ sư dữ liệu mở tệp cấu hình]
+    A --> B[Chỉnh sửa danh mục bảng cần trích xuất]
+    B --> C[Thiết lập trường con trỏ tăng dần Cursor fields]
+    C --> D[Định nghĩa danh sách khóa chính Primary Keys]
+    D --> E[Cấu hình lịch trình chạy tự động Cron schedule]
+    E --> F[Lưu tệp cấu hình]
+    F --> G[Kiểm tra tính hợp lệ cú pháp]
+    G --> H{Cấu hình hợp lệ?}
+    H -->|Không| I[Hiển thị danh sách lỗi cấu hình]
     I --> B
-    H -->|Yes| J[Deploy to Airflow]
-    J --> End([End])
+    H -->|Có| J[Triển khai luồng cập nhật lên Airflow]
+    J --> End([Kết thúc])
 ```
 
-### 2.5.2 UC16: Monitor Data Ingestion
+### 2.5.2 UC16: Sơ đồ hoạt động Giám sát thu nạp dữ liệu (Monitor Data Ingestion)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Open Airflow dashboard]
-    A --> B[Check DAG status]
-    B --> C{Any failures?}
-    C -->|Yes| D[View error logs]
-    D --> E[Identify failed task]
-    E --> F[Retry or fix]
-    C -->|No| G[Check task durations]
-    G --> H[Review data volumes]
-    H --> I[Check latency metrics]
-    I --> End([End])
+    Start([Bắt đầu]) --> A[Mở giao diện giám sát Airflow]
+    A --> B[Kiểm tra trạng thái các luồng DAG]
+    B --> C{Có tác vụ nào thất bại?}
+    C -->|Có| D[Xem chi tiết nhật ký lỗi Task Logs]
+    D --> E[Xác định tác vụ và nguyên nhân lỗi]
+    E --> F[Khắc phục lỗi hoặc kích hoạt chạy lại]
+    C -->|Không| G[Kiểm tra thời lượng thực thi của các tác vụ]
+    G --> H[Đánh giá dung lượng dữ liệu được nạp]
+    H --> I[Kiểm tra chỉ số độ trễ xử lý Latency]
+    I --> End([Kết thúc])
 ```
 
-### 2.5.3 UC21: Run Batch Jobs
+### 2.5.3 UC21: Sơ đồ hoạt động Chạy tác vụ xử lý theo lô (Run Batch Jobs)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Navigate to DAGs page]
-    A --> B[Display DAG list]
-    B --> C{Action?}
+    Start([Bắt đầu]) --> A[Truy cập trang danh sách các DAGs]
+    A --> B[Hiển thị bảng trạng thái các luồng xử lý]
+    B --> C{Thao tác mong muốn?}
     
-    C -->|Trigger| D[Select DAG]
-    D --> E[Configure parameters]
-    E --> F[Trigger DAG run]
-    F --> G[Monitor execution]
-    G --> H{Success?}
-    H -->|Yes| I[Log completion]
-    H -->|No| J[View error logs]
-    J --> K[Troubleshoot issue]
-    K --> L([End: Navigate to UC23])
+    C -->|Kích hoạt thủ công| D[Chọn luồng DAG cần chạy]
+    D --> E[Cấu hình các tham số chạy nếu có]
+    E --> F[Kích hoạt phiên chạy Trigger DAG Run]
+    F --> G[Theo dõi tiến trình thực thi]
+    G --> H{Chạy thành công?}
+    H -->|Có| I[Ghi nhận hoàn tất tác vụ]
+    H -->|Không| J[Mở nhật ký lỗi chi tiết]
+    J --> K[Phân tích và khắc phục sự cố]
+    K --> L([Kết thúc: Chuyển sang ca xử lý UC23])
     
-    C -->|View history| M[Select DAG]
-    M --> N[Display run history]
-    N --> O[Show task durations]
+    C -->|Xem lịch sử chạy| M[Chọn luồng DAG cần xem]
+    M --> N[Hiển thị bảng lịch sử các lần chạy]
+    N --> O[Hiển thị biểu đồ thời lượng tác vụ]
     O --> B
     
-    C -->|Pause/Resume| P[Toggle DAG state]
+    C -->|Tạm dừng/Kích hoạt lại| P[Bật/Tắt trạng thái hoạt động của DAG]
     P --> B
     
     I --> B
 ```
 
-### 2.5.4 UC22: Validate Data Quality
+### 2.5.4 UC22: Sơ đồ hoạt động Kiểm tra chất lượng dữ liệu (Validate Data Quality)
 
 ```mermaid
 flowchart TD
-    Start([Start]) --> A[Select target layer]
-    A --> B[Read data statistics]
-    B --> C[Check null ratios]
-    C --> D[Validate data types]
-    D --> E[Verify integrity]
-    E --> F[Generate quality score]
-    F --> G{Score acceptable?}
+    Start([Bắt đầu]) --> A[Lựa chọn tầng dữ liệu cần kiểm tra]
+    A --> B[Thu thập số liệu thống kê cơ bản]
+    B --> C[Kiểm tra tỷ lệ giá trị rỗng Null Ratios]
+    C --> D[Xác thực kiểu dữ liệu và định dạng]
+    D --> E[Kiểm tra tính toàn vẹn tham chiếu và khóa chính]
+    E --> F[Tính toán điểm số chất lượng dữ liệu Quality Score]
+    F --> G{Điểm số đạt ngưỡng cho phép?}
     
-    G -->|No| H[Generate detailed report]
-    H --> I[Alert data engineer]
-    I --> End1([End: Issues found])
+    G -->|Không| H[Tạo báo cáo chi tiết vi phạm chất lượng]
+    H --> I[Gửi thông báo cảnh báo đến kỹ sư dữ liệu]
+    I --> End1([Kết thúc: Phát hiện lỗi dữ liệu])
     
-    G -->|Yes| J[Log quality metrics]
-    J --> End2([End: Passed])
+    G -->|Có| J[Ghi nhận các chỉ số chất lượng đạt chuẩn]
+    J --> End2([Kết thúc: Kiểm tra đạt yêu cầu])
 ```
 
 ---
 
 ## 2.6 Sequence Diagrams
 
-### 2.6.1 UC15: Configure ETL Pipeline Sequence
+### 2.6.1 UC15: Sơ đồ tuần tự Cấu hình luồng ETL (Configure ETL Pipeline Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DE as Data Engineer
-    participant CLI as Spark CLI
-    participant YML as YAML Config
-    participant MN as MinIO S3
+    participant DE as Kỹ sư Dữ liệu (Data Engineer)
+    participant CLI as Công cụ dòng lệnh (Spark CLI)
+    participant YML as Tệp cấu hình (YAML Config)
+    participant MN as Kho lưu trữ MinIO S3
     
-    DE->>CLI: Run config command
-    CLI->>YML: Read current config
-    YML-->>CLI: configData
-    CLI-->>DE: Display config
+    DE->>CLI: Chạy lệnh cập nhật cấu hình
+    CLI->>YML: Đọc thông số cấu hình hiện tại
+    YML-->>CLI: Dữ liệu cấu hình (configData)
+    CLI-->>DE: Hiển thị nội dung cấu hình
     
-    DE->>CLI: Update config
-    CLI->>YML: Write new config
-    CLI->>MN: Upload to S3
-    MN-->>CLI: uploadSuccess
-    CLI-->>DE: Config updated
+    DE->>CLI: Nhập nội dung cấu hình mới
+    CLI->>YML: Lưu tệp cấu hình mới
+    CLI->>MN: Đồng bộ tệp cấu hình lên MinIO S3
+    MN-->>CLI: Xác nhận đồng bộ thành công
+    CLI-->>DE: Thông báo cấu hình đã được cập nhật
 ```
 
-### 2.6.2 UC16: Monitor Data Ingestion Sequence
+### 2.6.2 UC16: Sơ đồ tuần tự Giám sát thu nạp dữ liệu (Monitor Data Ingestion Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DE as Data Engineer
-    participant AF as Apache Airflow
-    participant SP as Apache Spark
-    participant MN as MinIO S3
+    participant DE as Kỹ sư Dữ liệu (Data Engineer)
+    participant AF as Bộ điều phối Apache Airflow
+    participant SP as Động cơ Apache Spark
+    participant MN as Kho lưu trữ MinIO S3
     
-    DE->>AF: Access web UI
-    AF-->>DE: DAG dashboard
+    DE->>AF: Truy cập giao diện quản trị Web UI
+    AF-->>DE: Hiển thị bảng điều khiển trạng thái các DAG
     
-    DE->>AF: Click DAG
-    AF->>AF: Load DAG runs
-    AF-->>DE: Run history
+    DE->>AF: Nhấp chọn luồng xử lý cần xem
+    AF->>AF: Tải danh sách các phiên chạy
+    AF-->>DE: Hiển thị lịch sử thực thi
     
-    DE->>AF: View task logs
-    AF->>SP: Get task output
-    SP-->>AF: taskLogs
-    AF-->>DE: Display logs
+    DE->>AF: Mở nhật ký chi tiết của tác vụ
+    AF->>SP: Truy vấn nhật ký thực thi từ Spark driver
+    SP-->>AF: Dữ liệu log chi tiết (taskLogs)
+    AF-->>DE: Hiển thị nhật ký thực thi cho kỹ sư
 ```
 
-### 2.6.3 UC18: Query Analytical Data Sequence
+### 2.6.3 UC18: Sơ đồ tuần tự Truy vấn dữ liệu phân tích (Query Analytical Data Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DA as Data Analyst
-    participant TR as Trino
-    participant PC as Polaris Catalog
-    participant IC as Iceberg Tables
+    participant DA as Chuyên viên Phân tích (Data Analyst)
+    participant TR as Công cụ truy vấn Trino
+    participant PC as Quản lý Metadata Polaris Catalog
+    participant IC as Bảng dữ liệu Apache Iceberg
     
-    DA->>TR: Submit SQL query
-    TR->>TR: Parse query
-    TR->>TR: Generate execution plan
-    TR->>PC: Resolve table locations
-    PC-->>TR: tableMetadata
-    TR->>IC: Read data files
-    IC-->>TR: queryResults
-    TR->>TR: Aggregate results
-    TR-->>DA: ResultSet
+    DA->>TR: Gửi truy vấn SQL phân tích
+    TR->>TR: Phân tích cú pháp câu lệnh (Parse query)
+    TR->>TR: Tạo kế hoạch thực thi tối ưu
+    TR->>PC: Phân giải vị trí metadata của các bảng
+    PC-->>TR: Thông tin metadata và vị trí tệp
+    TR->>IC: Đọc trực tiếp các tệp dữ liệu Parquet từ Iceberg
+    IC-->>TR: Dữ liệu kết quả từ các phân vùng
+    TR->>TR: Tổng hợp và tính toán kết quả cuối
+    TR-->>DA: Trả về tập kết quả truy vấn (ResultSet)
 ```
 
-### 2.6.4 UC19: Create BI Dashboards Sequence
+### 2.6.4 UC19: Sơ đồ tuần tự Tạo bảng điều khiển BI (Create BI Dashboards Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DA as Data Analyst
-    participant SU as Apache Superset
-    participant TR as Trino
+    participant DA as Chuyên viên Phân tích (Data Analyst)
+    participant SU as Giao diện Apache Superset
+    participant TR as Động cơ truy vấn Trino
     
-    DA->>SU: Create new dashboard
-    SU-->>DA: Dashboard canvas
+    DA->>SU: Khởi tạo bảng điều khiển mới
+    SU-->>DA: Hiển thị khung làm việc thiết kế dashboard
     
-    DA->>SU: Add chart widget
-    SU-->>DA: Chart configuration
+    DA->>SU: Thêm một biểu đồ trực quan hóa
+    SU-->>DA: Mở màn hình cấu hình biểu đồ
     
-    DA->>SU: Select Trino data source
-    DA->>SU: Write SQL query
-    SU->>TR: Execute query
-    TR-->>SU: Query results
-    SU->>SU: Render visualization
-    SU-->>DA: Chart preview
+    DA->>SU: Chọn nguồn dữ liệu kết nối Trino
+    DA->>SU: Viết câu lệnh truy vấn phân tích SQL
+    SU->>TR: Gửi lệnh thực thi truy vấn
+    TR-->>SU: Trả về tập dữ liệu kết quả
+    SU->>SU: Dựng hình và kết xuất biểu đồ
+    SU-->>DA: Hiển thị bản xem trước biểu đồ trực quan
     
-    DA->>SU: Save dashboard
-    SU->>SU: Store configuration
+    DA->>SU: Nhấn lưu bảng điều khiển
+    SU->>SU: Lưu trữ cấu hình vào cơ sở dữ liệu Superset
 ```
 
-### 2.6.5 UC20: Generate ML Features Sequence
+### 2.6.5 UC20: Sơ đồ tuần tự Trích xuất đặc trưng ML (Generate ML Features Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DA as Data Analyst
-    participant SP as Apache Spark
-    participant IC as Iceberg Tables
-    participant FS as Feature Store
+    participant DA as Chuyên viên Phân tích (Data Analyst)
+    participant SP as Xử lý phân tán Apache Spark
+    participant IC as Bảng dữ liệu Apache Iceberg
+    participant FS as Kho lưu trữ đặc trưng (Feature Store)
     
-    DA->>SP: Trigger feature job
-    SP->>IC: Read Gold snapshots
-    IC-->>SP: transactionData
+    DA->>SP: Kích hoạt tác vụ tạo đặc trưng ML
+    SP->>IC: Đọc bản chụp lịch sử giao dịch từ tầng Gold
+    IC-->>SP: Dữ liệu giao dịch và đơn hàng
     
-    SP->>SP: Calculate purchase history
-    SP->>SP: Calculate product features
-    SP->>SP: Generate time features
-    SP->>SP: Generate repurchase labels
+    SP->>SP: Tính toán đặc trưng lịch sử mua hàng của khách
+    SP->>SP: Tính toán đặc trưng hiệu suất bán hàng của sản phẩm
+    SP->>SP: Xử lý các đặc trưng chuỗi thời gian
+    SP->>SP: Sinh nhãn dự đoán hành vi mua lại (Repurchase labels)
     
-    SP->>FS: Write features
-    FS-->>SP: writeSuccess
-    SP->>SP: Validate distributions
-    SP->>DA: Job completed
+    SP->>FS: Ghi tập đặc trưng vào Feature Store
+    FS-->>SP: Xác nhận lưu trữ đặc trưng thành công
+    SP->>SP: Kiểm tra tính phân phối chuẩn của dữ liệu
+    SP->>DA: Thông báo hoàn tất tác vụ huấn luyện/tạo đặc trưng
 ```
 
-### 2.6.6 UC23: Troubleshoot Failures Sequence
+### 2.6.6 UC23: Sơ đồ tuần tự Xử lý và khắc phục sự cố lỗi (Troubleshoot Failures Sequence)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant DE as Data Engineer
-    participant AF as Apache Airflow
-    participant SP as Apache Spark
+    participant DE as Kỹ sư Dữ liệu (Data Engineer)
+    participant AF as Bộ điều phối Apache Airflow
+    participant SP as Động cơ Apache Spark
     
-    AF->>DE: Send failure alert
-    DE->>AF: Access error logs
-    AF-->>DE: errorLogs
+    AF->>DE: Gửi cảnh báo tác vụ thất bại (qua Email/Webhook)
+    DE->>AF: Truy cập giao diện xem chi tiết nhật ký lỗi
+    AF-->>DE: Nội dung chi tiết thông báo lỗi (errorLogs)
     
-    DE->>DE: Analyze error
-    DE->>SP: Check Spark UI
-    SP-->>DE: jobMetrics
+    DE->>DE: Phân tích mã lỗi và nguyên nhân
+    DE->>SP: Kiểm tra giao diện Spark Web UI để xem tiến trình các Stage
+    SP-->>DE: Thông số tài nguyên và lỗi executor (jobMetrics)
     
-    DE->>DE: Identify root cause
-    DE->>AF: Retry failed task
-    AF->>SP: Re-execute task
+    DE->>DE: Xác định nguyên nhân gốc rễ (dữ liệu sai lệch, thiếu bộ nhớ, v.v.)
+    DE->>AF: Chỉnh sửa tham số và kích hoạt chạy lại tác vụ
+    AF->>SP: Tái thực thi tác vụ xử lý dữ liệu
     
-    alt Success
-        SP->>AF: Task completed
-        AF->>DE: Resolution notification
-    else Still failing
-        SP->>AF: Task failed again
-        AF->>DE: Escalation required
+    alt Xử lý thành công
+        SP->>AF: Tác vụ hoàn tất thành công
+        AF->>DE: Gửi thông báo khắc phục sự cố thành công
+    else Vẫn tiếp tục lỗi
+        SP->>AF: Tác vụ tiếp tục báo lỗi thất bại
+        AF->>DE: Yêu cầu nâng cấp mức độ xử lý khẩn cấp (Escalation)
     end
 ```
 
@@ -2581,57 +2542,59 @@ sequenceDiagram
 
 # PHẦN III: KIỂM TRA TÍNH NHẤT QUÁN
 
-## 3.1 Balancing Matrix
+## 3.1 Ma trận cân bằng (Balancing Matrix)
 
-| Functional Element | Actors | Use Cases | Activities | Sequences |
+| Thành phần chức năng | Tác nhân (Actors) | Ca sử dụng (Use Cases) | Sơ đồ hoạt động (Activities) | Sơ đồ tuần tự (Sequences) |
 |-------------------|--------|-----------|------------|-----------|
-| **Customer** | ✅ | UC1-UC8 | ✅ UC1-UC8 | ✅ UC1-UC8 |
-| **Admin** | ✅ | UC9-UC14 | ✅ UC9-UC14 | ✅ UC9-UC14 |
-| **Staff (POS)** | ✅ | UC18 | ✅ UC18 | ✅ UC18 |
+| **Khách hàng (Customer)** | ✅ Đầy đủ | UC1-UC8, UC15, UC16 | ✅ UC1-UC8, UC15, UC16 | ✅ UC1-UC8, UC15, UC16 |
+| **Quản trị viên (Admin)** | ✅ Đầy đủ | UC9-UC14 | ✅ UC9-UC14 | ✅ UC9-UC14 |
+| **Nhân viên (Staff / POS / Chi nhánh)** | ✅ Đầy đủ | UC17, UC18 | ✅ UC17, UC18 | ✅ UC17, UC18 |
+| **Kỹ sư dữ liệu (Data Engineer)** | ✅ Đầy đủ | UC15-UC17, UC21-UC23 | ✅ UC15, UC16, UC21, UC22 | ✅ UC15, UC16, UC23 |
+| **Chuyên viên phân tích (Data Analyst)** | ✅ Đầy đủ | UC18-UC20 | - | ✅ UC18, UC19, UC20 |
 
 ---
 
-## 3.2 Coverage Verification
+## 3.2 Kiểm tra độ bao phủ (Coverage Verification)
 
-### Web OLTP Coverage
+### Độ bao phủ phân hệ Web OLTP (Web OLTP Coverage)
 
-| Check | Status | Notes |
+| Tiêu chí kiểm tra | Trạng thái | Ghi chú đánh giá |
 |-------|--------|-------|
-| All actors have use cases | ✅ | Customer: 8 UCs, Admin: 7 UCs, Staff: 1 UC |
-| All use cases have actors | ✅ | No orphan use cases |
-| Use case flows use SVDPI | ✅ | All 15 flows verified |
-| Activity diagrams match use cases | ✅ | All 15 activity diagrams |
-| Sequence diagrams match use cases | ✅ | All 15 sequence diagrams |
-| Class diagrams cover domain | ✅ | Core entities + enums + Inventory |
-| Include/Extend relationships valid | ✅ | No circular dependencies |
+| Tất cả các tác nhân đều có ca sử dụng tương ứng | ✅ Đạt | Khách hàng: 10 UCs, Quản trị viên: 6 UCs, Nhân viên: 2 UCs |
+| Tất cả các ca sử dụng đều được gán tác nhân thực thi | ✅ Đạt | Không có ca sử dụng mồ côi (no orphan use cases) |
+| Các luồng sự kiện tuân thủ đúng cú pháp SVDPI | ✅ Đạt | Đã kiểm tra đầy đủ toàn bộ các luồng sự kiện theo chuẩn Alan Dennis |
+| Sơ đồ hoạt động ánh xạ khớp với các ca sử dụng | ✅ Đạt | Đầy đủ 18 sơ đồ hoạt động cho 18 ca sử dụng nghiệp vụ |
+| Sơ đồ tuần tự ánh xạ khớp với các ca sử dụng | ✅ Đạt | Đầy đủ 18 sơ đồ tuần tự thể hiện tương tác hệ thống |
+| Sơ đồ lớp bao phủ toàn diện mô hình miền | ✅ Đạt | Đầy đủ các thực thể cốt lõi, kiểu liệt kê, thực thể hỗ trợ và mô hình đa chi nhánh |
+| Mối quan hệ Include / Extend được thiết lập hợp lệ | ✅ Đạt | Không có phụ thuộc vòng lặp hoặc lỗi logic quan hệ |
 
-### Data Lakehouse Coverage
+### Độ bao phủ phân hệ Data Lakehouse (Data Lakehouse Coverage)
 
-| Check | Status | Notes |
+| Tiêu chí kiểm tra | Trạng thái | Ghi chú đánh giá |
 |-------|--------|-------|
-| All actors have use cases | ✅ | DE: 6 UCs, DA: 3 UCs |
-| All use cases have actors | ✅ | No orphan use cases |
-| Use case flows use SVDPI | ✅ | All 9 flows verified |
-| Component diagrams show architecture | ✅ | System + ETL components |
-| Data flow diagrams show pipeline | ✅ | Medallion + Extraction flows |
-| Activity diagrams match use cases | ✅ | 4 main activity diagrams |
-| Sequence diagrams match use cases | ✅ | 6 sequence diagrams |
+| Tất cả các tác nhân phân tích đều có ca sử dụng | ✅ Đạt | Data Engineer: 6 UCs, Data Analyst: 3 UCs |
+| Tất cả các ca sử dụng đều gắn với tác nhân cụ thể | ✅ Đạt | Đảm bảo tính minh bạch trách nhiệm phân quyền |
+| Luồng sự kiện tuân thủ cấu trúc phân tích | ✅ Đạt | Đầy đủ 9 luồng xử lý dữ liệu được chuẩn hóa |
+| Sơ đồ thành phần thể hiện đầy đủ kiến trúc hạ tầng | ✅ Đạt | Bao gồm tổng thể hệ thống và chi tiết đường ống ETL |
+| Sơ đồ luồng dữ liệu minh họa rõ ràng luồng đường ống | ✅ Đạt | Kiến trúc Medallion (Bronze, Silver, Gold) và luồng trích xuất dữ liệu |
+| Sơ đồ hoạt động phản ánh đúng quy trình vận hành dữ liệu | ✅ Đạt | 4 sơ đồ hoạt động chính cho vận hành, giám sát và kiểm tra chất lượng |
+| Sơ đồ tuần tự thể hiện rõ tương tác giữa các công cụ | ✅ Đạt | 6 sơ đồ tuần tự giữa Airflow, Spark, MinIO, Trino, Polaris và Superset |
 
-### Diagram Count Summary
+### Bảng tổng kết số lượng biểu đồ (Diagram Count Summary)
 
-| Diagram Type | Web OLTP | Data Lakehouse | Total |
+| Loại biểu đồ (Diagram Type) | Phân hệ Web OLTP | Phân hệ Data Lakehouse | Tổng cộng |
 |--------------|----------|----------------|-------|
-| Use-Case Diagrams | 2 | 2 | 4 |
-| Use-Case Descriptions | 15 | 9 | 24 |
-| Activity Diagrams | 15 | 4 | 19 |
-| Sequence Diagrams | 15 | 6 | 21 |
-| Class Diagrams | 3 | - | 3 |
-| Component Diagrams | - | 2 | 2 |
-| Data Flow Diagrams | - | 3 | 3 |
-| **Total** | **50** | **26** | **76** |
+| Sơ đồ ca sử dụng (Use-Case Diagrams) | 2 | 2 | 4 |
+| Bảng mô tả chi tiết ca sử dụng (Use-Case Descriptions) | 18 | 9 | 27 |
+| Sơ đồ hoạt động (Activity Diagrams) | 18 | 4 | 22 |
+| Sơ đồ tuần tự (Sequence Diagrams) | 18 | 6 | 24 |
+| Sơ đồ lớp (Class Diagrams) | 4 | - | 4 |
+| Sơ đồ thành phần (Component Diagrams) | - | 2 | 2 |
+| Sơ đồ luồng dữ liệu (Data Flow Diagrams) | - | 3 | 3 |
+| **Tổng số sơ đồ và đặc tả** | **60** | **26** | **86** |
 
 ---
 
-> **Kết thúc phân tích OOSAD**  
-> **Hệ thống:** D&K E-Commerce Data Platform  
-> **Phương pháp:** Object-Oriented Systems Analysis and Design (Alan Dennis)
+> **Kết thúc tài liệu phân tích OOSAD**  
+> **Hệ thống:** Nền tảng Dữ liệu Thương mại Điện tử D&K (D&K E-Commerce Data Platform)  
+> **Phương pháp tiếp cận:** Phân tích và Thiết kế Hệ thống Hướng đối tượng (Alan Dennis)
