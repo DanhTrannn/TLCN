@@ -206,12 +206,12 @@ graph LR
 
 ### UC1: Duyệt sản phẩm (Browse Products)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC1 |
-| **Tên use case** | Duyệt sản phẩm (Browse Products) |
+| **Mã ca sử dụng (Use-Case ID)** | UC1 |
+| **Tên ca sử dụng** | Duyệt sản phẩm (Browse Products) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng duyệt xem danh mục sản phẩm theo từng thể loại ngành hàng thời trang |
+| **Mô tả** | Khách hàng duyệt xem danh mục sản phẩm theo từng thể loại ngành hàng thời trang |
 | **Tiền điều kiện** | Hệ thống đã có dữ liệu sản phẩm trong cơ sở dữ liệu |
 | **Hậu điều kiện** | Danh sách sản phẩm được hiển thị trực quan cho khách hàng |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -232,12 +232,12 @@ graph LR
 
 ### UC2: Tìm kiếm sản phẩm (Search Products)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC2 |
-| **Tên use case** | Tìm kiếm sản phẩm (Search Products) |
+| **Mã ca sử dụng (Use-Case ID)** | UC2 |
+| **Tên ca sử dụng** | Tìm kiếm sản phẩm (Search Products) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng tìm kiếm sản phẩm thông qua từ khóa |
+| **Mô tả** | Khách hàng tìm kiếm sản phẩm thông qua từ khóa |
 | **Tiền điều kiện** | Hệ thống đã có dữ liệu sản phẩm trong cơ sở dữ liệu |
 | **Hậu điều kiện** | Danh sách kết quả tìm kiếm phù hợp được hiển thị |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -257,12 +257,12 @@ graph LR
 
 ### UC3: Xem chi tiết sản phẩm (View Product Details)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC3 |
-| **Tên use case** | Xem chi tiết sản phẩm (View Product Details) |
+| **Mã ca sử dụng (Use-Case ID)** | UC3 |
+| **Tên ca sử dụng** | Xem chi tiết sản phẩm (View Product Details) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng xem thông tin chi tiết của một sản phẩm (hình ảnh, giá, mô tả, biến thể kích thước/màu sắc) |
+| **Mô tả** | Khách hàng xem thông tin chi tiết của một sản phẩm (hình ảnh, giá, mô tả, biến thể kích thước/màu sắc) |
 | **Tiền điều kiện** | Sản phẩm tồn tại và đang kích hoạt trong cơ sở dữ liệu |
 | **Hậu điều kiện** | Trang chi tiết sản phẩm được hiển thị đầy đủ |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -282,12 +282,12 @@ graph LR
 
 ### UC4: Quản lý giỏ hàng (Manage Cart)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC4 |
-| **Tên use case** | Quản lý giỏ hàng (Manage Cart) |
+| **Mã ca sử dụng (Use-Case ID)** | UC4 |
+| **Tên ca sử dụng** | Quản lý giỏ hàng (Manage Cart) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng thêm sản phẩm, cập nhật số lượng hoặc xóa sản phẩm khỏi giỏ hàng |
+| **Mô tả** | Khách hàng thêm sản phẩm, cập nhật số lượng hoặc xóa sản phẩm khỏi giỏ hàng |
 | **Tiền điều kiện** | Khách hàng đã đăng nhập vào hệ thống |
 | **Hậu điều kiện** | Giỏ hàng được cập nhật chính xác trạng thái mới nhất |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -311,16 +311,16 @@ graph LR
 
 ### UC5: Thanh toán (Checkout)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC5 |
-| **Tên use case** | Thanh toán (Checkout) |
+| **Mã ca sử dụng (Use-Case ID)** | UC5 |
+| **Tên ca sử dụng** | Thanh toán (Checkout) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng hoàn tất việc mua các mặt hàng trong giỏ hàng |
+| **Mô tả** | Khách hàng hoàn tất việc mua các mặt hàng trong giỏ hàng |
 | **Tiền điều kiện** | Khách hàng đã đăng nhập, giỏ hàng không trống và các sản phẩm còn hàng |
 | **Hậu điều kiện** | Đơn hàng được tạo, thanh toán thành công, tồn kho được trừ tự động |
 | **Mức độ ưu tiên** | Cao (High) |
-| **Quy tắc kinh doanh** | Quá trình thanh toán phải đảm bảo tính nguyên tử (Atomic) - thực thi trong một giao dịch cơ sở dữ liệu duy nhất |
+| **Quy tắc nghiệp vụ** | Quá trình thanh toán phải đảm bảo tính nguyên tử (Atomic) - thực thi trong một giao dịch cơ sở dữ liệu duy nhất |
 
 #### Luồng sự kiện chính (SVDPI)
 
@@ -341,9 +341,9 @@ graph LR
 | 13 | - | Hệ thống | Hệ thống **đánh dấu** giỏ hàng **ở trạng thái** đã thanh toán (checked_out) |
 | 14 | - | Hệ thống | Hệ thống **ghi nhật ký** chi tiết giao dịch **vào** luồng sự kiện truy cập |
 
-#### Luồng ngoại lệ
+#### Luồng sự kiện thay thế / ngoại lệ
 
-| Bước ngoại lệ | Điều kiện | Phát biểu SVDPI |
+| Bước thay thế | Điều kiện | Phát biểu SVDPI |
 |----------|-----------|-----------------|
 | 2a | Sản phẩm hết hàng | Hệ thống **thông báo** tới khách hàng **về** sản phẩm đã hết hàng trong kho |
 | 6a | Mã giảm giá không hợp lệ | Hệ thống **thông báo** tới khách hàng **về** lỗi áp dụng mã khuyến mãi |
@@ -352,12 +352,12 @@ graph LR
 
 ### UC6: Theo dõi đơn hàng (Track Orders)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC6 |
-| **Tên use case** | Theo dõi đơn hàng (Track Orders) |
+| **Mã ca sử dụng (Use-Case ID)** | UC6 |
+| **Tên ca sử dụng** | Theo dõi đơn hàng (Track Orders) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng xem lịch sử đơn hàng và tiến trình xử lý, giao nhận của đơn |
+| **Mô tả** | Khách hàng xem lịch sử đơn hàng và tiến trình xử lý, giao nhận của đơn |
 | **Tiền điều kiện** | Khách hàng đã đăng nhập và đã có ít nhất một đơn hàng |
 | **Hậu điều kiện** | Lịch sử và thông tin chi tiết đơn hàng được hiển thị |
 | **Mức độ ưu tiên** | Trung bình (Medium) |
@@ -377,12 +377,12 @@ graph LR
 
 ### UC7: Viết đánh giá (Write Reviews)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC7 |
-| **Tên use case** | Viết đánh giá (Write Reviews) |
+| **Mã ca sử dụng (Use-Case ID)** | UC7 |
+| **Tên ca sử dụng** | Viết đánh giá (Write Reviews) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng viết đánh giá và xếp hạng sao cho sản phẩm đã mua thành công |
+| **Mô tả** | Khách hàng viết đánh giá và xếp hạng sao cho sản phẩm đã mua thành công |
 | **Tiền điều kiện** | Khách hàng có đơn hàng đã hoàn thành (completed) chứa sản phẩm đó |
 | **Hậu điều kiện** | Đánh giá được lưu vào cơ sở dữ liệu và hiển thị |
 | **Mức độ ưu tiên** | Trung bình (Medium) |
@@ -404,12 +404,12 @@ graph LR
 
 ### UC8: Quản lý danh sách yêu thích (Manage Wishlist)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC8 |
-| **Tên use case** | Quản lý danh sách yêu thích (Manage Wishlist) |
+| **Mã ca sử dụng (Use-Case ID)** | UC8 |
+| **Tên ca sử dụng** | Quản lý danh sách yêu thích (Manage Wishlist) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng lưu trữ hoặc loại bỏ các sản phẩm yêu thích để mua sau |
+| **Mô tả** | Khách hàng lưu trữ hoặc loại bỏ các sản phẩm yêu thích để mua sau |
 | **Tiền điều kiện** | Khách hàng đã đăng nhập vào hệ thống |
 | **Hậu điều kiện** | Danh sách yêu thích được cập nhật |
 | **Mức độ ưu tiên** | Thấp (Low) |
@@ -430,12 +430,12 @@ graph LR
 
 ### UC9: Quản lý sản phẩm (Manage Products - Admin)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC9 |
-| **Tên use case** | Quản lý sản phẩm (Manage Products) |
+| **Mã ca sử dụng (Use-Case ID)** | UC9 |
+| **Tên ca sử dụng** | Quản lý sản phẩm (Manage Products) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin) |
-| **Mô tả tóm tắt** | Quản trị viên thêm mới, chỉnh sửa thông tin hoặc lưu trữ/ẩn sản phẩm |
+| **Mô tả** | Quản trị viên thêm mới, chỉnh sửa thông tin hoặc lưu trữ/ẩn sản phẩm |
 | **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
 | **Hậu điều kiện** | Thông tin sản phẩm được lưu thay đổi vào cơ sở dữ liệu |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -459,12 +459,12 @@ graph LR
 
 ### UC10: Quản lý danh mục (Manage Categories - Admin)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC10 |
-| **Tên use case** | Quản lý danh mục (Manage Categories) |
+| **Mã ca sử dụng (Use-Case ID)** | UC10 |
+| **Tên ca sử dụng** | Quản lý danh mục (Manage Categories) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin) |
-| **Mô tả tóm tắt** | Quản trị viên thêm, sửa hoặc xóa cây phân cấp danh mục ngành hàng |
+| **Mô tả** | Quản trị viên thêm, sửa hoặc xóa cây phân cấp danh mục ngành hàng |
 | **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
 | **Hậu điều kiện** | Cấu trúc danh mục được cập nhật |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -485,12 +485,12 @@ graph LR
 
 ### UC11: Quản lý tồn kho (Manage Inventory - Admin)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC11 |
-| **Tên use case** | Quản lý tồn kho (Manage Inventory) |
+| **Mã ca sử dụng (Use-Case ID)** | UC11 |
+| **Tên ca sử dụng** | Quản lý tồn kho (Manage Inventory) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin) |
-| **Mô tả tóm tắt** | Quản trị viên theo dõi và cập nhật số lượng tồn kho tổng thể của từng biến thể |
+| **Mô tả** | Quản trị viên theo dõi và cập nhật số lượng tồn kho tổng thể của từng biến thể |
 | **Tiền điều kiện** | Quản trị viên đã xác thực, sản phẩm và biến thể đã tồn tại |
 | **Hậu điều kiện** | Số lượng tồn kho được điều chỉnh chính xác |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -512,12 +512,12 @@ graph LR
 
 ### UC12: Quản lý mã giảm giá (Manage Coupons - Admin)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC12 |
-| **Tên use case** | Quản lý mã giảm giá (Manage Coupons) |
+| **Mã ca sử dụng (Use-Case ID)** | UC12 |
+| **Tên ca sử dụng** | Quản lý mã giảm giá (Manage Coupons) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin) |
-| **Mô tả tóm tắt** | Quản trị viên tạo mới, sửa đổi hạn dùng hoặc vô hiệu hóa các mã khuyến mãi |
+| **Mô tả** | Quản trị viên tạo mới, sửa đổi hạn dùng hoặc vô hiệu hóa các mã khuyến mãi |
 | **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
 | **Hậu điều kiện** | Thông tin mã giảm giá được lưu trữ và kích hoạt |
 | **Mức độ ưu tiên** | Trung bình (Medium) |
@@ -539,12 +539,12 @@ graph LR
 
 ### UC13: Quản lý đơn hàng (Manage Orders - Admin)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC13 |
-| **Tên use case** | Quản lý đơn hàng (Manage Orders) |
+| **Mã ca sử dụng (Use-Case ID)** | UC13 |
+| **Tên ca sử dụng** | Quản lý đơn hàng (Manage Orders) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin) |
-| **Mô tả tóm tắt** | Quản trị viên xem xét và xử lý chuyển đổi trạng thái của đơn hàng |
+| **Mô tả** | Quản trị viên xem xét và xử lý chuyển đổi trạng thái của đơn hàng |
 | **Tiền điều kiện** | Quản trị viên đã xác thực, đơn hàng đã phát sinh trong hệ thống |
 | **Hậu điều kiện** | Trạng thái đơn hàng được cập nhật và lưu vết lịch sử |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -567,12 +567,12 @@ graph LR
 
 ### UC14: Xem bảng điều khiển (View Dashboard - Admin)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC14 |
-| **Tên use case** | Xem bảng điều khiển (View Dashboard) |
+| **Mã ca sử dụng (Use-Case ID)** | UC14 |
+| **Tên ca sử dụng** | Xem bảng điều khiển (View Dashboard) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin) |
-| **Mô tả tóm tắt** | Quản trị viên xem tổng quan các chỉ số vận hành và kinh doanh then chốt |
+| **Mô tả** | Quản trị viên xem tổng quan các chỉ số vận hành và kinh doanh then chốt |
 | **Tiền điều kiện** | Quản trị viên đã xác thực quyền Admin |
 | **Hậu điều kiện** | Bảng điều khiển hiển thị đầy đủ các chỉ số thống kê |
 | **Mức độ ưu tiên** | Trung bình (Medium) |
@@ -592,12 +592,12 @@ graph LR
 
 ### UC15: Chọn thành phố / địa điểm (Select City/Location)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC15 |
-| **Tên use case** | Chọn thành phố / địa điểm (Select City/Location) |
+| **Mã ca sử dụng (Use-Case ID)** | UC15 |
+| **Tên ca sử dụng** | Chọn thành phố / địa điểm (Select City/Location) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng chủ động chọn tỉnh/thành phố để xem tính sẵn có của hàng hóa theo khu vực |
+| **Mô tả** | Khách hàng chủ động chọn tỉnh/thành phố để xem tính sẵn có của hàng hóa theo khu vực |
 | **Tiền điều kiện** | Hệ thống đã thiết lập danh mục các thành phố và cửa hàng hoạt động |
 | **Hậu điều kiện** | Mã thành phố được lưu trữ trong localStorage; tình trạng tồn kho sản phẩm được cập nhật theo khu vực |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -617,12 +617,12 @@ graph LR
 
 ### UC16: Kiểm tra tồn kho cửa hàng (Check Store Availability)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC16 |
-| **Tên use case** | Kiểm tra tồn kho cửa hàng (Check Store Availability) |
+| **Mã ca sử dụng (Use-Case ID)** | UC16 |
+| **Tên ca sử dụng** | Kiểm tra tồn kho cửa hàng (Check Store Availability) |
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
-| **Mô tả tóm tắt** | Khách hàng xem danh sách chi tiết các cửa hàng trong thành phố còn hàng cho biến thể đã chọn (theo phong cách CellphoneS) |
+| **Mô tả** | Khách hàng xem danh sách chi tiết các cửa hàng trong thành phố còn hàng cho biến thể đã chọn (theo phong cách CellphoneS) |
 | **Tiền điều kiện** | Khách hàng đã chọn thành phố; sản phẩm và biến thể tồn tại |
 | **Hậu điều kiện** | Tình trạng tồn kho theo từng chi nhánh được hiển thị trực quan |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -641,12 +641,12 @@ graph LR
 
 ### UC17: Quản lý tồn kho chi nhánh (Manage Branch Inventory - Staff)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC17 |
-| **Tên use case** | Quản lý tồn kho chi nhánh (Manage Branch Inventory) |
+| **Mã ca sử dụng (Use-Case ID)** | UC17 |
+| **Tên ca sử dụng** | Quản lý tồn kho chi nhánh (Manage Branch Inventory) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager), Quản lý thành phố (City Planner) |
-| **Mô tả tóm tắt** | Nhân viên cập nhật số lượng tồn kho tại các cửa hàng nằm trong phạm vi quyền hạn của mình |
+| **Mô tả** | Nhân viên cập nhật số lượng tồn kho tại các cửa hàng nằm trong phạm vi quyền hạn của mình |
 | **Tiền điều kiện** | Nhân viên đã đăng nhập và được gán vai trò cùng phạm vi cửa hàng/thành phố tương ứng |
 | **Hậu điều kiện** | Số lượng tồn kho tại cửa hàng được cập nhật kèm kiểm soát xung đột (optimistic locking) |
 | **Mức độ ưu tiên** | Cao (High) |
@@ -679,16 +679,16 @@ graph LR
 
 ### UC18: Giao dịch bán hàng tại quầy POS (POS Transaction - Staff)
 
-| Thuộc tính | Mô tả tóm tắt |
+| Thuộc tính | Mô tả |
 |-------|-------------|
-| **Mã use case** | UC18 |
-| **Tên use case** | Giao dịch bán hàng tại quầy POS (POS Transaction) |
+| **Mã ca sử dụng (Use-Case ID)** | UC18 |
+| **Tên ca sử dụng** | Giao dịch bán hàng tại quầy POS (POS Transaction) |
 | **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager), Quản lý thành phố (City Planner) |
-| **Mô tả tóm tắt** | Nhân viên thực hiện bán hàng và thanh toán trực tiếp cho khách tại quầy cửa hàng thông qua giao diện POS |
+| **Mô tả** | Nhân viên thực hiện bán hàng và thanh toán trực tiếp cho khách tại quầy cửa hàng thông qua giao diện POS |
 | **Tiền điều kiện** | Nhân viên đã xác thực quyền hợp lệ và được gán cửa hàng cụ thể |
 | **Hậu điều kiện** | Đơn hàng được tạo với trạng thái hoàn tất, trừ đồng thời cả tồn kho chi nhánh và tồn kho chung |
 | **Mức độ ưu tiên** | Cao (High) |
-| **Quy tắc kinh doanh** | Giao dịch POS tạo đơn hàng hoàn tất ngay lập tức, trừ tồn kho kép (dual inventory decrement) trong cùng một transaction |
+| **Quy tắc nghiệp vụ** | Giao dịch POS tạo đơn hàng hoàn tất ngay lập tức, trừ tồn kho kép (dual inventory decrement) trong cùng một transaction |
 
 #### Luồng sự kiện chính (SVDPI)
 
@@ -712,9 +712,9 @@ graph LR
 | 16 | - | Hệ thống | Hệ thống **trừ** số lượng tồn kho tổng thể trong `inventory` **cho** từng sản phẩm |
 | 17 | - | Hệ thống | Hệ thống **hiển thị** thông báo thành công **kèm** mã đơn hàng vừa tạo |
 
-#### Luồng ngoại lệ
+#### Luồng sự kiện thay thế / ngoại lệ
 
-| Bước ngoại lệ | Điều kiện | Phát biểu SVDPI |
+| Bước thay thế | Điều kiện | Phát biểu SVDPI |
 |----------|-----------|-----------------|
 | 12a | Tồn kho tại cửa hàng không đủ | Hệ thống **thông báo** tới nhân viên **về** việc hết hàng tại quầy |
 
@@ -1705,293 +1705,401 @@ sequenceDiagram
 
 ## 1.6 Sơ đồ lớp (Class Diagrams)
 
-### 1.6.1 Toàn bộ thực thể OLTP (Complete OLTP Entities)
+### 1.6.1 Mô hình miền - Các thực thể cốt lõi (Domain Model - Core Entities)
 
 ```mermaid
 classDiagram
     class Customer {
-        <<implemented>>
-        +customer_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +email: VARCHAR(254) UNIQUE
-        +display_name: VARCHAR(100)
-        +password_hash: VARCHAR(255)
-        +role: ENUM (customer|admin|store_manager|city_planner)
-        +status: ENUM (active|disabled)
-        +city_id: BIGINT UNSIGNED?
-        +store_id: BIGINT UNSIGNED?
-        +data_origin: ENUM (manual|synthetic)
-        +generation_run_id: VARCHAR(50)?
-        +anonymized_at: DATETIME?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +customerId: BIGINT UNSIGNED
+        +publicId: UUID
+        +email: String
+        +displayName: String
+        +passwordHash: String
+        +role: customer|admin|store_manager|city_planner
+        +status: active|disabled
+        +cityId: BIGINT UNSIGNED?
+        +storeId: BIGINT UNSIGNED?
+        +dataOrigin: manual|synthetic
+        +createdAt: DateTime
+        +updatedAt: DateTime
+        +register()
+        +updateProfile()
+        +getOrders()
     }
     
     class Category {
-        <<implemented>>
-        +category_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +code: VARCHAR(50) UNIQUE
-        +name: VARCHAR(100)
-        +parent_category_id: BIGINT UNSIGNED?
-        +is_active: BOOLEAN
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +categoryId: BIGINT UNSIGNED
+        +publicId: UUID
+        +code: String
+        +name: String
+        +parentCategoryId: BIGINT UNSIGNED?
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
     }
     
     class Product {
-        <<implemented>>
-        +product_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +name: VARCHAR(255)
-        +slug: VARCHAR(255) UNIQUE
-        +description: TEXT?
-        +image_url: VARCHAR(500)?
-        +category_id: BIGINT UNSIGNED FK
-        +is_active: BOOLEAN
-        +archived_at: DATETIME?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +productId: BIGINT UNSIGNED
+        +publicId: UUID
+        +name: String
+        +slug: String
+        +description: String?
+        +imageUrl: String?
+        +categoryId: BIGINT UNSIGNED
+        +isActive: Boolean
+        +archivedAt: DateTime?
+        +createdAt: DateTime
+        +updatedAt: DateTime
     }
     
     class ProductVariant {
-        <<implemented>>
-        +variant_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +product_id: BIGINT UNSIGNED FK
-        +sku: VARCHAR(50) UNIQUE
-        +size_code: VARCHAR(10)
-        +color_code: VARCHAR(20)
-        +price_vnd: BIGINT UNSIGNED
-        +is_active: BOOLEAN
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +variantId: BIGINT UNSIGNED
+        +publicId: UUID
+        +productId: BIGINT UNSIGNED
+        +sku: String
+        +sizeCode: String
+        +colorCode: String
+        +priceVnd: Integer
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
     }
     
     class Cart {
-        <<implemented>>
-        +cart_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +customer_id: BIGINT UNSIGNED FK
-        +status: ENUM
-        +active_customer_guard: VARCHAR(100)?
-        +checked_out_at: DATETIME?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +cartId: UUID
+        +customerId: UUID
+        +createdAt: DateTime
+        +addItem()
+        +removeItem()
+        +updateQuantity()
+        +getTotal()
     }
     
     class CartItem {
-        <<implemented>>
-        +cart_item_id: BIGINT UNSIGNED PK
-        +cart_id: BIGINT UNSIGNED FK
-        +variant_id: BIGINT UNSIGNED FK
-        +quantity: INT UNSIGNED
-        +is_present: BOOLEAN
-        +first_added_at: DATETIME
-        +removed_at: DATETIME?
-        +updated_at: DATETIME
+        +cartItemId: UUID
+        +cartId: UUID
+        +variantId: UUID
+        +quantity: Integer
+        +createdAt: DateTime
     }
     
     class Order {
+        +orderId: UUID
+        +customerId: UUID
+        +status: OrderStatus
+        +totalAmount: Integer
+        +shippingAddress: JSON
+        +createdAt: DateTime
+        +create()
+        +updateStatus()
+        +cancel()
+    }
+    
+    class OrderItem {
+        +orderItemId: UUID
+        +orderId: UUID
+        +variantId: UUID
+        +quantity: Integer
+        +unitPrice: Integer
+    }
+    
+    class Payment {
+        +paymentId: UUID
+        +orderId: UUID
+        +amount: Integer
+        +method: String
+        +status: PaymentStatus
+        +processedAt: DateTime
+    }
+    
+    Customer "1" --> "*" Cart : sở hữu
+    Customer "1" --> "*" Order : đặt hàng
+    Category "1" --> "*" Product : chứa
+    Category "0..1" --> "*" Category : danh mục cha
+    Product "1" --> "*" ProductVariant : có
+    Cart "1" --> "*" CartItem : chứa
+    CartItem "*" --> "1" ProductVariant : tham chiếu
+    Order "1" --> "*" OrderItem : chứa
+    Order "1" --> "0..1" Payment : có
+    OrderItem "*" --> "1" ProductVariant : tham chiếu
+```
+
+### 1.6.2 Các kiểu dữ liệu liệt kê (Enumeration Types)
+
+```mermaid
+classDiagram
+    class CustomerRole {
+        <<enumeration>>
+        customer
+        admin
+        store_manager
+        city_planner
+    }
+    
+    class OrderStatus {
+        <<enumeration>>
+        paid
+        confirmed
+        completed
+        cancelled
+    }
+    
+    class PaymentStatus {
+        <<enumeration>>
+        succeeded
+        failed
+    }
+    
+    class CouponType {
+        <<enumeration>>
+        percentage
+        fixed_amount
+    }
+    
+    class CustomerStatus {
+        <<enumeration>>
+        active
+        inactive
+    }
+```
+
+### 1.6.3 Các thực thể bổ trợ đã cài đặt (Supporting Entities)
+
+```mermaid
+classDiagram
+    class Order {
         <<implemented>>
-        +order_id: BIGINT UNSIGNED PK
-        +order_number: VARCHAR(32) UNIQUE
-        +cart_id: BIGINT UNSIGNED?
-        +customer_id: BIGINT UNSIGNED FK
-        +checkout_idempotency_key: VARCHAR(100)?
-        +coupon_id: BIGINT UNSIGNED?
-        +status: ENUM
-        +currency_code: VARCHAR(3)
-        +subtotal_vnd: BIGINT UNSIGNED
-        +coupon_code_snapshot: VARCHAR(50)?
-        +coupon_type_snapshot: VARCHAR(20)?
-        +coupon_value_snapshot: BIGINT UNSIGNED?
-        +discount_amount_vnd: BIGINT UNSIGNED
-        +shipping_fee_vnd: BIGINT UNSIGNED
-        +total_vnd: BIGINT UNSIGNED
-        +receiver_name: VARCHAR(200)
-        +receiver_phone: VARCHAR(20)
-        +shipping_address_text: TEXT
-        +channel: ENUM (online|pos)
-        +store_id: BIGINT UNSIGNED?
-        +staff_id: BIGINT UNSIGNED?
-        +paid_at: DATETIME?
-        +confirmed_at: DATETIME?
-        +completed_at: DATETIME?
-        +cancelled_at: DATETIME?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +orderId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +orderNumber: String
+        +subtotal: BIGINT UNSIGNED
+        +shippingFee: BIGINT UNSIGNED
+        +discount: BIGINT UNSIGNED
+        +total: BIGINT UNSIGNED
+        +status: OrderStatus
+        +channel: OrderChannel
+        +storeId: BIGINT UNSIGNED?classDiagram
+    
+    class CustomerRole {
+        <<enumeration>>
+        customer
+        admin
+        store_manager
+        city_planner
+    }
+    
+    class OrderStatus {
+        <<enumeration>>
+        paid
+        confirmed
+        completed
+        cancelled
+    }
+    
+    class PaymentStatus {
+        <<enumeration>>
+        succeeded
+        failed
+    }
+    
+    class CouponType {
+        <<enumeration>>
+        percentage
+        fixed_amount
+    }
+    
+    class CustomerStatus {
+        <<enumeration>>
+        active
+        inactive
+    }classDiagram
+    class CustomerRole {
+        <<enumeration>>
+        customer
+        admin
+        store_manager
+        city_planner
+    }
+    
+    class OrderStatus {
+        <<enumeration>>
+        paid
+        confirmed
+        completed
+        cancelled
+    }
+    
+    class PaymentStatus {
+        <<enumeration>>
+        succeeded
+        failed
+    }
+    
+    class CouponType {
+        <<enumeration>>
+        percentage
+        fixed_amount
+    }
+    
+    class CustomerStatus {
+        <<enumeration>>
+        active
+        inactive
+    }
+        +staffId: BIGINT UNSIGNED?
+        +fullName: String
+        +phone: String
+        +addressText: String
+        +createdAt: DateTime
+        +updatedAt: DateTime
     }
     
     class OrderItem {
         <<implemented>>
-        +order_item_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +order_id: BIGINT UNSIGNED FK
-        +variant_id: BIGINT UNSIGNED FK
-        +product_public_id_snapshot: BINARY(16)
-        +category_code_snapshot: VARCHAR(50)?
-        +category_name_snapshot: VARCHAR(100)?
-        +product_name_snapshot: VARCHAR(255)
-        +sku_snapshot: VARCHAR(50)
-        +size_code_snapshot: VARCHAR(10)
-        +color_code_snapshot: VARCHAR(20)
-        +unit_price_vnd: BIGINT UNSIGNED
-        +quantity: INT UNSIGNED
-        +line_total_vnd: BIGINT UNSIGNED
-        +created_at: DATETIME
+        +orderItemId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +quantity: Integer
+        +unitPrice: BIGINT UNSIGNED
     }
     
     class OrderStatusHistory {
         <<implemented>>
-        +order_status_history_id: BIGINT UNSIGNED PK
-        +order_id: BIGINT UNSIGNED FK
-        +from_status: ENUM?
-        +to_status: ENUM
-        +transition_source: ENUM
-        +reason: VARCHAR(500)?
-        +transition_idempotency_key: VARCHAR(100)?
-        +transitioned_at: DATETIME
-        +created_at: DATETIME
+        +historyId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
+        +status: OrderStatus
+        +changedAt: DateTime
+        +changedBy: String?
+        +notes: String?
     }
     
     class Payment {
         <<implemented>>
-        +payment_id: BIGINT UNSIGNED PK
-        +payment_reference: VARCHAR(64) UNIQUE
-        +order_id: BIGINT UNSIGNED FK
-        +payment_idempotency_key: VARCHAR(100)?
-        +status: ENUM (pending|succeeded|failed|refunded)
-        +currency_code: VARCHAR(3)
-        +amount_vnd: BIGINT UNSIGNED
-        +failure_code: VARCHAR(50)?
-        +attempted_at: DATETIME
-        +created_at: DATETIME
+        +paymentId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
+        +method: String
+        +amount: BIGINT UNSIGNED
+        +status: String
+        +transactionId: String?
+    }
+    
+    class Cart {
+        <<implemented>>
+        +cartId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class CartItem {
+        <<implemented>>
+        +cartItemId: BIGINT UNSIGNED
+        +cartId: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +quantity: Integer
     }
     
     class Coupon {
         <<implemented>>
-        +coupon_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +code_normalized: VARCHAR(50) UNIQUE
-        +discount_type: ENUM (percentage|fixed_amount)
-        +discount_value: BIGINT UNSIGNED
-        +minimum_subtotal_vnd: BIGINT UNSIGNED
-        +starts_at: DATETIME
-        +ends_at: DATETIME
-        +is_active: BOOLEAN
-        +total_usage_limit: INT UNSIGNED?
-        +per_customer_usage_limit: INT UNSIGNED?
-        +used_count: INT UNSIGNED
-        +archived_at: DATETIME?
-        +archived_by_customer_id: BIGINT UNSIGNED?
-        +archive_reason: VARCHAR(500)?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +couponId: BIGINT UNSIGNED
+        +code: String
+        +discountType: String
+        +discountValue: BIGINT UNSIGNED
+        +minOrderAmount: BIGINT UNSIGNED
+        +maxUsageCount: Integer
+        +currentUsageCount: Integer
+        +validFrom: DateTime
+        +validUntil: DateTime
+        +isActive: Boolean
     }
     
     class CouponRedemption {
         <<implemented>>
-        +coupon_redemption_id: BIGINT UNSIGNED PK
-        +coupon_id: BIGINT UNSIGNED FK
-        +order_id: BIGINT UNSIGNED FK
-        +customer_id: BIGINT UNSIGNED FK
-        +status: ENUM
-        +redeemed_at: DATETIME
-        +released_at: DATETIME?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +redemptionId: BIGINT UNSIGNED
+        +couponId: BIGINT UNSIGNED
+        +orderId: BIGINT UNSIGNED
     }
     
     class ProductReview {
         <<implemented>>
-        +review_id: BIGINT UNSIGNED PK
-        +public_id: BINARY(16) UNIQUE
-        +order_item_id: BIGINT UNSIGNED FK
-        +customer_id: BIGINT UNSIGNED FK
-        +product_id: BIGINT UNSIGNED FK
-        +rating: TINYINT
-        +content: TEXT?
-        +status: ENUM
-        +moderation_reason: VARCHAR(500)?
-        +moderated_by_customer_id: BIGINT UNSIGNED?
-        +moderated_at: DATETIME?
-        +created_at: DATETIME
-        +updated_at: DATETIME
+        +reviewId: BIGINT UNSIGNED
+        +productId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +rating: Integer
+        +comment: String?
+        +createdAt: DateTime
     }
     
     class WishlistItem {
         <<implemented>>
-        +wishlist_item_id: BIGINT UNSIGNED PK
-        +customer_id: BIGINT UNSIGNED FK
-        +product_id: BIGINT UNSIGNED FK
-        +is_present: BOOLEAN
-        +first_added_at: DATETIME
-        +last_added_at: DATETIME?
-        +removed_at: DATETIME?
-        +updated_at: DATETIME
+        +wishlistItemId: BIGINT UNSIGNED
+        +customerId: BIGINT UNSIGNED
+        +productId: BIGINT UNSIGNED
+        +createdAt: DateTime
     }
     
     class Inventory {
         <<implemented>>
-        +variant_id: BIGINT UNSIGNED PK
-        +opening_on_hand: BIGINT UNSIGNED
-        +on_hand: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +onHand: BIGINT UNSIGNED
+        +reserved: BIGINT UNSIGNED
+        +available: BIGINT UNSIGNED
         +version: BIGINT UNSIGNED
-        +updated_at: DATETIME
     }
     
-    class City {
-        <<implemented>>
-        +city_id: BIGINT UNSIGNED PK
-        +code: VARCHAR(32) UNIQUE
-        +name: VARCHAR(120)
-        +is_active: BOOLEAN
-        +created_at: DATETIME
-        +updated_at: DATETIME
-    }
-    
-    class Store {
-        <<implemented>>
-        +store_id: BIGINT UNSIGNED PK
-        +city_id: BIGINT UNSIGNED FK
-        +code: VARCHAR(32) UNIQUE
-        +name: VARCHAR(120)
-        +address: VARCHAR(500)
-        +phone: VARCHAR(32)
-        +is_active: BOOLEAN
-        +created_at: DATETIME
-        +updated_at: DATETIME
-    }
-    
-    class StoreInventory {
-        <<implemented>>
-        +store_id: BIGINT UNSIGNED PK
-        +variant_id: BIGINT UNSIGNED PK
-        +on_hand: BIGINT UNSIGNED
-        +opening_on_hand: BIGINT UNSIGNED
-        +version: BIGINT UNSIGNED
-        +updated_at: DATETIME
-    }
-    
-    Category "1" --> "*" Product : chứa
-    Category "0..1" --> "*" Category : danh mục cha
-    Product "1" --> "*" ProductVariant : có
-    Customer "1" --> "*" Cart : sở hữu
-    Customer "1" --> "*" Order : đặt hàng
-    Cart "1" --> "*" CartItem : chứa
-    CartItem "*" --> "1" ProductVariant : tham chiếu
     Order "1" --> "*" OrderItem : chứa
     Order "1" --> "1" Payment : có
     Order "1" --> "*" OrderStatusHistory : theo dõi lịch sử
-    OrderItem "*" --> "1" ProductVariant : tham chiếu
+    Cart "1" --> "*" CartItem : chứa
     Coupon "1" --> "*" CouponRedemption : theo dõi sử dụng
-    CouponRedemption "*" --> "1" Customer : sử dụng bởi
     ProductReview "*" --> "1" Customer : viết bởi
     ProductReview "*" --> "1" Product : dành cho
     WishlistItem "*" --> "1" Customer : thuộc về
     WishlistItem "*" --> "1" Product : tham chiếu
     Inventory "1" --> "1" ProductVariant : theo dõi tồn kho
+```
+
+### 1.6.4 Thực thể Đa chi nhánh và Cửa hàng (Multi-City & Store Entities)
+
+```mermaid
+classDiagram
+    class City {
+        +cityId: BIGINT UNSIGNED
+        +code: String(32)
+        +name: String(120)
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class Store {
+        +storeId: BIGINT UNSIGNED
+        +cityId: BIGINT UNSIGNED
+        +code: String(32)
+        +name: String(120)
+        +address: String(500)
+        +phone: String(32)
+        +isActive: Boolean
+        +createdAt: DateTime
+        +updatedAt: DateTime
+    }
+    
+    class StoreInventory {
+        +storeId: BIGINT UNSIGNED
+        +variantId: BIGINT UNSIGNED
+        +onHand: BIGINT UNSIGNED
+        +openingOnHand: BIGINT UNSIGNED
+        +version: BIGINT UNSIGNED
+        +updatedAt: DateTime
+    }
+    
+    class Customer {
+        <<updated>>
+        +cityId: BIGINT UNSIGNED?
+        +storeId: BIGINT UNSIGNED?
+        +role: customer|admin|store_manager|city_planner
+    }
+    
     City "1" --> "*" Store : bao gồm
     Store "1" --> "*" StoreInventory : theo dõi tồn kho
     ProductVariant "1" --> "*" StoreInventory : có trong kho
