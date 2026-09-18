@@ -121,16 +121,6 @@ def create_pos_transaction(
             store_inv.version += 1
             store_inv.updated_at = now
 
-            # Deduct global inventory
-            global_inv = db.execute(
-                select(Inventory).where(
-                    Inventory.variant_id == item.variant_id,
-                ).with_for_update()
-            ).scalar_one_or_none()
-            if global_inv:
-                global_inv.on_hand -= item.quantity
-                global_inv.version += 1
-                global_inv.updated_at = now
 
         total = subtotal  # POS: no shipping fee
 
