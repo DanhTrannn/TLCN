@@ -1,10 +1,7 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from app.modules.checkout.allocation import (
-    parse_city_from_address,
-    find_store_with_all_items,
-    allocate_order_to_stores,
-)
+from app.modules.checkout.allocation import parse_city_from_address, deduct_inventory
+from app.core.errors import AppError
 
 
 def test_parse_city_from_address():
@@ -13,43 +10,26 @@ def test_parse_city_from_address():
     assert parse_city_from_address("abc") is None
 
 
-def test_allocate_order_store_found():
+def test_deduct_inventory_success():
     mock_db = MagicMock()
-    mock_store = MagicMock(store_id=7)
+    mock_inv = MagicMock()
+    mock_inv.on_hand = 100
+    mock_inv.version = 1
+    mock_db.execute.return_value.scalar_one_or_none.return_value = mock_inv
 
-    mock_result = MagicMock()
-    mock_result.rowcount = 1
-    mock_db.execute.return_value = mock_result
-
-    with patch("app.modules.checkout.allocation.find_stores_in_city", return_value=[mock_store]):
-        with patch("app.modules.checkout.allocation.find_store_with_all_items", return_value=mock_store):
-            with patch("app.modules.checkout.allocation.deduct_store_inventory"):
-                result = allocate_order_to_stores(
-                    mock_db,
-                    order_id=1,
-                    shipping_address="123 Nguyễn Huệ, Bến Nghé, Thành phố Hồ Chí Minh",
-                    items=[{"variant_id": 10, "quantity": 2}],
-                )
-                assert result["store_id"] == 7
-                assert result["source"] == "store"
+    deduct_inventory(mock_db, [{"variant_id": 1, "quantity": 5}])
+    assert mock_inv.on_hand == 95
+    assert mock_inv.version == 2
 
 
-def test_allocate_order_fallback_global():
+def test_deduct_inventory_insufficient():
     mock_db = MagicMock()
+    mock_inv = MagicMock()
+    mock_inv.on_hand = 2
+    mock_db.execute.return_value.scalar_one_or_none.return_value = mock_inv
 
-    with patch("app.modules.checkout.allocation.find_stores_in_city", return_value=[MagicMock()]):
-        with patch("app.modules.checkout.allocation.find_store_with_all_items", return_value=None):
-            result = allocate_order_to_stores(
-                mock_db,
-                order_id=1,
-                shipping_address="123 Nguyễn Huệ, Bến Nghé, Thành phố Hồ Chí Minh",
-                items=[{"variant_id": 10, "quantity": 2}],
-            )
-            assert result["store_id"] is None
-            assert result["source"] == "global"
-
-
-def test_allocate_order_no_city():
-    mock_db = MagicMock()
-    result = allocate_order_to_stores(mock_db, order_id=1, shipping_address="abc", items=[])
-    assert result["source"] == "global"
+    try:
+        deduct_inventory(mock_db, [{"variant_id": 1, "quantity": 5}])
+        assert False, "Should have raised"
+    except AppError as e:
+        assert e.code == "OUT_OF_STOCK"

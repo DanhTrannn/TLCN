@@ -1,8 +1,7 @@
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.multicity import City, Store, StoreInventory
-
+from app.models.inventory import Inventory
 
 CITY_PREFIXES = ["Thành phố", "TP.", "TP", "Tỉnh", "T."]
 
@@ -20,110 +19,21 @@ def parse_city_from_address(address: str) -> str | None:
     return None
 
 
-def find_stores_in_city(db: Session, city_name: str) -> list[Store]:
-    """Find all active stores in a city."""
-    stmt = (
-        select(Store)
-        .join(City, City.city_id == Store.city_id)
-        .where(City.name.contains(city_name))
-        .where(Store.is_active == True)  # noqa: E712
-        .where(City.is_active == True)  # noqa: E712
-    )
-    results = list(db.execute(stmt).scalars().all())
-    if not results:
-        # Try reverse: city name contains the parsed name
-        stmt = (
-            select(Store)
-            .join(City, City.city_id == Store.city_id)
-            .where(City.name.like(f"%{city_name}%"))
-            .where(Store.is_active == True)  # noqa: E712
-            .where(City.is_active == True)  # noqa: E712
-        )
-        results = list(db.execute(stmt).scalars().all())
-    return results
-
-
-def find_store_with_all_items(
-    db: Session, stores: list[Store], items: list[dict]
-) -> Store | None:
-    """Find a single store that has ALL items in sufficient quantity."""
-    if not stores:
-        return None
-
-    for store in stores:
-        store_has_all = True
-        for item in items:
-            stmt = (
-                select(StoreInventory.on_hand)
-                .where(
-                    StoreInventory.store_id == store.store_id,
-                    StoreInventory.variant_id == item["variant_id"],
-                    StoreInventory.on_hand >= item["quantity"],
-                )
-            )
-            row = db.execute(stmt).first()
-            if not row:
-                store_has_all = False
-                break
-
-        if store_has_all:
-            return store
-
-    return None
-
-
-def deduct_store_inventory(db: Session, store_id: int, items: list[dict]) -> None:
-    """Deduct StoreInventory for allocated items."""
+def deduct_inventory(db: Session, items: list[dict]) -> None:
+    """Deduct central inventory (inventory table) for online orders."""
     for item in items:
-        result = db.execute(
-            update(StoreInventory)
-            .where(
-                StoreInventory.store_id == store_id,
-                StoreInventory.variant_id == item["variant_id"],
-                StoreInventory.on_hand >= item["quantity"],
-            )
-            .values(on_hand=StoreInventory.on_hand - item["quantity"])
+        stmt = (
+            select(Inventory)
+            .where(Inventory.variant_id == item["variant_id"])
+            .with_for_update()
         )
-        if result.rowcount != 1:
-            raise ValueError(f"Không đủ tồn kho cửa hàng cho variant {item['variant_id']}")
+        inv = db.execute(stmt).scalar_one_or_none()
+        if inv is None or inv.on_hand < item["quantity"]:
+            from app.core.errors import AppError, OUT_OF_STOCK
+            raise AppError(OUT_OF_STOCK, "Sản phẩm không đủ tồn kho.", status_code=409)
+        inv.on_hand -= item["quantity"]
+        inv.version += 1
 
 
-def allocate_order_to_stores(
-    db: Session, order_id: int, shipping_address: str, items: list[dict]
-) -> dict:
-    """Allocate order to a single store that has ALL items, or fallback to global."""
-    city_name = parse_city_from_address(shipping_address)
-
-    allocation_result = {"store_id": None, "source": "global", "allocations": []}
-
-    if not city_name:
-        return allocation_result
-
-    stores = find_stores_in_city(db, city_name)
-    if not stores:
-        return allocation_result
-
-    best_store = find_store_with_all_items(db, stores, items)
-
-    if best_store:
-        deduction_items = [{"variant_id": item["variant_id"], "quantity": item["quantity"]} for item in items]
-        deduct_store_inventory(db, best_store.store_id, deduction_items)
-        allocation_result["store_id"] = best_store.store_id
-        allocation_result["source"] = "store"
-        for item in items:
-            allocation_result["allocations"].append({
-                "variant_id": item["variant_id"],
-                "store_id": best_store.store_id,
-                "quantity": item["quantity"],
-                "source": "store",
-            })
-    else:
-        for item in items:
-            allocation_result["allocations"].append({
-                "variant_id": item["variant_id"],
-                "store_id": None,
-                "quantity": item["quantity"],
-                "source": "global",
-            })
-
-    return allocation_result
+def allocate_order_to_stores(db, order_id, shipping_address, items):
+    raise NotImplementedError("Store allocation removed. Task 2 will update the checkout service.")
