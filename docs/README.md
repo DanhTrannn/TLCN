@@ -1,14 +1,13 @@
 # Documentation Index
 
-This directory contains architecture specifications, data schemas, operations guides, and development workflows for the D&K E-Commerce Data Platform.
+This directory contains the architecture specifications, data schemas, operations guides, and development workflows for the D&K E-Commerce Data Platform.
 
 ## Guides by Category
 
 ### Architecture and Specifications
 
-- [`architecture/PROJECT_STRUCTURE.md`](architecture/PROJECT_STRUCTURE.md): Monorepo organization, service boundaries, and dependency rules.
-- [`architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md): Management info technical specification.
 - [`project/SCOPE.md`](project/SCOPE.md): System boundaries, data source allowlists, analytical constraints, and acceptance criteria.
+- [`architecture/PROJECT_STRUCTURE.md`](architecture/PROJECT_STRUCTURE.md): Monorepo organization, service boundaries, and dependency rules.
 - [`project/LAKEHOUSE_DESIGN_PLAN.md`](project/LAKEHOUSE_DESIGN_PLAN.md): Medallion architecture (Bronze, Silver, Gold), Iceberg table schemas, and data quality gates.
 - [`project/WEB_DESIGN_PLAN.md`](project/WEB_DESIGN_PLAN.md): E-commerce storefront and API design specification.
 
@@ -18,19 +17,11 @@ This directory contains architecture specifications, data schemas, operations gu
 - [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Fluent Bit collection pipeline, privacy redactions, and S3 partition layouts.
 - [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
 
-### Analysis
-
-- [`design-analysis/OOSAD_ANALYSIS.md`](design-analysis/OOSAD_ANALYSIS.md): Object-oriented systems analysis and design — use case diagrams, domain models, sequence diagrams for the D&K e-commerce platform.
-
 ### Operations and Deployment
 
 - [`runbook/README.md`](runbook/README.md): Index of operational workflows, quick start commands, and validation.
 - [`runbook/SETUP.md`](runbook/SETUP.md): Local cluster setup, Polaris RBAC bootstrap, and end-to-end smoke testing.
 - [`runbook/STARTUP_FLOW.md`](runbook/STARTUP_FLOW.md): Container startup sequence, database migrations, and health verification.
-
-### Development Plans
-
-- [`superpowers/plans/`](superpowers/plans/): SDD implementation plans and session records.
 
 ## Progress
 
@@ -43,7 +34,7 @@ This directory contains architecture specifications, data schemas, operations gu
 | Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
 | Trino (query engine) | Done | v483, read-only via Polaris |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
-| MySQL (OLTP source) | Done | 20 tables, synthetic data via generator |
+| MySQL (OLTP source) | Done | 16 tables, synthetic data via generator |
 | LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
 | Superset (dashboards) | Done | Connected to Trino |
 | E-Commerce API + Storefront | Done | FastAPI + Next.js |
@@ -79,8 +70,6 @@ This directory contains architecture specifications, data schemas, operations gu
 | Directory | Content Type | Focus Area |
 |---|---|---|
 | [`project/`](project/) | Specification | Scope, Lakehouse Medallion roadmap, and Web Design plans |
-| [`architecture/`](architecture/) | Reference | System structure, OLTP schema, access log contracts, management info spec |
+| [`architecture/`](architecture/) | Reference | System structure, OLTP schema, and access log contracts |
 | [`contracts/`](contracts/) | Schema | JSON Schema definitions for telemetry contracts |
-| [`design-analysis/`](design-analysis/) | Analysis | OOSAD use case, domain model, and sequence diagrams |
 | [`runbook/`](runbook/) | How-To | Deployment, local verification, and disaster recovery runbooks |
-| [`superpowers/plans/`](superpowers/plans/) | Plan | SDD implementation plans and session records |
