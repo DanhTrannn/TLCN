@@ -1,37 +1,36 @@
 # Documentation Index
 
-This directory contains the architecture specifications, data schemas, operations guides, and development workflows for the D&K E-Commerce Data Platform.
+This directory contains architecture specifications, data schemas, operations guides, and development workflows for the D&K E-Commerce Data Platform.
 
 ## Guides by Category
 
 ### Architecture and Specifications
 
-- [`project/SCOPE.md`](project/SCOPE.md): System boundaries, data source allowlists, analytical constraints, and acceptance criteria.
 - [`architecture/PROJECT_STRUCTURE.md`](architecture/PROJECT_STRUCTURE.md): Monorepo organization, service boundaries, and dependency rules.
+- [`architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md): Management info technical specification.
+- [`project/SCOPE.md`](project/SCOPE.md): System boundaries, data source allowlists, analytical constraints, and acceptance criteria.
 - [`project/LAKEHOUSE_DESIGN_PLAN.md`](project/LAKEHOUSE_DESIGN_PLAN.md): Medallion architecture (Bronze, Silver, Gold), Iceberg table schemas, and data quality gates.
 - [`project/WEB_DESIGN_PLAN.md`](project/WEB_DESIGN_PLAN.md): E-commerce storefront and API design specification.
-- [`design-system/DESIGN.md`](design-system/DESIGN.md): UI tokens, typography, component guidelines, and Storefront color palette.
 
 ### Data Contracts and Schemas
 
-- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete logical schema for 17 MySQL tables, relational constraints, and invariant rules (migrations 0001–0009).
+- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 20 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-09), lock ordering, race handling, and reconciliation rules.
 - [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Fluent Bit collection pipeline, privacy redactions, and S3 partition layouts.
 - [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
 
-### Pipelines and ETL
+### Analysis
 
-- [`pipelines/batch/INGEST_OLTP_TO_LANDING.md`](pipelines/batch/INGEST_OLTP_TO_LANDING.md): Spark batch extraction of 16 OLTP tables to MinIO Landing with composite cursors and manifest validation.
-- [`pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md`](pipelines/batch/INGEST_OLTP_LANDING_TO_BRONZE.md): Spark ingestion of OLTP data from Landing Zone to Iceberg Bronze tables with lineage metadata.
-- [`pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md): Spark ingestion of structured access logs from Landing Zone to Iceberg Bronze table (`web_events`).
-- [`pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md): Spark ingestion of OLTP data from Bronze to Silver with MERGE, PII pseudonymization, and quarantine routing.
-- [`pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md): Spark ingestion of access logs from Bronze to Silver with anti-join dedup and struct flattening.
-- [`pipelines/batch/BUILD_LOGS_GOLD.md`](pipelines/batch/BUILD_LOGS_GOLD.md): Spark transformation of Silver logs to Gold Fact (`fact_web_events`) and Data Marts (`mart_hourly_route_metrics`, `mart_daily_product_demand`).
+- [`design-analysis/OOSAD_ANALYSIS.md`](design-analysis/OOSAD_ANALYSIS.md): Object-oriented systems analysis and design — use case diagrams, domain models, sequence diagrams for the D&K e-commerce platform.
 
 ### Operations and Deployment
 
 - [`runbook/README.md`](runbook/README.md): Index of operational workflows, quick start commands, and validation.
 - [`runbook/SETUP.md`](runbook/SETUP.md): Local cluster setup, Polaris RBAC bootstrap, and end-to-end smoke testing.
 - [`runbook/STARTUP_FLOW.md`](runbook/STARTUP_FLOW.md): Container startup sequence, database migrations, and health verification.
+
+### Development Plans
+
+- [`superpowers/plans/`](superpowers/plans/): SDD implementation plans and session records.
 
 ## Progress
 
@@ -44,7 +43,7 @@ This directory contains the architecture specifications, data schemas, operation
 | Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
 | Trino (query engine) | Done | v483, read-only via Polaris |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
-| MySQL (OLTP source) | Done | 16 tables, synthetic data via generator |
+| MySQL (OLTP source) | Done | 20 tables, synthetic data via generator |
 | LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
 | Superset (dashboards) | Done | Connected to Trino |
 | E-Commerce API + Storefront | Done | FastAPI + Next.js |
@@ -80,8 +79,8 @@ This directory contains the architecture specifications, data schemas, operation
 | Directory | Content Type | Focus Area |
 |---|---|---|
 | [`project/`](project/) | Specification | Scope, Lakehouse Medallion roadmap, and Web Design plans |
-| [`architecture/`](architecture/) | Reference | System structure, OLTP schema, and access log contracts |
+| [`architecture/`](architecture/) | Reference | System structure, OLTP schema, access log contracts, management info spec |
 | [`contracts/`](contracts/) | Schema | JSON Schema definitions for telemetry contracts |
-| [`pipelines/`](pipelines/) | Guide | Batch ETL extraction and Airflow DAG implementation guides |
+| [`design-analysis/`](design-analysis/) | Analysis | OOSAD use case, domain model, and sequence diagrams |
 | [`runbook/`](runbook/) | How-To | Deployment, local verification, and disaster recovery runbooks |
-| [`design-system/`](design-system/) | Reference | UI tokens, typography, and Storefront component guidelines |
+| [`superpowers/plans/`](superpowers/plans/) | Plan | SDD implementation plans and session records |
