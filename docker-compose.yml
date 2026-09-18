@@ -488,13 +488,15 @@ services:
       timeout: 10s
       retries: 20
 
-  hue:
-    image: gethue/hue:latest
+  libredb-studio:
+    image: ghcr.io/libredb/libredb-studio:latest
     ports:
-      - "${HUE_PORT:-8888}:8888"
-    volumes:
-      - ./infrastructure/hue/hue.ini:/usr/share/hue/desktop/conf/z-hue.ini:ro
+      - "${LIBREDB_PORT:-3001}:3000"
+    environment:
+      AUTH_COOKIE_SECURE: "false"
     depends_on:
+      mysql:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       trino:
