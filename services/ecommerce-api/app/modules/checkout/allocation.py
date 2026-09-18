@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.errors import AppError, OUT_OF_STOCK
 from app.models.inventory import Inventory
 
 CITY_PREFIXES = ["Thành phố", "TP.", "TP", "Tỉnh", "T."]
@@ -29,11 +30,7 @@ def deduct_inventory(db: Session, items: list[dict]) -> None:
         )
         inv = db.execute(stmt).scalar_one_or_none()
         if inv is None or inv.on_hand < item["quantity"]:
-            from app.core.errors import AppError, OUT_OF_STOCK
             raise AppError(OUT_OF_STOCK, "Sản phẩm không đủ tồn kho.", status_code=409)
         inv.on_hand -= item["quantity"]
         inv.version += 1
 
-
-def allocate_order_to_stores(db, order_id, shipping_address, items):
-    raise NotImplementedError("Store allocation removed. Task 2 will update the checkout service.")

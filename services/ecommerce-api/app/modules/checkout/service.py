@@ -22,7 +22,7 @@ from app.models.inventory import Inventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment
 from app.models.promotion import CouponRedemption
 from app.modules.checkout.schemas import CheckoutRequest, CheckoutResultResponse
-from app.modules.checkout.allocation import allocate_order_to_stores
+from app.modules.checkout.allocation import deduct_inventory
 from app.modules.coupons.schemas import CheckoutQuoteRequest, CheckoutQuoteResponse
 from app.modules.coupons.service import CouponUse, resolve_coupon
 
@@ -252,8 +252,7 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
         db.flush()
 
         allocation_items = [{"variant_id": vid, "quantity": quantities[vid]} for vid in variant_ids]
-        allocation = allocate_order_to_stores(db, order.order_id, payload.shipping_address_text, allocation_items)
-        order.store_id = allocation.get("store_id")
+        deduct_inventory(db, allocation_items)
         order.channel = "online"
         db.flush()
 
