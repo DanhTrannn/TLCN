@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.common.money import compute_amounts
@@ -294,20 +294,6 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
                     redeemed_at=now,
                 )
             )
-
-        for variant_id in variant_ids:
-            quantity = quantities[variant_id]
-            result = db.execute(
-                update(Inventory)
-                .where(Inventory.variant_id == variant_id, Inventory.on_hand >= quantity)
-                .values(
-                    on_hand=Inventory.on_hand - quantity,
-                    version=Inventory.version + 1,
-                    updated_at=now,
-                )
-            )
-            if result.rowcount != 1:
-                raise AppError(OUT_OF_STOCK, "Sản phẩm không đủ tồn kho.", status_code=409)
 
         cart.status = "checked_out"
         cart.checked_out_at = now
