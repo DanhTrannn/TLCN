@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -273,7 +275,8 @@ def refill_inventory(
     __: None = Depends(verify_csrf),
     db: Session = Depends(get_db),
 ) -> Response:
-    from datetime import UTC, datetime
+    if payload.quantity <= 0:
+        raise AppError(VALIDATION_ERROR, "Số lượng phải lớn hơn 0.", status_code=400)
 
     now = datetime.now(UTC).replace(tzinfo=None)
 
@@ -298,6 +301,7 @@ def refill_inventory(
 
     if store_inv:
         store_inv.on_hand += payload.quantity
+        store_inv.opening_on_hand += payload.quantity
         store_inv.version += 1
         store_inv.updated_at = now
     else:

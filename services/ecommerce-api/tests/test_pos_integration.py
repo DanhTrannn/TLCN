@@ -74,3 +74,19 @@ def test_refill_inventory_insufficient_stock():
         assert False, "Should have raised"
     except AppError as e:
         assert e.code == "OUT_OF_STOCK"
+
+
+def test_refill_inventory_quantity_not_positive():
+    from app.modules.admin.schemas import RefillInventoryRequest
+    mock_db = MagicMock()
+
+    for q in (0, -5):
+        payload = RefillInventoryRequest(variant_id=1, store_id=7, quantity=q)
+
+        from app.modules.admin.router import refill_inventory
+        mock_admin = MagicMock(role="admin")
+        try:
+            refill_inventory(payload, mock_admin, None, mock_db)
+            assert False, f"Should have raised for quantity={q}"
+        except AppError as e:
+            assert e.code == "VALIDATION_ERROR"
