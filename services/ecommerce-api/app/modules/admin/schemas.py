@@ -134,3 +134,9 @@ class UpdateCustomerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: str = Field(pattern=r"^(active|inactive)$")
+
+
+class RefillInventoryRequest(BaseModel):
+    variant_id: int
+    store_id: int
+    quantity: int

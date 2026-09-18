@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Header, Query, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import VALIDATION_ERROR, AppError, not_found
+from app.core.errors import OUT_OF_STOCK, VALIDATION_ERROR, AppError, not_found
 from app.db.deps import get_current_admin, get_current_staff, get_db, verify_csrf
 from app.models.customer import Customer
+from app.models.inventory import Inventory
 from app.models.multicity import Store, StoreInventory
 from app.models.catalog import ProductVariant
 from app.modules.admin.branch_inventory_schemas import BranchInventoryItem, UpdateStockRequest
@@ -15,6 +17,7 @@ from app.modules.admin.schemas import (
     AdminProductResponse,
     ArchiveRequest,
     CreateProductRequest,
+    RefillInventoryRequest,
     UpdateCustomerRequest,
     UpdateProductRequest,
     UpdateVariantRequest,
@@ -259,5 +262,54 @@ def update_branch_stock(
 
     inventory.on_hand = payload.on_hand
     inventory.version += 1
+    db.flush()
+    return Response(status_code=204)
+
+
+@router.post("/inventory/refill", status_code=204)
+def refill_inventory(
+    payload: RefillInventoryRequest,
+    _: Customer = Depends(get_current_admin),
+    __: None = Depends(verify_csrf),
+    db: Session = Depends(get_db),
+) -> Response:
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+
+    inv = db.execute(
+        select(Inventory)
+        .where(Inventory.variant_id == payload.variant_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if inv is None or inv.on_hand < payload.quantity:
+        raise AppError(OUT_OF_STOCK, "Kho tổng không đủ tồn kho.", status_code=409)
+
+    store_inv = db.execute(
+        select(StoreInventory).where(
+            StoreInventory.store_id == payload.store_id,
+            StoreInventory.variant_id == payload.variant_id,
+        ).with_for_update()
+    ).scalar_one_or_none()
+
+    inv.on_hand -= payload.quantity
+    inv.version += 1
+    inv.updated_at = now
+
+    if store_inv:
+        store_inv.on_hand += payload.quantity
+        store_inv.version += 1
+        store_inv.updated_at = now
+    else:
+        store_inv = StoreInventory(
+            store_id=payload.store_id,
+            variant_id=payload.variant_id,
+            on_hand=payload.quantity,
+            opening_on_hand=payload.quantity,
+            version=1,
+            updated_at=now,
+        )
+        db.add(store_inv)
+
     db.flush()
     return Response(status_code=204)
