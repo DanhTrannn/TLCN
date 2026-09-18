@@ -205,22 +205,6 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
             else None
         )
 
-        inventory_rows = (
-            db.execute(
-                select(Inventory)
-                .where(Inventory.variant_id.in_(variant_ids))
-                .order_by(Inventory.variant_id)
-                .with_for_update()
-            )
-            .scalars()
-            .all()
-        )
-        inventory = {row.variant_id: row for row in inventory_rows}
-        for variant_id in variant_ids:
-            row = inventory.get(variant_id)
-            if row is None or row.on_hand < quantities[variant_id]:
-                raise AppError(OUT_OF_STOCK, "Sản phẩm không đủ tồn kho.", status_code=409)
-
         amounts = compute_amounts(
             line_totals,
             coupon_use.discount_amount_vnd if coupon_use else 0,

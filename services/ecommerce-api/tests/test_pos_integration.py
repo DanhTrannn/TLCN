@@ -38,13 +38,14 @@ def test_deduct_inventory_insufficient():
 def test_refill_inventory_success():
     from app.modules.admin.schemas import RefillInventoryRequest
     mock_db = MagicMock()
+    mock_store = MagicMock()
     mock_inv = MagicMock()
     mock_inv.on_hand = 100
     mock_inv.version = 1
     mock_store_inv = MagicMock()
     mock_store_inv.on_hand = 10
 
-    mock_db.execute.return_value.scalar_one_or_none.side_effect = [mock_inv, mock_store_inv]
+    mock_db.execute.return_value.scalar_one_or_none.side_effect = [mock_store, mock_inv, mock_store_inv]
 
     payload = RefillInventoryRequest(variant_id=1, store_id=7, quantity=20)
 

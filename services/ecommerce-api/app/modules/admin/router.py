@@ -278,6 +278,12 @@ def refill_inventory(
     if payload.quantity <= 0:
         raise AppError(VALIDATION_ERROR, "Số lượng phải lớn hơn 0.", status_code=400)
 
+    store = db.execute(
+        select(Store).where(Store.store_id == payload.store_id)
+    ).scalar_one_or_none()
+    if store is None:
+        raise not_found("Không tìm thấy cửa hàng.")
+
     now = datetime.now(UTC).replace(tzinfo=None)
 
     inv = db.execute(
