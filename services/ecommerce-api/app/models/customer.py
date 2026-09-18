@@ -43,7 +43,7 @@ class Customer(Base):
 
     __table_args__ = (
         CheckConstraint("status in ('active','inactive')", name="status"),
-        CheckConstraint("role in ('customer','admin','store_manager','city_planner')", name="role"),
+        CheckConstraint("role in ('customer','admin','store_manager')", name="role"),
         CheckConstraint("data_origin in ('manual','synthetic')", name="data_origin"),
         Index("uq_customers_public_id", "public_id", unique=True),
         Index("ix_customers_role_status_id", "role", "status", "customer_id"),

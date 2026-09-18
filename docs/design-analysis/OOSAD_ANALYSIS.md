@@ -34,7 +34,7 @@
 # PHẦN I: HỆ THỐNG WEB OLTP
 
 > **Phạm vi:** Hệ thống thương mại điện tử trực tuyến  
-> **Tác nhân (Actors):** Customer (Khách hàng), Admin (Quản trị viên), Store Manager (Quản lý cửa hàng), City Planner (Quản lý thành phố)  
+> **Tác nhân (Actors):** Customer (Khách hàng), Admin (Quản trị viên), Store Manager (Quản lý cửa hàng)  
 > **Ngăn xếp công nghệ (Stack):** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy, Alembic
 
 ---
@@ -48,7 +48,6 @@
 | **Customer** | Khách hàng | Người dùng cuối duyệt xem và mua sắm sản phẩm trên nền tảng | Next.js Storefront (Cổng 3000) |
 | **Admin** | Quản trị viên | Quản lý toàn diện sản phẩm, danh mục, đơn hàng, tồn kho và mã giảm giá | Next.js Admin Console (Cổng 3000/admin) |
 | **Store Manager** | Quản lý cửa hàng | Bán hàng POS tại quầy, quản lý đơn hàng và kiểm soát tồn kho tại cửa hàng phụ trách | Next.js Store Console (Cổng 3000/store) |
-| **City Planner** | Quản lý thành phố | Giám sát danh sách cửa hàng, đơn hàng và cân đối tồn kho trong toàn thành phố được phân công | Next.js City Console (Cổng 3000/city) |
 
 ### Sơ đồ mối quan hệ giữa các Actors (Actor Relationship Diagram)
 
@@ -82,24 +81,15 @@ classDiagram
     class StoreManager {
         +email: String
         +role: "store_manager"
-        +sellAtCounter()
+        +managePOS()
         +manageStoreOrders()
         +viewStoreInventory()
         +manageStaff()
     }
     
-    class CityPlanner {
-        +email: String
-        +role: "city_planner"
-        +viewCityStores()
-        +viewCityOrders()
-        +viewCityInventory()
-    }
-    
     Actor <|-- Customer
     Actor <|-- Admin
     Actor <|-- StoreManager
-    Actor <|-- CityPlanner
 ```
 
 ---
@@ -154,7 +144,6 @@ graph LR
 graph LR
     A(["👤 Quản trị viên (Admin)"])
     SM(["👤 Quản lý cửa hàng (Store Manager)"])
-    CP(["👤 Quản lý thành phố (City Planner)"])
 
     subgraph ADM["Phân hệ Quản trị viên (Admin)"]
         UC9(["Quản lý sản phẩm"])
@@ -170,12 +159,6 @@ graph LR
         UC23(["Quản lý nhân viên"])
     end
 
-    subgraph CTY["Phân hệ Quản lý thành phố (City Planner)"]
-        UC24(["Xem cửa hàng thành phố"])
-        UC25(["Xem đơn hàng thành phố"])
-        UC26(["Xem tồn kho thành phố"])
-    end
-
     A --- UC9
     A --- UC11
     A --- UC12
@@ -186,18 +169,12 @@ graph LR
     SM --- UC22
     SM --- UC23
 
-    CP --- UC24
-    CP --- UC25
-    CP --- UC26
-
     UC9 -. "include" .-> UC11
 
     style A fill:none,stroke:none,color:#000,font-size:14px
     style SM fill:none,stroke:none,color:#000,font-size:14px
-    style CP fill:none,stroke:none,color:#000,font-size:14px
     style ADM fill:#f5f5f5,stroke:#333,stroke-width:2px
     style STM fill:#f5f5f5,stroke:#333,stroke-width:2px
-    style CTY fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -645,7 +622,7 @@ graph LR
 |-------|-------------|
 | **Mã use case** | UC17 |
 | **Tên use case** | Quản lý tồn kho chi nhánh (Manage Branch Inventory) |
-| **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager), Quản lý thành phố (City Planner) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager) |
 | **Mô tả tóm tắt** | Nhân viên cập nhật số lượng tồn kho tại các cửa hàng nằm trong phạm vi quyền hạn của mình |
 | **Tiền điều kiện** | Nhân viên đã đăng nhập và được gán vai trò cùng phạm vi cửa hàng/thành phố tương ứng |
 | **Hậu điều kiện** | Số lượng tồn kho tại cửa hàng được cập nhật kèm kiểm soát xung đột (optimistic locking) |
@@ -671,8 +648,7 @@ graph LR
 | Vai trò (Role) | Phạm vi (Scope) | Quyền chỉnh sửa tồn kho |
 |------|-------|----------|
 | **Admin** | Toàn bộ các cửa hàng toàn quốc | Toàn quyền xem và chỉnh sửa |
-| **City Planner** | Các cửa hàng trong thành phố được gán | Xem và chỉnh sửa trong thành phố phụ trách |
-| **Store Manager** | Duy nhất cửa hàng được phân công | Chỉnh sửa kho cửa hàng mình; xem chỉ đọc các kho khác trong thành phố |
+| **Store Manager** | Duy nhất cửa hàng được phân công | Chỉnh sửa kho cửa hàng mình |
 | **Customer** | Không có | Không có quyền truy cập |
 
 ---
@@ -683,7 +659,7 @@ graph LR
 |-------|-------------|
 | **Mã use case** | UC18 |
 | **Tên use case** | Giao dịch bán hàng tại quầy POS (POS Transaction) |
-| **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager), Quản lý thành phố (City Planner) |
+| **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager) |
 | **Mô tả tóm tắt** | Nhân viên thực hiện bán hàng và thanh toán trực tiếp cho khách tại quầy cửa hàng thông qua giao diện POS |
 | **Tiền điều kiện** | Nhân viên đã xác thực quyền hợp lệ và được gán cửa hàng cụ thể |
 | **Hậu điều kiện** | Đơn hàng được tạo với trạng thái hoàn tất, trừ đồng thời cả tồn kho chi nhánh và tồn kho chung |
@@ -723,7 +699,6 @@ graph LR
 | Vai trò (Role) | Phạm vi (Scope) | Quyền bán hàng POS |
 |------|-------|---------|
 | **Admin** | Tất cả các cửa hàng | Có |
-| **City Planner** | Các cửa hàng trong thành phố được gán | Có |
 | **Store Manager** | Duy nhất cửa hàng được phân công | Có |
 | **Customer** | Không có | Không có quyền truy cập |
 
@@ -1716,7 +1691,7 @@ classDiagram
         +email: VARCHAR(254) UNIQUE
         +display_name: VARCHAR(100)
         +password_hash: VARCHAR(255)
-        +role: ENUM (customer|admin|store_manager|city_planner)
+        +role: ENUM (customer|admin|store_manager)
         +status: ENUM (active|disabled)
         +city_id: BIGINT UNSIGNED?
         +store_id: BIGINT UNSIGNED?

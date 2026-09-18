@@ -23,10 +23,6 @@ admin_city_router = APIRouter(prefix="/admin/city", tags=["admin-city"])
 
 
 def _resolve_city_id(db: Session, actor: Customer, city_id: int | None) -> int:
-    if actor.role == "city_planner":
-        if not actor.city_id:
-            raise forbidden("Tài khoản không gắn với thành phố nào.")
-        return actor.city_id
     if actor.role == "admin":
         if city_id is not None:
             return city_id
@@ -36,7 +32,7 @@ def _resolve_city_id(db: Session, actor: Customer, city_id: int | None) -> int:
         if first_city is None:
             raise not_found("Không có thành phố nào.")
         return first_city.city_id
-    raise forbidden("Chỉ quản lý thành phố hoặc quản trị viên mới có quyền truy cập.")
+    raise forbidden("Chỉ quản trị viên mới có quyền truy cập.")
 
 
 @admin_city_router.get("/dashboard", response_model=CityDashboardResponse)

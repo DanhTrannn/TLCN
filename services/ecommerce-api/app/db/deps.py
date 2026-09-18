@@ -65,7 +65,7 @@ def get_current_admin(customer: Customer = Depends(get_current_customer)) -> Cus
     return customer
 
 
-STAFF_ROLES = frozenset({"admin", "store_manager", "city_planner"})
+STAFF_ROLES = frozenset({"admin", "store_manager"})
 
 
 def get_current_staff(customer: Customer = Depends(get_current_customer)) -> Customer:

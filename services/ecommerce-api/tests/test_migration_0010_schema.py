@@ -120,7 +120,6 @@ def test_customers_role_constraint_includes_new_roles() -> None:
         if isinstance(constraint, CheckConstraint) and constraint.name == "ck_customers_role":
             sql = str(constraint.sqltext)
             assert "store_manager" in sql
-            assert "city_planner" in sql
             break
     else:
         raise AssertionError("ck_customers_role check constraint not found")

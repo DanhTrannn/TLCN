@@ -20,7 +20,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/store") || pathname.startsWith("/city");
+  const isAdminArea = pathname.startsWith("/admin") || pathname.startsWith("/store");
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -34,8 +34,8 @@ export function Header() {
   }
 
   if (isAdminArea) {
-    const roleHome = customer?.role === "store_manager" ? "/store" : customer?.role === "city_planner" ? "/city" : "/admin";
-    const roleLabel = customer?.role === "store_manager" ? "Cửa hàng" : customer?.role === "city_planner" ? "Thành phố" : "Admin";
+    const roleHome = customer?.role === "store_manager" ? "/store" : "/admin";
+    const roleLabel = customer?.role === "store_manager" ? "Cửa hàng" : "Admin";
     return (
       <header className="sticky top-0 z-50 border-b border-white/10 bg-ink text-paper shadow-[0_10px_32px_rgba(8,22,18,0.2)]">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
@@ -111,13 +111,13 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <CitySelector />
-            {customer && ["admin", "store_manager", "city_planner"].includes(customer.role) ? (
+            {customer && ["admin", "store_manager"].includes(customer.role) ? (
               <Link
                 className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-accent hover:bg-accent/5 lg:inline-flex"
-                href={customer.role === "store_manager" ? "/store" : customer.role === "city_planner" ? "/city" : "/admin"}
+                href={customer.role === "store_manager" ? "/store" : "/admin"}
               >
                 <Icon name="dashboard" size={17} />
-                {customer.role === "store_manager" ? "Cửa hàng" : customer.role === "city_planner" ? "Thành phố" : "Quản trị"}
+                {customer.role === "store_manager" ? "Cửa hàng" : "Quản trị"}
               </Link>
             ) : null}
             {loading ? null : customer ? (

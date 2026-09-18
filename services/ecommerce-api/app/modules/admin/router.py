@@ -207,8 +207,6 @@ def list_branch_inventory(
 
     if actor.role == "store_manager":
         stmt = stmt.where(Store.store_id == actor.store_id)
-    elif actor.role == "city_planner":
-        stmt = stmt.where(Store.city_id == actor.city_id)
 
     if store_id is not None:
         check_store_inventory_permission(actor, store_id, 0)

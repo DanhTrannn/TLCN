@@ -35,17 +35,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (customer.role === "city_planner") {
-    return (
-      <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
-        <section className="surface-card p-8 text-center">
-          <h1 className="admin-heading">Không có quyền truy cập</h1>
-          <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên. Vui lòng truy cập <a className="text-accent hover:underline" href="/city">Thành phố</a>.</p>
-        </section>
-      </main>
-    );
-  }
-
   if (customer.role !== "admin") {
     return (
       <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">

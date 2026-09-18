@@ -52,9 +52,9 @@ Mô tả chi tiết 19 bảng MySQL OLTP trong hệ thống D&K E-Commerce.
 | `customer_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key nội bộ |
 | `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 — public identifier |
 | `display_name` | `VARCHAR(120)` | NOT NULL | Tên hiển thị |
-| `role` | `VARCHAR(16)` | NOT NULL, DEFAULT `'customer'` | `customer`, `admin`, `store_manager`, `city_planner` |
+| `role` | `VARCHAR(16)` | NOT NULL, DEFAULT `'customer'` | `customer`, `admin`, `store_manager` |
 | `status` | `VARCHAR(16)` | NOT NULL, DEFAULT `'active'` | `active` hoặc `inactive` |
-| `city_id` | `BIGINT UNSIGNED` | FK → `cities.city_id`, NULLABLE, ON DELETE SET NULL | Thành phố được assign (city_planner) |
+| `city_id` | `BIGINT UNSIGNED` | FK → `cities.city_id`, NULLABLE, ON DELETE SET NULL | Thành phố được assign |
 | `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE, ON DELETE SET NULL | Cửa hàng được assign (store_manager) |
 | `data_origin` | `VARCHAR(16)` | NOT NULL, DEFAULT `'manual'` | `manual` hoặc `synthetic` |
 | `generation_run_id` | `VARCHAR(64)` | NULLABLE | ID lần generate (synthetic data) |
@@ -64,7 +64,7 @@ Mô tả chi tiết 19 bảng MySQL OLTP trong hệ thống D&K E-Commerce.
 
 **Check constraints**:
 - `status IN ('active', 'inactive')`
-- `role IN ('customer', 'admin', 'store_manager', 'city_planner')`
+- `role IN ('customer', 'admin', 'store_manager')`
 - `data_origin IN ('manual', 'synthetic')`
 
 **Indexes**:
@@ -72,7 +72,7 @@ Mô tả chi tiết 19 bảng MySQL OLTP trong hệ thống D&K E-Commerce.
 - `ix_customers_role_status_id` — `(role, status, customer_id)`
 - `ix_customers_updated_at_customer_id` — extraction cursor
 
-**Invariant**: Anonymize không xóa PK/FK. `store_manager` phải có `store_id`. `city_planner` phải có `city_id`.
+**Invariant**: Anonymize không xóa PK/FK. `store_manager` phải có `store_id`.
 
 ---
 

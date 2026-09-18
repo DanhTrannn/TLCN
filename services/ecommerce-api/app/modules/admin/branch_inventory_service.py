@@ -7,10 +7,6 @@ def check_store_inventory_permission(
 ) -> None:
     if actor.role == "admin":
         return
-    if actor.role == "city_planner":
-        if actor.city_id != target_city_id:
-            raise forbidden("City planner can only manage stores in assigned city")
-        return
     if actor.role == "store_manager":
         if actor.store_id != target_store_id:
             raise forbidden("Store manager can only update own store inventory")

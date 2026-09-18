@@ -66,7 +66,6 @@ customers 1--n product_reviews
 cities 1--n stores
 stores 1--n store_inventory n--1 product_variants
 customers n--0..1 stores (store_manager assigned store)
-customers n--0..1 cities (city_planner assigned city)
 ```
 
 ## 4. Catalogue bảng và grain
@@ -120,7 +119,7 @@ Mục đích: identity nghiệp vụ, profile, role và trạng thái account.
 
 Cột chính: `customer_id` PK, `public_id` UK, `email_normalized` UK, `full_name`, `phone`, `role`, `status`, `city_id` FK nullable, `store_id` FK nullable, `pii_anonymized_at`, `data_origin`, `generation_run_id`, `created_at`, `updated_at`.
 
-Invariant: role thuộc tập `{'customer', 'admin', 'store_manager', 'city_planner'}`; status thuộc `{'active', 'inactive'}`; `store_manager` phải có `store_id`; `city_planner` phải có `city_id`; anonymize không xóa PK/FK. Index phục vụ login lookup, customer list và incremental extraction.
+Invariant: role thuộc tập `{'customer', 'admin', 'store_manager'}`; status thuộc `{'active', 'inactive'}`; `store_manager` phải có `store_id`; anonymize không xóa PK/FK. Index phục vụ login lookup, customer list và incremental extraction.
 
 #### `customer_credentials`
 

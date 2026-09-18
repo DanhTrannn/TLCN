@@ -55,7 +55,7 @@ def get_city_dashboard(db: Session, city_id: int) -> CityDashboardResponse:
     total_staff = db.scalar(
         select(func.count()).select_from(Customer).where(
             Customer.city_id == city_id,
-            Customer.role.in_(["store_manager", "city_planner"]),
+            Customer.role.in_(["store_manager"]),
             Customer.status == "active",
         )
     ) or 0

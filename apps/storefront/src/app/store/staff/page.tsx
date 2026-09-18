@@ -17,7 +17,6 @@ interface StaffMember {
 
 const ROLE_LABELS: Record<string, string> = {
   store_manager: "Quản lý cửa hàng",
-  city_planner: "Quản lý thành phố",
   admin: "Quản trị viên",
 };
 
