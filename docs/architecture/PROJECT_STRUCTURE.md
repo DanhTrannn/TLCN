@@ -81,9 +81,8 @@ flowchart LR
 ├── infrastructure/
 │   ├── docker/                           # Custom images (Airflow, Superset)
 │   ├── fluent-bit/                       # Real-time access log collector config
-│   ├── hue/                              # Apache Hue Trino query UI config & postgres backend
 │   ├── polaris/                          # Idempotent Polaris catalog bootstrap script
-│   ├── postgres/                         # Multi-database init scripts (polaris, airflow, superset, hue)
+│   ├── postgres/                         # Multi-database init scripts (polaris, airflow, superset)
 │   ├── spark/                            # Spark Dockerfile, credentials script & conf
 │   ├── trino/                            # Trino Iceberg REST catalog configuration
 │   └── superset/                         # Superset datasources and configuration
@@ -111,7 +110,7 @@ The monorepo uses [`uv`](https://docs.astral.sh/uv/) as the package manager and 
 - **`data-generator`** (`generator`): Faker, PyYAML, Argon2, HTTPX.
 - **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3, PyArrow.
 
-Infrastructure components (Trino, Hue, Polaris, MinIO, Superset, Spark) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
+Infrastructure components (Trino, LibreDB Studio, Polaris, MinIO, Superset, Spark) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
 
 ---
 
@@ -121,7 +120,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 
 | Profile | Services | Purpose |
 |---|---|---|
-| *(Default)* | `mysql`, `postgres`, `minio`, `minio-init`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `trino`, `hue` | Core storage, PostgreSQL metadata, Polaris REST catalog, Trino SQL query engine, and Hue Query UI |
+| *(Default)* | `mysql`, `postgres`, `minio`, `minio-init`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `trino`, `libredb-studio` | Core storage, PostgreSQL metadata, Polaris REST catalog, Trino SQL query engine, and LibreDB Studio SQL IDE |
 | `batch` | `fluent-bit`, `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
 | `bi` | `superset-init`, `superset` | Apache Superset BI visualization dashboards |
 | `core` | `ecommerce-api`, `storefront` | Operational e-commerce web application and customer storefront |
@@ -134,7 +133,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | **Storefront** | `3000` | HTTP | Customer web store & operator console |
 | **MySQL** | `3306` | TCP | OLTP relational database |
 | **Ecommerce API** | `8000` | HTTP | FastAPI REST endpoints & Swagger docs (`/docs`) |
-| **Hue (Trino Query UI)** | `8888` | HTTP | Interactive SQL query editor & data exploration interface |
+| **LibreDB Studio (SQL IDE)** | `3001` | HTTP | Web-based SQL editor for MySQL, PostgreSQL, and Trino |
 | **Airflow Webserver** | `8080` | HTTP | Pipeline DAG execution & monitoring UI |
 | **Polaris REST Catalog** | `8181` | HTTP | Iceberg REST catalog API |
 | **Polaris Management** | `8182` | HTTP | Polaris health and management API |
@@ -146,7 +145,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | **Apache Superset** | `8088` | HTTP | BI dashboards and SQL Lab interface |
 | **MinIO S3 API** | `9000` | HTTP (S3) | Object storage API endpoint |
 | **MinIO Web Console** | `9001` | HTTP | Web management console for S3 buckets |
-| **PostgreSQL** | `5432` | TCP | Metadata database for Polaris, Airflow, Superset, and Hue |
+| **PostgreSQL** | `5432` | TCP | Metadata database for Polaris, Airflow, and Superset |
 
 ---
 
@@ -162,7 +161,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | Trino (query engine) | v483 | Done |
 | Airflow (orchestration) | 2.10.5 | Done |
 | MySQL (OLTP source) | 8.4.5 | Done |
-| Hue (SQL editor) | 4.11.0 | Done |
+| LibreDB Studio (SQL IDE) | latest | Done |
 | Superset (BI) | 4.1.2 | Done |
 | E-Commerce API + Storefront | 0.1.0 | Done |
 

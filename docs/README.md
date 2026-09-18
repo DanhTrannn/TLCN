@@ -45,7 +45,7 @@ This directory contains the architecture specifications, data schemas, operation
 | Trino (query engine) | Done | v483, read-only via Polaris |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
 | MySQL (OLTP source) | Done | 16 tables, synthetic data via generator |
-| Hue (SQL editor) | Done | Connected to Trino |
+| LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
 | Superset (dashboards) | Done | Connected to Trino |
 | E-Commerce API + Storefront | Done | FastAPI + Next.js |
 

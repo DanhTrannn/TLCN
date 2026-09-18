@@ -131,8 +131,8 @@ The system processes data from two main sources: transactional data from MySQL a
                          │
          ┌───────────────┼───────────────┐
          ▼               ▼               ▼
-    Apache Hue     Apache Superset  ML Repurchase
-    (Query UI)     (BI Dashboards)   Prediction
+    LibreDB Studio  Apache Superset  ML Repurchase
+    (SQL IDE)       (BI Dashboards)   Prediction
 ```
 
 ### Technology Stack
@@ -148,7 +148,7 @@ The system processes data from two main sources: transactional data from MySQL a
 | **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
 | **Orchestration** | Apache Airflow | 2.10.5 | DAG scheduling and job orchestration |
 | **Query Engine** | Trino | 483 | Distributed SQL query engine reading Iceberg tables |
-| **Query UI** | Apache Hue | 4.11.0 | Interactive SQL editor and data exploration interface for Trino |
+| **Query UI** | LibreDB Studio | Latest | Web-based SQL IDE for MySQL, PostgreSQL, and Trino |
 | **Visualization** | Apache Superset | 4.1.2 | Executive and operational BI dashboards |
 
 ---

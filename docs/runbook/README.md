@@ -17,7 +17,7 @@ Launch services using Docker Compose profiles:
 # 1. Prepare environment configuration
 cp .env.example .env
 
-# 2. Start Default Storage, Catalog & Query UI (MySQL, Postgres, MinIO, Polaris, Trino, Hue)
+# 2. Start Default Storage, Catalog & Query UI (MySQL, Postgres, MinIO, Polaris, Trino, LibreDB Studio)
 docker compose up -d --build
 
 # 3. Start Batch Processing & Log Collector (Fluent Bit, Spark Cluster, Airflow)
@@ -43,7 +43,7 @@ After starting the `core` profile, access the applications at:
 
 ### Data Platform & Analytics Endpoints
 
-- **Hue (SQL Query Editor for Trino):** `http://localhost:8888` (Create any username/password on first login)
+- **LibreDB Studio (SQL IDE):** `http://localhost:3001`
 - **Apache Superset (BI Dashboards):** `http://localhost:8088` (Default: `admin` / `password`)
 - **Apache Airflow (Orchestration):** `http://localhost:8080` (Default: `airflow` / `airflow`)
 - **Apache Polaris Web Console:** `http://localhost:8183`

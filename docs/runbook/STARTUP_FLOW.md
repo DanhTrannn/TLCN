@@ -31,7 +31,7 @@ Running `docker compose up -d` without flags brings up the core **Storage, Metad
 | Service | Startup Behavior |
 |---|---|
 | `trino` | Waits for `polaris-init` credentials → Starts Trino (port 8084) configured with the `lakehouse` Iceberg REST catalog. |
-| `hue` | Waits for `trino` health check → Launches Apache Hue SQL Query Editor & Data Browser on port 8888. |
+| `libredb-studio` | Waits for `mysql`, `postgres`, `trino` health checks → Launches LibreDB Studio SQL IDE on port 3001. |
 
 ---
 
@@ -87,7 +87,7 @@ Brings up the transactional e-commerce application:
 ```text
 minio ──▶ minio-init ──▶ polaris
 postgres ──▶ polaris-bootstrap ──▶ polaris ──▶ polaris-init ──▶ (polaris-console, trino)
-trino ──▶ hue
+trino ──▶ libredb-studio
 mysql (independent)
 
 [When --profile batch is enabled]

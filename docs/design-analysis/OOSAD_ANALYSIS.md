@@ -1991,7 +1991,7 @@ classDiagram
 | Actor (Tác nhân) | Vai trò | Mô tả | Giao diện |
 |-------|---------|-------|-----------|
 | **Data Engineer** | Kỹ sư dữ liệu | Thiết kế, vận hành các đường ống ETL/ELT, kiểm soát chất lượng dữ liệu và quản lý metadata catalog | Giao diện Airflow, Spark CLI, Polaris Console |
-| **Data Analyst** | Chuyên viên phân tích | Khai thác truy vấn dữ liệu phân tích, xây dựng biểu đồ BI dashboard và tạo các đặc trưng phục vụ Machine Learning | Trino/Hue, Superset, Jupyter Notebook |
+| **Data Analyst** | Chuyên viên phân tích | Khai thác truy vấn dữ liệu phân tích, xây dựng biểu đồ BI dashboard và tạo các đặc trưng phục vụ Machine Learning | Trino/LibreDB Studio, Superset, Jupyter Notebook |
 
 ---
 
@@ -2098,7 +2098,7 @@ graph TB
     
     subgraph "Tầng hiển thị và phân tích (Presentation Layer)"
         SU[Trực quan hóa Superset 4.1.2]
-        HU[Giao diện truy vấn Hue 4.11.0]
+        LU[Giao diện truy vấn LibreDB Studio]
     end
     
     AF --> SP
