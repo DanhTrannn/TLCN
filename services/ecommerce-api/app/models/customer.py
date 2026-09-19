@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, String, text
-from sqlalchemy.dialects.mysql import BIGINT, DATETIME
+from sqlalchemy.dialects.mysql import BIGINT, DATETIME, INTEGER
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -25,6 +25,10 @@ class Customer(Base):
         BIGINT(unsigned=True),
         ForeignKey("stores.store_id", ondelete="SET NULL"),
         nullable=True,
+    )
+    is_cod_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("0"))
+    boom_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default=text("0")
     )
     data_origin: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
     generation_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

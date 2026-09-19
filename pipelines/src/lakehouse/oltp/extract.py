@@ -34,10 +34,13 @@ def _hadoop_fs(spark, path: str):
 def read_committed_cursor(spark, bucket: str, table: str) -> CursorState | None:
     path = f"s3a://{bucket}/state/cursor/{table}.json"
     fs = _hadoop_fs(spark, path)
-    if not fs.exists(spark._jvm.org.apache.hadoop.fs.Path(path)):
+    hadoop_path = spark._jvm.org.apache.hadoop.fs.Path(path)
+    if not fs.exists(hadoop_path):
         return None
-    row = spark.read.text(path).first()
-    return CursorState.from_json(row["value"])
+    stream = fs.open(hadoop_path)
+    content = spark._jvm.org.apache.commons.io.IOUtils.toString(stream, "UTF-8")
+    stream.close()
+    return CursorState.from_json(content)
 
 
 def _write_manifest(spark, bucket: str, manifest_key: str, manifest: dict) -> None:

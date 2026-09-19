@@ -10,3 +10,28 @@ databases:
         "engine_params": {},
         "metadata_params": {}
       }
+    tables:
+      - table_name: mart_sales_daily
+        schema: gold
+        description: "Báo cáo Doanh thu, Lợi nhuận và Đơn hàng hàng ngày phục vụ Ban Giám Đốc, Trưởng Phòng Kinh Doanh, Trưởng Cửa Hàng"
+      - table_name: mart_logistics_performance
+        schema: gold
+        description: "Hiệu suất giao hàng của Shipper nội bộ, thời gian giao hàng, tỷ lệ boom COD phục vụ Quản trị Đơn hàng & Vận hành"
+      - table_name: mart_product_returns
+        schema: gold
+        description: "Báo cáo Đổi trả hàng hóa (đổi size, hoàn tiền) theo danh mục và mẫu mã phục vụ CSKH và Quản lý Kho"
+      - table_name: mart_inventory_health
+        schema: gold
+        description: "Sức khỏe kho hàng, tỷ lệ tồn kho, cảnh báo nguy cơ hết hàng phục vụ Quản lý Kho và Cửa hàng"
+      - table_name: fact_order
+        schema: gold
+        description: "Fact đơn hàng chi tiết với Doanh thu gộp, Giá vốn, Doanh thu thuần, Lợi nhuận gộp"
+      - table_name: fact_shipment
+        schema: gold
+        description: "Fact các lượt giao hàng nội bộ của D&K"
+      - table_name: fact_return_exchange
+        schema: gold
+        description: "Fact các yêu cầu và món hàng đổi trả"
+      - table_name: fact_inventory_daily_snapshot
+        schema: gold
+        description: "Snapshot tồn kho hàng ngày theo kho và chi nhánh"

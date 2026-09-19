@@ -13,17 +13,20 @@ SILVER_TABLE_DDL: dict[str, str] = {}
 SILVER_TABLE_DDL["silver_customers"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_customers (
     customer_id                     BIGINT,
-    public_id                       BINARY(16),
-    email_normalized                STRING,
+    public_id                       BINARY,
+    display_name_pseudonymized      STRING,
     email_pseudonymized             STRING,
-    phone                           STRING,
     phone_pseudonymized             STRING,
-    full_name                       STRING,
     full_name_pseudonymized         STRING,
     role                            STRING,
     status                          STRING,
+    city_id                         BIGINT,
+    store_id                        BIGINT,
+    is_cod_blocked                  BOOLEAN,
+    boom_count                      INT,
     data_origin                     STRING,
     generation_run_id               STRING,
+    anonymized_at                   TIMESTAMP,
     _pii_pseudonymized_at           TIMESTAMP,
     created_at                      TIMESTAMP,
     updated_at                      TIMESTAMP,
@@ -41,7 +44,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_categories"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_categories (
     category_id                     BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     parent_category_id              BIGINT,
     code                            STRING,
     slug                            STRING,
@@ -63,7 +66,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_products"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_products (
     product_id                      BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     category_id                     BIGINT,
     slug                            STRING,
     name                            STRING,
@@ -89,12 +92,13 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_product_variants"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_product_variants (
     variant_id                      BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     product_id                      BIGINT,
     sku                             STRING,
     size_code                       STRING,
     color_code                      STRING,
     price_vnd                       BIGINT,
+    cost_price_vnd                  BIGINT,
     is_active                       BOOLEAN,
     created_at                      TIMESTAMP,
     updated_at                      TIMESTAMP,
@@ -112,7 +116,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_carts"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_carts (
     cart_id                         BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     customer_id                     BIGINT,
     status                          STRING,
     last_activity_at                TIMESTAMP,
@@ -193,6 +197,10 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_orders (
     receiver_phone                  STRING,
     shipping_address_text           STRING,
     status                          STRING,
+    payment_method                  STRING,
+    store_id                        BIGINT,
+    channel                         STRING,
+    staff_id                        BIGINT,
     paid_at                         TIMESTAMP,
     confirmed_at                    TIMESTAMP,
     completed_at                    TIMESTAMP,
@@ -213,7 +221,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_order_items"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_order_items (
     order_item_id                   BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     order_id                        BIGINT,
     variant_id                      BIGINT,
     product_name_snapshot           STRING,
@@ -222,6 +230,7 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_order_items (
     size_code_snapshot              STRING,
     color_code_snapshot             STRING,
     unit_price_vnd                  BIGINT,
+    cost_price_vnd                  BIGINT,
     quantity                        INT,
     line_total_vnd                  BIGINT,
     created_at                      TIMESTAMP,
@@ -306,7 +315,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_coupons"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_coupons (
     coupon_id                       BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     code_normalized                 STRING,
     discount_type                   STRING,
     discount_value                  BIGINT,
@@ -358,7 +367,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_refunds"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_refunds (
     refund_id                       BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     payment_id                      BIGINT,
     refund_idempotency_key          STRING,
     status                          STRING,
@@ -383,7 +392,7 @@ TBLPROPERTIES (
 SILVER_TABLE_DDL["silver_product_reviews"] = """
 CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_product_reviews (
     review_id                       BIGINT,
-    public_id                       BINARY(16),
+    public_id                       BINARY,
     order_item_id                   BIGINT,
     customer_id                     BIGINT,
     product_id                      BIGINT,
@@ -393,6 +402,193 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_product_reviews (
     moderation_reason               STRING,
     moderated_by_customer_id        BIGINT,
     moderated_at                    TIMESTAMP,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_cities"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_cities (
+    city_id                         BIGINT,
+    code                            STRING,
+    name                            STRING,
+    is_active                       BOOLEAN,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_stores"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_stores (
+    store_id                        BIGINT,
+    city_id                         BIGINT,
+    code                            STRING,
+    name                            STRING,
+    address                         STRING,
+    phone                           STRING,
+    is_active                       BOOLEAN,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_store_inventory"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_store_inventory (
+    store_inventory_id              BIGINT,
+    store_id                        BIGINT,
+    variant_id                      BIGINT,
+    on_hand                         BIGINT,
+    opening_on_hand                 BIGINT,
+    version                         BIGINT,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_delivery_staff"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_delivery_staff (
+    staff_id                        BIGINT,
+    public_id                       BINARY,
+    full_name_pseudonymized         STRING,
+    phone_pseudonymized             STRING,
+    vehicle_plate                   STRING,
+    is_active                       BOOLEAN,
+    _pii_pseudonymized_at           TIMESTAMP,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_shipments"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_shipments (
+    shipment_id                     BIGINT,
+    public_id                       BINARY,
+    shipment_code                   STRING,
+    order_id                        BIGINT,
+    delivery_staff_id               BIGINT,
+    status                          STRING,
+    attempt_count                   INT,
+    cod_amount_vnd                  BIGINT,
+    cod_collected_vnd               BIGINT,
+    dispatched_at                   TIMESTAMP,
+    delivered_at                    TIMESTAMP,
+    failed_at                       TIMESTAMP,
+    failure_reason                  STRING,
+    notes                           STRING,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_return_requests"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_return_requests (
+    return_id                       BIGINT,
+    public_id                       BINARY,
+    return_code                     STRING,
+    order_id                        BIGINT,
+    customer_id                     BIGINT,
+    action_type                     STRING,
+    status                          STRING,
+    customer_reason                 STRING,
+    image_urls                      STRING,
+    admin_note                      STRING,
+    reviewed_at                     TIMESTAMP,
+    resolved_at                     TIMESTAMP,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_return_items"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_return_items (
+    return_item_id                  BIGINT,
+    public_id                       BINARY,
+    return_id                       BIGINT,
+    order_item_id                   BIGINT,
+    variant_id                      BIGINT,
+    quantity                        INT,
+    exchange_variant_id             BIGINT,
+    refund_amount_vnd               BIGINT,
+    inspection_status               STRING,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_inventory_transactions"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inventory_transactions (
+    transaction_id                  BIGINT,
+    public_id                       BINARY,
+    variant_id                      BIGINT,
+    location_type                   STRING,
+    store_id                        BIGINT,
+    movement_type                   STRING,
+    quantity_delta                  INT,
+    reference_code                  STRING,
+    notes                           STRING,
     created_at                      TIMESTAMP,
     updated_at                      TIMESTAMP,
     _silver_ingested_at             TIMESTAMP,

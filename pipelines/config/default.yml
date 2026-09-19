@@ -91,3 +91,45 @@ tables:
     pk: review_id
     mutability: mutable
     silver_table: silver_product_reviews
+  - name: cities
+    cursor_field: updated_at
+    pk: city_id
+    mutability: mutable
+    silver_table: silver_cities
+  - name: stores
+    cursor_field: updated_at
+    pk: store_id
+    mutability: mutable
+    silver_table: silver_stores
+  - name: store_inventory
+    cursor_field: updated_at
+    pk: store_inventory_id
+    mutability: mutable
+    silver_table: silver_store_inventory
+  - name: delivery_staff
+    cursor_field: updated_at
+    pk: staff_id
+    mutability: mutable
+    silver_table: silver_delivery_staff
+    pseudonymize: [phone, full_name]
+  - name: shipments
+    cursor_field: updated_at
+    pk: shipment_id
+    mutability: mutable
+    silver_table: silver_shipments
+  - name: return_requests
+    cursor_field: updated_at
+    pk: return_id
+    mutability: mutable
+    silver_table: silver_return_requests
+  - name: return_items
+    cursor_field: updated_at
+    pk: return_item_id
+    mutability: mutable
+    silver_table: silver_return_items
+  - name: inventory_transactions
+    cursor_field: created_at
+    pk: transaction_id
+    mutability: append_only
+    silver_table: silver_inventory_transactions
+

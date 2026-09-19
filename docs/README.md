@@ -13,7 +13,7 @@ This directory contains the architecture specifications, data schemas, operation
 
 ### Data Contracts and Schemas
 
-- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 20 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-09), lock ordering, race handling, and reconciliation rules.
+- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 25 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-12), in-house logistics, 7-day returns, inventory ledger, lock ordering, race handling, and reconciliation rules.
 - [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Fluent Bit collection pipeline, privacy redactions, and S3 partition layouts.
 - [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
 
@@ -34,7 +34,7 @@ This directory contains the architecture specifications, data schemas, operation
 | Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
 | Trino (query engine) | Done | v483, read-only via Polaris |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
-| MySQL (OLTP source) | Done | 16 tables, synthetic data via generator |
+| MySQL (OLTP source) | Done | 25 tables, synthetic data via generator |
 | LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
 | Superset (dashboards) | Done | Connected to Trino |
 | E-Commerce API + Storefront | Done | FastAPI + Next.js |
@@ -44,24 +44,26 @@ This directory contains the architecture specifications, data schemas, operation
 | DAG | Status | Tables | Notes |
 |---|---|---|---|
 | `lakehouse_logs_pipeline` | Done | 4 layers | Master Logs DAG: Landing → Bronze → Silver → Gold |
-| `ingest_oltp_batch` | Done | 16/16 | MySQL → Landing (Parquet + manifests) |
-| `ingest_oltp_landing_to_bronze` | Done | 16/16 | Landing → Bronze (auto-discover run_id) |
-| `ingest_oltp_bronze_to_silver` | Done | 16/16 | Bronze → Silver (MERGE, PII, quarantine) |
-| OLTP Silver → Gold | Pending | - | Star schema (`dim_*`, `fact_*`), sales marts |
+| `ingest_oltp_batch` | Done | 24/24 | MySQL → Landing (Parquet + manifests) |
+| `ingest_oltp_landing_to_bronze` | Done | 24/24 | Landing → Bronze (auto-discover run_id) |
+| `ingest_oltp_bronze_to_silver` | Done | 24/24 | Bronze → Silver (MERGE, PII, quarantine) |
+| `build_oltp_gold` | Done | 6 dims, 5 facts, 4 marts | Star schema (`dim_*`, `fact_*`), sales, logistics, returns, inventory marts |
 | Iceberg maintenance | Pending | - | Compaction, snapshot expiration, orphan cleanup |
 
 ### Validation
 
 | Check | Status | Result |
 |---|---|---|
-| OLTP extraction (MySQL → Landing) | Pass | 16 tables, Parquet + MD5 manifests |
-| Landing → Bronze ingestion | Pass | 16 tables, 0 skipped, 0 quarantine |
-| Bronze table counts (Trino) | Pass | Matches source (e.g. orders: 12,000) |
+| OLTP extraction (MySQL → Landing) | Pass | 24 tables, Parquet + MD5 manifests |
+| Landing → Bronze ingestion | Pass | 24 tables, 0 skipped, 0 quarantine |
+| Bronze table counts (Trino) | Pass | Matches source |
 | Polaris catalog + RBAC | Pass | Spark write, Trino read-only |
 | Access logs → Bronze | Pass | `web_events` table (1,193+ events) |
-| OLTP Bronze → Silver | Pass | 16 tables, MERGE, PII pseudonymization, quarantine |
+| OLTP Bronze → Silver | Pass | 24 tables, MERGE, PII pseudonymization, quarantine |
+| OLTP Silver → Gold | Pass | 6 dims, 5 facts, 4 marts built and verified via Trino |
 | Logs Bronze → Silver | Pass | `silver_logs` window dedup, struct flattening |
 | Logs Silver → Gold | Pass | `fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand` |
+
 
 ---
 

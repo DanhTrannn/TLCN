@@ -104,6 +104,9 @@ class ProductVariant(Base):
     size_code: Mapped[str] = mapped_column(String(32), nullable=False)
     color_code: Mapped[str] = mapped_column(String(64), nullable=False)
     price_vnd: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    cost_price_vnd: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), nullable=False, default=0, server_default=text("0")
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DATETIME(fsp=6), nullable=False, server_default=text("CURRENT_TIMESTAMP(6)")

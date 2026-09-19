@@ -22,7 +22,9 @@ Key capabilities include:
 The platform ingests data from two official sources. Real-time event streaming (e.g., Kafka/Flink) and client-side telemetry are explicitly out of scope for the batch architecture.
 
 ### 2.1. MySQL OLTP Database
-The system extracts data from **19 operational tables**:
+The system extracts data from **24 operational tables** (excludes `customer_credentials` which is strictly excluded):
+
+**Core e-commerce tables (19):**
 - `customers`, `categories`, `products`, `product_variants`
 - `carts`, `cart_items`, `wishlist_items`
 - `orders`, `order_items`, `order_status_history`
@@ -30,7 +32,15 @@ The system extracts data from **19 operational tables**:
 - `inventory`, `coupons`, `coupon_redemptions`, `product_reviews`
 - `cities`, `stores`, `store_inventory`
 
+**Omnichannel extension tables (5) — added in migration 0014:**
+- `delivery_staff` — In-house shipper registry (D&K internal logistics team)
+- `shipments` — Shipment lifecycle tracking per order
+- `return_requests` — Customer return/exchange request headers
+- `return_items` — Line-item detail for each return request
+- `inventory_transactions` — Full inbound/outbound ledger for the central warehouse
+
 **Strict Exclusion:** The `customer_credentials` table is strictly excluded to prevent password hashes and authentication secrets from entering the analytical environment.
+
 
 ### 2.2. Structured Access Logs
 The backend API emits structured JSON logs on container stdout for every completed HTTP request.
@@ -68,9 +78,9 @@ The backend API emits structured JSON logs on container stdout for every complet
 
 ### 4.3. Gold Layer
 - Implements Star Schema dimensional modeling (Dimensions, Facts, and Marts).
-- **Dimensions:** `dim_customer`, `dim_product`, `dim_date`, etc.
-- **Facts:** `fact_order`, `fact_payment`, `fact_web_request`, etc.
-- **Marts:** Pre-aggregated tables for BI (e.g., `mart_sales_daily`, `mart_hourly_route_metrics`, `mart_daily_product_demand`).
+- **Dimensions (6):** `dim_date`, `dim_customer`, `dim_product`, `dim_variant`, `dim_store`, `dim_delivery_staff`
+- **Facts (5):** `fact_order`, `fact_order_item`, `fact_shipment`, `fact_return_exchange`, `fact_inventory_daily_snapshot`
+- **Marts (4):** `mart_sales_daily`, `mart_logistics_performance`, `mart_product_returns`, `mart_inventory_health`
 
 ---
 
@@ -78,11 +88,14 @@ The backend API emits structured JSON logs on container stdout for every complet
 
 The BI dashboards report the following core metrics directly from the Gold layer:
 
-- **Revenue Metrics:** Gross collected revenue, net revenue, average order value (AOV), and refund amounts.
-- **Order Metrics:** Order counts by status (`paid`, `confirmed`, `completed`, `cancelled`), and units sold per category.
+- **Revenue Metrics:** Gross revenue, net revenue (after boom/returns), average order value (AOV), refund amounts.
+- **Order Metrics:** Order counts by status (`paid`, `confirmed`, `shipping`, `delivered`, `completed`, `failed_delivery`, `returned`, `cancelled`), units sold per category.
+- **Logistics Metrics:** Delivery success rate by shipper, average delivery time, COD boom rate by region.
+- **Returns Metrics:** Return rate by product/size/reason, net revenue impact of returns.
 - **Customer Metrics:** New customer acquisition, conversion rates, and historical repurchase rates.
-- **Operational Metrics:** Current inventory levels, low-stock alerts, and cart abandonment rates.
+- **Inventory Metrics:** Current on-hand quantity per variant per store, low-stock alerts, slow-moving items, days-of-inventory.
 - **Traffic Metrics:** Total request volume, latency percentiles (p50/p95/p99), error rates (4xx/5xx), and top product search keywords.
+
 
 ---
 

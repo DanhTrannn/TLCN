@@ -61,11 +61,41 @@ Spark transforms Bronze data into typed, deduplicated tables.
 - **Semantic Quarantine:** Routes records violating business constraints to `lakehouse.quarantine.silver_data_quarantine`.
 
 ### 3.4. Gold Layer
-Spark builds Star Schema models and aggregated Data Marts.
-- **Dimensions:** `dim_customer`, `dim_product`, `dim_date`, etc.
-- **Facts:** `fact_order`, `fact_payment`, `fact_web_request`, etc.
-- **Marts:** `mart_sales_daily`, `mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_daily_search_keywords`.
-- **Publication Gate:** Gold snapshots are only published if source-to-target reconciliation checks (exact row counts, exact revenue totals) pass.
+Spark builds Star Schema models and aggregated Data Marts from **25 OLTP source tables** (24 extracted to Landing, `customer_credentials` excluded).
+
+#### Dimensions (6 tables)
+| Table | Description | Row Count (current) |
+|-------|-------------|---------------------|
+| `dim_date` | Calendar dimension (3-year spine) | 1,095 |
+| `dim_customer` | Customer profiles (pseudonymized PII) | 501 |
+| `dim_product` | Product + category hierarchy | 60 |
+| `dim_variant` | Product variant (size × color × SKU) | 240 |
+| `dim_store` | Store + city metadata | 6 |
+| `dim_delivery_staff` | In-house shipper registry | 10 |
+
+#### Facts (5 tables)
+| Table | Description | Row Count (current) |
+|-------|-------------|---------------------|
+| `fact_order` | One row per order; revenue recognition, COD boom flag | 3,000 |
+| `fact_order_item` | Line-item grain; unit economics, COGS | 4,938 |
+| `fact_shipment` | Shipment lifecycle per order; delivery performance | 2,518 |
+| `fact_return_exchange` | Return/exchange requests; net revenue adjustments | 92 |
+| `fact_inventory_daily_snapshot` | Daily on-hand quantity per variant per store | 240 |
+
+#### Data Marts (4 tables)
+| Table | Primary Use Case | Row Count (current) |
+|-------|-----------------|---------------------|
+| `mart_sales_daily` | Revenue trend, AOV, order funnel by day | 1,556 |
+| `mart_logistics_performance` | Shipper KPIs, delivery rate, boom rate | 1,459 |
+| `mart_product_returns` | Return rate by product/reason/size | 92 |
+| `mart_inventory_health` | Stockout alerts, slow-moving stock, reorder signals | 8 |
+
+#### Revenue Recognition Rules
+- `net_revenue_vnd = 0` when `status IN ('failed_delivery', 'returned', 'cancelled', 'payment_failed')`
+- `is_boom = TRUE` when `status = 'failed_delivery'`
+- Revenue is recognized **only after `delivered`** status; returned orders are retroactively zeroed out.
+
+**Publication Gate:** Gold snapshots are only published if source-to-target reconciliation checks (exact row counts, exact revenue totals) pass.
 
 ---
 
@@ -82,7 +112,8 @@ To maintain query performance and manage storage costs, Airflow schedules regula
 
 ## 5. Security and Access Control
 
-- **Service Isolation:** Extractors use read-only MySQL accounts scoped strictly to the 16 allowed analytical tables.
+- **Service Isolation:** Extractors use read-only MySQL accounts scoped strictly to the **24 allowed analytical tables** (excludes `customer_credentials`).
 - **Engine Roles:** Spark uses a dedicated `spark_writer` principal (`CATALOG_MANAGE_CONTENT`). Trino uses a read-only `trino_reader` principal (`CATALOG_READ_DATA`).
 - **PII Protection:** Passwords, tokens, cookies, and raw IP addresses are stripped before ingestion. Customer PII is pseudonymized before entering Silver and Gold layers.
 - **Credential Isolation:** MinIO and Polaris credentials are injected via runtime environment variables and Docker secrets.
+

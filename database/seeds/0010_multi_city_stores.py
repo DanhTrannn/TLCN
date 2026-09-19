@@ -33,12 +33,11 @@ def _seed_cities(session) -> dict[str, int]:
 
     new_cities = [c for c in CITIES if c["code"] not in city_map]
     if new_cities:
-        result = session.execute(
+        session.execute(
             insert(City).prefix_with("IGNORE"),
             [{"code": c["code"], "name": c["name"], "is_active": True} for c in new_cities],
         )
-        if result.rowcount:
-            print(f"[seed] inserted {result.rowcount} cities")
+        print(f"[seed] inserted {len(new_cities)} cities")
 
     for c in CITIES:
         if c["code"] not in city_map:
@@ -76,8 +75,8 @@ def _seed_stores(session, city_map: dict[str, int]) -> None:
         })
 
     if rows:
-        result = session.execute(insert(Store).prefix_with("IGNORE"), rows)
-        print(f"[seed] inserted {result.rowcount} stores")
+        session.execute(insert(Store).prefix_with("IGNORE"), rows)
+        print(f"[seed] inserted {len(rows)} stores")
 
 
 def seed() -> None:

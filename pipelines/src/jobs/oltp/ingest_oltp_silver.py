@@ -24,7 +24,7 @@ def main():
 
         for table in cfg.tables:
             bronze_table = f"lakehouse.bronze.{table.name}"
-            silver_path = f"s3a://{cfg.bucket}/warehouse/silver/{table.silver_table}"
+            silver_table = f"lakehouse.silver.{table.silver_table}"
 
             try:
                 bronze_df = spark.read.format("iceberg").load(bronze_table)
@@ -37,7 +37,7 @@ def main():
                 table=table,
                 bronze_df=bronze_df,
                 run_id=args.run_id,
-                target_path=silver_path,
+                target_path=silver_table,
             )
 
             print(f"{table.name}: inserted={result.inserted}, updated={result.updated}, quarantined={result.quarantined}")

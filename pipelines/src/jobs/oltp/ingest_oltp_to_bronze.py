@@ -21,7 +21,7 @@ def discover_latest_run_id(spark, bucket: str, table: str, extract_date: str) ->
     except Exception:
         return None
 
-    # Collect run_ids that have data files
+    # Collect run_ids that have data files with modification times
     candidates = []
     for d in run_dirs:
         if not d.isDirectory():
@@ -34,15 +34,19 @@ def discover_latest_run_id(spark, bucket: str, table: str, extract_date: str) ->
             f"s3a://{bucket}/landing/oltp/{table}/extract_date={extract_date}/{dir_name}/data"
         )
         try:
-            if fs.exists(data_path) and len(fs.listStatus(data_path)) > 0:
-                candidates.append(rid)
+            if fs.exists(data_path):
+                files = fs.listStatus(data_path)
+                if len(files) > 0:
+                    latest_mod = max(f.getModificationTime() for f in files)
+                    candidates.append((latest_mod, rid))
         except Exception:
             continue
 
     if not candidates:
         return None
-    # Return the lexicographically last run_id (most recent by UUIDv7 or similar)
-    return sorted(candidates)[-1]
+    # Return the run_id with the newest modification time
+    candidates.sort(key=lambda x: x[0])
+    return candidates[-1][1]
 
 
 def build_landing_path(bucket: str, table: str, extract_date: str, run_id: str) -> str:

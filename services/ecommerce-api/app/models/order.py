@@ -14,8 +14,8 @@ class Order(Base):
 
     order_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), primary_key=True, autoincrement=True)
     order_number: Mapped[str] = mapped_column(String(32), nullable=False)
-    cart_id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True), ForeignKey("carts.cart_id", ondelete="RESTRICT"), nullable=False
+    cart_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("carts.cart_id", ondelete="RESTRICT"), nullable=True
     )
     customer_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("customers.customer_id", ondelete="RESTRICT"), nullable=False
@@ -25,6 +25,7 @@ class Order(Base):
         BIGINT(unsigned=True), ForeignKey("coupons.coupon_id", ondelete="RESTRICT"), nullable=True
     )
     status: Mapped[str] = mapped_column(String(24), nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(16), nullable=False, default="vietqr", server_default="vietqr")
     currency_code: Mapped[str] = mapped_column(CHAR(3), nullable=False, default="VND")
     subtotal_vnd: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
     coupon_code_snapshot: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -62,8 +63,10 @@ class Order(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status in ('paid','payment_failed','confirmed','completed','cancelled')", name="status"
+            "status in ('pending_payment','paid','payment_failed','confirmed','shipping','delivered','completed','cancelled','failed_delivery','returned')",
+            name="status",
         ),
+        CheckConstraint("payment_method in ('vietqr','cod')", name="payment_method"),
         CheckConstraint("currency_code = 'VND'", name="currency_code"),
         CheckConstraint("subtotal_vnd >= 0", name="subtotal_non_negative"),
         CheckConstraint("discount_amount_vnd <= subtotal_vnd", name="discount_within_subtotal"),
@@ -84,19 +87,6 @@ class Order(Base):
             "(coupon_type_snapshot = 'percentage' and coupon_value_snapshot between 1 and 100) or "
             "(coupon_type_snapshot = 'fixed_amount' and coupon_value_snapshot > 0)",
             name="coupon_snapshot_value",
-        ),
-        CheckConstraint(
-            "(status = 'payment_failed' and paid_at is null and confirmed_at is null "
-            "and completed_at is null and cancelled_at is null) or "
-            "(status = 'paid' and paid_at is not null and confirmed_at is null "
-            "and completed_at is null and cancelled_at is null) or "
-            "(status = 'confirmed' and paid_at is not null and confirmed_at is not null "
-            "and completed_at is null and cancelled_at is null) or "
-            "(status = 'completed' and paid_at is not null and confirmed_at is not null "
-            "and completed_at is not null and cancelled_at is null) or "
-            "(status = 'cancelled' and paid_at is not null and confirmed_at is null "
-            "and completed_at is null and cancelled_at is not null)",
-            name="status_timestamp_consistency",
         ),
         CheckConstraint("data_origin in ('manual','synthetic')", name="data_origin"),
         Index("uq_orders_order_number", "order_number", unique=True),
@@ -128,6 +118,9 @@ class OrderItem(Base):
     size_code_snapshot: Mapped[str] = mapped_column(String(32), nullable=False)
     color_code_snapshot: Mapped[str] = mapped_column(String(64), nullable=False)
     unit_price_vnd: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    cost_price_vnd: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), nullable=False, default=0, server_default=text("0")
+    )
     quantity: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
     line_total_vnd: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(

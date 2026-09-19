@@ -64,6 +64,7 @@ class Store(Base):
 class StoreInventory(Base):
     __tablename__ = "store_inventory"
 
+    store_inventory_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), autoincrement=True, unique=True)
     store_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True),
         ForeignKey("stores.store_id", ondelete="RESTRICT"),

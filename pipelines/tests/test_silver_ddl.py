@@ -7,7 +7,7 @@ from lakehouse.oltp.silver_ddl import (
 )
 
 
-def test_all_sixteen_tables_have_ddl():
+def test_all_tables_have_ddl():
     expected_tables = {
         "silver_customers", "silver_categories", "silver_products",
         "silver_product_variants", "silver_carts", "silver_cart_items",
@@ -15,6 +15,9 @@ def test_all_sixteen_tables_have_ddl():
         "silver_payments", "silver_order_status_history", "silver_inventory",
         "silver_coupons", "silver_coupon_redemptions", "silver_refunds",
         "silver_product_reviews",
+        "silver_cities", "silver_stores", "silver_store_inventory",
+        "silver_delivery_staff", "silver_shipments", "silver_return_requests",
+        "silver_return_items", "silver_inventory_transactions",
     }
     assert set(SILVER_TABLE_DDL.keys()) == expected_tables
 

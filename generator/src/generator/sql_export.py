@@ -89,6 +89,19 @@ SIZES = ("XS", "S", "M", "L", "XL")
 COLORS = ("BLACK", "WHITE", "RED", "GREEN", "BLUE", "YELLOW", "PINK", "PURPLE", "ORANGE", "BROWN", "GRAY", "BEIGE")
 LEAF_CATEGORIES = tuple((code, name) for code, name in CATEGORY_NAMES.items())
 
+DELIVERY_STAFF_SEEDS = (
+    ("DK-SHIP-01", "Trần Văn An", "0981001001", "29A-123.45"),
+    ("DK-SHIP-02", "Lê Văn Bình", "0981001002", "29B-234.56"),
+    ("DK-SHIP-03", "Phạm Văn Cường", "0981001003", "59C-345.67"),
+    ("DK-SHIP-04", "Nguyễn Văn Dũng", "0981001004", "59D-456.78"),
+    ("DK-SHIP-05", "Hoàng Văn Em", "0981001005", "43E-567.89"),
+    ("DK-SHIP-06", "Vũ Văn Giang", "0981001006", "43F-678.90"),
+    ("DK-SHIP-07", "Đỗ Văn Hải", "0981001007", "65G-789.01"),
+    ("DK-SHIP-08", "Ngô Văn Hùng", "0981001008", "65H-890.12"),
+    ("DK-SHIP-09", "Bùi Văn Kiên", "0981001009", "15K-901.23"),
+    ("DK-SHIP-10", "Dương Văn Long", "0981001010", "15L-012.34"),
+)
+
 PRODUCT_NAME_TEMPLATES: dict[str, tuple[str, ...]] = {
     "ao": (
         "Áo thun nữ cổ tròn form rộng",
@@ -257,6 +270,7 @@ class VariantRecord:
     size_code: str
     color_code: str
     price_vnd: int
+    cost_price_vnd: int = 0
 
 
 @dataclass(frozen=True)
@@ -822,7 +836,13 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     refund_base = block
     history_base = block
     review_base = block
+    staff_base = block
+    shipment_base = block
+    return_base = block
+    return_item_base = block
+    inv_tx_base = block
 
+    customer_booms: list[int] = [0] * (customer_count + 2)
     customer_ids = [customer_base + index + 1 for index in range(customer_count)]
     active_customer_indices: list[int] = []
     customer_names: list[str] = []
@@ -849,6 +869,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 None,
                 created_at,
                 updated_at,
+                False,
+                0,
             )
         )
 
@@ -865,6 +887,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             None,
             master_created_at,
             master_created_at,
+            False,
+            0,
         )
     )
 
@@ -979,6 +1003,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 size_code=size_code,
                 color_code=color_code,
                 price_vnd=min(product_price_vnd + combination_index * 5_000, max_price_vnd),
+                cost_price_vnd=int(min(product_price_vnd + combination_index * 5_000, max_price_vnd) * (0.35 + (combination_index % 11) * 0.01)),
             )
             variant_records.append(variant)
             variant_rows.append(
@@ -993,6 +1018,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     True,
                     master_created_at,
                     master_created_at,
+                    variant.cost_price_vnd,
                 )
             )
             variant_index += 1
@@ -1089,6 +1115,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 "anonymized_at",
                 "created_at",
                 "updated_at",
+                "is_cod_blocked",
+                "boom_count",
             ),
             customer_rows,
         )
@@ -1135,8 +1163,52 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         _write_batched(
             stream,
             "product_variants",
-            ("variant_id", "public_id", "product_id", "sku", "size_code", "color_code", "price_vnd", "is_active", "created_at", "updated_at"),
+            ("variant_id", "public_id", "product_id", "sku", "size_code", "color_code", "price_vnd", "is_active", "created_at", "updated_at", "cost_price_vnd"),
             variant_rows,
+        )
+        staff_rows: list[Sequence[SqlValue]] = []
+        for staff_index, (_, full_name, phone, plate) in enumerate(DELIVERY_STAFF_SEEDS):
+            staff_rows.append(
+                (
+                    staff_base + staff_index + 1,
+                    _binary_uuid(_entity_uuid(namespace, "delivery-staff", staff_index)),
+                    full_name,
+                    phone,
+                    plate,
+                    True,
+                    master_created_at,
+                    master_created_at,
+                )
+            )
+        _write_batched(
+            stream,
+            "delivery_staff",
+            ("staff_id", "public_id", "full_name", "phone", "vehicle_plate", "is_active", "created_at", "updated_at"),
+            staff_rows,
+        )
+        inbound_inv_tx_rows: list[Sequence[SqlValue]] = []
+        inv_tx_index = 0
+        for variant in variant_records:
+            inv_tx_index += 1
+            inbound_inv_tx_rows.append(
+                (
+                    inv_tx_base + inv_tx_index,
+                    _binary_uuid(_entity_uuid(namespace, "inv-tx-inbound", variant.variant_id)),
+                    variant.variant_id,
+                    "central_warehouse",
+                    None,
+                    "inbound",
+                    500,
+                    f"PO-INB-{variant.sku[:10]}",
+                    "Nhập lô hàng may mặc từ xưởng sản xuất vào kho trung tâm",
+                    master_created_at,
+                )
+            )
+        _write_batched(
+            stream,
+            "inventory_transactions",
+            ("transaction_id", "public_id", "variant_id", "location_type", "store_id", "movement_type", "quantity_delta", "reference_code", "notes", "created_at"),
+            inbound_inv_tx_rows,
         )
         coupon_rows: list[Sequence[SqlValue]] = []
         for coupon_index, coupon in enumerate(coupon_records):
@@ -1193,6 +1265,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         order_item_index = 0
         history_index = 0
         review_index = 0
+        shipment_index = 0
+        return_index = 0
         demo_order_target = min(24, order_count)
 
         cart_rows: list[Sequence[SqlValue]] = []
@@ -1204,6 +1278,10 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         redemption_rows: list[Sequence[SqlValue]] = []
         refund_rows: list[Sequence[SqlValue]] = []
         review_rows: list[Sequence[SqlValue]] = []
+        shipment_rows: list[Sequence[SqlValue]] = []
+        return_request_rows: list[Sequence[SqlValue]] = []
+        return_item_rows: list[Sequence[SqlValue]] = []
+        order_inv_tx_rows: list[Sequence[SqlValue]] = []
 
         def flush_orders() -> None:
             _write_insert(stream, "carts", ("cart_id", "public_id", "customer_id", "status", "created_at", "updated_at", "checked_out_at"), cart_rows)
@@ -1217,7 +1295,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     "receiver_phone", "shipping_address_text", "data_origin", "generation_run_id", "created_at",
                     "updated_at", "paid_at", "completed_at", "coupon_id", "coupon_code_snapshot",
                     "coupon_type_snapshot", "coupon_value_snapshot", "discount_amount_vnd",
-                    "confirmed_at", "cancelled_at",
+                    "confirmed_at", "cancelled_at", "payment_method",
                 ),
                 order_rows,
             )
@@ -1228,6 +1306,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     "order_item_id", "public_id", "order_id", "variant_id", "product_public_id_snapshot",
                     "category_code_snapshot", "category_name_snapshot", "product_name_snapshot", "sku_snapshot",
                     "size_code_snapshot", "color_code_snapshot", "unit_price_vnd", "quantity", "line_total_vnd", "created_at",
+                    "cost_price_vnd",
                 ),
                 order_item_rows,
             )
@@ -1272,6 +1351,50 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                 ),
                 review_rows,
             )
+            if shipment_rows:
+                _write_insert(
+                    stream,
+                    "shipments",
+                    (
+                        "shipment_id", "public_id", "shipment_code", "order_id", "delivery_staff_id",
+                        "status", "attempt_count", "cod_amount_vnd", "cod_collected_vnd",
+                        "dispatched_at", "delivered_at", "failed_at", "failure_reason", "notes",
+                        "created_at", "updated_at",
+                    ),
+                    shipment_rows,
+                )
+            if return_request_rows:
+                _write_insert(
+                    stream,
+                    "return_requests",
+                    (
+                        "return_id", "public_id", "return_code", "order_id", "customer_id",
+                        "action_type", "status", "customer_reason", "admin_note",
+                        "reviewed_at", "resolved_at", "created_at", "updated_at",
+                    ),
+                    return_request_rows,
+                )
+            if return_item_rows:
+                _write_insert(
+                    stream,
+                    "return_items",
+                    (
+                        "return_item_id", "public_id", "return_id", "order_item_id", "variant_id",
+                        "quantity", "exchange_variant_id", "refund_amount_vnd", "inspection_status",
+                        "created_at", "updated_at",
+                    ),
+                    return_item_rows,
+                )
+            if order_inv_tx_rows:
+                _write_insert(
+                    stream,
+                    "inventory_transactions",
+                    (
+                        "transaction_id", "public_id", "variant_id", "location_type", "store_id",
+                        "movement_type", "quantity_delta", "reference_code", "notes", "created_at",
+                    ),
+                    order_inv_tx_rows,
+                )
             cart_rows.clear()
             cart_item_rows.clear()
             order_rows.clear()
@@ -1281,6 +1404,10 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             redemption_rows.clear()
             refund_rows.clear()
             review_rows.clear()
+            shipment_rows.clear()
+            return_request_rows.clear()
+            return_item_rows.clear()
+            order_inv_tx_rows.clear()
 
         targets = _order_targets(
             assignment,
@@ -1426,21 +1553,38 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     and not completed
                     and order_age >= timedelta(hours=8)
                 )
-                status = (
-                    "cancelled"
-                    if cancelled
-                    else "completed"
-                    if completed
-                    else "confirmed"
-                    if confirmed
-                    else "paid"
+
+                # 60% COD, 40% VietQR deterministic
+                is_cod = ((customer_order_position + customer_index) % 10 < 6)
+                payment_method = "cod" if is_cod else "vietqr"
+
+                is_risky_customer = (customer_index % 8 == 3)
+                is_boom = (
+                    is_cod
+                    and not cancelled
+                    and order_age >= timedelta(days=3)
+                    and (((customer_order_position % 3 == 0) if is_risky_customer else (customer_order_position % 31 == 0)))
                 )
+                if is_boom:
+                    status = "failed_delivery"
+                    completed = False
+                    confirmed = True
+                    customer_booms[customer_index] += 1
+                elif cancelled:
+                    status = "cancelled"
+                elif completed:
+                    status = "completed"
+                elif confirmed:
+                    status = "confirmed"
+                else:
+                    status = "paid"
+
                 cancellation_reason = (
                     _weighted_pair(randomizer, cancellation.reasons)
                     if cancelled
                     else None
                 )
-                paid_at = order_time
+                paid_at = order_time if (payment_method != "cod" and not cancelled) else None
                 confirmed_at = None
                 completed_at = None
                 cancelled_at = None
@@ -1456,6 +1600,8 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         confirmed_at
                         + timedelta(hours=randomizer.randint(24, 96)),
                     )
+                    if payment_method == "cod":
+                        paid_at = completed_at
                 if cancelled:
                     cancelled_at = min(
                         history_end - timedelta(minutes=1),
@@ -1518,6 +1664,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             quantity,
                             line_total_vnd,
                             order_time,
+                            variant.cost_price_vnd,
                         )
                     )
                     if not cancelled:
@@ -1641,6 +1788,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                         discount_amount_vnd,
                         confirmed_at,
                         cancelled_at,
+                        payment_method,
                     )
                 )
                 payment_rows.append(
@@ -1765,6 +1913,140 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             cancelled_at or order_time,
                         )
                     )
+
+                if is_boom:
+                    history_index += 1
+                    history_rows.append(
+                        (
+                            history_base + history_index,
+                            order_id,
+                            "confirmed",
+                            "failed_delivery",
+                            "generator",
+                            "Khách không nhận hàng (boom COD)",
+                            _identifier_uuid(
+                                namespace, "order-transition-failed-delivery", order_index
+                            ),
+                            updated_at,
+                            updated_at,
+                        )
+                    )
+
+                if status in ("completed", "failed_delivery"):
+                    shipment_index += 1
+                    staff_id = staff_base + (shipment_index % len(DELIVERY_STAFF_SEEDS)) + 1
+                    is_failed_shipment = (status == "failed_delivery")
+                    shipment_status = "failed" if is_failed_shipment else "delivered"
+                    shipment_code = f"DK-EXP-{config.logical_identity[:6].upper()}-{shipment_index:06d}"
+                    disp_at = confirmed_at or order_time
+                    deliv_at = completed_at if not is_failed_shipment else None
+                    failed_at = updated_at if is_failed_shipment else None
+                    fail_reason = "Khách từ chối nhận hàng (boom hàng)" if is_failed_shipment else None
+                    cod_target = total_vnd if payment_method == "cod" else 0
+                    cod_collected = total_vnd if (payment_method == "cod" and not is_failed_shipment) else 0
+
+                    shipment_rows.append(
+                        (
+                            shipment_base + shipment_index,
+                            _binary_uuid(_entity_uuid(namespace, "shipment", shipment_index)),
+                            shipment_code,
+                            order_id,
+                            staff_id,
+                            shipment_status,
+                            1 if not is_failed_shipment else 3,
+                            cod_target,
+                            cod_collected,
+                            disp_at,
+                            deliv_at,
+                            failed_at,
+                            fail_reason,
+                            "Đơn giao bởi đội ngũ shipper nội bộ D&K Express",
+                            disp_at,
+                            deliv_at or failed_at or disp_at,
+                        )
+                    )
+
+                if completed and (order_age >= timedelta(days=7)) and ((order_index % 25) == 7) and completed_at is not None:
+                    return_index += 1
+                    is_exchange = ((order_index % 10) < 7)
+                    action_type = "exchange" if is_exchange else "refund"
+                    ret_code = f"DK-RET-{config.logical_identity[:6].upper()}-{return_index:05d}"
+                    ret_reason = "Đổi size do mặc chật/rộng" if is_exchange else "Không ưng form dáng / chất liệu"
+                    item_to_return, item_ret_qty, item_ret_total = item_details[0]
+                    refund_amt = (item_ret_total // item_ret_qty) if not is_exchange else 0
+                    other_vars = [v for v in variant_records if v.product.product_id == item_to_return.product.product_id and v.variant_id != item_to_return.variant_id]
+                    exchanged_var_id = other_vars[0].variant_id if (is_exchange and other_vars) else None
+
+                    return_req_time = min(history_end - timedelta(hours=1), completed_at + timedelta(days=2))
+                    resolved_time = min(history_end, return_req_time + timedelta(hours=24))
+
+                    return_request_rows.append(
+                        (
+                            return_base + return_index,
+                            _binary_uuid(_entity_uuid(namespace, "return-req", return_index)),
+                            ret_code,
+                            order_id,
+                            customer_id,
+                            action_type,
+                            "completed",
+                            ret_reason,
+                            None,
+                            return_req_time,
+                            resolved_time,
+                            return_req_time,
+                            resolved_time,
+                        )
+                    )
+                    return_item_rows.append(
+                        (
+                            return_item_base + return_index,
+                            _binary_uuid(_entity_uuid(namespace, "return-item", return_index)),
+                            return_base + return_index,
+                            order_item_base + order_item_index,
+                            item_to_return.variant_id,
+                            1,
+                            exchanged_var_id,
+                            refund_amt,
+                            "passed",
+                            return_req_time,
+                            resolved_time,
+                        )
+                    )
+
+                if status in ("completed", "confirmed"):
+                    for variant, quantity, _ in item_details:
+                        inv_tx_index += 1
+                        order_inv_tx_rows.append(
+                            (
+                                inv_tx_base + inv_tx_index,
+                                _binary_uuid(_entity_uuid(namespace, "inv-tx-out", inv_tx_index)),
+                                variant.variant_id,
+                                "central_warehouse",
+                                None,
+                                "outbound_order",
+                                -quantity,
+                                f"ORD-{order_id}",
+                                "Xuất hàng cho đơn hàng online",
+                                order_time,
+                            )
+                        )
+                elif status == "failed_delivery":
+                    for variant, quantity, _ in item_details:
+                        inv_tx_index += 1
+                        order_inv_tx_rows.append(
+                            (
+                                inv_tx_base + inv_tx_index,
+                                _binary_uuid(_entity_uuid(namespace, "inv-tx-boom", inv_tx_index)),
+                                variant.variant_id,
+                                "central_warehouse",
+                                None,
+                                "return_boom",
+                                quantity,
+                                f"ORD-{order_id}",
+                                "Hàng hoàn về kho do boom COD",
+                                updated_at,
+                            )
+                        )
 
                 order_index += 1
                 if len(order_rows) >= INSERT_BATCH_SIZE:
@@ -1935,6 +2217,15 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             ("variant_id", "opening_on_hand", "on_hand", "version", "updated_at"),
             inventory_rows,
         )
+
+        for c_idx, b_count in enumerate(customer_booms[:customer_count]):
+            if b_count > 0:
+                cid = customer_ids[c_idx]
+                blocked = 1 if b_count >= 3 else 0
+                stream.write(
+                    f"UPDATE `customers` SET `boom_count` = {b_count}, `is_cod_blocked` = {blocked} "
+                    f"WHERE `customer_id` = {cid};\n"
+                )
 
         stream.write(
             "COMMIT;\n\n"

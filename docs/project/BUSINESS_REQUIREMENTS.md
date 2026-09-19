@@ -11,7 +11,7 @@ Mục tiêu chính của tài liệu là trình bày rõ ràng dòng chảy côn
 
 Tài liệu gồm 3 phần:
 - **Phần I: Các nghiệp vụ vận hành hiện có** (Mô hình đang hoạt động trên hệ thống).
-- **Phần II: Các nghiệp vụ đề xuất bổ sung** (Mở rộng bám sát thực tế thị trường bán lẻ tại Việt Nam, không bao gồm chính sách tích điểm).
+- **Phần II: Các nghiệp vụ bổ sung đã triển khai** (Giao vận nội bộ D&K, xử lý COD boom, đổi trả 7 ngày, sổ cái kho — đã được implement đầy đủ).
 - **Phần III: Vòng đời đơn hàng và ma trận phối hợp giữa các bộ phận**.
 
 ---
@@ -22,8 +22,8 @@ Tài liệu gồm 3 phần:
 2. **Nhân viên thu ngân tại cửa hàng**: Người phụ trách tính tiền, in hóa đơn và bàn giao sản phẩm trực tiếp cho khách tại quầy bán lẻ của từng chi nhánh.
 3. **Quản lý cửa hàng chi nhánh**: Người chịu trách nhiệm theo dõi doanh thu bán tại quầy, nắm bắt số lượng hàng tồn tại cửa hàng và quản lý nhân viên của chi nhánh mình.
 4. **Bộ phận quản trị & vận hành kinh doanh (Quản trị viên)**: Người điều phối toàn bộ hoạt động của doanh nghiệp: quản lý danh mục mẫu mã, duyệt chương trình giảm giá, xử lý đơn hàng trực tuyến, điều chuyển hàng giữa các kho và giám sát báo cáo tài chính.
-5. **Đối tác vận chuyển (Shipper / Đơn vị giao nhận)**: Đơn vị trung gian chịu trách nhiệm nhận hàng đã đóng gói từ kho của doanh nghiệp và đi giao đến tận tay khách hàng.
-6. **Nhà cung ứng / Xưởng may gia công**: Đơn vị sản xuất và cung ứng các lô sản phẩm may mặc đầu vào cho kho trung tâm của doanh nghiệp.
+5. **Đội ngũ Shipper nội bộ D&K (Nhân viên Giao vận)**: Nhân viên giao hàng trực thuộc biên chế của doanh nghiệp, chịu trách nhiệm nhận kiện hàng từ kho trung tâm và giao trực tiếp đến tận tay khách hàng. D&K không sử dụng dịch vụ của các đơn vị vận chuyển bên thứ ba.
+6. **Quản lý Kho trung tâm**: Người phụ trách vận hành kho tổng — đây là kho duy nhất cung cấp hàng cho cả hệ thống bán hàng online lẫn tái cung ứng cho các cửa hàng chi nhánh. Chịu trách nhiệm ghi nhận nhập kho (inbound), xuất kho (outbound), và theo dõi sổ cái tồn kho.
 
 ---
 
@@ -70,7 +70,10 @@ Tài liệu gồm 3 phần:
 - **Lưu giữ lịch sử bất biến**: Mọi thông tin về giá bán, tiền giảm giá và tên sản phẩm tại thời điểm mua được cố định vĩnh viễn trên đơn hàng. Doanh nghiệp sau này có tăng giá hay giảm giá sản phẩm thì hóa đơn cũ của khách hàng vẫn được giữ nguyên tính trung thực.
 
 ### 1.8. Thanh toán Đơn hàng
-- Đơn hàng được hệ thống ghi nhận đã thanh toán thành công và chuyển sang trạng thái "Đã thanh toán", sẵn sàng chờ bộ phận vận hành tiếp nhận và xử lý.
+- Hệ thống D&K hỗ trợ hai hình thức thanh toán:
+  - **VietQR (Chuyển khoản trước)**: Khách hàng quét mã QR để chuyển khoản ngân hàng tức thời trước khi hàng được xử lý. Đơn hàng được ghi nhận trạng thái thanh toán là `paid` ngay lập tức và sẵn sàng để bộ phận kho tiếp nhận đóng gói.
+  - **COD (Tiền mặt khi nhận hàng)**: Khách hàng chọn thanh toán khi shipper giao hàng đến tay. Đơn hàng được tạo với trạng thái `pending_cod`. Tiền chỉ được xác nhận thu đủ sau khi shipper nội bộ giao thành công và đối soát về kho.
+- Sau khi đặt hàng thành công theo bất kỳ hình thức nào, đơn hàng sẵn sàng chuyển sang giai đoạn xử lý kho.
 
 ### 1.9. Theo dõi Đơn hàng và Chính sách Hủy đơn
 - Khách hàng có thể theo dõi xem đơn của mình đang ở bước nào (Đã thanh toán, Đã xác nhận hay Đã hoàn tất).
@@ -144,110 +147,107 @@ Tài liệu gồm 3 phần:
 
 ---
 
-# PHẦN II: CÁC NGHIỆP VỤ BỔ SUNG ĐỀ XUẤT ĐỂ HOÀN THIỆN MÔ HÌNH THỰC TẾ
-*(Tập trung vào khâu vận chuyển, rủi ro giao nhận, đổi trả sau mua và quản lý nguồn hàng nhập)*
+# PHẦN II: CÁC NGHIỆP VỤ BỔ SUNG ĐÃ TRIỂN KHAI
 
-Trong thực tế ngành bán lẻ thời trang tại Việt Nam, hệ thống hiện tại còn thiếu các mắt xích quan trọng trong khâu giao nhận và sau bán hàng. Dưới đây là 4 nghiệp vụ bổ sung cần thiết:
+*(Giao vận nội bộ D&K, xử lý rủi ro COD boom, đổi trả 7 ngày và sổ cái kho)*
+
+Trong thực tế ngành bán lẻ thời trang tại Việt Nam, hệ thống ban đầu còn thiếu các mắt xích quan trọng trong khâu giao nhận và sau bán hàng. Tất cả 4 nghiệp vụ dưới đây đã được thiết kế và triển khai đầy đủ vào hệ thống:
 
 ---
 
-## 1. Nghiệp vụ Quản lý Giao vận & Theo dõi Vận đơn (Logistics & Shipments)
+## 1. Nghiệp vụ Quản lý Giao vận Nội bộ & Theo dõi Vận đơn
 
-### 1.1. Vấn đề Thực tiễn Cần giải quyết
-Hiện tại, đơn hàng sau khi được xác nhận thì gần như được coi là "xong", bỏ qua hoàn toàn quá trình giao hàng thực tế. Trong đời thực, từ lúc người bán đóng gói đến khi người mua nhận được đồ mất từ 1 đến 4 ngày qua các đơn vị chuyển phát, và đây là khâu thường xuyên phát sinh khiếu nại (chậm trễ, thất lạc hàng).
+### 1.1. Mô hình Giao vận D&K
+D&K không sử dụng đơn vị vận chuyển bên thứ ba (GHN, GHTK, Viettel Post, v.v.). Thay vào đó, doanh nghiệp vận hành đội ngũ **shipper nội bộ** trực thuộc biên chế, mỗi shipper được gán mã nhân viên riêng trong bảng `delivery_staff`.
 
-### 1.2. Dòng chảy Nghiệp vụ Đề xuất
+### 1.2. Dòng chảy Nghiệp vụ
 - **Mở rộng các bước của đơn hàng**:
-  - Sau khi đơn được xác nhận, bộ phận kho in phiếu đóng gói và bàn giao kiện hàng cho shipper. Đơn hàng chuyển sang trạng thái **Đang giao hàng**.
-  - Khi người mua ký nhận đồ: Đơn hàng chuyển sang **Đã giao thành công** (sau đó chuyển thành **Hoàn tất**).
-  - Nếu shipper đi giao nhiều lần mà không giao được: Đơn hàng chuyển sang **Giao hàng thất bại**.
-- **Liên kết với các đối tác vận chuyển chuyên nghiệp**:
-  - Hỗ trợ các đơn vị vận chuyển quen thuộc tại Việt Nam: Giao Hàng Nhanh (GHN), Giao Hàng Tiết Kiệm (GHTK), Viettel Post, Bưu điện Việt Nam (VNPost).
-  - Mỗi gói hàng xuất kho được cấp một **Mã vận đơn riêng biệt** để cả khách hàng lẫn doanh nghiệp có thể theo dõi vị trí kiện hàng theo thời gian thực.
-  - Ghi nhận đầy đủ các mốc thời gian: Giờ xuất kho gửi hàng, giờ dự kiến giao tới nơi và giờ giao thành công thực tế.
+  - Sau khi đơn được xác nhận, kho in phiếu đóng gói và phân công shipper nội bộ. Đơn hàng chuyển sang trạng thái **`shipping`**.
+  - Khi khách ký nhận: Đơn hàng chuyển sang **`delivered`** → sau 7 ngày không có khiếu nại → **`completed`**.
+  - Nếu shipper không giao được (khách không nghe máy, từ chối nhận): Đơn hàng chuyển sang **`failed_delivery`** (boom hàng).
+- **Thông tin vận đơn**: Bảng `shipments` lưu trữ toàn bộ thông tin: shipper phụ trách (`delivery_staff_id`), thời gian giao (`shipped_at`, `delivered_at`), địa chỉ giao nhận và trạng thái vận chuyển.
+- **Ghi nhận mốc thời gian đầy đủ**: Giờ xuất kho (`shipped_at`), giờ giao thành công (`delivered_at`).
 
-### 1.3. Ý nghĩa Dữ liệu đối với Quản trị Doanh nghiệp
-- Đo lường được **Tỷ lệ giao hàng đúng hẹn**: Tỉnh thành nào hay bị giao chậm? Đơn vị vận chuyển nào giao nhanh nhất vào dịp lễ Tết?
-- So sánh hiệu quả giữa các đối tác vận chuyển để doanh nghiệp chủ động lựa chọn đối tác có chi phí tốt nhất và dịch vụ uy tín nhất cho từng vùng miền.
-
----
-
-## 2. Nghiệp vụ Thanh toán Linh hoạt & Xử lý "Boom Hàng" khi Giao tiền mặt (COD)
-
-### 2.1. Vấn đề Thực tiễn Cần giải quyết
-Tại thị trường Việt Nam, hình thức **Thanh toán tiền mặt khi nhận hàng (COD - Cash On Delivery)** vẫn chiếm tỷ trọng rất cao trong ngành thời trang. Đi kèm với hình thức này là bài toán nan giải: **Khách hàng từ chối nhận hàng hoặc không nghe máy khi shipper gọi giao (thường gọi là "boom hàng")**, khiến người bán chịu thiệt hại nặng về chi phí vận chuyển hai chiều và giam vốn hàng tồn.
-
-### 2.2. Dòng chảy Nghiệp vụ Đề xuất
-- **Đa dạng hóa lựa chọn thanh toán khi đặt hàng**:
-  - Lựa chọn 1: Thanh toán khi nhận hàng (COD).
-  - Lựa chọn 2: Chuyển khoản ngân hàng tức thời qua mã quét VietQR.
-- **Quy trình thu tiền và đối soát cho đơn COD**:
-  - Khi khách đặt đơn COD, đơn hàng được ghi nhận là "Chờ thu tiền khi giao".
-  - Tiền bán hàng chỉ thực sự được xác nhận thu đủ sau khi shipper giao đồ thành công và chuyển tiền đối soát về cho công ty.
-- **Quy trình xử lý khi khách boom hàng (Giao thất bại)**:
-  1. Khi shipper liên lạc bất thành quá 3 lần hoặc khách từ chối nhận đồ vì đổi ý, đơn hàng được đánh dấu là **Giao hàng thất bại**.
-  2. Kiện hàng được đơn vị vận chuyển đóng gói để chuyển hoàn ngược lại về kho trung tâm của công ty.
-  3. Nhân viên kho mở kiện hàng kiểm tra: nếu sản phẩm còn nguyên vẹn, hệ thống tiến hành nhập lại đúng số lượng đó vào kho tổng để tiếp tục bán cho người khác.
-  4. Hệ thống lưu lại lý do boom hàng (khách không nghe máy, khách chê tiền ship cao, khách đổi ý không thích nữa).
-  5. Tài khoản của người mua bị ghi nhận lịch sử không nhận hàng để cảnh báo rủi ro cho các đơn hàng tiếp theo.
-
-### 2.3. Ý nghĩa Dữ liệu đối với Quản trị Doanh nghiệp
-- Thống kê chi tiết **Tỷ lệ từ chối nhận hàng theo địa lý**: Khu vực nào hay boom hàng nhất? Loại váy áo nào dễ bị từ chối nhất?
-- Nhận diện những tài khoản có tiền sử từ chối nhận đồ nhiều lần để tự động yêu cầu họ phải chuyển khoản trước nếu muốn tiếp tục đặt hàng trong tương lai.
+### 1.3. Ý nghĩa Phân tích Dữ liệu
+- Đo lường **tỷ lệ giao hàng thành công** theo từng shipper nội bộ, theo khu vực địa lý.
+- Đo lường **thời gian giao hàng trung bình** (từ `shipped_at` đến `delivered_at`).
+- Phân tích **hiệu suất từng shipper** qua bảng Gold `fact_shipment` và mart `mart_logistics_performance`.
 
 ---
 
-## 3. Nghiệp vụ Đổi / Trả hàng Sau khi Mua (Chăm sóc Sau Bán hàng)
+## 2. Nghiệp vụ Thanh toán Linh hoạt & Xử lý "Boom Hàng" COD
 
-### 3.1. Vấn đề Thực tiễn Cần giải quyết
-Trong mua sắm quần áo online, khách nhận đồ mặc thử không vừa vặn (quá rộng, quá chật) hoặc phát hiện đường may lỗi là chuyện rất phổ biến. Nếu không có chính sách và quy trình đổi trả rõ ràng, khách hàng sẽ ngần ngại khi mua sắm và doanh nghiệp dễ mất khách trung thành.
+### 2.1. Vấn đề Thực tiễn
+Tại thị trường Việt Nam, **Thanh toán tiền mặt khi nhận hàng (COD)** vẫn chiếm tỷ trọng cao trong ngành thời trang. Rủi ro đặc thù là **boom hàng** — khách hàng từ chối nhận hàng hoặc không liên lạc được khi shipper giao, khiến doanh nghiệp chịu thiệt hại về chi phí vận chuyển và vốn hàng tồn.
 
-### 3.2. Dòng chảy Nghiệp vụ Đề xuất
-- **Chính sách đổi trả rõ ràng**:
-  - Khách hàng có quyền gửi yêu cầu đổi hoặc trả hàng trong vòng **7 ngày** kể từ ngày ký nhận kiện hàng thành công.
-  - Điều kiện: Sản phẩm chưa qua giặt ủi, còn nguyên tem mác của thương hiệu.
-- **Quy trình gửi yêu cầu từ khách hàng**:
-  - Khách vào lịch sử đơn hàng, chọn món đồ cần đổi trả, nêu rõ lý do (chọn nhầm size, vải bị lỗi, giao nhầm màu) và tải lên hình ảnh chụp thực tế.
-  - Khách được chọn 1 trong 2 hình thức:
-    - *Đổi hàng*: Đổi sang size khác vừa hơn hoặc đổi sang màu khác.
-    - *Trả hàng hoàn tiền*: Gửi trả lại đồ và nhận lại tiền qua tài khoản ngân hàng.
-- **Quy trình xét duyệt và xử lý của Cửa hàng**:
-  1. Quản trị viên duyệt sơ bộ yêu cầu dựa trên hình ảnh khách gửi.
-  2. Hướng dẫn khách gửi bưu kiện về địa chỉ kho của công ty.
-  3. Nhân viên kho nhận hàng, kiểm định xem tem mác và tình trạng đồ có đạt chuẩn hay không:
-     - Nếu đạt chuẩn và khách muốn trả đồ: Kho nhập lại hàng vào kho tổng, kế toán làm lệnh hoàn lại tiền cho khách.
-     - Nếu đạt chuẩn và khách muốn đổi size: Kho xuất chiếc áo size mới gửi lại cho khách (đơn hàng đổi mới được miễn phí cước).
-     - Nếu hàng đã bị giặt ủi, rách do người dùng: Từ chối yêu cầu và gửi trả lại đồ cho khách.
+### 2.2. Dòng chảy Nghiệp vụ
+- **Hai hình thức thanh toán**:
+  - `vietqr`: Chuyển khoản trước qua mã QR → đơn được xử lý ngay.
+  - `cod`: Trả tiền mặt khi shipper giao → tiền đối soát sau khi giao thành công.
+- **Xử lý boom hàng (`failed_delivery`)**:
+  1. Shipper không giao được sau nhiều lần liên hệ → đánh dấu `status='failed_delivery'`.
+  2. Hàng được shipper mang về kho trung tâm.
+  3. Nhân viên kho kiểm tra hàng còn nguyên vẹn → nhập lại vào kho qua `inventory_transactions` với `movement_type='inbound'`.
+  4. `net_revenue = 0` cho toàn bộ đơn boom; doanh thu gộp không được tính vào doanh thu thực tế.
+  5. Lịch sử boom được ghi nhận theo `order_id` phục vụ phân tích rủi ro khách hàng.
 
-### 3.3. Ý nghĩa Dữ liệu đối với Quản trị Doanh nghiệp
-- Đo lường được **Tỷ lệ hàng bị trả lại theo từng mẫu mã và size số**: Giúp phát hiện kịp thời những mẫu áo có bảng thông số size bị sai lệch so với vóc dáng thực tế của người Việt để gửi phản hồi cho xưởng may chỉnh sửa rập may.
-- Tính toán chính xác **Doanh thu Thực tế (Doanh thu thuần)**:
-  $$\text{Doanh thu thực tế} = \text{Tổng tiền thu bán hàng} - \text{Tiền giảm giá} - \text{Tiền các đơn bị boom} - \text{Tiền hoàn trả cho khách đổi trả}$$
-  Đây mới là con số chuẩn xác phản ánh hiệu quả kinh doanh của công ty.
+### 2.3. Ý nghĩa Phân tích Dữ liệu
+- Thống kê **tỷ lệ boom hàng theo khu vực, loại sản phẩm, khung giờ**.
+- Nhận diện tài khoản khách hàng có tần suất boom cao để cảnh báo rủi ro.
+- `fact_order` trong Gold lưu `is_boom` (boolean) và tách biệt `gross_revenue_vnd` vs `net_revenue_vnd`.
 
 ---
 
-## 4. Nghiệp vụ Nhập hàng từ Xưởng Sản xuất / Nhà Cung ứng (Quản lý Đầu vào)
+## 3. Nghiệp vụ Đổi / Trả hàng Sau khi Mua (Chính sách 7 Ngày)
 
-### 4.1. Vấn đề Thực tiễn Cần giải quyết
-Hiện tại kho hàng chỉ có số lượng tồn có sẵn để xuất bán ra, chưa có quy trình ghi nhận nguồn hàng nhập vào định kỳ từ các xưởng may gia công. Việc thiếu khâu này khiến doanh nghiệp không theo dõi được **Giá vốn nhập hàng (giá gốc)**, từ đó không thể tính toán được mình đang lãi hay lỗ thực sự trên từng chiếc áo bán ra.
+### 3.1. Vấn đề Thực tiễn
+Trong mua sắm quần áo online, khách nhận đồ mặc thử không vừa hoặc phát hiện đường may lỗi là chuyện phổ biến. Cần quy trình đổi trả rõ ràng để giữ chân khách trung thành và tính toán doanh thu thuần chính xác.
 
-### 4.2. Dòng chảy Nghiệp vụ Đề xuất
-- **Quản lý danh sách đối tác sản xuất**: Quản lý thông tin các nhà cung cấp, xưởng cắt may, xưởng dệt vải gia công cho thương hiệu.
-- **Quy trình Tạo phiếu Đặt hàng Nhập kho (Đơn mua hàng)**:
-  - Khi cần bổ sung bộ sưu tập mới, người phụ trách kho tạo phiếu nhập hàng: ghi rõ xưởng nào may, số lượng từng size/màu cần nhập, ngày giao hàng dự kiến và **đơn giá vốn gốc nhập vào** (ví dụ: Một chiếc áo sơ mi may gia công với giá vốn 120.000 VNĐ, giá niêm yết bán ra web là 350.000 VNĐ).
-- **Kiểm đếm và Nhập kho Thực tế**:
-  - Khi xe tải của xưởng may giao hàng tới kho trung tâm: Nhân viên kho kiểm đếm số lượng thực tế, kiểm tra chất lượng đường kim mũi chỉ.
-  - Bấm xác nhận "Đã nhập kho": Hệ thống tự động cộng thêm số lượng quần áo vào kho trung tâm và ghi nhận giá vốn hàng hóa vào sổ sách.
-- **Tự động Cảnh báo khi Hàng sắp cạn**:
-  - Thiết lập mức tồn kho an toàn cho từng món đồ (ví dụ: Áo thun trắng size M luôn cần duy trì tối thiểu 20 chiếc trong kho).
-  - Khi số lượng hàng trên web bán gần chạm mốc cảnh báo, hệ thống hiển thị nhắc nhở màu đỏ trên màn hình của người quản lý để kịp thời liên hệ xưởng may sản xuất thêm đợt mới.
+### 3.2. Chính sách Đổi trả D&K
+- **Thời hạn**: 7 ngày kể từ ngày giao hàng thành công (`delivered_at`).
+- **Điều kiện**: Sản phẩm chưa qua giặt ủi, còn nguyên tem mác thương hiệu.
+- **Hình thức**: Đổi size/màu khác (khách chịu phí vận chuyển chiều về) hoặc trả hàng hoàn tiền.
 
-### 4.3. Ý nghĩa Dữ liệu đối với Quản trị Doanh nghiệp
-- Đo lường **Tốc độ quay vòng hàng tồn kho**: Sản phẩm nào vừa nhập về đã bán hết ngay (bán chạy)? Sản phẩm nào nằm lưu kho quá 60 ngày không ai ngó tới (hàng ứ đọng) để kịp thời lên kế hoạch đại hạ giá giải phóng vốn?
-- Đo lường **Lợi nhuận Gộp thực tế**:
-  $$\text{Lợi nhuận gộp} = \text{Giá bán ra cho khách} - \text{Giá vốn gốc nhập từ xưởng}$$
-  Giúp ban lãnh đạo nhìn thấy rõ ràng biên lợi nhuận của từng dòng sản phẩm thời trang.
+### 3.3. Dòng chảy Nghiệp vụ
+- Khách gửi yêu cầu qua hệ thống (chọn đơn hàng → chọn sản phẩm → nêu lý do + upload ảnh).
+- Quản trị viên duyệt và hướng dẫn khách gửi hàng về kho trung tâm.
+- Nhân viên kho kiểm định hàng:
+  - Đạt chuẩn + trả hàng → `status='returned'` trong `return_requests`; nhập lại vào `inventory_transactions`; `net_revenue = 0`.
+  - Đạt chuẩn + đổi size → xuất hàng mới, tạo `return_items` với lý do `exchanged`.
+  - Không đạt chuẩn → từ chối, ghi nhận `status='rejected'`.
+- Dữ liệu đổi trả được lưu trong bảng `return_requests` và `return_items`.
+
+### 3.4. Ý nghĩa Phân tích Dữ liệu
+- **Tỷ lệ hàng bị trả theo từng mẫu mã và size**: Phát hiện lỗi bảng thông số size.
+- **Doanh thu thuần thực tế**:
+  $$\text{Net Revenue} = \text{Gross Revenue} - \text{Discount} - \text{Boom Orders} - \text{Returned Orders}$$
+- Gold mart `mart_product_returns` tổng hợp số liệu đổi trả theo sản phẩm và lý do.
+
+---
+
+## 4. Nghiệp vụ Quản lý Kho & Sổ cái Nhập/Xuất hàng
+
+### 4.1. Mô hình Kho D&K
+D&K vận hành **1 kho trung tâm duy nhất** cung cấp hàng cho:
+- Đơn hàng online (xuất kho → giao khách).
+- Tái cung ứng cho các cửa hàng chi nhánh (điều chuyển nội bộ).
+
+Không có bảng `suppliers` (nhà cung ứng riêng). Thay vào đó, mọi biến động kho đều được ghi nhận qua bảng **`inventory_transactions`** với các loại giao dịch:
+
+### 4.2. Các loại giao dịch kho (`movement_type`)
+| Loại | Mô tả | Tác động tồn kho |
+|------|-------|-----------------|
+| `inbound` | Nhập hàng giả lập (không cần nhà cung ứng thực tế) | Cộng kho tổng |
+| `outbound_sale` | Xuất hàng cho đơn online | Trừ kho tổng |
+| `outbound_transfer` | Điều chuyển kho → cửa hàng chi nhánh | Trừ kho tổng + cộng store |
+| `return_inbound` | Nhập lại hàng boom/đổi trả | Cộng kho tổng |
+| `adjustment` | Điều chỉnh tồn kho (kiểm kê) | Thay đổi theo thực tế |
+
+### 4.3. Ý nghĩa Phân tích Dữ liệu
+- **Tốc độ quay vòng hàng tồn kho**: Sản phẩm nào bán nhanh, sản phẩm nào ứ đọng.
+- **Tồn kho snapshot hàng ngày**: Gold table `fact_inventory_daily_snapshot` ghi nhận tồn kho theo từng biến thể tại từng cửa hàng mỗi ngày.
+- **Cảnh báo hàng sắp cạn**: `mart_inventory_health` theo dõi các variant có số lượng dưới ngưỡng an toàn.
+- **COGS (Giá vốn hàng bán)**: Cột `unit_cost_vnd` trong `inventory_transactions` và `order_items` lưu giá vốn để tính lợi nhuận gộp.
 
 ---
 
@@ -255,37 +255,48 @@ Hiện tại kho hàng chỉ có số lượng tồn có sẵn để xuất bán
 
 ## 1. Hành trình Trọn vẹn của một Đơn hàng Mua sắm (Từ Đặt hàng đến Sau Bán)
 
-Dưới đây là mô tả dòng chảy vận hành tự nhiên từ lúc khách hàng bắt đầu lựa chọn cho tới khi kết thúc mọi giao dịch:
+Dưới đây là mô tả dòng chảy vận hành thực tế và các trạng thái đơn hàng tương ứng trong hệ thống:
 
-1. **Giai đoạn Đặt mua**: Khách hàng chọn size, màu, nhập mã giảm giá và chọn hình thức thanh toán (chuyển khoản hoặc nhận hàng trả tiền mặt COD). Khi bấm đặt hàng, kho tổng lập tức trừ hàng và lưu lại đơn với trạng thái **Đã thanh toán** (hoặc Đã nhận đơn COD).
-2. **Giai đoạn Hủy đơn sớm**: Nếu khách đổi ý ngay sau khi vừa đặt, khách có thể tự bấm hủy trên web (chỉ khi đơn chưa được duyệt). Đơn chuyển sang **Đã hủy**, hàng được tự động trả lại kho và tiền được hoàn trả.
-3. **Giai đoạn Duyệt và Đóng gói**: Nhân viên kho kiểm tra thông tin, bấm xác nhận đơn hàng, đóng kiện và dán mã vận chuyển. Đơn chuyển sang **Đã xác nhận**.
-4. **Giai đoạn Giao hàng**: Shipper nhận kiện hàng từ kho và mang đi giao. Đơn chuyển sang **Đang giao hàng**.
-5. **Kịch bản Giao thành công**: Khách nhận đồ và trả tiền (nếu là đơn COD). Đơn hàng chuyển sang **Đã giao thành công**. Khách có thể bắt đầu đánh giá sản phẩm.
-6. **Kịch bản Khách không nhận (Boom hàng)**: Sau các lần giao không thành công, đơn chuyển sang **Giao thất bại**. Kiện hàng chuyển hoàn về kho, nhân viên kho nhận lại và hoàn hàng vào kho để bán tiếp, đóng đơn hàng.
-7. **Giai đoạn Sau bán hàng (7 ngày đổi trả)**:
-   - Trong vòng 7 ngày sau khi nhận, nếu khách thử không vừa, khách gửi yêu cầu đổi trả.
-   - Cửa hàng nhận hàng về kiểm tra: nếu đạt yêu cầu, tiến hành đổi chiếc mới gửi lại cho khách HOẶC hoàn lại tiền nếu khách muốn trả đồ.
-8. **Hoàn tất Giao dịch**: Sau khi hết 7 ngày mà khách không có khiếu nại đổi trả, đơn hàng chính thức chuyển sang trạng thái **Hoàn tất**, khép lại toàn bộ vòng đời kinh doanh của một giao dịch bán lẻ.
+| Giai đoạn | Trạng thái hệ thống | Mô tả |
+|-----------|-------------------|-------|
+| Đặt mua (VietQR) | `paid` | Kho trừ hàng ngay, tiền đã về tài khoản |
+| Đặt mua (COD) | `pending_cod` | Kho trừ hàng, tiền chờ thu khi giao |
+| Hủy đơn sớm | `cancelled` | Kho hoàn hàng, tiền hoàn (nếu có) |
+| Duyệt & đóng gói | `confirmed` | Nhân viên kho xác nhận, in phiếu đóng gói |
+| Đang giao | `shipping` | Shipper nội bộ nhận kiện, đang trên đường giao |
+| Giao thành công | `delivered` | Khách ký nhận; COD đã thu tiền |
+| Boom hàng | `failed_delivery` | Shipper không giao được; hàng mang về kho |
+| Đổi trả chờ xử lý | `returned` | Khách gửi hàng về, kho đang kiểm định |
+| Hoàn tất | `completed` | Sau 7 ngày delivered không có khiếu nại |
+
+**State machine đơn giản hóa:**
+```
+pending_cod/paid → confirmed → shipping → delivered → completed
+                                        ↘ failed_delivery (boom)
+paid → cancelled (hủy sớm)
+delivered → returned (7 ngày đổi trả)
+```
 
 ---
 
 ## 2. Bảng Phân công Trách nhiệm giữa các Bộ phận
 
-| Hành động & Nghiệp vụ | Khách hàng | Thu ngân Cửa hàng | Quản lý Chi nhánh | Nhân viên Kho & Quản trị | Đối tác Giao vận |
+| Hành động & Nghiệp vụ | Khách hàng | Thu ngân Cửa hàng | Quản lý Chi nhánh | Nhân viên Kho & Quản trị | Shipper Nội bộ D&K |
 |---|:---:|:---:|:---:|:---:|:---:|
 | Tìm kiếm, xem mẫu mã, chọn size quần áo | Thực hiện | - | - | - | - |
 | Tra cứu cửa hàng chi nhánh gần mình còn đồ | Xem thông tin | - | - | - | - |
 | Bỏ vào giỏ, nhập mã giảm giá, đặt hàng qua mạng | Thực hiện | - | - | - | - |
+| Chọn hình thức thanh toán (VietQR / COD) | Thực hiện | - | - | - | - |
 | Hủy đơn hàng sớm khi chưa được duyệt | Thực hiện | - | - | Giám sát | - |
 | Gửi đánh giá, chấm điểm sau khi nhận đồ | Thực hiện | - | - | Hậu kiểm ẩn/hiện | - |
 | Gửi yêu cầu đổi size hoặc trả hàng trong 7 ngày | Thực hiện | - | - | Tiếp nhận & Duyệt | - |
 | Bán hàng và in hóa đơn trực tiếp tại quầy | - | Thực hiện | Giám sát | - | - |
 | Kiểm kê hàng trên kệ và nhân sự tại cửa hàng | - | Báo cáo | Thực hiện | Giám sát | - |
 | Duyệt đơn hàng online và in phiếu đóng gói | - | - | - | Thực hiện | - |
-| Bàn giao bưu kiện cho shipper và cấp mã vận đơn | - | - | - | Thực hiện | Tiếp nhận |
+| Phân công shipper nội bộ và bàn giao kiện hàng | - | - | - | Thực hiện | Tiếp nhận |
 | Đi giao hàng đến tận nhà và thu tiền COD | - | - | - | Theo dõi tiến độ | Thực hiện |
-| Tiếp nhận hàng hoàn do khách không nhận (boom) | - | - | - | Kiểm tra & Nhập kho | Giao trả lại |
-| Kiểm định hàng đổi trả từ khách gửi về và hoàn tiền | - | - | - | Thực hiện | Vận chuyển về |
-| Lập phiếu nhập thêm hàng mới từ xưởng sản xuất | - | - | - | Thực hiện | - |
+| Tiếp nhận hàng hoàn do khách boom hàng | - | - | - | Kiểm tra & Nhập kho | Giao trả lại kho |
+| Kiểm định hàng đổi trả từ khách gửi về và hoàn tiền | - | - | - | Thực hiện | - |
+| Nhập hàng mới vào kho (ghi sổ cái kho) | - | - | - | Thực hiện | - |
 | Chuyển hàng từ kho tổng về chi nhánh cửa hàng | - | Nhận hàng | Phối hợp | Điều lệnh chuyển | - |
+

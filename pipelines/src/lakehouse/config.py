@@ -21,6 +21,13 @@ MUTABLE_TABLES = frozenset({
     "coupons",
     "coupon_redemptions",
     "product_reviews",
+    "cities",
+    "stores",
+    "store_inventory",
+    "delivery_staff",
+    "shipments",
+    "return_requests",
+    "return_items",
 })
 
 APPEND_ONLY_TABLES = frozenset({
@@ -28,6 +35,7 @@ APPEND_ONLY_TABLES = frozenset({
     "payments",
     "order_status_history",
     "refunds",
+    "inventory_transactions",
 })
 
 KNOWN_TABLES = MUTABLE_TABLES | APPEND_ONLY_TABLES

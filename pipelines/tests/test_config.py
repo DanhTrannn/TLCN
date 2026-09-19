@@ -56,6 +56,8 @@ def test_pseudonymize_only_customers(config):
     for table in config.tables:
         if table.name == "customers":
             assert table.pseudonymize == ("email_normalized", "phone", "full_name")
+        elif table.name == "delivery_staff":
+            assert table.pseudonymize == ("phone", "full_name")
         else:
             assert table.pseudonymize == ()
 

@@ -507,6 +507,43 @@ class SqlExportTest(unittest.TestCase):
             self.assertGreater(wishlist_count, 0)
             self.assertGreater(wishlist_conversions / wishlist_count, 0.20)
 
+    def test_omnichannel_tables_and_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "omnichannel.sql"
+            summary = export_sql(self.config, path)
+            sql = path.read_text(encoding="utf-8")
+
+            # Check new tables exist
+            for table in ("delivery_staff", "shipments", "inventory_transactions"):
+                self.assertIn(f"INSERT INTO `{table}`", sql)
+
+            # Check delivery staff count
+            staff_count = _count_rows(sql, "delivery_staff")
+            self.assertEqual(staff_count, 10)
+
+            # Check shipments
+            shipments_block = _table_blocks(sql, "shipments")[0]
+            self.assertIn("delivered", shipments_block)
+
+            # Check inventory transactions inbound
+            inv_tx_block = _table_blocks(sql, "inventory_transactions")[0]
+            self.assertIn("inbound", inv_tx_block)
+            self.assertIn("central_warehouse", inv_tx_block)
+
+            # Check payment methods on orders
+            orders_block = _table_blocks(sql, "orders")[0]
+            self.assertIn("'cod'", orders_block)
+            self.assertIn("'vietqr'", orders_block)
+
+            # Check cost price on product_variants
+            pv_block = _table_blocks(sql, "product_variants")[0]
+            for price, cost in re.findall(r", (\d+), 1, '[^']+', '[^']+', (\d+)\)", pv_block):
+                p = int(price)
+                c = int(cost)
+                self.assertGreater(c, 0)
+                self.assertGreaterEqual(c / p, 0.34)
+                self.assertLessEqual(c / p, 0.46)
+
 
 if __name__ == "__main__":
     unittest.main()
