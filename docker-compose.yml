@@ -494,6 +494,9 @@ services:
       - "${LIBREDB_PORT:-3001}:3000"
     environment:
       AUTH_COOKIE_SECURE: "false"
+      ADMIN_EMAIL: ${LIBREDB_ADMIN_EMAIL:-admin@libredb.org}
+      ADMIN_PASSWORD: ${LIBREDB_ADMIN_PASSWORD:-Admin@12345}
+      JWT_SECRET: ${LIBREDB_JWT_SECRET:-libredb-jwt-secret-change-me-in-prod}
     depends_on:
       mysql:
         condition: service_healthy
