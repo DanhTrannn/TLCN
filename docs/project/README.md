@@ -5,6 +5,7 @@ This directory contains the foundational specifications, technical scope boundar
 ## Documents
 
 - [`SCOPE.md`](SCOPE.md): System goals, technical boundaries, 16 analytical tables allowlist, privacy redaction rules, KPI metrics, and ML repurchase prediction scope.
+- [`BUSINESS_REQUIREMENTS.md`](BUSINESS_REQUIREMENTS.md): Comprehensive business requirements specification (both existing e-commerce / POS / Lakehouse operations and proposed logistics, COD, RMA, and procurement extensions).
 - [`LAKEHOUSE_DESIGN_PLAN.md`](LAKEHOUSE_DESIGN_PLAN.md): Medallion architecture roadmap (Bronze, Silver, Gold), Apache Iceberg storage layout, Polaris namespaces, Spark batch ETL flow, and maintenance strategies.
 - [`WEB_DESIGN_PLAN.md`](WEB_DESIGN_PLAN.md): E-commerce storefront and FastAPI backend architectural specifications, transaction constraints, and access log telemetry contracts.
 

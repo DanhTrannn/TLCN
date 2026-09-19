@@ -37,9 +37,9 @@ The repository includes everything needed to run the data platform locally, incl
 - **Repurchase Modeling:** Generate point-in-time training features and 30-day repurchase labels from validated Gold transaction snapshots.
 - **Deterministic Data Generator:** Generate 12 months of realistic Vietnamese e-commerce transactions and matching 30-day access logs using calibrated market distributions.
 - **Idempotent Ingestion:** Multi-threaded Spark extractor with composite cursor tracking `(cursor_field, pk)` and cryptographic manifest validation.
-- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions with dual inventory deduction.
+- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions with store inventory deduction.
 - **Multi-City Inventory:** Store-level inventory tracking across 5 cities and 6 stores, with city-based product availability.
-- **Role-Based UI:** Separate admin panels for Admin (`/admin`), Store Manager (`/store`), and City Planner (`/city`) with role-scoped access.
+- **Role-Based UI:** Separate admin panels for Admin (`/admin`) and Store Manager (`/store`) with role-scoped access.
 - **Structured Checkout:** Address form with 34 Vietnamese provinces (post-1/7/2025 merger), wards, and street fields.
 
 ## Quick Start
@@ -236,6 +236,7 @@ Explore the detailed architecture and planning documents:
 | Topic | Document | Purpose |
 |---|---|---|
 | **System Scope** | [`docs/project/SCOPE.md`](docs/project/SCOPE.md) | Technical requirements, data boundaries, and acceptance criteria |
+| **Business Requirements** | [`docs/project/BUSINESS_REQUIREMENTS.md`](docs/project/BUSINESS_REQUIREMENTS.md) | Full e-commerce operations, POS, Lakehouse mapping & extensions |
 | **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
 | **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
 | **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Fluent Bit buffering, S3 layout |
