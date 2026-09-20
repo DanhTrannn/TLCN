@@ -133,6 +133,7 @@ export interface CommerceOrderDetail {
     reason: string | null;
     transitioned_at: string;
   }>;
+  shipment?: ShipmentDetail | null;
 }
 
 export interface OrderTransition {

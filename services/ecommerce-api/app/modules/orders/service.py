@@ -35,6 +35,7 @@ from app.modules.orders.schemas import (
     RefundResponse,
     StatusHistoryResponse,
 )
+from app.modules.logistics.schemas import ShipmentResponse
 
 
 _ORDER_PREVIEW_LIMIT = 3
@@ -253,13 +254,44 @@ def get_order_detail(db: Session, customer_id: int, order_number: str) -> OrderD
             )
             for history in history_rows
         ],
+        shipment=(
+            ShipmentResponse(
+                shipment_id=shipment_row[0].shipment_id,
+                shipment_code=shipment_row[0].shipment_code,
+                order_id=shipment_row[0].order_id,
+                order_number=order.order_number,
+                delivery_staff_id=shipment_row[0].delivery_staff_id,
+                delivery_staff_name=shipment_row[1].full_name if shipment_row[1] else None,
+                delivery_staff_phone=shipment_row[1].phone if shipment_row[1] else None,
+                vehicle_plate=shipment_row[1].vehicle_plate if shipment_row[1] else None,
+                status=shipment_row[0].status,
+                attempt_count=shipment_row[0].attempt_count,
+                dispatched_at=shipment_row[0].dispatched_at,
+                delivered_at=shipment_row[0].delivered_at,
+                failed_at=shipment_row[0].failed_at,
+                cod_amount_vnd=shipment_row[0].cod_amount_vnd,
+                cod_collected_vnd=shipment_row[0].cod_collected_vnd,
+                failure_reason=shipment_row[0].failure_reason,
+                notes=shipment_row[0].notes,
+                created_at=shipment_row[0].created_at,
+            )
+            if (
+                shipment_row := db.execute(
+                    select(Shipment, DeliveryStaff)
+                    .outerjoin(DeliveryStaff, DeliveryStaff.staff_id == Shipment.delivery_staff_id)
+                    .where(Shipment.order_id == order.order_id)
+                    .order_by(Shipment.shipment_id.desc())
+                ).first()
+            )
+            else None
+        ),
     )
 
 
 def _transition_order(
     order_number: str,
     idempotency_key: str,
-    from_status: str,
+    from_status: str | tuple[str, ...],
     to_status: str,
     transition_source: str,
     owner_customer_id: int | None = None,
@@ -290,7 +322,8 @@ def _transition_order(
             )
         if order.status == to_status:
             return OrderTransitionResponse(order_number=order.order_number, status=order.status)
-        if order.status != from_status:
+        allowed_from = (from_status,) if isinstance(from_status, str) else from_status
+        if order.status not in allowed_from:
             raise AppError(
                 INVALID_STATE_TRANSITION,
                 f"Không thể chuyển đơn từ {order.status} sang {to_status}.",
@@ -298,6 +331,7 @@ def _transition_order(
             )
 
         now = _utc_now()
+        previous_status = order.status
         order.status = to_status
         order.updated_at = now
         if to_status == "confirmed":
@@ -307,7 +341,7 @@ def _transition_order(
         db.add(
             OrderStatusHistory(
                 order_id=order.order_id,
-                from_status=from_status,
+                from_status=previous_status,
                 to_status=to_status,
                 transition_source=transition_source,
                 transition_idempotency_key=idempotency_key,
@@ -343,7 +377,7 @@ def complete_order(
     return _transition_order(
         order_number,
         idempotency_key,
-        "confirmed",
+        ("delivered", "confirmed"),
         "completed",
         transition_source,
         owner_customer_id,

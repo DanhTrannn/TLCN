@@ -1,4 +1,5 @@
 import { ApiError, apiFetch } from "./api-client";
+import type { DeliveryStaff, ShipmentDetail } from "./commerce";
 import { publicConfig } from "./config";
 
 export { ApiError };
@@ -183,6 +184,7 @@ export interface OrderDetail {
   items: OrderItem[];
   payment: OrderPayment | null;
   status_history: OrderStatusHistoryEntry[];
+  shipment?: ShipmentDetail | null;
 }
 
 export interface AdminOverview {

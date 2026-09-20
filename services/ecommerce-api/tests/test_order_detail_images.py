@@ -19,13 +19,19 @@ class Result:
     def all(self):
         return self._rows
 
+    def first(self):
+        return self._rows[0] if self._rows else None
+
 
 class Session:
     def __init__(self, results):
         self._results = iter(results)
 
     def execute(self, _statement):
-        return next(self._results)
+        try:
+            return next(self._results)
+        except StopIteration:
+            return Result()
 
 
 def test_order_detail_includes_current_product_image() -> None:

@@ -167,7 +167,9 @@ export default function OrderDetailPage() {
       setOrder(orderData);
       setError(null);
 
-      if (
+      if (orderData.shipment) {
+        setShipment(orderData.shipment);
+      } else if (
         ["shipping", "delivered", "failed_delivery", "completed"].includes(
           orderData.status
         )

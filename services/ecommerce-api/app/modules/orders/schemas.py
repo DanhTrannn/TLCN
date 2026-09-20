@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.logistics.schemas import ShipmentResponse
+
 
 class OrderListPreviewItem(BaseModel):
     product_name: str
@@ -95,6 +97,7 @@ class OrderDetailResponse(BaseModel):
     payment: PaymentResponse | None
     refund: RefundResponse | None
     status_history: list[StatusHistoryResponse]
+    shipment: ShipmentResponse | None = None
 
 
 class CancelOrderRequest(BaseModel):
