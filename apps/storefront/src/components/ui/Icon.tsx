@@ -4,6 +4,7 @@ export type IconName =
   | "alert"
   | "arrow-right"
   | "bag"
+  | "cash"
   | "check"
   | "chevron-right"
   | "close"
@@ -14,6 +15,7 @@ export type IconName =
   | "logout"
   | "package"
   | "plus"
+  | "qr"
   | "receipt"
   | "search"
   | "shield"
@@ -37,6 +39,7 @@ export function Icon({ name, size = 20, filled = false, ...props }: IconProps) {
     alert: <><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></>,
     "arrow-right": <><path d="M5 12h14" /><path d="m14 7 5 5-5 5" /></>,
     bag: <><path d="M5 8h14l-1 12H6L5 8Z" /><path d="M9 9V6a3 3 0 0 1 6 0v3" /></>,
+    cash: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" /></>,
     check: <path d="m5 12 4 4L19 6" />,
     "chevron-right": <path d="m9 18 6-6-6-6" />,
     close: <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>,
@@ -47,6 +50,7 @@ export function Icon({ name, size = 20, filled = false, ...props }: IconProps) {
     logout: <><path d="M10 17l5-5-5-5" /><path d="M15 12H3" /><path d="M14 3h6a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-6" /></>,
     plus: <><path d="M12 5v14" /><path d="M5 12h14" /></>,
     package: <><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12v9" /></>,
+    qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M7 7h.01M17 7h.01M7 17h.01M14 14h3v3h-3zM14 20h6v-3M20 14v3" /></>,
     receipt: <><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h4" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
     shield: <><path d="M12 3 4.5 6v5c0 5 3.2 8.2 7.5 10 4.3-1.8 7.5-5 7.5-10V6L12 3Z" /><path d="m9 12 2 2 4-4" /></>,

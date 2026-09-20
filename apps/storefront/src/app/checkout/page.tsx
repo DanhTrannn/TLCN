@@ -35,11 +35,18 @@ export default function CheckoutPage() {
   const [streetAddress, setStreetAddress] = useState("");
   const [ward, setWard] = useState("");
   const [province, setProvince] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"vietqr" | "cod">("vietqr");
   const [error, setError] = useState<string | null>(null);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const idempotencyKey = useRef<string>("");
   const receiverNamePrefilled = useRef(false);
+
+  useEffect(() => {
+    if (customer?.is_cod_blocked && paymentMethod === "cod") {
+      setPaymentMethod("vietqr");
+    }
+  }, [customer?.is_cod_blocked, paymentMethod]);
 
   const refreshAvailableCoupons = useCallback(async () => {
     setCouponListLoading(true);
@@ -149,6 +156,7 @@ export default function CheckoutPage() {
         receiver_phone: receiverPhone.trim(),
         shipping_address_text: [streetAddress.trim(), ward, province].filter(Boolean).join(", "),
         coupon_code: appliedCouponCode,
+        payment_method: paymentMethod,
       });
       router.push(`/checkout/result/${encodeURIComponent(result.order_number)}`);
     } catch (requestError) {
@@ -261,10 +269,99 @@ export default function CheckoutPage() {
             {couponMessage ? <p className="feedback-success mt-4" aria-live="polite">{couponMessage}</p> : null}
           </section>
 
+          <section className="surface-card p-5 sm:p-7">
+            <div className="flex items-center gap-3 border-b border-line pb-5">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-moss/10 text-moss"><Icon name="shield" /></span>
+              <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Bước 3</p><h2 className="font-semibold">Phương thức thanh toán</h2></div>
+            </div>
+
+            {customer?.is_cod_blocked ? (
+              <div className="feedback-error mt-5 flex items-start gap-3" role="alert">
+                <Icon className="mt-0.5 shrink-0 text-danger" name="alert" size={18} />
+                <p>Tài khoản của bạn đã bị khóa tính năng COD do từng không nhận hàng (boom hàng). Vui lòng thanh toán qua VietQR.</p>
+              </div>
+            ) : null}
+
+            <div className="mt-5 space-y-3">
+              <label
+                className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition sm:p-5 ${
+                  paymentMethod === "vietqr"
+                    ? "border-moss bg-moss/[0.03] ring-2 ring-moss/15"
+                    : "border-line bg-surface hover:border-ink/25"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="vietqr"
+                  checked={paymentMethod === "vietqr"}
+                  onChange={() => setPaymentMethod("vietqr")}
+                  className="mt-1 h-4 w-4 text-moss accent-moss"
+                />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-moss/10 text-moss">
+                  <Icon name="qr" size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong className="text-base font-semibold text-ink">Chuyển khoản VietQR</strong>
+                    <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
+                      Khuyên dùng
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted">
+                    Xác nhận tức thời, chuẩn bị xuất kho ngay
+                  </p>
+                </div>
+              </label>
+
+              <label
+                className={`flex items-start gap-4 rounded-2xl border p-4 transition sm:p-5 ${
+                  customer?.is_cod_blocked
+                    ? "cursor-not-allowed border-line/60 bg-sand/30 opacity-60"
+                    : paymentMethod === "cod"
+                    ? "cursor-pointer border-moss bg-moss/[0.03] ring-2 ring-moss/15"
+                    : "cursor-pointer border-line bg-surface hover:border-ink/25"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cod"
+                  checked={paymentMethod === "cod"}
+                  disabled={Boolean(customer?.is_cod_blocked)}
+                  onChange={() => {
+                    if (!customer?.is_cod_blocked) {
+                      setPaymentMethod("cod");
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 text-moss accent-moss disabled:cursor-not-allowed"
+                />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand text-ink">
+                  <Icon name="cash" size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <strong className="text-base font-semibold text-ink">
+                      Thanh toán tiền mặt khi nhận hàng (COD)
+                    </strong>
+                    {customer?.is_cod_blocked ? (
+                      <span className="rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-semibold text-danger">
+                        Bị khóa
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm text-muted">
+                    Thanh toán cho Shipper D&K khi nhận bưu phẩm
+                  </p>
+                </div>
+              </label>
+            </div>
+          </section>
+
           {error ? <p className="feedback-error" role="alert">{error}</p> : null}
           <button className="button-accent w-full sm:hidden" type="submit" disabled={submitting || couponBusy}>
             <Icon name="shield" size={18} />
-            {submitting ? "Đang xử lý…" : "Thanh toán và tạo đơn"}
+            {submitting ? "Đang xử lý…" : paymentMethod === "cod" ? "Đặt hàng COD" : "Thanh toán VietQR"}
           </button>
         </form>
 
@@ -285,11 +382,17 @@ export default function CheckoutPage() {
             <div className="flex justify-between text-paper/70"><dt>Tạm tính</dt><dd>{formatVnd(quote?.subtotal_vnd)}</dd></div>
             {quote && quote.discount_amount_vnd > 0 ? <div className="flex justify-between text-emerald-300"><dt>Giảm giá {quote.coupon_code ? `(${quote.coupon_code})` : ""}</dt><dd>−{formatVnd(quote.discount_amount_vnd)}</dd></div> : null}
             <div className="flex justify-between text-paper/70"><dt>Vận chuyển</dt><dd>{quote?.shipping_fee_vnd === 0 ? "Miễn phí" : formatVnd(quote?.shipping_fee_vnd)}</dd></div>
+            <div className="flex justify-between text-paper/70">
+              <dt>Hình thức</dt>
+              <dd className="font-medium text-paper">
+                {paymentMethod === "cod" ? "Tiền mặt (COD)" : "VietQR"}
+              </dd>
+            </div>
           </dl>
           <div className="mt-5 border-t border-paper/15 pt-5"><div className="flex items-end justify-between gap-4"><span className="text-sm text-paper/65">Tổng cộng</span><strong className="text-2xl">{formatVnd(quote?.total_vnd)}</strong></div></div>
           <button className="mt-6 hidden min-h-12 w-full items-center justify-center gap-2 rounded-full bg-paper px-5 text-sm font-semibold text-ink transition hover:bg-white disabled:opacity-50 sm:flex" type="submit" form="checkout-form" disabled={submitting || couponBusy}>
             <Icon name="shield" size={18} />
-            {submitting ? "Đang xử lý…" : "Thanh toán và tạo đơn"}
+            {submitting ? "Đang xử lý…" : paymentMethod === "cod" ? "Đặt hàng COD" : "Thanh toán VietQR"}
           </button>
           <p className="mt-4 text-center text-xs leading-5 text-paper/60">Tồn kho được kiểm tra lại trước khi tạo đơn.</p>
         </aside>
