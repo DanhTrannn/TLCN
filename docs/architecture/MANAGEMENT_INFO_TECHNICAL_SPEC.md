@@ -5,10 +5,7 @@
 **Phiên bản:** 1.1 (Tinh gọn theo 3 Cấp Quản trị Trọng yếu)  
 **Ngày cập nhật:** 2026-09-08  
 **Phân loại:** Tài liệu Kiến trúc & Thiết kế Hệ thống (System Analysis & Design Specification)  
-**Tác giả:** Lead Data Architect / Senior Analytics Engineer  
-**Tài liệu tham chiếu:** `MANAGEMENT_INFO_NEEDS.md`, `MANAGEMENT_INFO_REVIEW.md`, `SIGNOFF_RECOMMENDATIONS.md`, `OLTP_SCHEMA.md`, `ACCESS_LOG_DESIGN.md`
 
----
 
 ## MỤC LỤC
 
