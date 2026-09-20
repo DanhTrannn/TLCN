@@ -76,6 +76,14 @@ class StatusHistoryResponse(BaseModel):
     transitioned_at: datetime
 
 
+class OrderActiveReturnResponse(BaseModel):
+    return_code: str
+    action_type: str
+    status: str
+    total_refund_amount_vnd: int
+    created_at: datetime
+
+
 class OrderDetailResponse(BaseModel):
     order_number: str
     status: str
@@ -98,6 +106,7 @@ class OrderDetailResponse(BaseModel):
     refund: RefundResponse | None
     status_history: list[StatusHistoryResponse]
     shipment: ShipmentResponse | None = None
+    active_return: OrderActiveReturnResponse | None = None
 
 
 class CancelOrderRequest(BaseModel):

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -60,4 +61,24 @@ class ReturnRequestSummaryResponse(BaseModel):
 
 class ReturnRequestListResponse(BaseModel):
     items: list[ReturnRequestSummaryResponse]
+    total: int
+
+
+class AdminReviewReturnPayload(BaseModel):
+    action: Literal["approved", "rejected"]
+    admin_note: str | None = None
+
+
+class AdminInspectItemPayload(BaseModel):
+    return_item_id: int
+    inspection_status: Literal["passed", "failed"]
+
+
+class AdminInspectAndResolvePayload(BaseModel):
+    items: list[AdminInspectItemPayload] = Field(min_length=1)
+    admin_note: str | None = None
+
+
+class AdminReturnListResponse(BaseModel):
+    items: list[ReturnRequestDetailResponse]
     total: int

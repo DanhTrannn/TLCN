@@ -2,13 +2,17 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, VALIDATION_ERROR, INVALID_STATE_TRANSITION, not_found
-from app.models.order import Order, OrderItem
+from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
+from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.returns import ReturnItem, ReturnRequest
 from app.modules.returns.schemas import (
+    AdminInspectAndResolvePayload,
+    AdminReturnListResponse,
     CreateReturnRequestPayload,
     ReturnItemDetailResponse,
     ReturnRequestDetailResponse,
@@ -260,5 +264,218 @@ def cancel_customer_return_request(
     order_number = db.execute(
         select(Order.order_number).where(Order.order_id == return_req.order_id)
     ).scalar_one()
+    return _build_detail_response(db, order_number, return_req)
+
+
+
+def _get_admin_return(db: Session, return_code: str) -> tuple[ReturnRequest, str]:
+    return_req = db.execute(
+        select(ReturnRequest).where(ReturnRequest.return_code == return_code)
+    ).scalar_one_or_none()
+    if return_req is None:
+        raise not_found("Không tìm thấy yêu cầu đổi trả.")
+    order_number = db.execute(
+        select(Order.order_number).where(Order.order_id == return_req.order_id)
+    ).scalar_one()
+    return return_req, order_number
+
+
+def list_admin_returns(
+    db: Session,
+    status: str | None = None,
+    search: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> AdminReturnListResponse:
+    query = (
+        select(ReturnRequest, Order.order_number)
+        .join(Order, Order.order_id == ReturnRequest.order_id)
+    )
+    if status:
+        query = query.where(ReturnRequest.status == status)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.where(
+            or_(
+                ReturnRequest.return_code.ilike(pattern),
+                Order.order_number.ilike(pattern),
+                Order.receiver_phone.ilike(pattern),
+            )
+        )
+    rows = db.execute(
+        query.order_by(ReturnRequest.created_at.desc(), ReturnRequest.return_id.desc())
+    ).all()
+    items = [
+        _build_detail_response(db, order_number, return_req)
+        for return_req, order_number in rows[offset : offset + limit]
+    ]
+    return AdminReturnListResponse(items=items, total=len(rows))
+
+
+def get_admin_return_detail(db: Session, return_code: str) -> ReturnRequestDetailResponse:
+    return_req, order_number = _get_admin_return(db, return_code)
+    return _build_detail_response(db, order_number, return_req)
+
+
+def review_admin_return(
+    db: Session, return_code: str, action: str, admin_note: str | None
+) -> ReturnRequestDetailResponse:
+    return_req, order_number = _get_admin_return(db, return_code)
+    if return_req.status != "pending_review":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            "Chỉ yêu cầu ở trạng thái chờ duyệt mới có thể xét duyệt.",
+            status_code=409,
+        )
+    return_req.status = action
+    return_req.reviewed_at = datetime.now(UTC).replace(tzinfo=None)
+    if admin_note:
+        return_req.admin_note = admin_note
+    db.commit()
+    db.refresh(return_req)
+    return _build_detail_response(db, order_number, return_req)
+
+
+def receive_admin_return(db: Session, return_code: str) -> ReturnRequestDetailResponse:
+    return_req, order_number = _get_admin_return(db, return_code)
+    if return_req.status != "approved":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            "Chỉ yêu cầu đã duyệt mới có thể xác nhận nhận hàng.",
+            status_code=409,
+        )
+    return_req.status = "goods_received"
+    db.commit()
+    db.refresh(return_req)
+    return _build_detail_response(db, order_number, return_req)
+
+
+
+def inspect_and_resolve_admin_return(
+    db: Session,
+    return_code: str,
+    payload: AdminInspectAndResolvePayload,
+    idempotency_key: str,
+) -> ReturnRequestDetailResponse:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    return_req, order_number = _get_admin_return(db, return_code)
+
+    if return_req.status == "completed":
+        # Idempotent replay: resolution already finalized for this request.
+        return _build_detail_response(db, order_number, return_req)
+    if return_req.status != "goods_received":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            "Chỉ yêu cầu đã nhận hàng về kho mới có thể kiểm định và hoàn tất.",
+            status_code=409,
+        )
+
+    items_by_id = {ri.return_item_id: ri for ri in return_req.items}
+    for entry in payload.items:
+        item = items_by_id.get(entry.return_item_id)
+        if item is None:
+            raise AppError(
+                VALIDATION_ERROR,
+                f"Sản phẩm kiểm định {entry.return_item_id} không thuộc yêu cầu đổi trả này.",
+                status_code=400,
+            )
+        item.inspection_status = entry.inspection_status
+
+    # Restock passed items with pessimistic row locking.
+    for entry in payload.items:
+        if entry.inspection_status != "passed":
+            continue
+        item = items_by_id[entry.return_item_id]
+        inv = db.execute(
+            select(Inventory).where(Inventory.variant_id == item.variant_id).with_for_update()
+        ).scalar_one_or_none()
+        if inv is not None:
+            inv.on_hand = inv.on_hand + item.quantity
+            if inv.on_hand > inv.opening_on_hand:
+                inv.opening_on_hand = inv.on_hand
+        db.add(
+            InventoryTransaction(
+                public_id=uuid4(),
+                variant_id=item.variant_id,
+                location_type="central_warehouse",
+                movement_type="return_customer",
+                quantity_delta=item.quantity,
+                reference_code=return_req.return_code,
+                notes=f"Hàng hoàn từ {return_req.return_code}",
+            )
+        )
+
+    refund_amount = sum(
+        ri.refund_amount_vnd for ri in return_req.items if ri.inspection_status == "passed"
+    )
+    order = db.execute(
+        select(Order).where(Order.order_id == return_req.order_id).with_for_update()
+    ).scalar_one()
+    payment = db.execute(
+        select(Payment).where(Payment.order_id == order.order_id)
+    ).scalar_one_or_none()
+
+    if refund_amount > 0 and payment is not None:
+        refund = db.execute(
+            select(Refund).where(Refund.payment_id == payment.payment_id).with_for_update()
+        ).scalar_one_or_none()
+        new_key = f"ref:{idempotency_key[:58]}"
+        if refund is None:
+            db.add(
+                Refund(
+                    public_id=uuid4(),
+                    payment_id=payment.payment_id,
+                    refund_idempotency_key=new_key,
+                    status="succeeded",
+                    amount_vnd=refund_amount,
+                    reason=f"Hoàn tiền yêu cầu {return_req.return_code}",
+                    requested_by_customer_id=return_req.customer_id,
+                    completed_at=now,
+                )
+            )
+        else:
+            # One refund per payment: accumulate subsequent partial returns.
+            refund.amount_vnd = refund.amount_vnd + refund_amount
+            refund.refund_idempotency_key = new_key
+            refund.reason = f"{refund.reason}; {return_req.return_code}".strip("; ")
+            refund.completed_at = now
+
+    return_req.status = "completed"
+    return_req.resolved_at = now
+    if payload.admin_note:
+        return_req.admin_note = payload.admin_note
+
+    # Full-return detection: every ordered unit has been returned across
+    # all completed return requests for this order.
+    db.flush()  # ensure status/inspection mutations are visible to aggregate queries
+    ordered_total = db.execute(
+        select(func.coalesce(func.sum(OrderItem.quantity), 0)).where(
+            OrderItem.order_id == order.order_id
+        )
+    ).scalar_one()
+    returned_total = db.execute(
+        select(func.coalesce(func.sum(ReturnItem.quantity), 0))
+        .join(ReturnRequest, ReturnRequest.return_id == ReturnItem.return_id)
+        .where(
+            ReturnRequest.order_id == order.order_id,
+            ReturnRequest.status == "completed",
+        )
+    ).scalar_one()
+    if ordered_total > 0 and returned_total >= ordered_total and order.status != "returned":
+        from_status = order.status
+        order.status = "returned"
+        db.add(
+            OrderStatusHistory(
+                order_id=order.order_id,
+                from_status=from_status,
+                to_status="returned",
+                transition_source="admin_return",
+                transition_idempotency_key=f"ret:{idempotency_key[:58]}",
+                transitioned_at=now,
+            )
+        )
+
+    db.commit()
+    db.refresh(return_req)
     return _build_detail_response(db, order_number, return_req)
 

@@ -36,6 +36,8 @@ from app.modules.orders.schemas import (
     StatusHistoryResponse,
 )
 from app.modules.logistics.schemas import ShipmentResponse
+from app.models.returns import ReturnItem, ReturnRequest
+from app.modules.orders.schemas import OrderActiveReturnResponse
 
 
 _ORDER_PREVIEW_LIMIT = 3
@@ -161,6 +163,17 @@ def get_order_detail(db: Session, customer_id: int, order_number: str) -> OrderD
         if payment
         else None
     )
+    active_return = (
+        db.execute(
+            select(ReturnRequest)
+            .where(
+                ReturnRequest.order_id == order.order_id,
+                ReturnRequest.status.in_(("pending_review", "approved", "goods_received")),
+            )
+            .order_by(ReturnRequest.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+    )
     history_rows = (
         db.execute(
             select(OrderStatusHistory)
@@ -283,6 +296,17 @@ def get_order_detail(db: Session, customer_id: int, order_number: str) -> OrderD
                     .order_by(Shipment.shipment_id.desc())
                 ).first()
             )
+            else None
+        ),
+        active_return=(
+            OrderActiveReturnResponse(
+                return_code=active_return.return_code,
+                action_type=active_return.action_type,
+                status=active_return.status,
+                total_refund_amount_vnd=sum(ri.refund_amount_vnd for ri in active_return.items),
+                created_at=active_return.created_at,
+            )
+            if active_return
             else None
         ),
     )
