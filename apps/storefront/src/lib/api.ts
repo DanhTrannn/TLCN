@@ -112,6 +112,7 @@ export interface CheckoutResult {
   subtotal_vnd: number;
   shipping_fee_vnd: number;
   total_vnd: number;
+  payment_method?: string | null;
 }
 
 export interface OrderListPreviewItem {
@@ -176,6 +177,7 @@ export interface OrderDetail {
   created_at: string;
   paid_at: string | null;
   completed_at: string | null;
+  payment_method?: string | null;
   items: OrderItem[];
   payment: OrderPayment | null;
   status_history: OrderStatusHistoryEntry[];
@@ -375,6 +377,7 @@ export function checkout(
     receiver_name: string;
     receiver_phone: string;
     shipping_address_text: string;
+    payment_method?: "vietqr" | "cod";
   }
 ) {
   return apiFetch<CheckoutResult>("/api/v1/checkout", {
@@ -512,3 +515,16 @@ export function formatVnd(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
   return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
 }
+
+export type { DeliveryStaff, ShipmentDetail } from "./commerce";
+export {
+  getDeliveryStaffList,
+  createDeliveryStaff,
+  patchDeliveryStaff,
+  getShipmentsList,
+  getShipmentByOrderNumber,
+  dispatchAdminOrder,
+  deliverAdminOrder,
+  failDeliveryAdminOrder,
+  completeAdminOrder,
+} from "./commerce";

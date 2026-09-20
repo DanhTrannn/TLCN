@@ -36,6 +36,38 @@ export interface CheckoutResult {
   discount_amount_vnd: number;
   shipping_fee_vnd: number;
   total_vnd: number;
+  payment_method?: string | null;
+}
+
+export interface DeliveryStaff {
+  staff_id: number;
+  public_id: string;
+  full_name: string;
+  phone: string;
+  vehicle_plate: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ShipmentDetail {
+  shipment_id: number;
+  shipment_code: string;
+  order_id: number;
+  order_number: string;
+  delivery_staff_id: number | null;
+  delivery_staff_name: string | null;
+  delivery_staff_phone: string | null;
+  vehicle_plate?: string | null;
+  status: string;
+  attempt_count: number;
+  dispatched_at: string | null;
+  delivered_at: string | null;
+  failed_at: string | null;
+  cod_amount_vnd: number;
+  cod_collected_vnd: number;
+  failure_reason: string | null;
+  notes: string | null;
+  created_at?: string | null;
 }
 
 export interface OrderItemReview {
@@ -77,6 +109,7 @@ export interface CommerceOrderDetail {
   confirmed_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
+  payment_method?: string | null;
   items: CommerceOrderItem[];
   payment: {
     payment_reference: string;
@@ -187,6 +220,7 @@ export function checkoutWithCoupon(
     receiver_phone: string;
     shipping_address_text: string;
     coupon_code?: string | null;
+    payment_method?: "vietqr" | "cod";
   }
 ) {
   return apiFetch<CheckoutResult>("/api/v1/checkout", {
@@ -247,6 +281,101 @@ export function cancelAdminOrder(orderNumber: string, reason: string) {
       headers: mutationHeaders(crypto.randomUUID()),
       body: JSON.stringify({ reason }),
     }
+  );
+}
+
+export function dispatchAdminOrder(
+  orderNumber: string,
+  deliveryStaffId: number,
+  notes?: string
+) {
+  return apiFetch<OrderTransition>(
+    `/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/dispatch`,
+    {
+      method: "POST",
+      headers: mutationHeaders(crypto.randomUUID()),
+      body: JSON.stringify({
+        delivery_staff_id: deliveryStaffId,
+        notes: notes ?? null,
+      }),
+    }
+  );
+}
+
+export function deliverAdminOrder(orderNumber: string) {
+  return apiFetch<OrderTransition>(
+    `/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/deliver`,
+    {
+      method: "POST",
+      headers: mutationHeaders(crypto.randomUUID()),
+    }
+  );
+}
+
+export function failDeliveryAdminOrder(orderNumber: string, reason: string) {
+  return apiFetch<OrderTransition>(
+    `/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/failed-delivery`,
+    {
+      method: "POST",
+      headers: mutationHeaders(crypto.randomUUID()),
+      body: JSON.stringify({ reason }),
+    }
+  );
+}
+
+export function completeAdminOrder(orderNumber: string) {
+  return apiFetch<OrderTransition>(
+    `/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/complete`,
+    {
+      method: "POST",
+      headers: mutationHeaders(crypto.randomUUID()),
+    }
+  );
+}
+
+export function getDeliveryStaffList() {
+  return apiFetch<DeliveryStaff[]>("/api/v1/admin/delivery-staff");
+}
+
+export function createDeliveryStaff(input: {
+  full_name: string;
+  phone: string;
+  vehicle_plate?: string | null;
+}) {
+  return apiFetch<DeliveryStaff>("/api/v1/admin/delivery-staff", {
+    method: "POST",
+    headers: mutationHeaders(),
+    body: JSON.stringify(input),
+  });
+}
+
+export function patchDeliveryStaff(
+  staffId: number,
+  input: {
+    full_name?: string;
+    phone?: string;
+    vehicle_plate?: string | null;
+    is_active?: boolean;
+  }
+) {
+  return apiFetch<void>(
+    `/api/v1/admin/delivery-staff/${encodeURIComponent(staffId)}`,
+    {
+      method: "PATCH",
+      headers: mutationHeaders(),
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+export function getShipmentsList(status?: string) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  return apiFetch<ShipmentDetail[]>(`/api/v1/admin/shipments${query}`);
+}
+
+export function getShipmentByOrderNumber(orderNumber: string) {
+  return apiFetch<ShipmentDetail>(
+    `/api/v1/admin/shipments/${encodeURIComponent(orderNumber)}`
   );
 }
 
