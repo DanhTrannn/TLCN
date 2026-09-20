@@ -9,13 +9,16 @@ from app.core.errors import (
     IDEMPOTENCY_CONFLICT,
     INTERNAL_ERROR,
     INVALID_STATE_TRANSITION,
+    VALIDATION_ERROR,
     AppError,
     not_found,
 )
 from app.core.ids import uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Product, ProductVariant
+from app.models.customer import Customer
 from app.models.inventory import Inventory
+from app.models.logistics import DeliveryStaff, Shipment
 from app.models.multicity import StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
@@ -542,3 +545,360 @@ def cancel_order(
         )
 
     return run_in_transaction(_work)
+
+
+def _make_transition_key(order_number: str, action: str, idempotency_key: str | None) -> str:
+    if idempotency_key:
+        return f"{idempotency_key[:50]}:{action[:13]}"
+    return f"{action[:10]}:{order_number[:20]}:{uuid7().hex[:30]}"[:64]
+
+
+def dispatch_order(
+    db: Session,
+    order_number: str,
+    staff_id: int,
+    notes: str | None = None,
+    idempotency_key: str | None = None,
+) -> OrderTransitionResponse:
+    order = db.execute(
+        select(Order).where(Order.order_number == order_number).with_for_update()
+    ).scalar_one_or_none()
+    if order is None:
+        raise not_found("Không tìm thấy đơn hàng.")
+
+    transition_key = _make_transition_key(order_number, "disp", idempotency_key)
+    if idempotency_key:
+        existing_history = db.execute(
+            select(OrderStatusHistory).where(
+                OrderStatusHistory.transition_idempotency_key == transition_key
+            )
+        ).scalar_one_or_none()
+        if existing_history is not None:
+            if existing_history.order_id != order.order_id or existing_history.to_status != "shipping":
+                raise AppError(
+                    IDEMPOTENCY_CONFLICT,
+                    "Idempotency key đã được dùng cho request khác.",
+                    status_code=409,
+                )
+            return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+    if order.status == "shipping":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            "Đơn hàng đang trong trạng thái giao hàng.",
+            status_code=409,
+        )
+    if order.status not in ("paid", "confirmed"):
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            f"Không thể xuất kho đơn hàng ở trạng thái {order.status}.",
+            status_code=409,
+        )
+
+    staff = db.execute(
+        select(DeliveryStaff).where(DeliveryStaff.staff_id == staff_id)
+    ).scalar_one_or_none()
+    if staff is None or not staff.is_active:
+        raise AppError(
+            VALIDATION_ERROR,
+            "Nhân viên giao hàng không tồn tại hoặc đã ngừng hoạt động.",
+            status_code=400,
+        )
+
+    now = _utc_now()
+    cod_amount = order.total_vnd if order.payment_method == "cod" else 0
+    shipment = Shipment(
+        public_id=uuid7(),
+        shipment_code=f"SHP-{order.order_number}",
+        order_id=order.order_id,
+        delivery_staff_id=staff_id,
+        status="in_transit",
+        attempt_count=1,
+        cod_amount_vnd=cod_amount,
+        cod_collected_vnd=0,
+        dispatched_at=now,
+        notes=notes,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(shipment)
+
+    from_status = order.status
+    order.status = "shipping"
+    order.updated_at = now
+
+    db.add(
+        OrderStatusHistory(
+            order_id=order.order_id,
+            from_status=from_status,
+            to_status="shipping",
+            transition_source="admin_dispatch",
+            transition_idempotency_key=transition_key,
+            transitioned_at=now,
+        )
+    )
+    db.flush()
+    return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+
+def deliver_order(
+    db: Session,
+    order_number: str,
+    idempotency_key: str | None = None,
+) -> OrderTransitionResponse:
+    order = db.execute(
+        select(Order).where(Order.order_number == order_number).with_for_update()
+    ).scalar_one_or_none()
+    if order is None:
+        raise not_found("Không tìm thấy đơn hàng.")
+
+    transition_key = _make_transition_key(order_number, "deliv", idempotency_key)
+    if idempotency_key:
+        existing_history = db.execute(
+            select(OrderStatusHistory).where(
+                OrderStatusHistory.transition_idempotency_key == transition_key
+            )
+        ).scalar_one_or_none()
+        if existing_history is not None:
+            if existing_history.order_id != order.order_id or existing_history.to_status != "delivered":
+                raise AppError(
+                    IDEMPOTENCY_CONFLICT,
+                    "Idempotency key đã được dùng cho request khác.",
+                    status_code=409,
+                )
+            return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+    if order.status == "delivered":
+        return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+    if order.status != "shipping":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            f"Không thể giao đơn hàng ở trạng thái {order.status}.",
+            status_code=409,
+        )
+
+    now = _utc_now()
+    shipment = (
+        db.execute(
+            select(Shipment)
+            .where(Shipment.order_id == order.order_id)
+            .order_by(Shipment.shipment_id.desc())
+            .with_for_update()
+        )
+        .scalars()
+        .first()
+    )
+    if shipment:
+        shipment.status = "delivered"
+        shipment.delivered_at = now
+        shipment.updated_at = now
+        if order.payment_method == "cod":
+            shipment.cod_collected_vnd = shipment.cod_amount_vnd
+
+    if order.payment_method == "cod":
+        order.paid_at = now
+        payment = db.execute(
+            select(Payment).where(Payment.order_id == order.order_id).with_for_update()
+        ).scalar_one_or_none()
+        if payment:
+            payment.status = "succeeded"
+
+    order.status = "delivered"
+    order.updated_at = now
+
+    db.add(
+        OrderStatusHistory(
+            order_id=order.order_id,
+            from_status="shipping",
+            to_status="delivered",
+            transition_source="admin_deliver",
+            transition_idempotency_key=transition_key,
+            transitioned_at=now,
+        )
+    )
+    db.flush()
+    return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+
+def fail_delivery_order(
+    db: Session,
+    order_number: str,
+    reason: str,
+    idempotency_key: str | None = None,
+) -> OrderTransitionResponse:
+    cleaned_reason = reason.strip() if reason else ""
+    if not cleaned_reason:
+        raise AppError(VALIDATION_ERROR, "Lý do thất bại không được để trống.", status_code=400)
+
+    order = db.execute(
+        select(Order).where(Order.order_number == order_number).with_for_update()
+    ).scalar_one_or_none()
+    if order is None:
+        raise not_found("Không tìm thấy đơn hàng.")
+
+    transition_key = _make_transition_key(order_number, "fail", idempotency_key)
+    if idempotency_key:
+        existing_history = db.execute(
+            select(OrderStatusHistory).where(
+                OrderStatusHistory.transition_idempotency_key == transition_key
+            )
+        ).scalar_one_or_none()
+        if existing_history is not None:
+            if existing_history.order_id != order.order_id or existing_history.to_status != "failed_delivery":
+                raise AppError(
+                    IDEMPOTENCY_CONFLICT,
+                    "Idempotency key đã được dùng cho request khác.",
+                    status_code=409,
+                )
+            return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+    if order.status == "failed_delivery":
+        return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+    if order.status != "shipping":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            f"Không thể báo giao thất bại cho đơn hàng ở trạng thái {order.status}.",
+            status_code=409,
+        )
+
+    now = _utc_now()
+    shipment = (
+        db.execute(
+            select(Shipment)
+            .where(Shipment.order_id == order.order_id)
+            .order_by(Shipment.shipment_id.desc())
+            .with_for_update()
+        )
+        .scalars()
+        .first()
+    )
+    if shipment:
+        shipment.status = "failed"
+        shipment.failed_at = now
+        shipment.failure_reason = cleaned_reason
+        shipment.attempt_count += 1
+        shipment.updated_at = now
+
+    item_rows = db.execute(
+        select(OrderItem).where(OrderItem.order_id == order.order_id).order_by(OrderItem.variant_id)
+    ).scalars().all()
+    variant_ids = [item.variant_id for item in item_rows]
+    if variant_ids:
+        inventory_rows = (
+            db.execute(
+                select(Inventory)
+                .where(Inventory.variant_id.in_(variant_ids))
+                .order_by(Inventory.variant_id)
+                .with_for_update()
+            )
+            .scalars()
+            .all()
+        )
+        inv_map = {row.variant_id: row for row in inventory_rows}
+        for item in item_rows:
+            inv = inv_map.get(item.variant_id)
+            if inv:
+                inv.on_hand += item.quantity
+                inv.version += 1
+                inv.updated_at = now
+
+        if order.store_id is not None:
+            store_inv_rows = (
+                db.execute(
+                    select(StoreInventory)
+                    .where(
+                        StoreInventory.store_id == order.store_id,
+                        StoreInventory.variant_id.in_(variant_ids),
+                    )
+                    .order_by(StoreInventory.variant_id)
+                    .with_for_update()
+                )
+                .scalars()
+                .all()
+            )
+            si_map = {row.variant_id: row for row in store_inv_rows}
+            for item in item_rows:
+                si = si_map.get(item.variant_id)
+                if si:
+                    si.on_hand += item.quantity
+
+    customer = db.execute(
+        select(Customer).where(Customer.customer_id == order.customer_id).with_for_update()
+    ).scalar_one()
+    customer.boom_count += 1
+    if customer.boom_count >= 3:
+        customer.is_cod_blocked = True
+    customer.updated_at = now
+
+    order.status = "failed_delivery"
+    order.updated_at = now
+
+    db.add(
+        OrderStatusHistory(
+            order_id=order.order_id,
+            from_status="shipping",
+            to_status="failed_delivery",
+            transition_source="admin_failed_delivery",
+            reason=cleaned_reason,
+            transition_idempotency_key=transition_key,
+            transitioned_at=now,
+        )
+    )
+    db.flush()
+    return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+
+def complete_admin_order(
+    db: Session,
+    order_number: str,
+    idempotency_key: str | None = None,
+) -> OrderTransitionResponse:
+    order = db.execute(
+        select(Order).where(Order.order_number == order_number).with_for_update()
+    ).scalar_one_or_none()
+    if order is None:
+        raise not_found("Không tìm thấy đơn hàng.")
+
+    transition_key = _make_transition_key(order_number, "comp", idempotency_key)
+    if idempotency_key:
+        existing_history = db.execute(
+            select(OrderStatusHistory).where(
+                OrderStatusHistory.transition_idempotency_key == transition_key
+            )
+        ).scalar_one_or_none()
+        if existing_history is not None:
+            if existing_history.order_id != order.order_id or existing_history.to_status != "completed":
+                raise AppError(
+                    IDEMPOTENCY_CONFLICT,
+                    "Idempotency key đã được dùng cho request khác.",
+                    status_code=409,
+                )
+            return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+
+    if order.status == "completed":
+        return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+    if order.status != "delivered":
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            f"Không thể hoàn tất đơn hàng ở trạng thái {order.status}.",
+            status_code=409,
+        )
+
+    now = _utc_now()
+    order.status = "completed"
+    order.completed_at = now
+    order.updated_at = now
+
+    db.add(
+        OrderStatusHistory(
+            order_id=order.order_id,
+            from_status="delivered",
+            to_status="completed",
+            transition_source="admin_complete",
+            transition_idempotency_key=transition_key,
+            transitioned_at=now,
+        )
+    )
+    db.flush()
+    return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+

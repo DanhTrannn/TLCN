@@ -181,7 +181,7 @@ def test_checkout_cod_success(client: TestClient, customer_token_headers: dict[s
     assert histories[0].from_status is None
     assert histories[0].to_status == "confirmed"
     assert histories[0].transition_source == "checkout"
-    assert histories[0].transition_idempotency_key == f"{customer_token_headers['Idempotency-Key']}:confirmed"
+    assert histories[0].transition_idempotency_key == f"{customer_token_headers['Idempotency-Key'][:54]}:conf"
 
 
 def test_checkout_cod_blocked(client: TestClient, blocked_customer_headers: dict[str, str], test_db):

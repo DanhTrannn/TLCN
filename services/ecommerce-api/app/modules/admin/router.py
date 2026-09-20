@@ -38,10 +38,19 @@ from app.modules.admin.service import (
 )
 from app.modules.orders.schemas import (
     CancelOrderRequest,
+    DispatchOrderRequest,
+    FailedDeliveryRequest,
     OrderDetailResponse,
     OrderTransitionResponse,
 )
-from app.modules.orders.service import cancel_order, confirm_order
+from app.modules.orders.service import (
+    cancel_order,
+    complete_admin_order,
+    confirm_order,
+    deliver_order,
+    dispatch_order,
+    fail_delivery_order,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -120,7 +129,7 @@ def patch_variant(
 def orders(
     status: str | None = Query(
         default=None,
-        pattern=r"^(paid|payment_failed|confirmed|completed|cancelled)$",
+        pattern=r"^(pending_payment|paid|payment_failed|confirmed|shipping|delivered|completed|cancelled|failed_delivery|returned)$",
     ),
     _: Customer = Depends(get_current_admin),
     db: Session = Depends(get_db),
@@ -167,6 +176,80 @@ def cancel_admin_order(
         idempotency_key=_require_idempotency_key(idempotency_key),
         transition_source="admin",
     )
+
+
+@router.post("/orders/{order_number}/dispatch", response_model=OrderTransitionResponse)
+def dispatch_admin_order(
+    order_number: str,
+    payload: DispatchOrderRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    _: Customer = Depends(get_current_admin),
+    __: None = Depends(verify_csrf),
+    db: Session = Depends(get_db),
+) -> OrderTransitionResponse:
+    res = dispatch_order(
+        db=db,
+        order_number=order_number,
+        staff_id=payload.delivery_staff_id,
+        notes=payload.notes,
+        idempotency_key=idempotency_key,
+    )
+    db.commit()
+    return res
+
+
+@router.post("/orders/{order_number}/deliver", response_model=OrderTransitionResponse)
+def deliver_admin_order(
+    order_number: str,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    _: Customer = Depends(get_current_admin),
+    __: None = Depends(verify_csrf),
+    db: Session = Depends(get_db),
+) -> OrderTransitionResponse:
+    res = deliver_order(
+        db=db,
+        order_number=order_number,
+        idempotency_key=idempotency_key,
+    )
+    db.commit()
+    return res
+
+
+@router.post("/orders/{order_number}/failed-delivery", response_model=OrderTransitionResponse)
+def fail_delivery_admin_order(
+    order_number: str,
+    payload: FailedDeliveryRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    _: Customer = Depends(get_current_admin),
+    __: None = Depends(verify_csrf),
+    db: Session = Depends(get_db),
+) -> OrderTransitionResponse:
+    res = fail_delivery_order(
+        db=db,
+        order_number=order_number,
+        reason=payload.reason,
+        idempotency_key=idempotency_key,
+    )
+    db.commit()
+    return res
+
+
+@router.post("/orders/{order_number}/complete", response_model=OrderTransitionResponse)
+def complete_admin_order_route(
+    order_number: str,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    _: Customer = Depends(get_current_admin),
+    __: None = Depends(verify_csrf),
+    db: Session = Depends(get_db),
+) -> OrderTransitionResponse:
+    res = complete_admin_order(
+        db=db,
+        order_number=order_number,
+        idempotency_key=idempotency_key,
+    )
+    db.commit()
+    return res
+
 
 
 @router.get("/customers", response_model=list[AdminCustomerResponse])

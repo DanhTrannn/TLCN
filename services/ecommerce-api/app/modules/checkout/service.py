@@ -225,7 +225,7 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
         confirmed_at = now if is_cod else None
         payment_status = "pending" if is_cod else "succeeded"
         history_to_status = "confirmed" if is_cod else "paid"
-        history_idempotency_key = f"{idempotency_key}:confirmed" if is_cod else f"{idempotency_key}:paid"
+        history_idempotency_key = f"{idempotency_key[:54]}:conf" if is_cod else f"{idempotency_key[:54]}:paid"
 
         order = Order(
             order_number=new_order_number(),

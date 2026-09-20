@@ -90,9 +90,9 @@ def test_customer_cannot_complete_order_before_admin_confirmation(monkeypatch) -
     assert session.added == []
 
 
-def test_only_customer_complete_route_is_exposed() -> None:
+def test_complete_routes_are_exposed() -> None:
     paths = {route.path for route in app.routes}
 
     assert "/api/v1/orders/{order_number}/complete" in paths
-    assert "/api/v1/admin/orders/{order_number}/complete" not in paths
+    assert "/api/v1/admin/orders/{order_number}/complete" in paths
     assert "/internal/v1/orders/{order_number}/complete" not in paths

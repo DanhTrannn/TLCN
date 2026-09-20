@@ -238,11 +238,14 @@ class OrderStatusHistory(Base):
         CheckConstraint(
             "(from_status is null and to_status in ('paid','payment_failed','confirmed')) "
             "or (from_status = 'paid' and to_status in ('confirmed','cancelled')) "
-            "or (from_status = 'confirmed' and to_status = 'completed')",
+            "or (from_status = 'paid' and to_status = 'shipping') "
+            "or (from_status = 'confirmed' and to_status in ('completed','cancelled','shipping')) "
+            "or (from_status = 'shipping' and to_status in ('delivered','failed_delivery','returned')) "
+            "or (from_status = 'delivered' and to_status in ('completed','returned'))",
             name="valid_transition",
         ),
         CheckConstraint(
-            "transition_source in ('checkout','internal_endpoint','generator','system','admin','customer')",
+            "transition_source in ('checkout','internal_endpoint','generator','system','admin','customer','admin_dispatch','admin_deliver','admin_failed_delivery','admin_complete')",
             name="transition_source",
         ),
         CheckConstraint("to_status <> 'cancelled' or reason is not null", name="cancel_reason"),

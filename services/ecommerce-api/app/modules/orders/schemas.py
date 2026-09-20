@@ -103,6 +103,19 @@ class CancelOrderRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class DispatchOrderRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    delivery_staff_id: int
+    notes: str | None = None
+
+
+class FailedDeliveryRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class OrderTransitionResponse(BaseModel):
     order_number: str
     status: str
