@@ -548,8 +548,8 @@ def cancel_order(
 
 
 def _make_transition_key(order_number: str, action: str, idempotency_key: str | None) -> str:
-    if idempotency_key:
-        return f"{idempotency_key[:50]}:{action[:13]}"
+    if idempotency_key and idempotency_key.strip():
+        return f"{idempotency_key.strip()[:50]}:{action[:13]}"
     return f"{action[:10]}:{order_number[:20]}:{uuid7().hex[:30]}"[:64]
 
 
@@ -775,7 +775,7 @@ def fail_delivery_order(
     if shipment:
         shipment.status = "failed"
         shipment.failed_at = now
-        shipment.failure_reason = cleaned_reason
+        shipment.failure_reason = cleaned_reason[:255]
         shipment.attempt_count += 1
         shipment.updated_at = now
 
