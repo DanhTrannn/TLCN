@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -7,6 +9,7 @@ class CheckoutRequest(BaseModel):
     receiver_name: str = Field(min_length=1, max_length=160)
     receiver_phone: str = Field(min_length=1, max_length=32)
     shipping_address_text: str = Field(min_length=1, max_length=1000)
+    payment_method: Literal["vietqr", "cod"] = "vietqr"
     coupon_code: str | None = Field(default=None, max_length=64)
 
     @field_validator("coupon_code")
@@ -25,3 +28,4 @@ class CheckoutResultResponse(BaseModel):
     discount_amount_vnd: int
     shipping_fee_vnd: int
     total_vnd: int
+    payment_method: str | None = None

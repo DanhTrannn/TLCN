@@ -161,11 +161,11 @@ class Payment(Base):
     order: Mapped["Order"] = relationship(back_populates="payment")
 
     __table_args__ = (
-        CheckConstraint("status in ('succeeded','failed')", name="status"),
+        CheckConstraint("status in ('succeeded','failed','pending')", name="status"),
         CheckConstraint("currency_code = 'VND'", name="currency_code"),
         CheckConstraint("amount_vnd >= 0", name="amount_non_negative"),
         CheckConstraint(
-            "(status = 'succeeded' and failure_code is null) or "
+            "(status in ('succeeded','pending') and failure_code is null) or "
             "(status = 'failed' and failure_code is not null)",
             name="failure_code_consistency",
         ),
@@ -236,7 +236,7 @@ class OrderStatusHistory(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(from_status is null and to_status in ('paid','payment_failed')) "
+            "(from_status is null and to_status in ('paid','payment_failed','confirmed')) "
             "or (from_status = 'paid' and to_status in ('confirmed','cancelled')) "
             "or (from_status = 'confirmed' and to_status = 'completed')",
             name="valid_transition",

@@ -10,6 +10,7 @@ from app.core.errors import (
     EMPTY_CART,
     IDEMPOTENCY_CONFLICT,
     OUT_OF_STOCK,
+    VALIDATION_ERROR,
     VARIANT_NOT_SELLABLE,
     AppError,
 )
@@ -42,6 +43,7 @@ def _result_from_order(order: Order, payment: Payment) -> CheckoutResultResponse
         discount_amount_vnd=order.discount_amount_vnd,
         shipping_fee_vnd=order.shipping_fee_vnd,
         total_vnd=order.total_vnd,
+        payment_method=order.payment_method,
     )
 
 
@@ -109,6 +111,13 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
         ).scalar_one_or_none()
         if customer is None or customer.status != "active":
             raise auth_required()
+
+        if payload.payment_method == "cod" and customer.is_cod_blocked:
+            raise AppError(
+                VALIDATION_ERROR,
+                "Tài khoản của bạn đã bị khóa phương thức COD do boom hàng. Vui lòng chọn VietQR.",
+                status_code=403,
+            )
 
         existing = db.execute(
             select(Order).where(Order.checkout_idempotency_key == idempotency_key)
@@ -210,13 +219,22 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
             coupon_use.discount_amount_vnd if coupon_use else 0,
         )
         coupon = coupon_use.coupon if coupon_use else None
+        is_cod = payload.payment_method == "cod"
+        order_status = "confirmed" if is_cod else "paid"
+        paid_at = None if is_cod else now
+        confirmed_at = now if is_cod else None
+        payment_status = "pending" if is_cod else "succeeded"
+        history_to_status = "confirmed" if is_cod else "paid"
+        history_idempotency_key = f"{idempotency_key}:confirmed" if is_cod else f"{idempotency_key}:paid"
+
         order = Order(
             order_number=new_order_number(),
             cart_id=cart.cart_id,
             customer_id=customer_id,
             checkout_idempotency_key=idempotency_key,
             coupon_id=coupon.coupon_id if coupon else None,
-            status="paid",
+            status=order_status,
+            payment_method=payload.payment_method,
             currency_code="VND",
             subtotal_vnd=amounts.subtotal_vnd,
             coupon_code_snapshot=coupon.code_normalized if coupon else None,
@@ -230,7 +248,8 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
             shipping_address_text=payload.shipping_address_text,
             data_origin="manual",
             created_at=now,
-            paid_at=now,
+            paid_at=paid_at,
+            confirmed_at=confirmed_at,
         )
         db.add(order)
         db.flush()
@@ -248,7 +267,7 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
             payment_reference=new_payment_reference(),
             order_id=order.order_id,
             payment_idempotency_key=f"{idempotency_key}:pay",
-            status="succeeded",
+            status=payment_status,
             currency_code="VND",
             amount_vnd=amounts.total_vnd,
             failure_code=None,
@@ -259,9 +278,9 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
             OrderStatusHistory(
                 order_id=order.order_id,
                 from_status=None,
-                to_status="paid",
+                to_status=history_to_status,
                 transition_source="checkout",
-                transition_idempotency_key=f"{idempotency_key}:paid",
+                transition_idempotency_key=history_idempotency_key,
                 transitioned_at=now,
             )
         )
