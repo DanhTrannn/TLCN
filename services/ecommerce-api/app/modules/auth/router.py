@@ -37,6 +37,8 @@ def _customer_response(db: Session, customer: Customer, email: str) -> CustomerR
         role=customer.role,
         store_id=customer.store_id,
         store_name=_store_name_for(db, customer.store_id),
+        is_cod_blocked=bool(customer.is_cod_blocked),
+        boom_count=int(customer.boom_count or 0),
     )
 
 

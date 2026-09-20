@@ -23,3 +23,5 @@ class CustomerResponse(BaseModel):
     role: str
     store_id: int | None = None
     store_name: str | None = None
+    is_cod_blocked: bool = False
+    boom_count: int = 0
