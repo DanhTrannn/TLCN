@@ -153,7 +153,11 @@ export default function AdminLogisticsPage() {
         phone: trimmedPhone,
         vehicle_plate: trimmedPlate || null,
       });
-      handleCloseModal();
+      setIsModalOpen(false);
+      setFullName("");
+      setPhone("");
+      setVehiclePlate("");
+      setModalError(null);
       await loadStaff();
     } catch (err) {
       setModalError(
@@ -425,7 +429,9 @@ export default function AdminLogisticsPage() {
                     </td>
                     <td>
                       <span className="text-xs text-muted">
-                        {safeFormatDateTime(shipment.dispatched_at || shipment.created_at)}
+                        {shipment.dispatched_at
+                          ? safeFormatDateTime(shipment.dispatched_at)
+                          : "Chưa xuất kho"}
                       </span>
                     </td>
                   </tr>
@@ -459,11 +465,11 @@ export default function AdminLogisticsPage() {
           <label className="field-label" htmlFor="staff-fullname">
             Họ và tên <span className="text-danger">*</span>
             <input
-              autoFocus
               className="admin-input"
-              id="staff-fullname"
+              id="staff-name"
               minLength={2}
-              placeholder="Ví dụ: Nguyễn Văn A"
+              maxLength={100}
+              placeholder="Ví dụ: Nguyễn Văn Shipper"
               required
               type="text"
               value={fullName}
@@ -477,6 +483,7 @@ export default function AdminLogisticsPage() {
               className="admin-input"
               id="staff-phone"
               minLength={8}
+              maxLength={20}
               placeholder="Ví dụ: 0912345678"
               required
               type="tel"
@@ -491,6 +498,7 @@ export default function AdminLogisticsPage() {
             <input
               className="admin-input"
               id="staff-vehicle-plate"
+              maxLength={30}
               placeholder="Ví dụ: 29-A1 12345"
               type="text"
               value={vehiclePlate}
