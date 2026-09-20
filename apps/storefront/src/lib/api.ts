@@ -10,6 +10,8 @@ export interface Customer {
   role: "customer" | "admin" | "store_manager";
   store_id?: number | null;
   store_name?: string | null;
+  is_cod_blocked?: boolean;
+  boom_count?: number;
 }
 
 export interface Category {
