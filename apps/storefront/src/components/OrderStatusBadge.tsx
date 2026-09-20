@@ -74,3 +74,46 @@ export function OrderStatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+const SHIPMENT_STATUS_MAP: Record<
+  string,
+  { label: string; classes: string; dotClass: string }
+> = {
+  in_transit: {
+    label: "Đang giao",
+    classes: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
+    dotClass: "bg-sky-500",
+  },
+  delivered: {
+    label: "Giao thành công",
+    classes: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    dotClass: "bg-emerald-500",
+  },
+  failed: {
+    label: "Thất bại",
+    classes: "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-400",
+    dotClass: "bg-rose-500",
+  },
+};
+
+export function shipmentStatusLabel(status: string): string {
+  return SHIPMENT_STATUS_MAP[status]?.label ?? status;
+}
+
+export function ShipmentStatusBadge({ status }: { status: string }) {
+  const config = SHIPMENT_STATUS_MAP[status] ?? {
+    label: status,
+    classes: "border-line bg-paper text-muted",
+    dotClass: "bg-muted",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${config.classes}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${config.dotClass}`} />
+      {config.label}
+    </span>
+  );
+}
+

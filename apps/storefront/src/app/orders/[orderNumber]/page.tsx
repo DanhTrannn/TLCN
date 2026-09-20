@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { OrderStatusBadge, orderStatusShortLabel } from "@/components/OrderStatusBadge";
+import {
+  OrderStatusBadge,
+  ShipmentStatusBadge,
+  orderStatusShortLabel,
+} from "@/components/OrderStatusBadge";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError, formatVnd } from "@/lib/api";
 import {
@@ -13,8 +17,10 @@ import {
   completeCustomerOrder,
   createOrderItemReview,
   getCommerceOrder,
+  getShipmentByOrderNumber,
   type CommerceOrderDetail,
   type CommerceOrderItem,
+  type ShipmentDetail,
 } from "@/lib/commerce";
 import { createVietnamDateTimeFormatter, parseApiDateTime } from "@/lib/datetime";
 
@@ -148,6 +154,7 @@ export default function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const router = useRouter();
   const [order, setOrder] = useState<CommerceOrderDetail | null>(null);
+  const [shipment, setShipment] = useState<ShipmentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("Khách hàng thay đổi nhu cầu");
   const [cancelling, setCancelling] = useState(false);
@@ -156,8 +163,24 @@ export default function OrderDetailPage() {
   const load = useCallback(async () => {
     if (!orderNumber) return;
     try {
-      setOrder(await getCommerceOrder(orderNumber));
+      const orderData = await getCommerceOrder(orderNumber);
+      setOrder(orderData);
       setError(null);
+
+      if (
+        ["shipping", "delivered", "failed_delivery", "completed"].includes(
+          orderData.status
+        )
+      ) {
+        try {
+          const s = await getShipmentByOrderNumber(orderNumber);
+          setShipment(s);
+        } catch {
+          setShipment(null);
+        }
+      } else {
+        setShipment(null);
+      }
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 401) {
         router.push(`/login?returnTo=/orders/${orderNumber}`);
@@ -188,7 +211,7 @@ export default function OrderDetailPage() {
   }
 
   async function completeOrder() {
-    if (!order || order.status !== "confirmed") return;
+    if (!order || (order.status !== "delivered" && order.status !== "shipping")) return;
     setCompleting(true);
     setError(null);
     try {
@@ -264,10 +287,24 @@ export default function OrderDetailPage() {
           </div>
         ) : null}
         {order.status === "confirmed" ? (
+          <div className="mt-5 border-t border-line pt-5">
+            <p className="text-sm font-semibold">Đơn hàng đã được xác nhận</p>
+            <p className="mt-1 text-sm text-muted">
+              Cửa hàng đang đóng gói và chuẩn bị bàn giao cho đơn vị vận chuyển.
+            </p>
+          </div>
+        ) : null}
+        {order.status === "shipping" || order.status === "delivered" ? (
           <div className="mt-5 flex flex-col gap-4 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold">Đơn hàng đang được cửa hàng xử lý.</p>
-              <p className="mt-1 text-sm text-muted">Chỉ xác nhận sau khi bạn đã nhận và kiểm tra hàng.</p>
+              <p className="text-sm font-semibold">
+                {order.status === "delivered"
+                  ? "Đơn hàng đã được giao đến bạn."
+                  : "Đơn hàng đang trên đường giao đến bạn."}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Chỉ xác nhận sau khi bạn đã nhận và kiểm tra hàng thực tế.
+              </p>
             </div>
             <button
               className="button-primary shrink-0"
@@ -351,6 +388,16 @@ export default function OrderDetailPage() {
               </span>
             </p>
           ) : null}
+          {order.payment_method ? (
+            <p className="mt-4 flex items-center justify-between gap-4 border-t border-paper/15 pt-4 text-sm">
+              <span className="text-paper/60">Hình thức</span>
+              <span className="font-medium">
+                {order.payment_method === "cod"
+                  ? "Thanh toán khi nhận hàng (COD)"
+                  : "Chuyển khoản VietQR"}
+              </span>
+            </p>
+          ) : null}
           {order.refund ? (
             <div className="mt-5 rounded-2xl bg-paper/10 p-4 text-sm">
               <p className="font-medium">Đã hoàn {formatVnd(order.refund.amount_vnd)}</p>
@@ -359,6 +406,66 @@ export default function OrderDetailPage() {
           ) : null}
         </aside>
       </div>
+
+      {["shipping", "delivered", "failed_delivery", "completed"].includes(order.status) ? (
+        <section className="surface-flat mt-6 p-5 sm:p-6">
+          <div className="flex items-start gap-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500/10 text-sky-600">
+              <Icon name="truck" size={19} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold">Thông tin vận chuyển</h2>
+                {shipment?.status ? (
+                  <ShipmentStatusBadge status={shipment.status} />
+                ) : null}
+              </div>
+
+              {shipment?.shipment_code ? (
+                <p className="mt-2 text-sm">
+                  Mã vận đơn:{" "}
+                  <span className="font-mono font-semibold text-ink">
+                    {shipment.shipment_code}
+                  </span>
+                </p>
+              ) : null}
+
+              {shipment?.delivery_staff_name ? (
+                <p className="mt-1 text-sm text-muted">
+                  Shipper phụ trách:{" "}
+                  <strong className="font-medium text-ink">
+                    {shipment.delivery_staff_name}
+                  </strong>
+                  {shipment.delivery_staff_phone ? (
+                    <>
+                      {" "}·{" "}
+                      <a
+                        className="text-accent hover:underline"
+                        href={`tel:${shipment.delivery_staff_phone}`}
+                      >
+                        {shipment.delivery_staff_phone}
+                      </a>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+
+              {!shipment ? (
+                <p className="mt-2 text-sm text-muted">
+                  {order.status === "shipping" &&
+                    "Đơn hàng đang trên đường giao. Shipper sẽ liên hệ khi đến nơi."}
+                  {order.status === "delivered" &&
+                    "Đơn hàng đã được giao đến bạn. Vui lòng kiểm tra và xác nhận 'Đã nhận hàng'."}
+                  {order.status === "failed_delivery" &&
+                    "Đơn hàng giao không thành công. Cửa hàng sẽ liên hệ lại với bạn."}
+                  {order.status === "completed" &&
+                    "Đơn hàng đã được giao thành công và hoàn tất."}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="surface-flat mt-6 p-5 sm:p-6">
         <div className="flex items-start gap-4">
