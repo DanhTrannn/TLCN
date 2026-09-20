@@ -6,6 +6,7 @@ from app.modules.auth.router import router as auth_router
 from app.modules.cart.router import router as cart_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.location.router import router as location_router
+from app.modules.logistics.router import admin_logistics_router
 from app.modules.checkout.router import router as checkout_router
 from app.modules.coupons.router import admin_router as admin_coupons_router
 from app.modules.coupons.router import router as coupons_router
@@ -26,6 +27,7 @@ v1_router.include_router(admin_router)
 v1_router.include_router(admin_store_router)
 v1_router.include_router(admin_coupons_router)
 v1_router.include_router(admin_reviews_router)
+v1_router.include_router(admin_logistics_router)
 v1_router.include_router(coupons_router)
 v1_router.include_router(catalog_router)
 v1_router.include_router(cart_router)
