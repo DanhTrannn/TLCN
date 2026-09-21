@@ -422,3 +422,103 @@ def test_admin_list_and_detail(client: TestClient, test_db, customer_headers, ad
     assert detail.json()["return_code"] == return_code
     assert detail.json()["items"][0]["quantity"] == 2
 
+
+def test_inspect_and_resolve_rejects_duplicate_return_item_ids(
+    client: TestClient, test_db, customer_headers, admin_headers
+):
+    create_completed_order(test_db)
+    return_code = _create_pending_return(client, customer_headers)
+    _advance_status(client, admin_headers, return_code, "goods_received")
+
+    resolve = client.post(
+        f"/api/v1/admin/returns/{return_code}/inspect-and-resolve",
+        json={
+            "items": [
+                {"return_item_id": 1, "inspection_status": "passed"},
+                {"return_item_id": 1, "inspection_status": "failed"},
+            ]
+        },
+        headers=admin_headers,
+    )
+    assert resolve.status_code == 422, resolve.text
+
+
+def test_inspect_with_all_failed_items_does_not_mark_order_returned(
+    client: TestClient, test_db, customer_headers, admin_headers
+):
+    create_completed_order(test_db)
+    # Return all ordered items (item 1: 2 units, item 2: 1 unit)
+    payload = dict(RETURN_PAYLOAD)
+    payload["items"] = [
+        {"order_item_id": 1, "quantity": 2},
+        {"order_item_id": 2, "quantity": 1},
+    ]
+    created = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=payload, headers=customer_headers
+    )
+    return_code = created.json()["return_code"]
+    _advance_status(client, admin_headers, return_code, "goods_received")
+
+    # Inspect with ALL failed
+    resolve = client.post(
+        f"/api/v1/admin/returns/{return_code}/inspect-and-resolve",
+        json={
+            "items": [
+                {"return_item_id": 1, "inspection_status": "failed"},
+                {"return_item_id": 2, "inspection_status": "failed"},
+            ],
+        },
+        headers=admin_headers,
+    )
+    assert resolve.status_code == 200, resolve.text
+    assert resolve.json()["status"] == "completed"
+
+    test_db.expire_all()
+    order = test_db.execute(select(Order).where(Order.order_number == "ORD-RT-001")).scalar_one()
+    # Order status must REMAIN completed, NOT returned!
+    assert order.status == "completed"
+    returned_history = test_db.execute(
+        select(OrderStatusHistory).where(
+            OrderStatusHistory.order_id == order.order_id,
+            OrderStatusHistory.to_status == "returned",
+        )
+    ).scalars().all()
+    assert len(returned_history) == 0
+
+
+def test_cumulative_refund_amount_capped_and_reason_truncated(
+    client: TestClient, test_db, customer_headers, admin_headers
+):
+    order = create_completed_order(test_db)
+    payment = test_db.execute(select(Payment).where(Payment.order_id == order.order_id)).scalar_one()
+    # Pre-seed an existing refund with long reason and high amount
+    existing_refund = Refund(
+        public_id=uuid.uuid4(),
+        payment_id=payment.payment_id,
+        refund_idempotency_key="ref:seed",
+        status="succeeded",
+        amount_vnd=payment.amount_vnd - 1000,
+        reason="A" * 495,
+        requested_by_customer_id=order.customer_id,
+        completed_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+    test_db.add(existing_refund)
+    test_db.commit()
+
+    return_code = _create_pending_return(client, customer_headers)
+    _advance_status(client, admin_headers, return_code, "goods_received")
+
+    resolve = client.post(
+        f"/api/v1/admin/returns/{return_code}/inspect-and-resolve",
+        json={"items": [{"return_item_id": 1, "inspection_status": "passed"}]},
+        headers=admin_headers,
+    )
+    assert resolve.status_code == 200, resolve.text
+
+    test_db.expire_all()
+    refund = test_db.execute(select(Refund).where(Refund.payment_id == payment.payment_id)).scalar_one()
+    # Amount must be capped at payment.amount_vnd
+    assert refund.amount_vnd == payment.amount_vnd
+    # Reason must be capped at 500 chars
+    assert len(refund.reason) <= 500
+

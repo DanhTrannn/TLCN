@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ReturnItemCreatePayload(BaseModel):
@@ -16,6 +16,18 @@ class CreateReturnRequestPayload(BaseModel):
     bank_account_holder: str = Field(min_length=2, max_length=150)
     image_urls: list[str] = Field(default_factory=list)
     items: list[ReturnItemCreatePayload] = Field(min_length=1)
+
+    @field_validator("items")
+    @classmethod
+    def validate_unique_order_items(
+        cls, items: list[ReturnItemCreatePayload]
+    ) -> list[ReturnItemCreatePayload]:
+        seen = set()
+        for item in items:
+            if item.order_item_id in seen:
+                raise ValueError(f"Trùng lặp order_item_id: {item.order_item_id}")
+            seen.add(item.order_item_id)
+        return items
 
 
 class ReturnItemDetailResponse(BaseModel):
@@ -80,6 +92,18 @@ class AdminInspectItemPayload(BaseModel):
 class AdminInspectAndResolvePayload(BaseModel):
     items: list[AdminInspectItemPayload] = Field(min_length=1)
     admin_note: str | None = None
+
+    @field_validator("items")
+    @classmethod
+    def validate_unique_return_items(
+        cls, items: list[AdminInspectItemPayload]
+    ) -> list[AdminInspectItemPayload]:
+        seen = set()
+        for item in items:
+            if item.return_item_id in seen:
+                raise ValueError(f"Trùng lặp return_item_id: {item.return_item_id}")
+            seen.add(item.return_item_id)
+        return items
 
 
 class AdminReturnListResponse(BaseModel):

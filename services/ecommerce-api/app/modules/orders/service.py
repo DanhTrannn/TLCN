@@ -170,10 +170,19 @@ def get_order_detail(db: Session, customer_id: int, order_number: str) -> OrderD
                 ReturnRequest.order_id == order.order_id,
                 ReturnRequest.status.in_(("pending_review", "approved", "goods_received")),
             )
-            .order_by(ReturnRequest.created_at.desc())
+            .order_by(ReturnRequest.created_at.desc(), ReturnRequest.return_id.desc())
             .limit(1)
         ).scalar_one_or_none()
     )
+    if active_return is None:
+        active_return = (
+            db.execute(
+                select(ReturnRequest)
+                .where(ReturnRequest.order_id == order.order_id)
+                .order_by(ReturnRequest.created_at.desc(), ReturnRequest.return_id.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+        )
     history_rows = (
         db.execute(
             select(OrderStatusHistory)

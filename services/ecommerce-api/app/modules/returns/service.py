@@ -165,10 +165,19 @@ def create_customer_return_request(
                 f"Sản phẩm {entry.order_item_id} không thuộc đơn hàng này.",
                 status_code=400,
             )
-        if entry.quantity > item.quantity:
+        already_returned_qty = db.execute(
+            select(func.coalesce(func.sum(ReturnItem.quantity), 0))
+            .join(ReturnRequest, ReturnRequest.return_id == ReturnItem.return_id)
+            .where(
+                ReturnItem.order_item_id == item.order_item_id,
+                ReturnRequest.status.not_in(("cancelled", "rejected")),
+            )
+        ).scalar_one()
+        remaining_qty = item.quantity - already_returned_qty
+        if entry.quantity > remaining_qty:
             raise AppError(
                 VALIDATION_ERROR,
-                f"Số lượng trả cho {item.sku_snapshot} vượt quá số lượng đã mua.",
+                f"Số lượng trả cho sản phẩm {item.sku_snapshot or item.order_item_id} vượt quá số lượng còn lại có thể đổi trả ({remaining_qty}).",
                 status_code=400,
             )
         prorated_price = _compute_prorated_unit_price(item.unit_price_vnd, order)
@@ -279,10 +288,13 @@ def cancel_customer_return_request(
 
 
 
-def _get_admin_return(db: Session, return_code: str) -> tuple[ReturnRequest, str]:
-    return_req = db.execute(
-        select(ReturnRequest).where(ReturnRequest.return_code == return_code)
-    ).scalar_one_or_none()
+def _get_admin_return(
+    db: Session, return_code: str, for_update: bool = False
+) -> tuple[ReturnRequest, str]:
+    stmt = select(ReturnRequest).where(ReturnRequest.return_code == return_code)
+    if for_update:
+        stmt = stmt.with_for_update()
+    return_req = db.execute(stmt).scalar_one_or_none()
     if return_req is None:
         raise not_found("Không tìm thấy yêu cầu đổi trả.")
     order_number = db.execute(
@@ -332,7 +344,7 @@ def get_admin_return_detail(db: Session, return_code: str) -> ReturnRequestDetai
 def review_admin_return(
     db: Session, return_code: str, action: str, admin_note: str | None
 ) -> ReturnRequestDetailResponse:
-    return_req, order_number = _get_admin_return(db, return_code)
+    return_req, order_number = _get_admin_return(db, return_code, for_update=True)
     if return_req.status != "pending_review":
         raise AppError(
             INVALID_STATE_TRANSITION,
@@ -349,7 +361,7 @@ def review_admin_return(
 
 
 def receive_admin_return(db: Session, return_code: str) -> ReturnRequestDetailResponse:
-    return_req, order_number = _get_admin_return(db, return_code)
+    return_req, order_number = _get_admin_return(db, return_code, for_update=True)
     if return_req.status != "approved":
         raise AppError(
             INVALID_STATE_TRANSITION,
@@ -370,7 +382,7 @@ def inspect_and_resolve_admin_return(
     idempotency_key: str,
 ) -> ReturnRequestDetailResponse:
     now = datetime.now(UTC).replace(tzinfo=None)
-    return_req, order_number = _get_admin_return(db, return_code)
+    return_req, order_number = _get_admin_return(db, return_code, for_update=True)
 
     if return_req.status == "completed":
         # Idempotent replay: resolution already finalized for this request.
@@ -433,23 +445,25 @@ def inspect_and_resolve_admin_return(
         ).scalar_one_or_none()
         new_key = f"ref:{idempotency_key[:58]}"
         if refund is None:
+            reason = f"Hoàn tiền yêu cầu {return_req.return_code}"[:500]
             db.add(
                 Refund(
                     public_id=uuid4(),
                     payment_id=payment.payment_id,
                     refund_idempotency_key=new_key,
                     status="succeeded",
-                    amount_vnd=refund_amount,
-                    reason=f"Hoàn tiền yêu cầu {return_req.return_code}",
+                    amount_vnd=min(payment.amount_vnd, refund_amount),
+                    reason=reason,
                     requested_by_customer_id=return_req.customer_id,
                     completed_at=now,
                 )
             )
         else:
             # One refund per payment: accumulate subsequent partial returns.
-            refund.amount_vnd = refund.amount_vnd + refund_amount
+            refund.amount_vnd = min(payment.amount_vnd, refund.amount_vnd + refund_amount)
             refund.refund_idempotency_key = new_key
-            refund.reason = f"{refund.reason}; {return_req.return_code}".strip("; ")
+            accumulated_reason = f"{refund.reason}; {return_req.return_code}".strip("; ")
+            refund.reason = accumulated_reason[:500]
             refund.completed_at = now
 
     return_req.status = "completed"
@@ -471,6 +485,7 @@ def inspect_and_resolve_admin_return(
         .where(
             ReturnRequest.order_id == order.order_id,
             ReturnRequest.status == "completed",
+            ReturnItem.inspection_status == "passed",
         )
     ).scalar_one()
     if ordered_total > 0 and returned_total >= ordered_total and order.status != "returned":

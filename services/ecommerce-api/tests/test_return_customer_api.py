@@ -288,3 +288,102 @@ def test_cancel_return_when_pending_review(client: TestClient, test_db, customer
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["status"] == "cancelled"
 
+
+def test_create_return_rejects_duplicate_order_item_ids(client: TestClient, test_db, customer_headers):
+    create_completed_order(test_db)
+    payload = {
+        **RETURN_PAYLOAD,
+        "items": [
+            {"order_item_id": 1, "quantity": 1},
+            {"order_item_id": 1, "quantity": 1},
+        ],
+    }
+    resp = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=payload, headers=customer_headers
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_create_return_rejects_quantity_greater_than_remaining(client: TestClient, test_db, customer_headers):
+    create_completed_order(test_db)
+    # Item 1 has quantity 2. Requesting 3 directly fails.
+    payload_exceeding = {
+        **RETURN_PAYLOAD,
+        "items": [{"order_item_id": 1, "quantity": 3}],
+    }
+    resp = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=payload_exceeding, headers=customer_headers
+    )
+    assert resp.status_code == 400, resp.text
+    assert "vượt quá số lượng còn lại có thể đổi trả" in resp.json()["error"]["message"]
+
+    # First partial return: request 1 unit out of 2.
+    first_payload = {
+        **RETURN_PAYLOAD,
+        "items": [{"order_item_id": 1, "quantity": 1}],
+    }
+    first_resp = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=first_payload, headers=customer_headers
+    )
+    assert first_resp.status_code == 200, first_resp.text
+    return_code = first_resp.json()["return_code"]
+
+    # Mark first return completed so active return check is bypassed.
+    ret_req = test_db.execute(
+        select(ReturnRequest).where(ReturnRequest.return_code == return_code)
+    ).scalar_one()
+    ret_req.status = "completed"
+    test_db.commit()
+
+    # Second return: request 2 units. Remaining is only 2 - 1 = 1 unit.
+    headers2 = dict(customer_headers)
+    headers2["Idempotency-Key"] = "idemp-return-part2"
+    second_payload = {
+        **RETURN_PAYLOAD,
+        "items": [{"order_item_id": 1, "quantity": 2}],
+    }
+    second_resp = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=second_payload, headers=headers2
+    )
+    assert second_resp.status_code == 400, second_resp.text
+    assert "vượt quá số lượng còn lại có thể đổi trả (1)" in second_resp.json()["error"]["message"]
+
+    # Second return with quantity 1 succeeds.
+    valid_second_payload = {
+        **RETURN_PAYLOAD,
+        "items": [{"order_item_id": 1, "quantity": 1}],
+    }
+    valid_resp = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=valid_second_payload, headers=headers2
+    )
+    assert valid_resp.status_code == 200, valid_resp.text
+
+
+def test_order_detail_retains_link_to_latest_return(client: TestClient, test_db, customer_headers):
+    create_completed_order(test_db)
+    resp = client.post(
+        "/api/v1/orders/ORD-RT-001/returns", json=RETURN_PAYLOAD, headers=customer_headers
+    )
+    assert resp.status_code == 200, resp.text
+    return_code = resp.json()["return_code"]
+
+    # When pending, active_return is linked
+    order_resp = client.get("/api/v1/orders/ORD-RT-001", headers=customer_headers)
+    assert order_resp.status_code == 200, order_resp.text
+    assert order_resp.json()["active_return"]["return_code"] == return_code
+    assert order_resp.json()["active_return"]["status"] == "pending_review"
+
+    # Complete the return request
+    ret_req = test_db.execute(
+        select(ReturnRequest).where(ReturnRequest.return_code == return_code)
+    ).scalar_one()
+    ret_req.status = "completed"
+    test_db.commit()
+
+    # Even though status is completed (not in active statuses), order detail still retains the link
+    order_resp2 = client.get("/api/v1/orders/ORD-RT-001", headers=customer_headers)
+    assert order_resp2.status_code == 200, order_resp2.text
+    assert order_resp2.json()["active_return"] is not None
+    assert order_resp2.json()["active_return"]["return_code"] == return_code
+    assert order_resp2.json()["active_return"]["status"] == "completed"
+
