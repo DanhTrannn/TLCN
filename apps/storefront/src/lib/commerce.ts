@@ -118,14 +118,15 @@ export interface CommerceOrderDetail {
     failure_code: string | null;
     attempted_at: string;
   } | null;
-  refund: {
-    public_id: string;
+  refund?: {
+    public_id?: string;
     status: string;
     amount_vnd: number;
-    reason: string;
-    created_at: string;
-    completed_at: string | null;
+    reason?: string;
+    created_at?: string;
+    completed_at?: string | null;
   } | null;
+  active_return?: ReturnRequestSummary | null;
   status_history: Array<{
     from_status: string | null;
     to_status: string;
@@ -489,3 +490,175 @@ export function archiveAdminCoupon(publicId: string, reason: string) {
     }
   );
 }
+
+export interface ReturnItemDetail {
+  return_item_id: number;
+  order_item_id: number;
+  variant_id: number;
+  product_name?: string | null;
+  variant_title?: string | null;
+  sku?: string | null;
+  quantity: number;
+  refund_amount_vnd: number;
+  inspection_status: "pending" | "passed" | "failed";
+}
+
+export interface ReturnRequestDetail {
+  return_id: number;
+  return_code: string;
+  order_id: number;
+  order_number: string;
+  action_type: string;
+  status: "pending_review" | "approved" | "rejected" | "goods_received" | "completed" | "cancelled";
+  customer_reason: string;
+  admin_note?: string | null;
+  image_urls?: string[];
+  bank_info?: {
+    bank_name: string;
+    bank_account_number: string;
+    bank_account_holder: string;
+  } | null;
+  total_refund_amount_vnd: number;
+  created_at: string;
+  reviewed_at?: string | null;
+  resolved_at?: string | null;
+  items: ReturnItemDetail[];
+}
+
+export interface ReturnRequestSummary {
+  return_id?: number;
+  return_code: string;
+  order_number?: string;
+  action_type: string;
+  status: "pending_review" | "approved" | "rejected" | "goods_received" | "completed" | "cancelled";
+  total_items_count?: number;
+  total_refund_amount_vnd: number;
+  created_at: string;
+}
+
+export interface ReturnRequestList {
+  items: ReturnRequestSummary[];
+  total: number;
+}
+
+export interface AdminReturnList {
+  items: ReturnRequestDetail[];
+  total: number;
+}
+
+export interface CreateReturnItemInput {
+  order_item_id: number;
+  quantity: number;
+}
+
+export interface CreateReturnRequestInput {
+  customer_reason: string;
+  bank_name: string;
+  bank_account_number: string;
+  bank_account_holder: string;
+  image_urls?: string[];
+  items: CreateReturnItemInput[];
+}
+
+export interface AdminInspectItemInput {
+  return_item_id: number;
+  inspection_status: "passed" | "failed";
+}
+
+export interface AdminInspectAndResolveInput {
+  items: AdminInspectItemInput[];
+  admin_note?: string | null;
+}
+
+export function createCustomerReturnRequest(
+  orderNumber: string,
+  input: CreateReturnRequestInput,
+  idempotencyKey: string
+) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/orders/${encodeURIComponent(orderNumber)}/returns`,
+    {
+      method: "POST",
+      headers: mutationHeaders(idempotencyKey),
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+export function getCustomerReturnsList() {
+  return apiFetch<ReturnRequestList>("/api/v1/returns");
+}
+
+export function getCustomerReturnDetail(returnCode: string) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/returns/${encodeURIComponent(returnCode)}`
+  );
+}
+
+export function cancelCustomerReturnRequest(returnCode: string) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/returns/${encodeURIComponent(returnCode)}/cancel`,
+    {
+      method: "POST",
+      headers: mutationHeaders(),
+    }
+  );
+}
+
+export function getAdminReturnsList(params?: {
+  status?: string;
+  search?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set("status", params.status);
+  if (params?.search) searchParams.set("search", params.search);
+  const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+  return apiFetch<AdminReturnList>(`/api/v1/admin/returns${query}`);
+}
+
+export function getAdminReturnDetail(returnCode: string) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/admin/returns/${encodeURIComponent(returnCode)}`
+  );
+}
+
+export function reviewAdminReturn(
+  returnCode: string,
+  action: "approved" | "rejected",
+  admin_note?: string
+) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/admin/returns/${encodeURIComponent(returnCode)}/review`,
+    {
+      method: "POST",
+      headers: mutationHeaders(),
+      body: JSON.stringify({ action, admin_note: admin_note ?? null }),
+    }
+  );
+}
+
+export function receiveAdminReturn(returnCode: string) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/admin/returns/${encodeURIComponent(returnCode)}/receive`,
+    {
+      method: "POST",
+      headers: mutationHeaders(),
+    }
+  );
+}
+
+export function inspectAndResolveAdminReturn(
+  returnCode: string,
+  input: AdminInspectAndResolveInput,
+  idempotencyKey: string
+) {
+  return apiFetch<ReturnRequestDetail>(
+    `/api/v1/admin/returns/${encodeURIComponent(returnCode)}/inspect-and-resolve`,
+    {
+      method: "POST",
+      headers: mutationHeaders(idempotencyKey),
+      body: JSON.stringify(input),
+    }
+  );
+}
+

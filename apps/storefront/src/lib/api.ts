@@ -1,5 +1,5 @@
 import { ApiError, apiFetch } from "./api-client";
-import type { DeliveryStaff, ShipmentDetail } from "./commerce";
+import type { DeliveryStaff, ReturnRequestSummary, ShipmentDetail } from "./commerce";
 import { publicConfig } from "./config";
 
 export { ApiError };
@@ -183,6 +183,15 @@ export interface OrderDetail {
   payment_method?: string | null;
   items: OrderItem[];
   payment: OrderPayment | null;
+  refund?: {
+    public_id?: string;
+    status: string;
+    amount_vnd: number;
+    reason?: string;
+    created_at?: string;
+    completed_at?: string | null;
+  } | null;
+  active_return?: ReturnRequestSummary | null;
   status_history: OrderStatusHistoryEntry[];
   shipment?: ShipmentDetail | null;
 }
@@ -520,7 +529,19 @@ export function formatVnd(amount: number | null | undefined): string {
   return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
 }
 
-export type { DeliveryStaff, ShipmentDetail } from "./commerce";
+export type {
+  AdminInspectAndResolveInput,
+  AdminInspectItemInput,
+  AdminReturnList,
+  CreateReturnItemInput,
+  CreateReturnRequestInput,
+  DeliveryStaff,
+  ReturnItemDetail,
+  ReturnRequestDetail,
+  ReturnRequestList,
+  ReturnRequestSummary,
+  ShipmentDetail,
+} from "./commerce";
 export {
   getDeliveryStaffList,
   createDeliveryStaff,
@@ -531,4 +552,13 @@ export {
   deliverAdminOrder,
   failDeliveryAdminOrder,
   completeAdminOrder,
+  createCustomerReturnRequest,
+  getCustomerReturnsList,
+  getCustomerReturnDetail,
+  cancelCustomerReturnRequest,
+  getAdminReturnsList,
+  getAdminReturnDetail,
+  reviewAdminReturn,
+  receiveAdminReturn,
+  inspectAndResolveAdminReturn,
 } from "./commerce";

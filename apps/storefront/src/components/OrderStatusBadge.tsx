@@ -1,3 +1,5 @@
+import { formatVnd } from "@/lib/api";
+
 const STATUS_PRESENTATION: Record<string, { label: string; classes: string }> = {
   paid: {
     label: "Đã thanh toán · Chờ xuất kho",
@@ -116,4 +118,104 @@ export function ShipmentStatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+const RETURN_STATUS_PRESENTATION: Record<
+  string,
+  { label: string; classes: string }
+> = {
+  pending_review: {
+    label: "Chờ duyệt đổi trả",
+    classes: "border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  approved: {
+    label: "Đã duyệt · Chờ nhận hàng",
+    classes: "border-sky-500/25 bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  },
+  goods_received: {
+    label: "Đã nhận hàng tại kho",
+    classes: "border-indigo-500/25 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  },
+  completed: {
+    label: "Đã hoàn tất & Hoàn tiền",
+    classes: "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  },
+  rejected: {
+    label: "Bị từ chối",
+    classes: "border-rose-500/25 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+  },
+  cancelled: {
+    label: "Đã hủy",
+    classes: "border-slate-500/25 bg-slate-500/10 text-slate-700 dark:text-slate-300",
+  },
+};
+
+export function returnStatusLabel(status: string): string {
+  return RETURN_STATUS_PRESENTATION[status]?.label ?? status;
+}
+
+export function ReturnStatusBadge({
+  status,
+  className = "",
+}: {
+  status: string;
+  className?: string;
+}) {
+  const presentation = RETURN_STATUS_PRESENTATION[status] ?? {
+    label: status,
+    classes: "border-line bg-paper text-muted",
+  };
+
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-xs font-semibold ${presentation.classes} ${className}`}
+    >
+      {presentation.label}
+    </span>
+  );
+}
+
+export interface FinancialRefundBadgeProps {
+  amountVnd?: number;
+  amount_vnd?: number;
+  isPartial?: boolean;
+  totalVnd?: number;
+  total_vnd?: number;
+  refund?: {
+    amount_vnd: number;
+    status?: string;
+  } | null;
+  className?: string;
+}
+
+export function FinancialRefundBadge({
+  amountVnd,
+  amount_vnd,
+  isPartial,
+  totalVnd,
+  total_vnd,
+  refund,
+  className = "",
+}: FinancialRefundBadgeProps) {
+  const amount = amountVnd ?? amount_vnd ?? refund?.amount_vnd ?? 0;
+  const total = totalVnd ?? total_vnd;
+  const isPart =
+    isPartial !== undefined
+      ? isPartial
+      : total !== undefined
+        ? amount > 0 && amount < total
+        : true;
+
+  const formattedAmount = formatVnd(amount);
+  const label = isPart ? "Đã hoàn tiền một phần" : "Đã hoàn tiền toàn phần";
+  const displayLabel = amount > 0 ? `${label} · ${formattedAmount}` : label;
+
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 ${className}`}
+    >
+      {displayLabel}
+    </span>
+  );
+}
+
 
