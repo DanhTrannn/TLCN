@@ -79,6 +79,7 @@ export interface OrderItemReview {
 }
 
 export interface CommerceOrderItem {
+  order_item_id?: number;
   public_id: string;
   product_public_id: string;
   image_url: string | null;

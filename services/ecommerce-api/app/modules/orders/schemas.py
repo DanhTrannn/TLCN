@@ -38,6 +38,7 @@ class OrderItemReviewResponse(BaseModel):
 
 
 class OrderItemResponse(BaseModel):
+    order_item_id: int | None = None
     public_id: str
     product_public_id: str
     image_url: str | None

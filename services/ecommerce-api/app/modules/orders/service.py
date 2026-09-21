@@ -192,6 +192,7 @@ def get_order_detail(db: Session, customer_id: int, order_number: str) -> OrderD
         review = reviews.get(item.order_item_id)
         response_items.append(
             OrderItemResponse(
+                order_item_id=item.order_item_id,
                 public_id=str(item.public_id),
                 product_public_id=str(item.product_public_id_snapshot),
                 image_url=image_url,

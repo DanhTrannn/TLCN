@@ -6,10 +6,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  FinancialRefundBadge,
   OrderStatusBadge,
+  ReturnStatusBadge,
   ShipmentStatusBadge,
   orderStatusShortLabel,
 } from "@/components/OrderStatusBadge";
+import { CreateReturnModal } from "@/components/returns/CreateReturnModal";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError, formatVnd } from "@/lib/api";
 import {
@@ -159,6 +162,21 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState("Khách hàng thay đổi nhu cầu");
   const [cancelling, setCancelling] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+
+  const orderDate = order?.completed_at
+    ? new Date(order.completed_at).getTime()
+    : order?.created_at
+      ? new Date(order.created_at).getTime()
+      : 0;
+  const isWithin7Days = Date.now() - orderDate <= 7 * 24 * 60 * 60 * 1000;
+  const isEligibleForReturn =
+    !!order &&
+    (order.status === "delivered" || order.status === "completed") &&
+    isWithin7Days &&
+    (!order.active_return ||
+      order.active_return.status === "cancelled" ||
+      order.active_return.status === "rejected");
 
   const load = useCallback(async () => {
     if (!orderNumber) return;
@@ -263,7 +281,12 @@ export default function OrderDetailPage() {
               Đặt hàng lúc {dateFormatter.format(parseApiDateTime(order.created_at))}
             </p>
           </div>
-          <OrderStatusBadge status={order.status} />
+          <div className="flex flex-wrap items-center gap-2">
+            <OrderStatusBadge status={order.status} />
+            {order.refund ? (
+              <FinancialRefundBadge refund={order.refund} totalVnd={order.total_vnd} />
+            ) : null}
+          </div>
         </div>
 
         {order.status === "paid" ? (
@@ -308,19 +331,88 @@ export default function OrderDetailPage() {
                 Chỉ xác nhận sau khi bạn đã nhận và kiểm tra hàng thực tế.
               </p>
             </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {isEligibleForReturn ? (
+                <button
+                  className="button-secondary shrink-0"
+                  onClick={() => setIsReturnModalOpen(true)}
+                  type="button"
+                >
+                  <Icon name="rotate-ccw" size={17} />
+                  Yêu cầu Đổi / Trả hàng
+                </button>
+              ) : null}
+              <button
+                className="button-primary shrink-0"
+                disabled={completing}
+                onClick={() => void completeOrder()}
+                type="button"
+              >
+                <Icon name="check" size={17} />
+                {completing ? "Đang xác nhận…" : "Đã nhận hàng"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {order.status === "completed" && isEligibleForReturn ? (
+          <div className="mt-5 flex flex-col gap-4 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">Chính sách Đổi / Trả hàng</p>
+              <p className="mt-1 text-sm text-muted">
+                Đơn hàng đủ điều kiện đổi / trả trong vòng 7 ngày kể từ khi nhận hàng.
+              </p>
+            </div>
             <button
-              className="button-primary shrink-0"
-              disabled={completing}
-              onClick={() => void completeOrder()}
+              className="button-secondary shrink-0"
+              onClick={() => setIsReturnModalOpen(true)}
               type="button"
             >
-              <Icon name="check" size={17} />
-              {completing ? "Đang xác nhận…" : "Đã nhận hàng"}
+              <Icon name="rotate-ccw" size={17} />
+              Yêu cầu Đổi / Trả hàng
             </button>
           </div>
         ) : null}
         {error ? <p className="mt-4 text-sm text-accent">{error}</p> : null}
       </header>
+
+      {order.active_return ? (
+        <section className="surface-card mt-6 border-amber-500/30 bg-amber-500/5 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <Icon name="rotate-ccw" size={19} />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-semibold text-ink">Yêu cầu Đổi / Trả hàng</h2>
+                  <ReturnStatusBadge status={order.active_return.status} />
+                </div>
+                <p className="mt-1 text-sm text-muted">
+                  Mã yêu cầu:{" "}
+                  <span className="font-mono font-semibold text-ink">
+                    {order.active_return.return_code}
+                  </span>
+                  {order.active_return.total_refund_amount_vnd ? (
+                    <>
+                      {" "}· Hoàn tiền ước tính:{" "}
+                      <strong>
+                        {formatVnd(order.active_return.total_refund_amount_vnd)}
+                      </strong>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+            <Link
+              className="button-primary shrink-0"
+              href={`/orders/returns/${order.active_return.return_code}`}
+            >
+              Xem tiến trình đổi trả
+              <Icon name="chevron-right" size={16} />
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <section className="surface-flat p-5 sm:p-6">
@@ -402,8 +494,13 @@ export default function OrderDetailPage() {
           ) : null}
           {order.refund ? (
             <div className="mt-5 rounded-2xl bg-paper/10 p-4 text-sm">
+              <div className="mb-2">
+                <FinancialRefundBadge refund={order.refund} totalVnd={order.total_vnd} />
+              </div>
               <p className="font-medium">Đã hoàn {formatVnd(order.refund.amount_vnd)}</p>
-              <p className="mt-1 text-paper/60">{order.refund.reason}</p>
+              {order.refund.reason ? (
+                <p className="mt-1 text-paper/60">{order.refund.reason}</p>
+              ) : null}
             </div>
           ) : null}
         </aside>
@@ -533,6 +630,13 @@ export default function OrderDetailPage() {
           })}
         </ol>
       </section>
+
+      <CreateReturnModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        onSuccess={() => void load()}
+        order={order}
+      />
     </main>
   );
 }
