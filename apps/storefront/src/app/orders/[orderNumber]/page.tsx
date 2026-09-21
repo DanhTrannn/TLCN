@@ -166,9 +166,11 @@ export default function OrderDetailPage() {
 
   const orderDate = order?.completed_at
     ? new Date(order.completed_at).getTime()
-    : order?.created_at
-      ? new Date(order.created_at).getTime()
-      : 0;
+    : (order?.shipment?.delivered_at || shipment?.delivered_at)
+      ? new Date((order?.shipment?.delivered_at || shipment?.delivered_at)!).getTime()
+      : order?.created_at
+        ? new Date(order.created_at).getTime()
+        : 0;
   const isWithin7Days = Date.now() - orderDate <= 7 * 24 * 60 * 60 * 1000;
   const isEligibleForReturn =
     !!order &&

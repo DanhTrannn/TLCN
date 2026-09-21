@@ -47,6 +47,10 @@ function computeProratedUnitPrice(
   return item.unit_price_vnd;
 }
 
+function getItemKey(item: CommerceOrderItem): string {
+  return item.order_item_id !== undefined ? String(item.order_item_id) : item.public_id;
+}
+
 export function CreateReturnModal({
   order,
   isOpen,
@@ -58,9 +62,9 @@ export function CreateReturnModal({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Selection state
-  const [selectedItemIds, setSelectedItemIds] = useState<Record<number, boolean>>({});
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  // Selection state keyed by item.order_item_id ?? item.public_id
+  const [selectedItemKeys, setSelectedItemKeys] = useState<Record<string, boolean>>({});
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   // Bank fields
   const [bankName, setBankName] = useState(POPULAR_BANKS[0]);
@@ -79,16 +83,16 @@ export function CreateReturnModal({
   // Initialize selected items and quantities when modal opens
   useEffect(() => {
     if (isOpen) {
-      const initialSelected: Record<number, boolean> = {};
-      const initialQtys: Record<number, number> = {};
+      const initialSelected: Record<string, boolean> = {};
+      const initialQtys: Record<string, number> = {};
 
-      order.items.forEach((item, index) => {
-        const id = item.order_item_id ?? index;
-        initialSelected[id] = true;
-        initialQtys[id] = item.quantity;
+      order.items.forEach((item) => {
+        const key = getItemKey(item);
+        initialSelected[key] = true;
+        initialQtys[key] = item.quantity;
       });
 
-      setSelectedItemIds(initialSelected);
+      setSelectedItemKeys(initialSelected);
       setQuantities(initialQtys);
       setError(null);
       setSubmitting(false);
@@ -137,10 +141,10 @@ export function CreateReturnModal({
     let count = 0;
     let totalRefund = 0;
 
-    order.items.forEach((item, index) => {
-      const id = item.order_item_id ?? index;
-      if (selectedItemIds[id]) {
-        const qty = quantities[id] || 1;
+    order.items.forEach((item) => {
+      const key = getItemKey(item);
+      if (selectedItemKeys[key]) {
+        const qty = quantities[key] || 1;
         const proratedPrice = computeProratedUnitPrice(item, order);
         count += 1;
         totalRefund += proratedPrice * qty;
@@ -148,22 +152,22 @@ export function CreateReturnModal({
     });
 
     return { selectedCount: count, totalEstimatedRefund: totalRefund };
-  }, [order, selectedItemIds, quantities]);
+  }, [order, selectedItemKeys, quantities]);
 
   if (!isOpen) return null;
 
-  function toggleItem(id: number) {
-    setSelectedItemIds((prev) => ({
+  function toggleItem(key: string) {
+    setSelectedItemKeys((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [key]: !prev[key],
     }));
   }
 
-  function handleQuantityChange(id: number, maxQty: number, value: number) {
+  function handleQuantityChange(key: string, maxQty: number, value: number) {
     const validQty = Math.max(1, Math.min(maxQty, value || 1));
     setQuantities((prev) => ({
       ...prev,
-      [id]: validQty,
+      [key]: validQty,
     }));
   }
 
@@ -175,9 +179,9 @@ export function CreateReturnModal({
     setError(null);
 
     // Validation
-    const selectedEntries = order.items.filter((item, index) => {
-      const id = item.order_item_id ?? index;
-      return selectedItemIds[id];
+    const selectedEntries = order.items.filter((item) => {
+      const key = getItemKey(item);
+      return selectedItemKeys[key];
     });
 
     if (selectedEntries.length === 0) {
@@ -216,11 +220,11 @@ export function CreateReturnModal({
       bank_account_number: bankAccountNumber.trim(),
       bank_account_holder: bankAccountHolder.trim().toUpperCase(),
       image_urls: imageUrls.length > 0 ? imageUrls : undefined,
-      items: selectedEntries.map((item, index) => {
-        const id = item.order_item_id ?? index;
+      items: selectedEntries.map((item) => {
+        const key = getItemKey(item);
         return {
           order_item_id: item.order_item_id ?? 0,
-          quantity: quantities[id] || 1,
+          quantity: quantities[key] || 1,
         };
       }),
     };
@@ -320,10 +324,10 @@ export function CreateReturnModal({
               </p>
 
               <div className="mt-3 space-y-3">
-                {order.items.map((item, index) => {
-                  const id = item.order_item_id ?? index;
-                  const isSelected = !!selectedItemIds[id];
-                  const currentQty = quantities[id] || 1;
+                {order.items.map((item) => {
+                  const key = getItemKey(item);
+                  const isSelected = !!selectedItemKeys[key];
+                  const currentQty = quantities[key] || 1;
                   const proratedPrice = computeProratedUnitPrice(item, order);
                   const isDiscounted = proratedPrice < item.unit_price_vnd;
 
@@ -334,15 +338,15 @@ export function CreateReturnModal({
                           ? "border-amber-500/40 bg-amber-500/5 ring-1 ring-amber-500/20"
                           : "border-line bg-paper/60 opacity-75"
                       }`}
-                      key={item.public_id || id}
+                      key={key}
                     >
                       <div className="flex items-start gap-3">
                         <input
                           aria-label={`Chọn sản phẩm ${item.product_name}`}
                           checked={isSelected}
                           className="mt-1 h-5 w-5 rounded border-line text-accent accent-accent focus:ring-accent"
-                          id={`item-checkbox-${id}`}
-                          onChange={() => toggleItem(id)}
+                          id={`item-checkbox-${key}`}
+                          onChange={() => toggleItem(key)}
                           type="checkbox"
                         />
 
@@ -363,7 +367,7 @@ export function CreateReturnModal({
                         <div className="min-w-0 flex-1">
                           <label
                             className="cursor-pointer font-medium text-ink hover:underline"
-                            htmlFor={`item-checkbox-${id}`}
+                            htmlFor={`item-checkbox-${key}`}
                           >
                             {item.product_name}
                           </label>
@@ -391,7 +395,7 @@ export function CreateReturnModal({
                                   <button
                                     className="flex h-8 w-8 items-center justify-center rounded-l-lg border border-line bg-surface text-ink transition hover:bg-paper disabled:opacity-40"
                                     disabled={currentQty <= 1}
-                                    onClick={() => handleQuantityChange(id, item.quantity, currentQty - 1)}
+                                    onClick={() => handleQuantityChange(key, item.quantity, currentQty - 1)}
                                     type="button"
                                   >
                                     -
@@ -403,7 +407,7 @@ export function CreateReturnModal({
                                     min={1}
                                     onChange={(e) =>
                                       handleQuantityChange(
-                                        id,
+                                        key,
                                         item.quantity,
                                         parseInt(e.target.value, 10) || 1
                                       )
@@ -414,7 +418,7 @@ export function CreateReturnModal({
                                   <button
                                     className="flex h-8 w-8 items-center justify-center rounded-r-lg border border-line bg-surface text-ink transition hover:bg-paper disabled:opacity-40"
                                     disabled={currentQty >= item.quantity}
-                                    onClick={() => handleQuantityChange(id, item.quantity, currentQty + 1)}
+                                    onClick={() => handleQuantityChange(key, item.quantity, currentQty + 1)}
                                     type="button"
                                   >
                                     +

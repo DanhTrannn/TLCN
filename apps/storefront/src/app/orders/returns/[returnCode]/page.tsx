@@ -276,18 +276,19 @@ export default function CustomerReturnDetailPage() {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-4">
             {RETURN_STAGES.map((stage, idx) => {
-              const isPast = !isRejected && currentStageIndex > idx;
-              const isCurrent =
-                !isRejected &&
-                (currentStageIndex === idx || (detail.status === "completed" && idx === 3));
               const isFailedStage = isRejected && idx === 1;
+              const isStepCompleted =
+                !isRejected &&
+                (currentStageIndex > idx || (detail.status === "completed" && idx === 3));
+              const isCurrent =
+                !isRejected && detail.status !== "completed" && currentStageIndex === idx;
 
               return (
                 <div
                   className={`relative flex flex-col justify-between rounded-2xl border p-4 transition ${
                     isFailedStage
                       ? "border-rose-500/40 bg-rose-500/10 text-rose-800 dark:text-rose-300"
-                      : isPast || isCurrent
+                      : isStepCompleted || isCurrent
                         ? "border-moss/40 bg-moss/5 text-ink"
                         : "border-line bg-paper/50 text-muted opacity-70"
                   }`}
@@ -298,7 +299,7 @@ export default function CustomerReturnDetailPage() {
                       className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
                         isFailedStage
                           ? "bg-rose-500 text-white"
-                          : isPast
+                          : isStepCompleted
                             ? "bg-moss text-white"
                             : isCurrent
                               ? "bg-ink text-paper"
@@ -307,15 +308,20 @@ export default function CustomerReturnDetailPage() {
                     >
                       {isFailedStage ? (
                         <Icon name="close" size={14} />
-                      ) : isPast ? (
+                      ) : isStepCompleted ? (
                         <Icon name="check" size={14} />
                       ) : (
                         idx + 1
                       )}
                     </span>
-                    {isCurrent && !isRejected ? (
+                    {isCurrent ? (
                       <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-semibold text-paper">
                         Hiện tại
+                      </span>
+                    ) : null}
+                    {detail.status === "completed" && idx === 3 ? (
+                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                        Hoàn tất
                       </span>
                     ) : null}
                     {isFailedStage ? (
