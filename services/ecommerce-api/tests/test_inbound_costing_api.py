@@ -400,3 +400,58 @@ def test_admin_products_includes_cost_price(admin_client):
     variant = products[0]["variants"][0]
     assert "cost_price_vnd" in variant
     assert variant["cost_price_vnd"] == 100000
+
+
+def test_long_batch_name_truncation(admin_client, test_db):
+    """Verify that batch_name up to 255 chars does not cause DB DataError on InventoryTransaction.notes."""
+    long_name = (
+        "Lô hàng vải cotton chất lượng cao đặc biệt từ xưởng sản xuất số 1 "
+        "khu công nghiệp Tân Bình thành phố Hồ Chí Minh đợt kiểm tra chất lượng "
+        "lần cuối trước khi nhập kho trung tâm " + "X" * 150
+    )[:255]
+    payload = {
+        "batch_name": long_name,
+        "items": [{"variant_id": 1, "quantity": 5, "unit_cost_vnd": 100000}],
+    }
+    headers = {"Idempotency-Key": "idemp-long-batch-name"}
+    res = admin_client.post("/api/v1/admin/inbound/receipts", json=payload, headers=headers)
+    assert res.status_code == 201
+    tx = test_db.scalar(
+        select(InventoryTransaction).where(InventoryTransaction.reference_code == res.json()["receipt_code"])
+    )
+    assert tx is not None
+    assert len(tx.notes) <= 255
+
+
+def test_midnight_boundary_idempotency(admin_client, test_db):
+    """Verify that retrying with the same Idempotency-Key across midnight returns existing receipt."""
+    import hashlib
+
+    key = "idemp-midnight-key"
+    digest = hashlib.sha256(key.encode()).hexdigest()[:6].upper()
+    past_date_code = f"INB-20260901-{digest}"
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    past_receipt = InboundReceipt(
+        public_id=uuid.uuid4(),
+        receipt_code=past_date_code,
+        batch_name="Lô hôm qua",
+        status="completed",
+        total_items_count=10,
+        total_cost_vnd=1000000,
+        created_by_customer_id=1,
+        created_at=now,
+        updated_at=now,
+    )
+    test_db.add(past_receipt)
+    test_db.commit()
+
+    payload = {
+        "batch_name": "Lô thử nghiệm retry hôm nay",
+        "items": [{"variant_id": 1, "quantity": 10, "unit_cost_vnd": 100000}],
+    }
+    headers = {"Idempotency-Key": key}
+    res = admin_client.post("/api/v1/admin/inbound/receipts", json=payload, headers=headers)
+    assert res.status_code in (200, 201)
+    assert res.json()["receipt_code"] == past_date_code
+
