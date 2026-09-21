@@ -148,6 +148,7 @@ def list_products(db: Session, search: str | None = None) -> list[AdminProductRe
                     size_code=variant.size_code,
                     color_code=variant.color_code,
                     price_vnd=variant.price_vnd,
+                    cost_price_vnd=int(variant.cost_price_vnd or 0),
                     is_active=variant.is_active,
                     on_hand=int(on_hand or 0),
                 )

@@ -25,6 +25,7 @@ class AdminVariantResponse(BaseModel):
     size_code: str
     color_code: str
     price_vnd: int
+    cost_price_vnd: int = 0
     is_active: bool
     on_hand: int
 
