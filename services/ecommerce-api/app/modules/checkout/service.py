@@ -194,6 +194,7 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
                     size_code_snapshot=variant.size_code,
                     color_code_snapshot=variant.color_code,
                     unit_price_vnd=variant.price_vnd,
+                    cost_price_vnd=variant.cost_price_vnd,
                     quantity=quantity,
                     line_total_vnd=line_total,
                     created_at=now,

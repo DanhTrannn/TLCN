@@ -106,14 +106,15 @@ def create_pos_transaction(
 
             order_items.append({
                 "variant_id": variant.variant_id,
-                "product_name": variant.product.name if hasattr(variant, "product") else "",
+                "product_name": variant.product.name if hasattr(variant, "product") and variant.product else "",
                 "sku": variant.sku,
                 "size_code": variant.size_code,
                 "color_code": variant.color_code,
                 "unit_price_vnd": variant.price_vnd,
+                "cost_price_vnd": variant.cost_price_vnd if hasattr(variant, "cost_price_vnd") and variant.cost_price_vnd else 0,
                 "quantity": item.quantity,
                 "line_total_vnd": line_total,
-                "product_public_id": str(variant.product.public_id) if hasattr(variant, "product") else "",
+                "product_public_id": str(variant.product.public_id) if hasattr(variant, "product") and variant.product else "",
             })
 
             # Deduct store inventory
@@ -131,6 +132,7 @@ def create_pos_transaction(
             store_id=request.store_id,
             channel="pos",
             staff_id=staff_id,
+            checkout_idempotency_key=f"pos:{order_number}",
             status="completed",
             currency_code="VND",
             subtotal_vnd=subtotal,
@@ -162,6 +164,7 @@ def create_pos_transaction(
                 size_code_snapshot=item_data["size_code"],
                 color_code_snapshot=item_data["color_code"],
                 unit_price_vnd=item_data["unit_price_vnd"],
+                cost_price_vnd=item_data.get("cost_price_vnd", 0),
                 quantity=item_data["quantity"],
                 line_total_vnd=item_data["line_total_vnd"],
                 created_at=now,
