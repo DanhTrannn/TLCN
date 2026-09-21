@@ -365,6 +365,7 @@ export default function AdminReturnDetailPage() {
                           fill
                           sizes="80px"
                           src={imgUrl}
+                          unoptimized
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-ink/30 opacity-0 transition group-hover:opacity-100">
                           <Icon className="text-paper" name="search" size={16} />
@@ -573,7 +574,10 @@ export default function AdminReturnDetailPage() {
                     <button
                       className="button-danger w-full justify-center"
                       disabled={busy}
-                      onClick={() => setIsRejectOpen(true)}
+                      onClick={() => {
+                        setActionError(null);
+                        setIsRejectOpen(true);
+                      }}
                       type="button"
                     >
                       <Icon name="close" size={16} />
@@ -723,6 +727,7 @@ export default function AdminReturnDetailPage() {
         title={`Từ chối yêu cầu ${detail.return_code}`}
       >
         <div className="space-y-4">
+          {actionError ? <div className="feedback-error">{actionError}</div> : null}
           <label className="field-label" htmlFor="reject-reason-input">
             Lý do từ chối <span className="text-danger">*</span>
             <textarea
@@ -773,6 +778,7 @@ export default function AdminReturnDetailPage() {
                 fill
                 sizes="(max-width: 768px) 100vw, 768px"
                 src={previewImage}
+                unoptimized
               />
             </div>
             <div className="mt-4 flex w-full justify-end">

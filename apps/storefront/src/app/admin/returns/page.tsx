@@ -185,8 +185,8 @@ export default function AdminReturnsPage() {
             <tbody>
               {returns.map((item) => {
                 const totalItemsCount =
-                  item.items?.reduce((acc, curr) => acc + curr.quantity, 0) ||
-                  item.items?.length ||
+                  item.items?.reduce((acc, curr) => acc + curr.quantity, 0) ??
+                  item.items?.length ??
                   1;
 
                 return (

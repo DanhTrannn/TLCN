@@ -71,7 +71,7 @@ def _build_detail_response(
 
     return ReturnRequestDetailResponse(
         return_id=return_req.return_id,
-        return_code=return_code_val if (return_code_val := getattr(return_req, "return_code", None)) else return_req.return_code,
+        return_code=return_req.return_code,
         order_id=return_req.order_id,
         order_number=order_number,
         customer_name=order.receiver_name if order else None,
