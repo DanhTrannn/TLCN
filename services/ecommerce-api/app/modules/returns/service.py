@@ -6,6 +6,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, VALIDATION_ERROR, INVALID_STATE_TRANSITION, not_found
+from app.models.customer import CustomerCredential
 from app.models.inventory import Inventory
 from app.models.inventory_tx import InventoryTransaction
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
@@ -61,11 +62,21 @@ def _build_detail_response(
         )
         for ri in return_req.items
     ]
+    order = db.execute(
+        select(Order).where(Order.order_id == return_req.order_id)
+    ).scalar_one_or_none()
+    cred = db.execute(
+        select(CustomerCredential.email_normalized).where(CustomerCredential.customer_id == return_req.customer_id)
+    ).scalar_one_or_none()
+
     return ReturnRequestDetailResponse(
         return_id=return_req.return_id,
-        return_code=return_req.return_code,
+        return_code=return_code_val if (return_code_val := getattr(return_req, "return_code", None)) else return_req.return_code,
         order_id=return_req.order_id,
         order_number=order_number,
+        customer_name=order.receiver_name if order else None,
+        customer_phone=order.receiver_phone if order else None,
+        customer_email=cred if cred else None,
         action_type=return_req.action_type,
         status=return_req.status,
         customer_reason=return_req.customer_reason,
@@ -300,6 +311,7 @@ def list_admin_returns(
                 ReturnRequest.return_code.ilike(pattern),
                 Order.order_number.ilike(pattern),
                 Order.receiver_phone.ilike(pattern),
+                Order.receiver_name.ilike(pattern),
             )
         )
     rows = db.execute(

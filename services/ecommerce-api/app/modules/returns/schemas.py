@@ -35,6 +35,9 @@ class ReturnRequestDetailResponse(BaseModel):
     return_code: str
     order_id: int
     order_number: str
+    customer_name: str | None = None
+    customer_phone: str | None = None
+    customer_email: str | None = None
     action_type: str
     status: str
     customer_reason: str

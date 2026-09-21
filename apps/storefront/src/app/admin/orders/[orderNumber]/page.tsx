@@ -7,7 +7,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { AdminModal } from "@/components/admin/AdminModal";
 import {
+  FinancialRefundBadge,
   OrderStatusBadge,
+  ReturnStatusBadge,
   ShipmentStatusBadge,
   orderStatusShortLabel,
 } from "@/components/OrderStatusBadge";
@@ -528,6 +530,73 @@ export default function AdminOrderDetailPage() {
                   Đã hoàn {formatVnd(order.refund.amount_vnd)} · {order.refund.reason}
                 </p>
               ) : null}
+            </article>
+          ) : null}
+
+          {/* Card Thông tin Đổi trả & Hoàn tiền */}
+          {order.active_return || order.refund ? (
+            <article className="admin-panel border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-center justify-between border-b border-line pb-3">
+                <div className="flex items-center gap-3">
+                  <Icon className="text-amber-600 dark:text-amber-400" name="rotate-ccw" />
+                  <h2 className="font-semibold">Thông tin Đổi trả &amp; Hoàn tiền</h2>
+                </div>
+                {order.active_return ? (
+                  <ReturnStatusBadge status={order.active_return.status} />
+                ) : null}
+              </div>
+              <div className="mt-4 space-y-3 text-sm">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted">Hoàn tiền:</span>
+                    <FinancialRefundBadge
+                      amountVnd={order.refund?.amount_vnd ?? order.active_return?.total_refund_amount_vnd ?? 0}
+                      totalVnd={order.total_vnd}
+                    />
+                  </div>
+                  {order.refund ? (
+                    <div className="mt-2">
+                      <p className="font-semibold text-ink">
+                        {formatVnd(order.refund.amount_vnd)}
+                      </p>
+                      {order.refund.reason ? (
+                        <p className="mt-0.5 text-xs text-muted">Lý do: {order.refund.reason}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                {order.active_return ? (
+                  <div className={order.refund ? "border-t border-line pt-3" : ""}>
+                    <p className="text-xs text-muted">Mã yêu cầu đổi trả</p>
+                    <p className="font-mono font-semibold text-ink">
+                      {order.active_return.return_code}
+                    </p>
+                    {order.active_return.total_items_count ? (
+                      <p className="mt-1 text-xs text-muted">
+                        Số lượng: {order.active_return.total_items_count} sản phẩm
+                      </p>
+                    ) : null}
+                    {order.active_return.total_refund_amount_vnd ? (
+                      <p className="mt-1 text-xs text-muted">
+                        Tiền hoàn dự tính:{" "}
+                        <span className="font-semibold text-ink">
+                          {formatVnd(order.active_return.total_refund_amount_vnd)}
+                        </span>
+                      </p>
+                    ) : null}
+                    <div className="mt-3">
+                      <Link
+                        className="button-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold"
+                        href={`/admin/returns/${order.active_return.return_code}`}
+                      >
+                        <span>Xem chi tiết đổi trả</span>
+                        <Icon name="chevron-right" size={14} />
+                      </Link>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </article>
           ) : null}
         </aside>

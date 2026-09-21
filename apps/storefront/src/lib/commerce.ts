@@ -509,6 +509,9 @@ export interface ReturnRequestDetail {
   return_code: string;
   order_id: number;
   order_number: string;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
   action_type: string;
   status: "pending_review" | "approved" | "rejected" | "goods_received" | "completed" | "cancelled";
   customer_reason: string;
@@ -609,10 +612,14 @@ export function cancelCustomerReturnRequest(returnCode: string) {
 export function getAdminReturnsList(params?: {
   status?: string;
   search?: string;
+  limit?: number;
+  offset?: number;
 }) {
   const searchParams = new URLSearchParams();
   if (params?.status) searchParams.set("status", params.status);
   if (params?.search) searchParams.set("search", params.search);
+  if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+  if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
   const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
   return apiFetch<AdminReturnList>(`/api/v1/admin/returns${query}`);
 }
