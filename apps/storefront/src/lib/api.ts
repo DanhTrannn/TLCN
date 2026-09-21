@@ -52,6 +52,7 @@ export interface Variant {
   size_code: string;
   color_code: string;
   price_vnd: number;
+  cost_price_vnd?: number;
   stock_quantity: number;
   in_stock: boolean;
 }
@@ -213,11 +214,13 @@ export interface AdminOverview {
 }
 
 export interface AdminVariant {
+  variant_id?: number;
   public_id: string;
   sku: string;
   size_code: string;
   color_code: string;
   price_vnd: number;
+  cost_price_vnd?: number;
   is_active: boolean;
   on_hand: number;
 }
@@ -532,10 +535,17 @@ export function formatVnd(amount: number | null | undefined): string {
 export type {
   AdminInspectAndResolveInput,
   AdminInspectItemInput,
+  AdminProductVariant,
   AdminReturnList,
+  CreateInboundReceiptInput,
+  CreateInboundReceiptItemInput,
   CreateReturnItemInput,
   CreateReturnRequestInput,
   DeliveryStaff,
+  InboundReceiptDetail,
+  InboundReceiptItemDetail,
+  InboundReceiptListResponse,
+  InboundReceiptSummary,
   ReturnItemDetail,
   ReturnRequestDetail,
   ReturnRequestList,
@@ -561,4 +571,7 @@ export {
   reviewAdminReturn,
   receiveAdminReturn,
   inspectAndResolveAdminReturn,
+  getAdminInboundReceipts,
+  getAdminInboundReceiptDetail,
+  createAdminInboundReceipt,
 } from "./commerce";

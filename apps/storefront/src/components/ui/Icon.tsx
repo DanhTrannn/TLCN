@@ -4,6 +4,7 @@ export type IconName =
   | "alert"
   | "arrow-right"
   | "bag"
+  | "box"
   | "cash"
   | "check"
   | "chevron-right"
@@ -40,6 +41,7 @@ export function Icon({ name, size = 20, filled = false, ...props }: IconProps) {
     alert: <><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></>,
     "arrow-right": <><path d="M5 12h14" /><path d="m14 7 5 5-5 5" /></>,
     bag: <><path d="M5 8h14l-1 12H6L5 8Z" /><path d="M9 9V6a3 3 0 0 1 6 0v3" /></>,
+    box: <><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" /><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12v9" /></>,
     cash: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" /></>,
     check: <path d="m5 12 4 4L19 6" />,
     "chevron-right": <path d="m9 18 6-6-6-6" />,

@@ -670,3 +670,101 @@ export function inspectAndResolveAdminReturn(
   );
 }
 
+export interface AdminProductVariant {
+  variant_id?: number;
+  public_id: string;
+  sku: string;
+  size_code: string;
+  color_code: string;
+  price_vnd: number;
+  cost_price_vnd?: number;
+  is_active?: boolean;
+  on_hand?: number;
+}
+
+export interface InboundReceiptItemDetail {
+  item_id: number;
+  variant_id: number;
+  product_name: string;
+  sku: string;
+  size_code: string;
+  color_code: string;
+  quantity: number;
+  unit_cost_vnd: number;
+  total_cost_vnd: number;
+  previous_cost_price_vnd: number;
+  new_cost_price_vnd: number;
+}
+
+export interface InboundReceiptDetail {
+  receipt_id: number;
+  receipt_code: string;
+  batch_name: string;
+  status: string;
+  total_items_count: number;
+  total_cost_vnd: number;
+  notes?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  items: InboundReceiptItemDetail[];
+}
+
+export interface InboundReceiptSummary {
+  receipt_id: number;
+  receipt_code: string;
+  batch_name: string;
+  status: string;
+  total_items_count: number;
+  total_cost_vnd: number;
+  created_by_name?: string | null;
+  created_at: string;
+}
+
+export interface InboundReceiptListResponse {
+  items: InboundReceiptSummary[];
+  total: number;
+}
+
+export interface CreateInboundReceiptItemInput {
+  variant_id: number;
+  quantity: number;
+  unit_cost_vnd: number;
+}
+
+export interface CreateInboundReceiptInput {
+  batch_name: string;
+  notes?: string | null;
+  items: CreateInboundReceiptItemInput[];
+}
+
+export function getAdminInboundReceipts(params?: {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+  if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
+  const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+  return apiFetch<InboundReceiptListResponse>(`/api/v1/admin/inbound/receipts${query}`);
+}
+
+export function getAdminInboundReceiptDetail(receiptCode: string) {
+  return apiFetch<InboundReceiptDetail>(
+    `/api/v1/admin/inbound/receipts/${encodeURIComponent(receiptCode)}`
+  );
+}
+
+export function createAdminInboundReceipt(
+  input: CreateInboundReceiptInput,
+  idempotencyKey: string
+) {
+  return apiFetch<InboundReceiptDetail>("/api/v1/admin/inbound/receipts", {
+    method: "POST",
+    headers: mutationHeaders(idempotencyKey),
+    body: JSON.stringify(input),
+  });
+}
+
+
