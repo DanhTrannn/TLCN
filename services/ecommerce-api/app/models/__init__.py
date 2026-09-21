@@ -1,6 +1,7 @@
 from app.models.cart import Cart, CartItem
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer, CustomerCredential
+from app.models.inbound import InboundReceipt, InboundReceiptItem
 from app.models.inventory import Inventory
 from app.models.inventory_tx import InventoryTransaction
 from app.models.logistics import DeliveryStaff, Shipment
@@ -21,6 +22,8 @@ __all__ = [
     "Customer",
     "CustomerCredential",
     "DeliveryStaff",
+    "InboundReceipt",
+    "InboundReceiptItem",
     "Inventory",
     "InventoryTransaction",
     "Order",
