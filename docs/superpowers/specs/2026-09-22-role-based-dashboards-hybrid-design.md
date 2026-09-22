@@ -72,6 +72,20 @@ flowchart TB
     end
 ```
 
+### 3.1. Ma Trận Phân Quyền & Kiểm Soát Truy Cập Dashboard (RBAC & Least Privilege)
+
+Áp dụng nguyên tắc quyền hạn tối thiểu: Cấp cao (Admin / Ban Giám đốc) có toàn quyền xem tất cả các dashboard; các cấp quản lý bộ phận chỉ được truy cập duy nhất dashboard thuộc phạm vi trách nhiệm của mình và **tuyệt đối không được xem Dashboard cấp cao / Doanh thu toàn công ty**:
+
+| Tài khoản / Role Người Dùng | Ban Giám Đốc (CEO) | Kinh Doanh & Chiến Lược | Quản Lý Cửa Hàng (Store) | Kho & Chuỗi Cung Ứng | Vận Hành Đơn & Logistics | Marketing & Funnel | Kỹ Thuật & Dữ Liệu |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Admin / Ban Giám Đốc (`admin`)** | ✅ **Toàn quyền** | ✅ **Toàn quyền** | ✅ **Xem mọi store** | ✅ **Toàn quyền** | ✅ **Toàn quyền** | ✅ **Toàn quyền** | ✅ **Toàn quyền** |
+| **Trưởng phòng Kinh doanh (`sales_manager`)** | ❌ Chặn (403) | ✅ **Xem** | ✅ **Xem mọi store** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) |
+| **Trưởng phòng Marketing (`marketing_manager`)** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ✅ **Xem** | ❌ Chặn (403) |
+| **Trưởng Cửa hàng (`store_manager`)** | ❌ Chặn (403) | ❌ Chặn (403) | 🔒 **Chỉ xem Store của mình (RLS)** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) |
+| **Quản lý Kho (`inventory_manager`)** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ✅ **Xem** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) |
+| **Quản lý Đơn hàng (`operations_manager`)** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ✅ **Xem** | ❌ Chặn (403) | ❌ Chặn (403) |
+| **Quản trị Kỹ thuật (`system_admin`)** | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ❌ Chặn (403) | ✅ **Xem** |
+
 ---
 
 ## 4. Đặc Tả Chi Tiết Từng Hợp Phần
@@ -106,10 +120,14 @@ class AdminOverviewResponse(BaseModel):
 ```
 
 #### 4.1.2. Tạo Module `analytics` (`services/ecommerce-api/app/modules/analytics/`)
-Cung cấp các endpoint phục vụ báo cáo cho 7 roles:
-- `GET /api/v1/admin/analytics/overview`: Tổng hợp các chỉ số tài chính và vận hành toàn hệ thống.
-- `GET /api/v1/admin/analytics/role-metrics`: Trả về dữ liệu KPI phân theo từng role được chọn (`role=executive | sales | marketing | store | inventory | operations | system`).
-- `GET /api/v1/admin/analytics/sales-trend`: Chuỗi dữ liệu doanh thu, giá vốn, lợi nhuận theo ngày (từ `mart_sales_daily` hoặc OLTP fallback).
+Cung cấp các endpoint phục vụ báo cáo với bảo mật RBAC 2 lớp:
+- `GET /api/v1/admin/analytics/overview`: Tổng hợp các chỉ số tài chính và vận hành toàn hệ thống (yêu cầu quyền `admin`).
+- `GET /api/v1/admin/analytics/role-metrics?target_role=...&store_id=...`:
+  - **Kiểm tra quyền hạn nghiêm ngặt (Security Gate):**
+    - Nếu `actor.role == 'admin'`: Được phép truy cập mọi `target_role` và `store_id`.
+    - Nếu `actor.role != 'admin'`: Chỉ được phép yêu cầu đúng `target_role` khớp với role của mình. Nếu yêu cầu role khác hoặc role cấp cao (`executive`), trả về **HTTP 403 Forbidden**.
+    - Nếu `actor.role == 'store_manager'`: Bắt buộc khóa `store_id = actor.store_id`. Nếu cố tình truyền `store_id` khác hoặc để trống, trả về **HTTP 403 Forbidden**.
+- `GET /api/v1/admin/analytics/sales-trend`: Chuỗi dữ liệu doanh thu, giá vốn, lợi nhuận theo ngày (từ `mart_sales_daily` hoặc OLTP fallback; chỉ dành cho `admin` hoặc `sales_manager`).
 - `GET /api/v1/admin/analytics/superset-config`: Trả về cấu hình dashboard ID, Superset base URL (`http://localhost:8088`), và trạng thái khả dụng của Superset.
 
 ### 4.2. Hợp phần 2: Giao Diện Người Dùng Storefront Admin
@@ -124,7 +142,14 @@ Cung cấp các endpoint phục vụ báo cáo cho 7 roles:
 #### 4.2.2. Xây dựng Trung tâm Báo cáo BI Chuyên sâu `/admin/analytics` (`apps/storefront/src/app/admin/analytics/page.tsx`)
 - Thêm đường dẫn vào thanh điều hướng quản trị `AdminNav.tsx`:
   - `{ href: "/admin/analytics", label: "Báo cáo BI Lakehouse", icon: "bar-chart" }`.
-- Giao diện gồm 7 Tabs tương ứng với 7 Roles:
+- **Cơ chế hiển thị thích ứng theo Role (View Gate):**
+  - **Đối với tài khoản Quản trị viên (`admin`):**
+    - Hiển thị đầy đủ cả 7 Tabs tương ứng với 7 Roles.
+    - Cung cấp tính năng **"Mô phỏng góc nhìn Role" (Role View Switcher)** dạng Dropdown/Toggle để chuyển nhanh giữa các góc nhìn nhằm phục vụ demo và kiểm toán toàn diện.
+  - **Đối với tài khoản cấp bộ phận (`store_manager`, `marketing_manager`,...):**
+    - Tự động ẩn toàn bộ các Tab ngoài phạm vi quyền hạn; chỉ hiển thị duy nhất Tab nghiệp vụ của mình.
+    - Chặn và hiển thị thông báo lỗi `Access Denied` nếu cố tình truy cập qua URL parameter trái phép.
+- Giao diện 7 Tabs nghiệp vụ:
   1. **Tab "Ban Giám đốc (CEO)":**
      - KPI Summary Cards: Doanh thu, Lợi nhuận gộp, Gross Margin %, AOV, Tăng trưởng.
      - Biểu đồ xu hướng Doanh thu vs Giá vốn vs Lợi nhuận gộp theo chuỗi ngày.
@@ -133,7 +158,7 @@ Cung cấp các endpoint phục vụ báo cáo cho 7 roles:
      - Phân rã doanh số theo Cửa hàng và Khu vực.
      - Top 10 sản phẩm mang lại doanh thu và lợi nhuận cao nhất.
   3. **Tab "Quản lý Cửa hàng (Store)":**
-     - Dropdown chọn Cửa hàng (hỗ trợ kiểm tra quyền xem dữ liệu chi nhánh).
+     - Dropdown chọn Cửa hàng (khóa chặt theo RLS của tài khoản cửa hàng).
      - Doanh thu theo ca/ngày tại quầy, Top sản phẩm bán chạy tại quầy.
   4. **Tab "Kho & Chuỗi cung ứng":**
      - Tổng tồn kho toàn hệ thống (Kho tổng trung tâm vs Các chi nhánh).
