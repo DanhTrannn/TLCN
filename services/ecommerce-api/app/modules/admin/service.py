@@ -143,6 +143,7 @@ def list_products(db: Session, search: str | None = None) -> list[AdminProductRe
         for variant, on_hand in variant_rows:
             variants_by_product[variant.product_id].append(
                 AdminVariantResponse(
+                    variant_id=variant.variant_id,
                     public_id=str(variant.public_id),
                     sku=variant.sku,
                     size_code=variant.size_code,

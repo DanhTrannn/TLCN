@@ -392,7 +392,7 @@ def test_list_and_detail_endpoints(admin_client):
 
 
 def test_admin_products_includes_cost_price(admin_client):
-    """Verify AdminVariantResponse includes cost_price_vnd."""
+    """Verify AdminVariantResponse includes cost_price_vnd and variant_id."""
     res = admin_client.get("/api/v1/admin/products")
     assert res.status_code == 200
     products = res.json()
@@ -400,6 +400,8 @@ def test_admin_products_includes_cost_price(admin_client):
     variant = products[0]["variants"][0]
     assert "cost_price_vnd" in variant
     assert variant["cost_price_vnd"] == 100000
+    assert "variant_id" in variant
+    assert variant["variant_id"] == 1
 
 
 def test_long_batch_name_truncation(admin_client, test_db):

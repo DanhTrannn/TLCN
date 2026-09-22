@@ -20,6 +20,7 @@ class AdminOverviewResponse(BaseModel):
 
 
 class AdminVariantResponse(BaseModel):
+    variant_id: int
     public_id: str
     sku: str
     size_code: str
