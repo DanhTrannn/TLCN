@@ -790,4 +790,142 @@ export interface AdminOverview {
   return_orders_count?: number;
 }
 
+export interface ExecutiveMetricsResponse {
+  role: "executive";
+  gmv_vnd: number;
+  net_revenue_vnd: number;
+  cogs_vnd: number;
+  gross_profit_vnd: number;
+  gross_margin_percent: number;
+  total_orders: number;
+  aov_vnd: number;
+  boom_rate_percent: number;
+  return_rate_percent: number;
+}
 
+export interface StoreContribution {
+  store_id: number | null;
+  store_name: string;
+  revenue_vnd: number;
+  order_count: number;
+}
+
+export interface TopProductMetric {
+  product_id: number;
+  product_name: string;
+  units_sold: number;
+  revenue_vnd: number;
+}
+
+export interface CategoryShareMetric {
+  category_id: number;
+  category_name: string;
+  revenue_vnd: number;
+  share_percent: number;
+}
+
+export interface SalesMetricsResponse {
+  role: "sales";
+  store_contributions: StoreContribution[];
+  top_selling_products: TopProductMetric[];
+  category_shares: CategoryShareMetric[];
+}
+
+export interface FunnelStep {
+  step_name: string;
+  count: number;
+  conversion_rate_percent: number;
+}
+
+export interface MarketingMetricsResponse {
+  role: "marketing";
+  funnel_steps: FunnelStep[];
+  conversion_rate_percent: number;
+  total_visitors: number;
+  total_purchases: number;
+}
+
+export interface StoreMetricsResponse {
+  role: "store";
+  store_id: number | null;
+  store_name: string | null;
+  store_revenue_today_vnd: number;
+  store_orders_count: number;
+  target_achievement_percent: number;
+  low_stock_at_store_count: number;
+}
+
+export interface InventoryMetricsResponse {
+  role: "inventory";
+  total_inventory_value_vnd: number;
+  warehouse_stock_units: number;
+  store_stock_units: number;
+  inbound_batches_count: number;
+  stockout_count: number;
+}
+
+export interface OperationsMetricsResponse {
+  role: "operations";
+  pending_fulfillment_count: number;
+  shipping_sla_violations_count: number;
+  boom_orders_count: number;
+  return_requests_count: number;
+}
+
+export interface ReconciliationVariance {
+  metric_name: string;
+  oltp_value: number;
+  lakehouse_value: number;
+  variance_percent: number;
+}
+
+export interface SystemMetricsResponse {
+  role: "system";
+  pipeline_status: string;
+  data_freshness_sla_minutes: number;
+  reconciliation_variance: ReconciliationVariance[];
+}
+
+export type RoleMetricsResponse =
+  | ExecutiveMetricsResponse
+  | SalesMetricsResponse
+  | MarketingMetricsResponse
+  | StoreMetricsResponse
+  | InventoryMetricsResponse
+  | OperationsMetricsResponse
+  | SystemMetricsResponse;
+
+export interface DailySalesTrendPoint {
+  date: string;
+  revenue_vnd: number;
+  cogs_vnd: number;
+  profit_vnd: number;
+  orders_count: number;
+}
+
+export interface SalesTrendResponse {
+  days: number;
+  points: DailySalesTrendPoint[];
+}
+
+export interface SupersetConfigResponse {
+  superset_url: string;
+  enabled: boolean;
+  guest_token_enabled: boolean;
+}
+
+export function getAdminRoleMetrics<T = RoleMetricsResponse>(role: string, storeId?: number): Promise<T> {
+  const params = new URLSearchParams({ target_role: role });
+  if (storeId !== undefined && storeId !== null) {
+    params.set("store_id", String(storeId));
+  }
+  return apiFetch<T>(`/api/v1/admin/analytics/role-metrics?${params.toString()}`);
+}
+
+export function getAdminSalesTrend(days: number = 30): Promise<SalesTrendResponse> {
+  return apiFetch<SalesTrendResponse>(`/api/v1/admin/analytics/sales-trend?days=${encodeURIComponent(days)}`);
+}
+
+export function getSupersetConfig(): Promise<SupersetConfigResponse> {
+  return apiFetch<SupersetConfigResponse>("/api/v1/admin/analytics/superset-config");
+}

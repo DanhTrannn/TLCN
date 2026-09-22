@@ -1,14 +1,25 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { AdminNav } from "@/components/AdminNav";
 import { useAuth } from "@/lib/auth";
 
+const STAFF_ROLES = [
+  "admin",
+  "store_manager",
+  "sales_manager",
+  "marketing_manager",
+  "inventory_manager",
+  "operations_manager",
+  "system_admin",
+];
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { customer, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !customer) {
@@ -24,26 +35,31 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (customer.role === "store_manager") {
-    return (
-      <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
-        <section className="surface-card p-8 text-center">
-          <h1 className="admin-heading">Không có quyền truy cập</h1>
-          <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên. Vui lòng truy cập <a className="text-accent hover:underline" href="/store">Cửa hàng</a>.</p>
-        </section>
-      </main>
-    );
-  }
+  const isAnalytics = pathname.startsWith("/admin/analytics");
+  const isStaff = STAFF_ROLES.includes(customer.role);
 
-  if (customer.role !== "admin") {
-    return (
-      <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
-        <section className="surface-card p-8 text-center">
-          <h1 className="admin-heading">Không có quyền truy cập</h1>
-          <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên.</p>
-        </section>
-      </main>
-    );
+  if (!isAnalytics || !isStaff) {
+    if (customer.role === "store_manager") {
+      return (
+        <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
+          <section className="surface-card p-8 text-center">
+            <h1 className="admin-heading">Không có quyền truy cập</h1>
+            <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên. Vui lòng truy cập <a className="text-accent hover:underline" href="/store">Cửa hàng</a>.</p>
+          </section>
+        </main>
+      );
+    }
+
+    if (customer.role !== "admin") {
+      return (
+        <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
+          <section className="surface-card p-8 text-center">
+            <h1 className="admin-heading">Không có quyền truy cập</h1>
+            <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên.</p>
+          </section>
+        </main>
+      );
+    }
   }
 
   return (

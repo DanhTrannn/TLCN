@@ -8,7 +8,16 @@ export interface Customer {
   public_id: string;
   display_name: string;
   email: string;
-  role: "customer" | "admin" | "store_manager";
+  role:
+    | "customer"
+    | "admin"
+    | "store_manager"
+    | "sales_manager"
+    | "marketing_manager"
+    | "inventory_manager"
+    | "operations_manager"
+    | "system_admin"
+    | (string & {});
   store_id?: number | null;
   store_name?: string | null;
   is_cod_blocked?: boolean;
@@ -561,20 +570,36 @@ export type {
   AdminInspectItemInput,
   AdminProductVariant,
   AdminReturnList,
+  CategoryShareMetric,
   CreateInboundReceiptInput,
   CreateInboundReceiptItemInput,
   CreateReturnItemInput,
   CreateReturnRequestInput,
+  DailySalesTrendPoint,
   DeliveryStaff,
+  ExecutiveMetricsResponse,
+  FunnelStep,
   InboundReceiptDetail,
   InboundReceiptItemDetail,
   InboundReceiptListResponse,
   InboundReceiptSummary,
+  InventoryMetricsResponse,
+  MarketingMetricsResponse,
+  OperationsMetricsResponse,
+  ReconciliationVariance,
   ReturnItemDetail,
   ReturnRequestDetail,
   ReturnRequestList,
   ReturnRequestSummary,
+  RoleMetricsResponse,
+  SalesMetricsResponse,
+  SalesTrendResponse,
   ShipmentDetail,
+  StoreContribution,
+  StoreMetricsResponse,
+  SupersetConfigResponse,
+  SystemMetricsResponse,
+  TopProductMetric,
 } from "./commerce";
 export {
   getDeliveryStaffList,
@@ -598,4 +623,7 @@ export {
   getAdminInboundReceipts,
   getAdminInboundReceiptDetail,
   createAdminInboundReceipt,
+  getAdminRoleMetrics,
+  getAdminSalesTrend,
+  getSupersetConfig,
 } from "./commerce";

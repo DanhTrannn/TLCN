@@ -7,6 +7,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 
 const links: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
   { href: "/admin", label: "Tổng quan", icon: "dashboard" },
+  { href: "/admin/analytics", label: "Báo cáo BI Lakehouse", icon: "bar-chart" },
   { href: "/admin/products", label: "Sản phẩm", icon: "package" },
   { href: "/admin/inbound", label: "Nhập kho sản xuất", icon: "box" },
   { href: "/admin/orders", label: "Đơn hàng", icon: "receipt" },
