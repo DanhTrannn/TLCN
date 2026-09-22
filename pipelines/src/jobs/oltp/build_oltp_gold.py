@@ -90,7 +90,7 @@ def main() -> None:
 
         # 3. Build and persist Facts
         print(f"[{args.run_id}] Building fact_order...")
-        fact_order = build_fact_order(silver_orders, silver_order_items, args.run_id)
+        fact_order = build_fact_order(silver_orders, silver_order_items, args.run_id, silver_product_variants)
         fact_order.writeTo("lakehouse.gold.fact_order").overwritePartitions()
 
         print(f"[{args.run_id}] Building fact_order_item...")

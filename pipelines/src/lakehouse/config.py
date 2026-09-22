@@ -28,6 +28,7 @@ MUTABLE_TABLES = frozenset({
     "shipments",
     "return_requests",
     "return_items",
+    "inbound_receipts",
 })
 
 APPEND_ONLY_TABLES = frozenset({
@@ -36,6 +37,7 @@ APPEND_ONLY_TABLES = frozenset({
     "order_status_history",
     "refunds",
     "inventory_transactions",
+    "inbound_receipt_items",
 })
 
 KNOWN_TABLES = MUTABLE_TABLES | APPEND_ONLY_TABLES

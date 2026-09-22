@@ -288,13 +288,33 @@ def build_fact_order(
     silver_orders: DataFrame,
     silver_order_items: DataFrame,
     run_id: str,
+    silver_product_variants: DataFrame | None = None,
 ) -> DataFrame:
-    cost_per_item = F.col("quantity") * F.coalesce(F.col("cost_price_vnd"), F.lit(0))
+    oi = silver_order_items.alias("oi")
+    if silver_product_variants is not None:
+        pv = silver_product_variants.alias("pv")
+        oi_joined = oi.join(pv, F.col("oi.variant_id") == F.col("pv.variant_id"), "left")
+    else:
+        oi_joined = oi
+
+    has_oi_cost = "cost_price_vnd" in silver_order_items.columns
+    has_pv_cost = silver_product_variants is not None and "cost_price_vnd" in silver_product_variants.columns
+
+    if has_oi_cost and has_pv_cost:
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.col("pv.cost_price_vnd"), F.lit(0))
+    elif has_oi_cost:
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0))
+    elif has_pv_cost:
+        unit_cost = F.coalesce(F.col("pv.cost_price_vnd"), F.lit(0))
+    else:
+        unit_cost = F.lit(0)
+
+    cost_per_item = F.col("oi.quantity") * unit_cost
     items_agg = (
-        silver_order_items.groupBy("order_id")
+        oi_joined.groupBy("oi.order_id")
         .agg(
             F.sum(cost_per_item).alias("total_cost_vnd"),
-            F.sum("quantity").alias("total_quantity"),
+            F.sum("oi.quantity").alias("total_quantity"),
         )
     )
 
@@ -373,20 +393,33 @@ def build_fact_order_item(
     oi = silver_order_items.alias("oi")
     o = silver_orders.alias("o")
 
+    base_df = oi.join(o, F.col("oi.order_id") == F.col("o.order_id"), "left")
+
+    if silver_product_variants is not None:
+        pv = silver_product_variants.alias("pv")
+        base_df = base_df.join(pv, F.col("oi.variant_id") == F.col("pv.variant_id"), "left")
+
     if "product_id" in silver_order_items.columns:
         product_key_col = F.col("oi.product_id")
-        base_df = oi.join(o, F.col("oi.order_id") == F.col("o.order_id"), "left")
-    elif silver_product_variants is not None:
-        pv = silver_product_variants.alias("pv")
-        oi_pv = oi.join(pv, F.col("oi.variant_id") == F.col("pv.variant_id"), "left")
+    elif silver_product_variants is not None and "product_id" in silver_product_variants.columns:
         product_key_col = F.coalesce(F.col("pv.product_id"), F.lit(0).cast("bigint"))
-        base_df = oi_pv.join(o, F.col("oi.order_id") == F.col("o.order_id"), "left")
     else:
         product_key_col = F.lit(0).cast("bigint")
-        base_df = oi.join(o, F.col("oi.order_id") == F.col("o.order_id"), "left")
+
+    has_oi_cost = "cost_price_vnd" in silver_order_items.columns
+    has_pv_cost = silver_product_variants is not None and "cost_price_vnd" in silver_product_variants.columns
+
+    if has_oi_cost and has_pv_cost:
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.col("pv.cost_price_vnd"), F.lit(0))
+    elif has_oi_cost:
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0))
+    elif has_pv_cost:
+        unit_cost = F.coalesce(F.col("pv.cost_price_vnd"), F.lit(0))
+    else:
+        unit_cost = F.lit(0).cast("bigint")
 
     item_total = F.col("oi.quantity") * F.col("oi.unit_price_vnd")
-    item_cost = F.col("oi.quantity") * F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0))
+    item_cost = F.col("oi.quantity") * unit_cost
     item_profit = item_total - item_cost
 
     channel_col = (
@@ -410,7 +443,7 @@ def build_fact_order_item(
             F.col("o.status").alias("order_status"),
             F.col("oi.quantity"),
             F.col("oi.unit_price_vnd"),
-            F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0)).alias("unit_cost_vnd"),
+            unit_cost.alias("unit_cost_vnd"),
             item_total.alias("item_total_vnd"),
             item_cost.alias("item_cost_vnd"),
             item_profit.alias("item_profit_vnd"),

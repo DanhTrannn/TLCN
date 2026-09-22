@@ -132,4 +132,14 @@ tables:
     pk: transaction_id
     mutability: append_only
     silver_table: silver_inventory_transactions
+  - name: inbound_receipts
+    cursor_field: updated_at
+    pk: receipt_id
+    mutability: mutable
+    silver_table: silver_inbound_receipts
+  - name: inbound_receipt_items
+    cursor_field: created_at
+    pk: item_id
+    mutability: append_only
+    silver_table: silver_inbound_receipt_items
 
