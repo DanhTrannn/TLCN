@@ -43,6 +43,13 @@ function VariantEditor({ variant, onSaved }: { variant: AdminVariant; onSaved: (
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const costPrice = variant.cost_price_vnd ?? 0;
+  const currentPrice = Number(price) || 0;
+  const marginPercent =
+    currentPrice > 0 && costPrice > 0
+      ? (((currentPrice - costPrice) / currentPrice) * 100).toFixed(1)
+      : null;
+
   async function savePrice() {
     const value = Number(price);
     if (!Number.isInteger(value) || value < 0) {
@@ -92,15 +99,51 @@ function VariantEditor({ variant, onSaved }: { variant: AdminVariant; onSaved: (
           {variant.is_active ? "Đang bán" : "Ngừng bán"}
         </button>
       </div>
-      <div className="mt-3">
-        <label className="text-xs text-muted">
-          Giá bán
-          <div className="mt-1 flex gap-2">
-            <input className="min-w-0 flex-1 form-control mt-0 min-h-11" inputMode="numeric" onChange={(event) => setPrice(event.target.value)} value={price} />
-            <button className="button-secondary min-h-11 rounded-xl px-3" disabled={busy} onClick={savePrice} type="button">Lưu giá</button>
+
+      <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div>
+          <label className="text-xs text-muted" htmlFor={`price-${variant.public_id}`}>
+            Giá bán
+          </label>
+          <div className="mt-1 flex gap-1.5">
+            <input
+              id={`price-${variant.public_id}`}
+              className="min-w-0 flex-1 form-control mt-0 min-h-10 text-sm"
+              inputMode="numeric"
+              onChange={(event) => setPrice(event.target.value)}
+              value={price}
+            />
+            <button
+              className="button-secondary min-h-10 rounded-xl px-2.5 text-xs"
+              disabled={busy}
+              onClick={savePrice}
+              type="button"
+            >
+              Lưu
+            </button>
           </div>
-        </label>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">Giá vốn (COGS)</span>
+            {marginPercent !== null ? (
+              <span className="text-[11px] font-medium text-emerald-700">
+                Lãi gộp {marginPercent}%
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-1 flex min-h-10 items-center justify-between rounded-xl border border-line bg-slate-50/70 px-3 py-1.5">
+            <span className="text-sm font-semibold text-slate-800">
+              {formatVnd(costPrice)}
+            </span>
+            <span className="rounded-md bg-white border border-line px-1.5 py-0.5 text-[10px] font-medium text-slate-500 shadow-2xs">
+              {costPrice > 0 ? "Bình quân" : "Chưa có"}
+            </span>
+          </div>
+        </div>
       </div>
+
       {error ? <p className="mt-2 text-xs text-accent">{error}</p> : null}
     </div>
   );
