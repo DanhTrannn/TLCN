@@ -214,7 +214,42 @@ def setup_analytics_db(monkeypatch):
         status="succeeded",
         attempted_at=now - timedelta(days=2),
     )
-    db.add_all([item1, pay1])
+    # Order created today for store 1 to verify today's metrics
+    ord_today = Order(
+        order_number="ORD-AN-TODAY",
+        customer_id=80,
+        checkout_idempotency_key=f"chk-{uuid.uuid4().hex[:30]}",
+        status="completed",
+        subtotal_vnd=300000,
+        discount_amount_vnd=0,
+        shipping_fee_vnd=0,
+        total_vnd=300000,
+        store_id=1,
+        receiver_name="Người Nhận Hôm Nay",
+        receiver_phone="0901234567",
+        shipping_address_text="123 Lê Lợi",
+        created_at=now,
+    )
+    db.add(ord_today)
+    db.flush()
+
+    item_today = OrderItem(
+        public_id=uuid7(),
+        order_id=ord_today.order_id,
+        variant_id=1,
+        product_public_id_snapshot=uuid7(),
+        category_code_snapshot="AO-NAM",
+        category_name_snapshot="Áo Nam",
+        product_name_snapshot="Áo Polo Nam",
+        sku_snapshot="APN-001",
+        size_code_snapshot="L",
+        color_code_snapshot="DEN",
+        unit_price_vnd=300000,
+        cost_price_vnd=100000,
+        quantity=1,
+        line_total_vnd=300000,
+    )
+    db.add_all([item1, pay1, item_today])
     db.commit()
 
     yield testing_session
@@ -238,21 +273,30 @@ def test_admin_can_access_all_roles(setup_analytics_db):
     admin = db.execute(select(Customer).where(Customer.role == "admin")).scalar_one()
     client = make_client_for_user(admin)
 
-    roles = [
-        "executive", "admin",
-        "sales", "sales_manager",
-        "marketing", "marketing_manager",
-        "store", "store_manager",
-        "inventory", "inventory_manager",
-        "operations", "operations_manager",
-        "system", "system_admin",
-    ]
+    role_expectations = {
+        "executive": ("executive", ["gmv_vnd", "net_revenue_vnd", "gross_margin_percent"]),
+        "admin": ("executive", ["gmv_vnd", "net_revenue_vnd", "gross_margin_percent"]),
+        "sales": ("sales", ["top_selling_products", "store_contributions", "category_shares"]),
+        "sales_manager": ("sales", ["top_selling_products", "store_contributions", "category_shares"]),
+        "marketing": ("marketing", ["funnel_steps", "conversion_rate_percent"]),
+        "marketing_manager": ("marketing", ["funnel_steps", "conversion_rate_percent"]),
+        "store": ("store", ["store_revenue_today_vnd", "low_stock_at_store_count"]),
+        "store_manager": ("store", ["store_revenue_today_vnd", "low_stock_at_store_count"]),
+        "inventory": ("inventory", ["warehouse_stock_units", "total_inventory_value_vnd"]),
+        "inventory_manager": ("inventory", ["warehouse_stock_units", "total_inventory_value_vnd"]),
+        "operations": ("operations", ["pending_fulfillment_count", "boom_orders_count"]),
+        "operations_manager": ("operations", ["pending_fulfillment_count", "boom_orders_count"]),
+        "system": ("system", ["reconciliation_variance", "pipeline_status"]),
+        "system_admin": ("system", ["reconciliation_variance", "pipeline_status"]),
+    }
 
-    for r in roles:
-        res = client.get(f"/api/v1/admin/analytics/role-metrics?target_role={r}")
-        assert res.status_code == 200, f"Admin failed to access role {r}: {res.text}"
+    for target_role, (expected_role, expected_fields) in role_expectations.items():
+        res = client.get(f"/api/v1/admin/analytics/role-metrics?target_role={target_role}")
+        assert res.status_code == 200, f"Admin failed to access role {target_role}: {res.text}"
         data = res.json()
-        assert "role" in data
+        assert data["role"] == expected_role, f"Expected role {expected_role} for {target_role}, got {data['role']}"
+        for field in expected_fields:
+            assert field in data, f"Field {field} missing from {target_role} response: {data}"
 
 
 def test_admin_can_access_any_store(setup_analytics_db):
@@ -287,12 +331,18 @@ def test_store_manager_access_own_store(setup_analytics_db):
     # Explicit own store_id
     res = client.get("/api/v1/admin/analytics/role-metrics?target_role=store&store_id=1")
     assert res.status_code == 200
-    assert res.json()["store_id"] == 1
+    data = res.json()
+    assert data["store_id"] == 1
+    assert data["store_revenue_today_vnd"] == 300000
+    assert data["store_orders_count"] == 1
 
     # Omitted store_id defaults to actor.store_id
     res_default = client.get("/api/v1/admin/analytics/role-metrics?target_role=store")
     assert res_default.status_code == 200
-    assert res_default.json()["store_id"] == 1
+    data_default = res_default.json()
+    assert data_default["store_id"] == 1
+    assert data_default["store_revenue_today_vnd"] == 300000
+    assert data_default["store_orders_count"] == 1
 
 
 def test_store_manager_access_other_store_forbidden(setup_analytics_db):
@@ -303,6 +353,32 @@ def test_store_manager_access_other_store_forbidden(setup_analytics_db):
     res = client.get("/api/v1/admin/analytics/role-metrics?target_role=store&store_id=2")
     assert res.status_code == 403
     assert "Bạn chỉ được phép xem dữ liệu cửa hàng do mình phụ trách" in res.text
+
+
+def test_store_manager_without_store_id_forbidden(setup_analytics_db):
+    db = setup_analytics_db()
+    unassigned_mgr = Customer(
+        customer_id=99,
+        public_id=uuid7(),
+        role="store_manager",
+        display_name="Unassigned Store Mgr",
+        store_id=None,
+        status="active",
+    )
+    db.add(unassigned_mgr)
+    db.commit()
+
+    client = make_client_for_user(unassigned_mgr)
+
+    # Omitting store_id -> 403 Forbidden
+    res1 = client.get("/api/v1/admin/analytics/role-metrics?target_role=store")
+    assert res1.status_code == 403
+    assert "Bạn chỉ được phép xem dữ liệu cửa hàng do mình phụ trách" in res1.text
+
+    # Passing explicit store_id -> 403 Forbidden
+    res2 = client.get("/api/v1/admin/analytics/role-metrics?target_role=store&store_id=1")
+    assert res2.status_code == 403
+    assert "Bạn chỉ được phép xem dữ liệu cửa hàng do mình phụ trách" in res2.text
 
 
 def test_department_managers_role_isolation(setup_analytics_db):

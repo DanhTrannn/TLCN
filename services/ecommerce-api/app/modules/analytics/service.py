@@ -67,7 +67,7 @@ def validate_role_access(actor: Customer, target_role: str, store_id: int | None
         raise AppError(FORBIDDEN, "Bạn không có quyền truy cập dữ liệu của vai trò này.", status_code=403)
 
     if actor.role == "store_manager":
-        if store_id is not None and actor.store_id is not None and store_id != actor.store_id:
+        if actor.store_id is None or (store_id is not None and store_id != actor.store_id):
             raise AppError(
                 FORBIDDEN,
                 "Bạn chỉ được phép xem dữ liệu cửa hàng do mình phụ trách.",
@@ -79,6 +79,12 @@ def resolve_effective_store_id(actor: Customer, target_role: str, store_id: int 
     """Resolve effective store_id with defaulting for store_manager."""
     target_canonical = ROLE_CANONICAL_MAP.get(target_role.strip().lower() if target_role else "")
     if target_canonical == "store" and actor.role == "store_manager":
+        if actor.store_id is None:
+            raise AppError(
+                FORBIDDEN,
+                "Bạn chỉ được phép xem dữ liệu cửa hàng do mình phụ trách.",
+                status_code=403,
+            )
         if store_id is None:
             return actor.store_id
     return store_id
@@ -179,6 +185,8 @@ def get_sales_metrics(db: Session) -> SalesMetricsResponse:
             )
         )
 
+    valid_order_statuses = ("paid", "shipping", "delivered", "completed")
+
     top_products_query = (
         select(
             Product.product_id,
@@ -188,6 +196,8 @@ def get_sales_metrics(db: Session) -> SalesMetricsResponse:
         )
         .join(ProductVariant, ProductVariant.product_id == Product.product_id)
         .join(OrderItem, OrderItem.variant_id == ProductVariant.variant_id)
+        .join(Order, Order.order_id == OrderItem.order_id)
+        .where(Order.status.in_(valid_order_statuses))
         .group_by(Product.product_id, Product.name)
         .order_by(func.sum(OrderItem.quantity * OrderItem.unit_price_vnd).desc())
         .limit(10)
@@ -211,6 +221,8 @@ def get_sales_metrics(db: Session) -> SalesMetricsResponse:
         .join(Product, Product.category_id == Category.category_id)
         .join(ProductVariant, ProductVariant.product_id == Product.product_id)
         .join(OrderItem, OrderItem.variant_id == ProductVariant.variant_id)
+        .join(Order, Order.order_id == OrderItem.order_id)
+        .where(Order.status.in_(valid_order_statuses))
         .group_by(Category.category_id, Category.name)
     )
     cat_rows = db.execute(cat_shares_query).all()
@@ -283,18 +295,29 @@ def get_store_metrics(db: Session, store_id: int | None) -> StoreMetricsResponse
         if st:
             store_name = st.name
 
-    store_rev = 0
-    store_orders = 0
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    valid_store_statuses = ("paid", "shipping", "delivered", "completed")
+
+    store_rev_today = 0
+    store_orders_today = 0
     if store_id is not None:
-        store_rev = db.scalar(
-            select(func.coalesce(func.sum(Order.total_vnd), 0)).where(Order.store_id == store_id)
+        store_rev_today = db.scalar(
+            select(func.coalesce(func.sum(Order.total_vnd), 0)).where(
+                Order.store_id == store_id,
+                Order.created_at >= today_start,
+                Order.status.in_(valid_store_statuses),
+            )
         ) or 0
-        store_orders = db.scalar(
-            select(func.count()).select_from(Order).where(Order.store_id == store_id)
+        store_orders_today = db.scalar(
+            select(func.count()).select_from(Order).where(
+                Order.store_id == store_id,
+                Order.created_at >= today_start,
+                Order.status.in_(valid_store_statuses),
+            )
         ) or 0
 
     daily_target = 20000000
-    target_pct = round(min(150.0, (int(store_rev) / daily_target) * 100), 1) if store_rev > 0 else 0.0
+    target_pct = round((int(store_rev_today) / daily_target) * 100, 1) if daily_target > 0 else 0.0
 
     low_stock_count = 0
     if store_id is not None:
@@ -309,8 +332,8 @@ def get_store_metrics(db: Session, store_id: int | None) -> StoreMetricsResponse
         role="store",
         store_id=store_id,
         store_name=store_name,
-        store_revenue_today_vnd=int(store_rev),
-        store_orders_count=int(store_orders),
+        store_revenue_today_vnd=int(store_rev_today),
+        store_orders_count=int(store_orders_today),
         target_achievement_percent=target_pct,
         low_stock_at_store_count=int(low_stock_count),
     )
