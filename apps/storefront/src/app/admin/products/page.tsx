@@ -128,9 +128,15 @@ function VariantEditor({ variant, onSaved }: { variant: AdminVariant; onSaved: (
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted">Giá vốn (COGS)</span>
             {marginPercent !== null ? (
-              <span className="text-[11px] font-medium text-emerald-700">
-                Lãi gộp {marginPercent}%
-              </span>
+              Number(marginPercent) >= 0 ? (
+                <span className="text-[11px] font-medium text-emerald-700">
+                  Lãi gộp {marginPercent}%
+                </span>
+              ) : (
+                <span className="text-[11px] font-medium text-rose-600">
+                  Lỗ gộp {Math.abs(Number(marginPercent)).toFixed(1)}%
+                </span>
+              )
             ) : null}
           </div>
           <div className="mt-1 flex min-h-10 items-center justify-between rounded-xl border border-line bg-slate-50/70 px-3 py-1.5">
