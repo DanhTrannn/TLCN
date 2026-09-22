@@ -769,4 +769,25 @@ export function createAdminInboundReceipt(
   });
 }
 
+export interface AdminOverview {
+  active_products: number;
+  active_variants: number;
+  low_stock_variants: number;
+  customers: number;
+  paid_orders: number;
+  confirmed_orders: number;
+  completed_orders: number;
+  cancelled_orders: number;
+  total_reviews: number;
+  active_coupons: number;
+  gross_revenue_vnd: number;
+  refunded_amount_vnd: number;
+  net_revenue_vnd: number;
+  cogs_vnd?: number;
+  gross_profit_vnd?: number;
+  gross_margin_percent?: number;
+  boom_orders_count?: number;
+  return_orders_count?: number;
+}
+
 

@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { ApiError, formatVnd, getAdminOverview, type AdminOverview } from "@/lib/api";
+import {
+  ApiError,
+  formatMetricVnd,
+  formatVnd,
+  getAdminOverview,
+  type AdminOverview,
+} from "@/lib/api";
 
 const orderStages = [
   { key: "paid_orders", label: "Chờ xác nhận", tone: "bg-warning", description: "Đã thanh toán" },
@@ -15,24 +21,6 @@ const orderStages = [
 
 const metricValueClasses =
   "mt-4 max-w-full truncate whitespace-nowrap text-[clamp(1.25rem,1.8vw,1.75rem)] font-semibold leading-tight tracking-[-0.03em] tabular-nums";
-
-const compactVndFormatter = new Intl.NumberFormat("vi-VN", {
-  maximumFractionDigits: 1,
-});
-
-function formatMetricVnd(amount: number): string {
-  const absoluteAmount = Math.abs(amount);
-  if (absoluteAmount >= 1_000_000_000_000) {
-    return `${compactVndFormatter.format(amount / 1_000_000_000_000)} nghìn tỷ ₫`;
-  }
-  if (absoluteAmount >= 1_000_000_000) {
-    return `${compactVndFormatter.format(amount / 1_000_000_000)} tỷ ₫`;
-  }
-  if (absoluteAmount >= 1_000_000) {
-    return `${compactVndFormatter.format(amount / 1_000_000)} triệu ₫`;
-  }
-  return formatVnd(amount);
-}
 
 export default function AdminOverviewPage() {
   const [data, setData] = useState<AdminOverview | null>(null);
@@ -53,6 +41,9 @@ export default function AdminOverviewPage() {
     { label: "Tổng đánh giá", value: data.total_reviews, href: "/admin/reviews", icon: "star" },
   ];
 
+  const boomCount = data.boom_orders_count ?? 0;
+  const returnCount = data.return_orders_count ?? 0;
+
   return (
     <section className="space-y-7">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -67,12 +58,43 @@ export default function AdminOverviewPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <article className="min-w-0 overflow-hidden rounded-2xl bg-ink p-6 text-paper shadow-lift">
           <div className="flex items-center justify-between"><p className="text-sm text-paper/70">Doanh thu thuần</p><Icon className="text-paper/65" name="dashboard" /></div>
           <p aria-label={formatVnd(data.net_revenue_vnd)} className={metricValueClasses} title={formatVnd(data.net_revenue_vnd)}>{formatMetricVnd(data.net_revenue_vnd)}</p>
           <p className="mt-4 text-xs text-paper/60">Đã thu trừ full refund</p>
         </article>
+
+        <article className="admin-panel min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted">Giá vốn hàng bán (COGS)</p>
+            <Icon className="text-muted" name="box" size={18} />
+          </div>
+          <p aria-label={formatVnd(data.cogs_vnd ?? 0)} className={metricValueClasses} title={formatVnd(data.cogs_vnd ?? 0)}>
+            {formatMetricVnd(data.cogs_vnd ?? 0)}
+          </p>
+          <p className="mt-4 text-xs text-muted">Bình quân gia quyền di động</p>
+        </article>
+
+        <article className="admin-panel min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted">Lợi nhuận gộp</p>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                (data.gross_margin_percent ?? 0) >= 0
+                  ? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "border border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-400"
+              }`}
+            >
+              Tỷ suất {data.gross_margin_percent ?? 0}%
+            </span>
+          </div>
+          <p aria-label={formatVnd(data.gross_profit_vnd ?? 0)} className={metricValueClasses} title={formatVnd(data.gross_profit_vnd ?? 0)}>
+            {formatMetricVnd(data.gross_profit_vnd ?? 0)}
+          </p>
+          <p className="mt-4 text-xs text-muted">Doanh thu thuần trừ giá vốn</p>
+        </article>
+
         <article className="admin-panel min-w-0 overflow-hidden"><p className="text-sm text-muted">Tổng đã thu</p><p aria-label={formatVnd(data.gross_revenue_vnd)} className={metricValueClasses} title={formatVnd(data.gross_revenue_vnd)}>{formatMetricVnd(data.gross_revenue_vnd)}</p><p className="mt-4 text-xs text-muted">Payment thành công</p></article>
         <article className="admin-panel min-w-0 overflow-hidden"><p className="text-sm text-muted">Đã hoàn tiền</p><p aria-label={formatVnd(data.refunded_amount_vnd)} className={`${metricValueClasses} text-danger`} title={formatVnd(data.refunded_amount_vnd)}>{formatMetricVnd(data.refunded_amount_vnd)}</p><p className="mt-4 text-xs text-muted">Full refund của đơn hủy</p></article>
         <article className="admin-panel min-w-0 overflow-hidden"><p className="text-sm text-muted">Khách hàng</p><p className={metricValueClasses}>{data.customers.toLocaleString("vi-VN")}</p><p className="mt-4 text-xs text-muted">Tài khoản customer</p></article>
@@ -93,8 +115,48 @@ export default function AdminOverviewPage() {
         <article className="admin-panel">
           <h2 className="text-xl font-semibold">Cần xử lý</h2><p className="mt-1 text-sm text-muted">Ưu tiên trong phiên làm việc này.</p>
           <div className="mt-5 divide-y divide-line">
-            <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/orders"><span>Đơn chờ xác nhận</span><strong className="rounded-full bg-warning/10 px-3 py-1 text-warning">{data.paid_orders}</strong></Link>
-            <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/products"><span>Biến thể sắp hết hàng</span><strong className="rounded-full bg-danger/10 px-3 py-1 text-danger">{data.low_stock_variants}</strong></Link>
+            <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/orders">
+              <span>Đơn chờ xác nhận</span>
+              <strong className={`rounded-full px-3 py-1 ${data.paid_orders > 0 ? "bg-warning/10 text-warning" : "bg-muted/10 text-muted"}`}>
+                {data.paid_orders}
+              </strong>
+            </Link>
+            <Link
+              className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent"
+              href="/admin/orders?status=failed_delivery"
+            >
+              <span>Đơn giao thất bại (Boom)</span>
+              <strong
+                className={`rounded-full px-3 py-1 ${
+                  boomCount > 0
+                    ? "border border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-400 font-semibold"
+                    : "bg-muted/10 text-muted"
+                }`}
+              >
+                {boomCount}
+              </strong>
+            </Link>
+            <Link
+              className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent"
+              href="/admin/returns"
+            >
+              <span>Yêu cầu đổi trả</span>
+              <strong
+                className={`rounded-full px-3 py-1 ${
+                  returnCount > 0
+                    ? "border border-amber-500/25 bg-warning/10 text-warning font-semibold"
+                    : "bg-muted/10 text-muted"
+                }`}
+              >
+                {returnCount}
+              </strong>
+            </Link>
+            <Link className="flex min-h-14 items-center justify-between gap-4 rounded-lg px-2 transition hover:bg-paper hover:text-accent" href="/admin/products">
+              <span>Biến thể sắp hết hàng</span>
+              <strong className={`rounded-full px-3 py-1 ${data.low_stock_variants > 0 ? "bg-danger/10 text-danger" : "bg-muted/10 text-muted"}`}>
+                {data.low_stock_variants}
+              </strong>
+            </Link>
           </div>
         </article>
       </div>

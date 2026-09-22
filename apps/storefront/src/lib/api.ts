@@ -211,6 +211,11 @@ export interface AdminOverview {
   gross_revenue_vnd: number;
   refunded_amount_vnd: number;
   net_revenue_vnd: number;
+  cogs_vnd?: number;
+  gross_profit_vnd?: number;
+  gross_margin_percent?: number;
+  boom_orders_count?: number;
+  return_orders_count?: number;
 }
 
 export interface AdminVariant {
@@ -530,6 +535,25 @@ export async function getProductAvailability(slug: string, cityCode: string): Pr
 export function formatVnd(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
   return new Intl.NumberFormat("vi-VN").format(amount) + "₫";
+}
+
+const compactVndFormatter = new Intl.NumberFormat("vi-VN", {
+  maximumFractionDigits: 1,
+});
+
+export function formatMetricVnd(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return "—";
+  const absoluteAmount = Math.abs(amount);
+  if (absoluteAmount >= 1_000_000_000_000) {
+    return `${compactVndFormatter.format(amount / 1_000_000_000_000)} nghìn tỷ ₫`;
+  }
+  if (absoluteAmount >= 1_000_000_000) {
+    return `${compactVndFormatter.format(amount / 1_000_000_000)} tỷ ₫`;
+  }
+  if (absoluteAmount >= 1_000_000) {
+    return `${compactVndFormatter.format(amount / 1_000_000)} triệu ₫`;
+  }
+  return formatVnd(amount);
 }
 
 export type {
