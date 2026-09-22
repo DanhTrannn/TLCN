@@ -21,12 +21,15 @@ from app.modules.inbound.schemas import (
 )
 
 
-def _generate_receipt_code(now: datetime, idempotency_key: str | None) -> str:
+def _extract_digest(idempotency_key: str | None) -> str:
     if idempotency_key and idempotency_key.strip():
-        digest = hashlib.sha256(idempotency_key.strip().encode()).hexdigest()[:6].upper()
-    else:
-        digest = uuid4().hex[:6].upper()
-    return f"INB-{now.strftime('%Y%m%d')}-{digest}"
+        return hashlib.sha256(idempotency_key.strip().encode()).hexdigest()[:6].upper()
+    return uuid4().hex[:6].upper()
+
+
+def _generate_receipt_code(now: datetime, idempotency_key: str | None) -> tuple[str, str]:
+    digest = _extract_digest(idempotency_key)
+    return f"INB-{now.strftime('%Y%m%d')}-{digest}", digest
 
 
 def create_inbound_receipt(
@@ -36,16 +39,14 @@ def create_inbound_receipt(
     idempotency_key: str,
 ) -> InboundReceiptDetailResponse:
     now = datetime.now(UTC).replace(tzinfo=None)
-    if idempotency_key and idempotency_key.strip():
-        digest = hashlib.sha256(idempotency_key.strip().encode()).hexdigest()[:6].upper()
-    else:
-        digest = uuid4().hex[:6].upper()
-    receipt_code = f"INB-{now.strftime('%Y%m%d')}-{digest}"
+    receipt_code, digest = _generate_receipt_code(now, idempotency_key)
 
     # Idempotency check: search if any receipt exists with receipt_code like f"INB-%-{digest}"
     existing = db.execute(
-        select(InboundReceipt).where(InboundReceipt.receipt_code.like(f"INB-%-{digest}"))
-    ).scalar_one_or_none()
+        select(InboundReceipt)
+        .where(InboundReceipt.receipt_code.like(f"INB-%-{digest}"))
+        .order_by(InboundReceipt.receipt_id.desc())
+    ).scalars().first()
     if existing is not None:
         return get_inbound_receipt_detail(db, existing.receipt_code)
 
@@ -152,8 +153,10 @@ def create_inbound_receipt(
     except IntegrityError:
         db.rollback()
         existing = db.execute(
-            select(InboundReceipt).where(InboundReceipt.receipt_code.like(f"INB-%-{digest}"))
-        ).scalar_one_or_none()
+            select(InboundReceipt)
+            .where(InboundReceipt.receipt_code.like(f"INB-%-{digest}"))
+            .order_by(InboundReceipt.receipt_id.desc())
+        ).scalars().first()
         if existing is not None:
             return get_inbound_receipt_detail(db, existing.receipt_code)
         raise
@@ -229,7 +232,11 @@ def list_inbound_receipts(
         select(InboundReceipt, Customer.display_name)
         .outerjoin(Customer, Customer.customer_id == InboundReceipt.created_by_customer_id)
     )
-    count_stmt = select(func.count()).select_from(InboundReceipt)
+    agg_stmt = select(
+        func.count(),
+        func.coalesce(func.sum(InboundReceipt.total_items_count), 0),
+        func.coalesce(func.sum(InboundReceipt.total_cost_vnd), 0),
+    ).select_from(InboundReceipt)
 
     if search and search.strip():
         kw = f"%{search.strip()}%"
@@ -238,9 +245,13 @@ def list_inbound_receipts(
             InboundReceipt.batch_name.ilike(kw),
         )
         stmt = stmt.where(filter_clause)
-        count_stmt = count_stmt.where(filter_clause)
+        agg_stmt = agg_stmt.where(filter_clause)
 
-    total = db.scalar(count_stmt) or 0
+    agg_res = db.execute(agg_stmt).first()
+    total = int(agg_res[0]) if agg_res else 0
+    total_items_count = int(agg_res[1]) if agg_res else 0
+    total_cost_vnd = int(agg_res[2]) if agg_res else 0
+
     rows = db.execute(
         stmt.order_by(InboundReceipt.created_at.desc(), InboundReceipt.receipt_id.desc())
         .offset(offset)
@@ -261,4 +272,9 @@ def list_inbound_receipts(
         for r, c_name in rows
     ]
 
-    return InboundReceiptListResponse(items=items, total=total)
+    return InboundReceiptListResponse(
+        items=items,
+        total=total,
+        total_items_count=total_items_count,
+        total_cost_vnd=total_cost_vnd,
+    )

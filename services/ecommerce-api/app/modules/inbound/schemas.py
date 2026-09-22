@@ -63,3 +63,5 @@ class InboundReceiptSummaryResponse(BaseModel):
 class InboundReceiptListResponse(BaseModel):
     items: list[InboundReceiptSummaryResponse]
     total: int
+    total_items_count: int = 0
+    total_cost_vnd: int = 0

@@ -58,25 +58,21 @@ export default function AdminInboundReceiptsPage() {
       setReceipts(res.items);
       setTotal(res.total);
 
-      // Compute sums for the stat cards
-      const sumItems = res.items.reduce((acc, r) => acc + r.total_items_count, 0);
-      const sumCost = res.items.reduce((acc, r) => acc + r.total_cost_vnd, 0);
+      // Compute global sums for stat cards from server aggregates or page fallback
+      const totalItems =
+        res.total_items_count !== undefined
+          ? res.total_items_count
+          : res.items.reduce((acc, r) => acc + r.total_items_count, 0);
+      const totalCost =
+        res.total_cost_vnd !== undefined
+          ? res.total_cost_vnd
+          : res.items.reduce((acc, r) => acc + r.total_cost_vnd, 0);
 
-      // If viewing first page without search, update global metrics
-      if (!debouncedSearch && page === 0) {
-        setMetrics({
-          totalCount: res.total,
-          totalItems: sumItems,
-          totalCost: sumCost,
-        });
-      } else {
-        // Update with current view if searching or paginating
-        setMetrics((prev) => ({
-          totalCount: res.total,
-          totalItems: debouncedSearch ? sumItems : prev.totalItems,
-          totalCost: debouncedSearch ? sumCost : prev.totalCost,
-        }));
-      }
+      setMetrics({
+        totalCount: res.total,
+        totalItems,
+        totalCost,
+      });
     } catch (requestError) {
       setError(
         requestError instanceof ApiError

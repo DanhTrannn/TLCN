@@ -723,6 +723,8 @@ export interface InboundReceiptSummary {
 export interface InboundReceiptListResponse {
   items: InboundReceiptSummary[];
   total: number;
+  total_items_count?: number;
+  total_cost_vnd?: number;
 }
 
 export interface CreateInboundReceiptItemInput {
