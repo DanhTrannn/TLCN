@@ -17,6 +17,11 @@ class AdminOverviewResponse(BaseModel):
     gross_revenue_vnd: int
     refunded_amount_vnd: int
     net_revenue_vnd: int
+    cogs_vnd: int = 0
+    gross_profit_vnd: int = 0
+    gross_margin_percent: float = 0.0
+    boom_orders_count: int = 0
+    return_orders_count: int = 0
 
 
 class AdminVariantResponse(BaseModel):

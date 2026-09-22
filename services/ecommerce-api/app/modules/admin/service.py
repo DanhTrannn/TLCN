@@ -90,6 +90,20 @@ def get_overview(db: Session) -> AdminOverviewResponse:
         )
     ) or 0
 
+    # COGS for fulfilled/delivered orders
+    cogs_vnd = db.scalar(
+        select(func.coalesce(func.sum(OrderItem.quantity * OrderItem.cost_price_vnd), 0))
+        .join(Order, Order.order_id == OrderItem.order_id)
+        .where(Order.status.in_(("delivered", "completed")))
+    ) or 0
+
+    net_rev = int(gross_revenue) - int(refunded_amount)
+    gross_profit = net_rev - int(cogs_vnd)
+    gross_margin = round((gross_profit / net_rev) * 100, 1) if net_rev > 0 else 0.0
+
+    boom_count = order_counts.get("failed_delivery", 0)
+    return_count = order_counts.get("returned", 0)
+
     return AdminOverviewResponse(
         active_products=int(active_products),
         active_variants=int(active_variants),
@@ -103,7 +117,12 @@ def get_overview(db: Session) -> AdminOverviewResponse:
         active_coupons=int(active_coupons),
         gross_revenue_vnd=int(gross_revenue),
         refunded_amount_vnd=int(refunded_amount),
-        net_revenue_vnd=int(gross_revenue) - int(refunded_amount),
+        net_revenue_vnd=net_rev,
+        cogs_vnd=int(cogs_vnd),
+        gross_profit_vnd=gross_profit,
+        gross_margin_percent=gross_margin,
+        boom_orders_count=boom_count,
+        return_orders_count=return_count,
     )
 
 
