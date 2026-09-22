@@ -151,11 +151,13 @@ export function CreateInboundModal({
   }, [flatVariants, selectedVariantId]);
 
   // Live costing calculations
-  const parsedQty = Math.max(0, parseInt(quantity, 10) || 0);
-  const parsedUnitCost = Math.max(0, parseInt(unitCost, 10) || 0);
+  const rawQty = parseInt(quantity, 10);
+  const parsedQty = isNaN(rawQty) ? 0 : rawQty;
+  const rawUnitCost = parseInt(unitCost, 10);
+  const parsedUnitCost = isNaN(rawUnitCost) ? 0 : rawUnitCost;
 
   const previewNewCost = useMemo(() => {
-    if (!selectedVariant || parsedQty <= 0) return null;
+    if (!selectedVariant || parsedQty <= 0 || parsedUnitCost < 0) return null;
     return calculateNewCostPrice(
       selectedVariant.on_hand,
       selectedVariant.cost_price_vnd,
