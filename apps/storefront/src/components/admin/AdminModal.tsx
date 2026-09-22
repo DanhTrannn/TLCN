@@ -8,6 +8,7 @@ interface AdminModalProps {
   busy?: boolean;
   children: ReactNode;
   description?: string;
+  maxWidthClass?: string;
   onClose: () => void;
   open: boolean;
   title: string;
@@ -17,6 +18,7 @@ export function AdminModal({
   busy = false,
   children,
   description,
+  maxWidthClass,
   onClose,
   open,
   title,
@@ -55,7 +57,7 @@ export function AdminModal({
   return (
     <dialog
       aria-labelledby={titleId}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(48rem,calc(100vw-2rem))] overflow-hidden rounded-3xl border border-line bg-surface p-0 text-ink shadow-[0_30px_90px_rgba(19,35,31,0.28)] backdrop:bg-ink/60 backdrop:backdrop-blur-sm"
+      className={`m-auto max-h-[calc(100dvh-2rem)] ${maxWidthClass || "w-[min(48rem,calc(100vw-2rem))]"} overflow-hidden rounded-3xl border border-line bg-surface p-0 text-ink shadow-[0_30px_90px_rgba(19,35,31,0.28)] backdrop:bg-ink/60 backdrop:backdrop-blur-sm`}
       onCancel={(event) => {
         event.preventDefault();
         requestClose();
