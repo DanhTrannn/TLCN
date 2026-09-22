@@ -950,7 +950,12 @@ function AnalyticsHubContent() {
   const { customer, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
 
-  const [activeRole, setActiveRole] = useState<string>("executive");
+  const isAdmin = customer?.role === "admin";
+  const userRole = customer?.role || "";
+  const userCanonicalRole = ROLE_CANONICAL_MAP[userRole] || "";
+
+  const [initialized, setInitialized] = useState<boolean>(false);
+  const [activeRole, setActiveRole] = useState<string>("");
   const [selectedStoreId, setSelectedStoreId] = useState<number>(1);
   const [availableStores, setAvailableStores] = useState<Array<{ store_id: number; name: string }>>([]);
   const [trendDays, setTrendDays] = useState<number>(30);
@@ -962,36 +967,43 @@ function AnalyticsHubContent() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = customer?.role === "admin";
-  const userRole = customer?.role || "";
-  const userCanonicalRole = ROLE_CANONICAL_MAP[userRole] || "";
-
-  // Initial role selection from URL query or user authorization
+  // Initial role resolution from URL query or user canonical role
   useEffect(() => {
+    if (authLoading || !customer) return;
+
     const urlRole = searchParams.get("role");
-    if (isAdmin) {
-      if (urlRole && ALL_ROLES.some((r) => r.id === urlRole)) {
-        setActiveRole(urlRole);
-      } else {
-        setActiveRole("executive");
-      }
-    } else if (userCanonicalRole) {
-      setActiveRole(userCanonicalRole);
+    let targetRole: string;
+
+    if (urlRole && ALL_ROLES.some((r) => r.id === urlRole)) {
+      targetRole = urlRole;
+    } else {
+      targetRole = isAdmin ? "executive" : userCanonicalRole;
     }
-  }, [isAdmin, userCanonicalRole, searchParams]);
+
+    setActiveRole(targetRole);
+    setInitialized(true);
+  }, [authLoading, customer, isAdmin, userCanonicalRole, searchParams]);
 
   // Load Superset configuration once
   useEffect(() => {
     getSupersetConfig().then(setSupersetConfig).catch(() => null);
   }, []);
 
+  const handleRoleChange = useCallback((newRole: string) => {
+    if (newRole !== activeRole) {
+      setRoleMetrics(null);
+      setLoading(true);
+      setError(null);
+      setActiveRole(newRole);
+    }
+  }, [activeRole]);
+
   // Fetch metrics data whenever activeRole, selectedStoreId, or trendDays change
   const fetchData = useCallback(async () => {
-    if (!customer) return;
+    if (!customer || !initialized || !activeRole) return;
 
     // RBAC check: non-admin can only access their authorized canonical role
     if (!isAdmin && activeRole !== userCanonicalRole) {
-      setError("Không có quyền truy cập vai trò này.");
       setLoading(false);
       return;
     }
@@ -1025,13 +1037,13 @@ function AnalyticsHubContent() {
     } finally {
       setLoading(false);
     }
-  }, [customer, isAdmin, activeRole, userCanonicalRole, selectedStoreId, trendDays]);
+  }, [customer, initialized, activeRole, isAdmin, userCanonicalRole, selectedStoreId, trendDays]);
 
   useEffect(() => {
-    if (!authLoading && customer) {
+    if (initialized && activeRole) {
       void fetchData();
     }
-  }, [authLoading, customer, fetchData]);
+  }, [initialized, activeRole, fetchData]);
 
   // Populate default stores if not yet populated
   useEffect(() => {
@@ -1043,7 +1055,7 @@ function AnalyticsHubContent() {
     }
   }, [availableStores.length]);
 
-  if (authLoading) {
+  if (authLoading || !initialized) {
     return (
       <div className="space-y-5">
         {[0, 1, 2].map((i) => (
@@ -1101,7 +1113,7 @@ function AnalyticsHubContent() {
                         : "border border-line bg-surface text-ink hover:border-accent/40"
                     }`}
                     key={r.id}
-                    onClick={() => setActiveRole(r.id)}
+                    onClick={() => handleRoleChange(r.id)}
                     type="button"
                   >
                     <Icon name={r.icon} size={13} />
@@ -1128,7 +1140,7 @@ function AnalyticsHubContent() {
                     : "text-muted hover:bg-paper hover:text-ink"
                 }`}
                 key={tab.id}
-                onClick={() => setActiveRole(tab.id)}
+                onClick={() => handleRoleChange(tab.id)}
                 type="button"
               >
                 <Icon name={tab.icon} size={16} />
@@ -1147,20 +1159,22 @@ function AnalyticsHubContent() {
       </div>
 
       {/* Role Description Bar */}
-      <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-2.5 text-xs text-muted">
-        <div className="flex items-center gap-2">
-          <Icon className="text-accent" name={currentTabInfo.icon} size={16} />
-          <span>{currentTabInfo.description}</span>
+      {!isUnauthorizedRole && (
+        <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-2.5 text-xs text-muted">
+          <div className="flex items-center gap-2">
+            <Icon className="text-accent" name={currentTabInfo.icon} size={16} />
+            <span>{currentTabInfo.description}</span>
+          </div>
+          <button
+            className="font-medium text-accent hover:underline disabled:opacity-50"
+            disabled={loading}
+            onClick={() => void fetchData()}
+            type="button"
+          >
+            {loading ? "Đang tải…" : "Làm mới"}
+          </button>
         </div>
-        <button
-          className="font-medium text-accent hover:underline disabled:opacity-50"
-          disabled={loading}
-          onClick={() => void fetchData()}
-          type="button"
-        >
-          {loading ? "Đang tải…" : "Làm mới"}
-        </button>
-      </div>
+      )}
 
       {/* RBAC Access Denied Warning */}
       {isUnauthorizedRole && (
@@ -1176,10 +1190,10 @@ function AnalyticsHubContent() {
           </p>
           <button
             className="button-secondary mt-2 text-xs"
-            onClick={() => setActiveRole(userCanonicalRole)}
+            onClick={() => handleRoleChange(userCanonicalRole)}
             type="button"
           >
-            Quay lại góc nhìn của tôi
+            Quay về dashboard của bạn
           </button>
         </div>
       )}
@@ -1193,7 +1207,7 @@ function AnalyticsHubContent() {
       )}
 
       {/* Loading Skeleton */}
-      {loading && !roleMetrics && (
+      {!isUnauthorizedRole && (loading || !roleMetrics || roleMetrics.role !== activeRole) && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -1204,9 +1218,9 @@ function AnalyticsHubContent() {
       )}
 
       {/* Main Role Dashboards */}
-      {!isUnauthorizedRole && roleMetrics && (
+      {!isUnauthorizedRole && !loading && roleMetrics && roleMetrics.role === activeRole && (
         <>
-          {activeRole === "executive" && roleMetrics.role === "executive" && (
+          {activeRole === "executive" && (
             <ExecutiveDashboard
               metrics={roleMetrics as ExecutiveMetricsResponse}
               onTrendDaysChange={setTrendDays}
@@ -1215,11 +1229,11 @@ function AnalyticsHubContent() {
             />
           )}
 
-          {activeRole === "sales" && roleMetrics.role === "sales" && (
+          {activeRole === "sales" && (
             <SalesDashboard metrics={roleMetrics as SalesMetricsResponse} />
           )}
 
-          {activeRole === "store" && roleMetrics.role === "store" && (
+          {activeRole === "store" && (
             <StoreDashboard
               availableStores={availableStores}
               isAdmin={isAdmin}
@@ -1229,19 +1243,19 @@ function AnalyticsHubContent() {
             />
           )}
 
-          {activeRole === "inventory" && roleMetrics.role === "inventory" && (
+          {activeRole === "inventory" && (
             <InventoryDashboard metrics={roleMetrics as InventoryMetricsResponse} />
           )}
 
-          {activeRole === "operations" && roleMetrics.role === "operations" && (
+          {activeRole === "operations" && (
             <OperationsDashboard metrics={roleMetrics as OperationsMetricsResponse} />
           )}
 
-          {activeRole === "marketing" && roleMetrics.role === "marketing" && (
+          {activeRole === "marketing" && (
             <MarketingDashboard metrics={roleMetrics as MarketingMetricsResponse} />
           )}
 
-          {activeRole === "system" && roleMetrics.role === "system" && (
+          {activeRole === "system" && (
             <SystemDashboard metrics={roleMetrics as SystemMetricsResponse} />
           )}
         </>
