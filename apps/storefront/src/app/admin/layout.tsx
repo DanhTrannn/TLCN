@@ -1,20 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { AdminNav } from "@/components/AdminNav";
+import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
-
-const STAFF_ROLES = [
-  "admin",
-  "store_manager",
-  "sales_manager",
-  "marketing_manager",
-  "inventory_manager",
-  "operations_manager",
-  "system_admin",
-];
+import { canRoleAccessRoute, getRoleHomeRoute, getRoleLabel, STAFF_ROLES } from "@/lib/role-routes";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { customer, loading } = useAuth();
@@ -23,9 +16,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && !customer) {
-      router.replace("/login?returnTo=/admin");
+      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
     }
-  }, [customer, loading, router]);
+  }, [customer, loading, router, pathname]);
 
   if (loading || !customer) {
     return (
@@ -35,31 +28,32 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  const isAnalytics = pathname.startsWith("/admin/analytics");
-  const isStaff = STAFF_ROLES.includes(customer.role);
+  const isStaff = STAFF_ROLES.includes(customer.role as any);
+  const hasAccess = isStaff && canRoleAccessRoute(customer.role, pathname);
 
-  if (!isAnalytics || !isStaff) {
-    if (customer.role === "store_manager") {
-      return (
-        <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
-          <section className="surface-card p-8 text-center">
-            <h1 className="admin-heading">Không có quyền truy cập</h1>
-            <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên. Vui lòng truy cập <a className="text-accent hover:underline" href="/store">Cửa hàng</a>.</p>
-          </section>
-        </main>
-      );
-    }
+  if (!hasAccess) {
+    const roleHome = getRoleHomeRoute(customer.role);
+    const roleLabel = getRoleLabel(customer.role);
 
-    if (customer.role !== "admin") {
-      return (
-        <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
-          <section className="surface-card p-8 text-center">
-            <h1 className="admin-heading">Không có quyền truy cập</h1>
-            <p className="mt-3 text-muted">Khu vực này chỉ dành cho quản trị viên.</p>
-          </section>
-        </main>
-      );
-    }
+    return (
+      <main className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
+        <section className="surface-card p-8 text-center space-y-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <Icon name="shield" size={28} />
+          </div>
+          <h1 className="admin-heading">Không có quyền truy cập</h1>
+          <p className="text-muted max-w-md mx-auto">
+            Tài khoản của bạn ({customer.display_name} - {roleLabel}) không có quyền truy cập trực tiếp vào phân hệ này.
+          </p>
+          <div className="pt-2">
+            <Link className="button-primary inline-flex items-center gap-2" href={roleHome}>
+              <span>Quay về {roleLabel}</span>
+              <Icon name="arrow-right" size={16} />
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

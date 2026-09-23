@@ -7,6 +7,7 @@ import { useState } from "react";
 import { CitySelector } from "@/components/CitySelector";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
+import { getRoleHomeRoute, getRoleLabel, isStaffRole } from "@/lib/role-routes";
 
 const customerLinks: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
   { href: "/products", label: "Sản phẩm", icon: "search" },
@@ -34,8 +35,13 @@ export function Header() {
   }
 
   if (isAdminArea) {
-    const roleHome = customer?.role === "store_manager" ? "/store" : "/admin";
-    const roleLabel = customer?.role === "store_manager" ? "Cửa hàng" : "Admin";
+    const roleHome = getRoleHomeRoute(customer?.role);
+    const roleLabel =
+      customer?.role === "store_manager"
+        ? "Cửa hàng"
+        : customer?.role === "admin"
+        ? "Admin"
+        : getRoleLabel(customer?.role);
     return (
       <header className="sticky top-0 z-50 border-b border-white/10 bg-ink text-paper shadow-[0_10px_32px_rgba(8,22,18,0.2)]">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
@@ -111,13 +117,22 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <CitySelector />
-            {customer && ["admin", "store_manager"].includes(customer.role) ? (
+            {customer && isStaffRole(customer.role) ? (
               <Link
-                className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-accent hover:bg-accent/5 lg:inline-flex"
-                href={customer.role === "store_manager" ? "/store" : "/admin"}
+                className="hidden min-h-11 items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3.5 text-sm font-semibold text-accent transition hover:bg-accent hover:text-white lg:inline-flex"
+                href={getRoleHomeRoute(customer.role)}
               >
-                <Icon name="dashboard" size={17} />
-                {customer.role === "store_manager" ? "Cửa hàng" : "Quản trị"}
+                <Icon
+                  name={
+                    customer.role === "store_manager"
+                      ? "store"
+                      : customer.role === "admin"
+                      ? "dashboard"
+                      : "bar-chart"
+                  }
+                  size={17}
+                />
+                <span>{getRoleLabel(customer.role)}</span>
               </Link>
             ) : null}
             {loading ? null : customer ? (

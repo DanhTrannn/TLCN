@@ -15,8 +15,8 @@ import { ApiError, getMe, login as apiLogin, logout as apiLogout, register as ap
 interface AuthContextValue {
   customer: Customer | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<Customer>;
+  register: (email: string, password: string, displayName: string) => Promise<Customer>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -46,14 +46,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<Customer> => {
     const me = await apiLogin({ email, password });
     setCustomer(me);
+    return me;
   }, []);
 
-  const register = useCallback(async (email: string, password: string, displayName: string) => {
+  const register = useCallback(async (email: string, password: string, displayName: string): Promise<Customer> => {
     const me = await apiRegister({ email, password, display_name: displayName });
     setCustomer(me);
+    return me;
   }, []);
 
   const logout = useCallback(async () => {
