@@ -48,7 +48,7 @@ class Customer(Base):
     __table_args__ = (
         CheckConstraint("status in ('active','inactive')", name="status"),
         CheckConstraint(
-            "role in ('customer','admin','store_manager','sales_manager','marketing_manager','inventory_manager','operations_manager','system_admin')",
+            "role in ('customer','admin','store_manager','sales_manager','marketing_manager','inventory_manager','operations_manager','system_admin','city_planner')",
             name="role",
         ),
         CheckConstraint("data_origin in ('manual','synthetic')", name="data_origin"),

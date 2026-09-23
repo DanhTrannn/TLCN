@@ -24,11 +24,29 @@ def _guid() -> mysql.BINARY:
 
 def upgrade() -> None:
     # 0. store_inventory: add store_inventory_id for single-pk tracking
-    op.add_column(
-        "store_inventory",
-        sa.Column("store_inventory_id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False),
-    )
-    op.create_unique_constraint("uq_store_inventory_id", "store_inventory", ["store_inventory_id"])
+    bind = op.get_bind()
+    if bind.dialect.name == "mysql":
+        inspector = sa.inspect(bind)
+        cols = [c["name"] for c in inspector.get_columns("store_inventory")]
+        if "store_inventory_id" not in cols:
+            op.execute(
+                "ALTER TABLE store_inventory ADD COLUMN store_inventory_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, "
+                "ADD UNIQUE KEY uq_store_inventory_id (store_inventory_id)"
+            )
+        else:
+            uniques = [u["name"] for u in inspector.get_unique_constraints("store_inventory")]
+            if "uq_store_inventory_id" not in uniques:
+                op.execute("ALTER TABLE store_inventory DROP COLUMN store_inventory_id")
+                op.execute(
+                    "ALTER TABLE store_inventory ADD COLUMN store_inventory_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, "
+                    "ADD UNIQUE KEY uq_store_inventory_id (store_inventory_id)"
+                )
+    else:
+        op.add_column(
+            "store_inventory",
+            sa.Column("store_inventory_id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False),
+        )
+        op.create_unique_constraint("uq_store_inventory_id", "store_inventory", ["store_inventory_id"])
 
     # 1. product_variants: add cost_price_vnd
     op.add_column(
