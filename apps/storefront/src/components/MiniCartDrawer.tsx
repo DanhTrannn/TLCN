@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { FreeShippingBar } from "@/components/FreeShippingBar";
 import { Icon } from "@/components/ui/Icon";
-import { formatVnd } from "@/lib/api";
+import { addWishlistProduct, formatVnd } from "@/lib/api";
 import { useCartDrawer } from "@/lib/cart-context";
 
 export function MiniCartDrawer() {
@@ -56,6 +56,23 @@ export function MiniCartDrawer() {
     setBusyItem(variantId);
     try {
       await removeItem(variantId);
+    } finally {
+      setBusyItem(null);
+    }
+  }
+
+  async function handleMoveToWishlist(item: {
+    variant_public_id: string;
+    product_public_id?: string | null;
+  }) {
+    if (!item.product_public_id) {
+      await handleRemove(item.variant_public_id);
+      return;
+    }
+    setBusyItem(item.variant_public_id);
+    try {
+      await addWishlistProduct(item.product_public_id);
+      await removeItem(item.variant_public_id);
     } finally {
       setBusyItem(null);
     }
@@ -148,15 +165,28 @@ export function MiniCartDrawer() {
                           <h4 className="font-semibold text-sm text-ink line-clamp-1">
                             {item.product_name}
                           </h4>
-                          <button
-                            aria-label={`Xóa ${item.product_name}`}
-                            className="text-muted hover:text-accent transition disabled:opacity-40"
-                            disabled={isItemBusy}
-                            onClick={() => void handleRemove(item.variant_public_id)}
-                            type="button"
-                          >
-                            <Icon name="trash" size={15} />
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              aria-label="Lưu vào yêu thích"
+                              className="text-muted hover:text-accent transition disabled:opacity-40"
+                              disabled={isItemBusy}
+                              onClick={() => void handleMoveToWishlist(item)}
+                              title="Lưu vào yêu thích"
+                              type="button"
+                            >
+                              <Icon name="heart" size={15} />
+                            </button>
+                            <button
+                              aria-label={`Xóa ${item.product_name}`}
+                              className="text-muted hover:text-danger transition disabled:opacity-40"
+                              disabled={isItemBusy}
+                              onClick={() => void handleRemove(item.variant_public_id)}
+                              title="Xóa món này"
+                              type="button"
+                            >
+                              <Icon name="trash" size={15} />
+                            </button>
+                          </div>
                         </div>
                         <p className="mt-0.5 text-xs text-muted">
                           Phân loại: {item.size_code} / {item.color_code}

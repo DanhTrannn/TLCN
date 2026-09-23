@@ -48,6 +48,7 @@ def _load_cart_response(db: Session, cart: Cart) -> CartResponse:
     rows = db.execute(
         select(
             ProductVariant.public_id,
+            Product.public_id.label("product_public_id"),
             Product.name,
             Product.slug,
             Product.image_url,
@@ -77,6 +78,7 @@ def _load_cart_response(db: Session, cart: Cart) -> CartResponse:
         items.append(
             CartItemResponse(
                 variant_public_id=str(r.public_id),
+                product_public_id=str(r.product_public_id) if r.product_public_id else None,
                 product_name=r.name,
                 slug=r.slug,
                 sku=r.sku,

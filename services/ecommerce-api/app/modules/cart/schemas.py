@@ -9,6 +9,7 @@ class SetItemRequest(BaseModel):
 
 class CartItemResponse(BaseModel):
     variant_public_id: str
+    product_public_id: str | None = None
     product_name: str
     slug: str
     sku: str

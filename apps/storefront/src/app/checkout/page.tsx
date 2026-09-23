@@ -74,15 +74,43 @@ export default function CheckoutPage() {
     try {
       const loadedCart = await getCart();
       setCart(loadedCart);
-      setQuote({
-        coupon_code: null,
-        discount_type: null,
-        discount_value: null,
-        subtotal_vnd: loadedCart.subtotal_vnd,
-        discount_amount_vnd: 0,
-        shipping_fee_vnd: loadedCart.shipping_fee_vnd,
-        total_vnd: loadedCart.total_vnd,
-      });
+
+      const urlCoupon =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("coupon")?.trim().toUpperCase()
+          : null;
+
+      if (urlCoupon) {
+        try {
+          const nextQuote = await quoteCheckout(urlCoupon);
+          setQuote(nextQuote);
+          setAppliedCouponCode(nextQuote.coupon_code);
+          setCouponCode(nextQuote.coupon_code ?? "");
+          if (nextQuote.coupon_code) {
+            setCouponMessage(`Đã áp dụng mã ${nextQuote.coupon_code}.`);
+          }
+        } catch {
+          setQuote({
+            coupon_code: null,
+            discount_type: null,
+            discount_value: null,
+            subtotal_vnd: loadedCart.subtotal_vnd,
+            discount_amount_vnd: 0,
+            shipping_fee_vnd: loadedCart.shipping_fee_vnd,
+            total_vnd: loadedCart.total_vnd,
+          });
+        }
+      } else {
+        setQuote({
+          coupon_code: null,
+          discount_type: null,
+          discount_value: null,
+          subtotal_vnd: loadedCart.subtotal_vnd,
+          discount_amount_vnd: 0,
+          shipping_fee_vnd: loadedCart.shipping_fee_vnd,
+          total_vnd: loadedCart.total_vnd,
+        });
+      }
       void refreshAvailableCoupons();
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.status === 401) {

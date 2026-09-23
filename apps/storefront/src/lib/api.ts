@@ -96,6 +96,7 @@ export interface Wishlist {
 
 export interface CartItem {
   variant_public_id: string;
+  product_public_id?: string | null;
   product_name: string;
   slug: string;
   sku: string;
