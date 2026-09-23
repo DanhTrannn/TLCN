@@ -301,13 +301,13 @@ def build_fact_order(
     has_pv_cost = silver_product_variants is not None and "cost_price_vnd" in silver_product_variants.columns
 
     if has_oi_cost and has_pv_cost:
-        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.col("pv.cost_price_vnd"), F.lit(0))
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.col("pv.cost_price_vnd"), F.lit(0).cast("bigint"))
     elif has_oi_cost:
-        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0))
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0).cast("bigint"))
     elif has_pv_cost:
-        unit_cost = F.coalesce(F.col("pv.cost_price_vnd"), F.lit(0))
+        unit_cost = F.coalesce(F.col("pv.cost_price_vnd"), F.lit(0).cast("bigint"))
     else:
-        unit_cost = F.lit(0)
+        unit_cost = F.lit(0).cast("bigint")
 
     cost_per_item = F.col("oi.quantity") * unit_cost
     items_agg = (
@@ -345,7 +345,29 @@ def build_fact_order(
         if "payment_status" in silver_orders.columns
         else (
             F.when(F.col("o.paid_at").isNotNull(), F.lit("succeeded")).otherwise(F.lit("pending"))
+            if "paid_at" in silver_orders.columns
+            else F.lit("pending")
         )
+    )
+    payment_method_col = (
+        F.col("o.payment_method")
+        if "payment_method" in silver_orders.columns
+        else F.lit("cod")
+    )
+    coupon_id_col = (
+        F.col("o.coupon_id")
+        if "coupon_id" in silver_orders.columns
+        else F.lit(None).cast("bigint")
+    )
+    subtotal_col = (
+        F.col("o.subtotal_vnd")
+        if "subtotal_vnd" in silver_orders.columns
+        else gross_rev
+    )
+    shipping_fee_col = (
+        F.col("o.shipping_fee_vnd")
+        if "shipping_fee_vnd" in silver_orders.columns
+        else F.lit(0).cast("bigint")
     )
     channel_col = (
         F.col("o.channel")
@@ -365,12 +387,12 @@ def build_fact_order(
             F.to_date(F.col("o.created_at")).alias("order_date"),
             channel_col.alias("channel"),
             F.col("o.status"),
-            F.col("o.payment_method"),
+            payment_method_col.alias("payment_method"),
             payment_status_col.alias("payment_status"),
-            F.col("o.coupon_id"),
-            F.col("o.subtotal_vnd"),
+            coupon_id_col.alias("coupon_id"),
+            subtotal_col.alias("subtotal_vnd"),
             discount_col.alias("discount_vnd"),
-            F.col("o.shipping_fee_vnd"),
+            shipping_fee_col.alias("shipping_fee_vnd"),
             gross_rev.alias("gross_revenue_vnd"),
             tot_cost.alias("total_cost_vnd"),
             gross_prof.alias("gross_profit_vnd"),
@@ -410,11 +432,11 @@ def build_fact_order_item(
     has_pv_cost = silver_product_variants is not None and "cost_price_vnd" in silver_product_variants.columns
 
     if has_oi_cost and has_pv_cost:
-        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.col("pv.cost_price_vnd"), F.lit(0))
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.col("pv.cost_price_vnd"), F.lit(0).cast("bigint"))
     elif has_oi_cost:
-        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0))
+        unit_cost = F.coalesce(F.col("oi.cost_price_vnd"), F.lit(0).cast("bigint"))
     elif has_pv_cost:
-        unit_cost = F.coalesce(F.col("pv.cost_price_vnd"), F.lit(0))
+        unit_cost = F.coalesce(F.col("pv.cost_price_vnd"), F.lit(0).cast("bigint"))
     else:
         unit_cost = F.lit(0).cast("bigint")
 

@@ -302,8 +302,10 @@ class TestSparkFinancialGoldMarts:
             StructField("customer_id", LongType(), False),
             StructField("store_id", LongType(), True),
             StructField("status", StringType(), False),
-            StructField("created_at", TimestampType(), False),
+            StructField("payment_method", StringType(), True),
+            StructField("subtotal_vnd", LongType(), True),
             StructField("total_vnd", LongType(), False),
+            StructField("created_at", TimestampType(), False),
         ])
         oi_schema = StructType([
             StructField("order_item_id", LongType(), False),
@@ -320,7 +322,7 @@ class TestSparkFinancialGoldMarts:
         ])
 
         now = datetime(2026, 9, 22, 10, 0, 0)
-        o_df = spark.createDataFrame([(1, "ORD-001", 10, None, "delivered", now, 500000)], o_schema)
+        o_df = spark.createDataFrame([(1, "ORD-001", 10, None, "delivered", "cod", 500000, 500000, now)], o_schema)
         # item has cost_price_vnd=None -> must fall back to pv.cost_price_vnd (180_000)
         oi_df = spark.createDataFrame([(1, 1, 101, 2, 250000, None)], oi_schema)
         pv_df = spark.createDataFrame([(101, 10, 180000)], pv_schema)
