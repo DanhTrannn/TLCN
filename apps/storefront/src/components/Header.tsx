@@ -7,6 +7,7 @@ import { useState } from "react";
 import { CitySelector } from "@/components/CitySelector";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
+import { useCartDrawer } from "@/lib/cart-context";
 import { getRoleHomeRoute, getRoleLabel, isStaffRole } from "@/lib/role-routes";
 
 const customerLinks: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
@@ -18,6 +19,7 @@ const customerLinks: ReadonlyArray<{ href: string; label: string; icon: IconName
 
 export function Header() {
   const { customer, loading, logout } = useAuth();
+  const { openDrawer, itemCount } = useCartDrawer();
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -100,16 +102,30 @@ export function Header() {
           <div className="hidden items-center gap-1 rounded-full border border-line bg-surface p-1 sm:flex">
             {customerLinks.map(({ href, label }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
+              const isCart = href === "/cart";
               return (
                 <Link
                   aria-current={active ? "page" : undefined}
-                  className={`min-h-10 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  className={`min-h-10 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition inline-flex items-center gap-1.5 ${
                     active ? "bg-ink text-paper shadow-sm" : "text-muted hover:bg-paper hover:text-ink"
                   }`}
                   href={href}
                   key={href}
+                  onClick={
+                    isCart
+                      ? (e) => {
+                          e.preventDefault();
+                          openDrawer();
+                        }
+                      : undefined
+                  }
                 >
-                  {label}
+                  <span>{label}</span>
+                  {isCart && itemCount > 0 ? (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white leading-none">
+                      {itemCount}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -164,16 +180,32 @@ export function Header() {
       >
         {customerLinks.map(({ href, label, icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
+          const isCart = href === "/cart";
           return (
             <Link
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold transition ${
+              className={`relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold transition ${
                 active ? "bg-ink text-paper" : "text-muted hover:bg-paper hover:text-ink"
               }`}
               href={href}
               key={href}
+              onClick={
+                isCart
+                  ? (e) => {
+                      e.preventDefault();
+                      openDrawer();
+                    }
+                  : undefined
+              }
             >
-              <Icon filled={active && icon === "heart"} name={icon} size={18} />
+              <div className="relative">
+                <Icon filled={active && icon === "heart"} name={icon} size={18} />
+                {isCart && itemCount > 0 ? (
+                  <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white leading-none">
+                    {itemCount}
+                  </span>
+                ) : null}
+              </div>
               {label}
             </Link>
           );

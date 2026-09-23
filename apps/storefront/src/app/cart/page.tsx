@@ -13,6 +13,7 @@ import {
   setCartItem,
   type Cart,
 } from "@/lib/api";
+import { FreeShippingBar } from "@/components/FreeShippingBar";
 import { Icon } from "@/components/ui/Icon";
 import { useAuth } from "@/lib/auth";
 
@@ -130,7 +131,13 @@ export default function CartPage() {
           </Link>
         </section>
       ) : (
-        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="mt-8 space-y-6">
+          <FreeShippingBar
+            subtotalVnd={subtotal}
+            thresholdVnd={freeShippingThreshold || 500000}
+          />
+
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <section className="rounded-3xl border border-line bg-surface p-4 shadow-[0_18px_50px_rgba(19,35,31,0.08)] sm:p-6">
             <div className="flex items-center justify-between border-b border-line pb-4">
               <h2 className="text-lg font-semibold">Sản phẩm đã chọn</h2>
@@ -277,6 +284,7 @@ export default function CartPage() {
             </p>
           </aside>
         </div>
+      </div>
       )}
     </main>
   );

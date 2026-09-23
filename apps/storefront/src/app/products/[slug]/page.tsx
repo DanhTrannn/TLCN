@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { ProductReviews } from "@/components/ProductReviews";
+import { SizeGuideModal } from "@/components/SizeGuideModal";
 import { StoreAvailabilityBox } from "@/components/StoreAvailabilityBox";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -15,17 +16,18 @@ import {
   getProduct,
   getWishlist,
   removeWishlistProduct,
-  setCartItem,
   type ProductDetail,
   type Variant,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useCartDrawer } from "@/lib/cart-context";
 
 export default function ProductDetailPage() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug;
   const router = useRouter();
   const { customer } = useAuth();
+  const { addItemAndOpen } = useCartDrawer();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [wishlisted, setWishlisted] = useState(false);
@@ -33,6 +35,7 @@ export default function ProductDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -70,7 +73,7 @@ export default function ProductDetailPage() {
     setMessage(null);
     setError(null);
     try {
-      await setCartItem(variant.public_id, 1);
+      await addItemAndOpen(variant.public_id, 1);
       setMessage("Sản phẩm đã được thêm vào giỏ hàng.");
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : "Không thêm được vào giỏ");
@@ -155,7 +158,17 @@ export default function ProductDetailPage() {
 
           <div className="mt-8 border-t border-line pt-7">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="font-semibold">Chọn phiên bản</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="font-semibold">Chọn phiên bản</h2>
+                <button
+                  className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs font-medium text-accent transition hover:border-accent/40"
+                  onClick={() => setSizeGuideOpen(true)}
+                  type="button"
+                >
+                  <Icon name="sparkles" size={12} />
+                  Bảng kích cỡ
+                </button>
+              </div>
               <span className={`text-xs font-semibold ${variant?.in_stock ? "text-success" : "text-danger"}`}>
                 {variant?.in_stock ? `Còn ${variant.stock_quantity} sản phẩm` : "Hết hàng"}
               </span>
@@ -203,6 +216,11 @@ export default function ProductDetailPage() {
       </div>
 
       <ProductReviews slug={product.slug} />
+
+      <SizeGuideModal
+        isOpen={sizeGuideOpen}
+        onClose={() => setSizeGuideOpen(false)}
+      />
     </main>
   );
 }

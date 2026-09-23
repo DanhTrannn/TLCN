@@ -1,25 +1,32 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { formatVnd, getProducts, type ProductListItem } from "@/lib/api";
 
 const collections = [
   {
     number: "01",
     title: "Thanh lịch mỗi ngày",
     description: "Phom dáng gọn gàng, linh hoạt từ công sở đến buổi hẹn cuối ngày.",
+    categoryLink: "/products?category=ao-nu",
     classes: "border-accent/20 bg-accent/[0.08]",
   },
   {
     number: "02",
     title: "Mềm mại & tự do",
     description: "Bảng màu nhẹ, chất liệu thoải mái và chuyển động tự nhiên.",
+    categoryLink: "/products?category=dam-vay",
     classes: "border-moss/20 bg-moss/[0.08]",
   },
   {
     number: "03",
     title: "Điểm nhấn cá tính",
     description: "Đường nét rõ ràng và những chi tiết vừa đủ để tạo dấu ấn riêng.",
+    categoryLink: "/products?category=quan-nu",
     classes: "border-line bg-sand/55",
   },
 ] as const;
@@ -30,9 +37,51 @@ const promises: ReadonlyArray<{ icon: IconName; value: string; label: string }> 
   { icon: "package", value: "LIVE", label: "Tồn kho cập nhật trực tiếp" },
 ];
 
+const testimonials = [
+  {
+    quote: "Chất liệu lụa satin của D&K rất dày dặn, đường kim mũi chỉ tỉ mỉ. Đầm mặc lên form cực kỳ tôn dáng và sang trọng!",
+    author: "Nguyễn Thị Mai",
+    role: "Khách hàng thân thiết · TP.HCM",
+    rating: 5,
+  },
+  {
+    quote: "Mua tặng áo sơ mi cho bạn gái, đóng gói hộp cứng chỉn chu và giao hàng trong ngày. Bảng size chuẩn mặc vừa in luôn!",
+    author: "Trần Văn Bình",
+    role: "Khách hàng đã mua · Hà Nội",
+    rating: 5,
+  },
+  {
+    quote: "Rất thích phong cách tối giản thanh lịch ở đây. Đã mua 3 đầm và 2 áo, đồ dễ phối và giặt máy không bị nhăn phom.",
+    author: "Phạm Minh Thảo",
+    role: "Khách hàng đã mua · Đà Nẵng",
+    rating: 5,
+  },
+];
+
 export default function HomePage() {
+  const [featuredProducts, setFeaturedProducts] = useState<ProductListItem[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    getProducts({ sort: "newest" })
+      .then((res) => {
+        setFeaturedProducts(res.items.slice(0, 4));
+      })
+      .catch(() => undefined)
+      .finally(() => setLoadingProducts(false));
+  }, []);
+
   return (
     <main className="overflow-hidden">
+      {/* Top Welcome Promotion Ticker */}
+      <aside className="border-b border-accent/20 bg-accent/10 px-4 py-2 text-center text-xs font-semibold text-accent">
+        <div className="mx-auto flex max-w-6xl items-center justify-center gap-2">
+          <Icon name="sparkles" size={14} />
+          <span>Chào mùa mới: Miễn phí vận chuyển toàn quốc cho đơn từ 500.000₫ · Hỗ trợ đổi size miễn phí 7 ngày</span>
+        </div>
+      </aside>
+
+      {/* Hero Section */}
       <section className="mx-auto grid max-w-6xl gap-10 px-5 py-10 sm:px-6 sm:py-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:gap-16 lg:py-20">
         <div className="relative z-10">
           <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-xs font-semibold uppercase tracking-[0.18em] text-moss shadow-sm">
@@ -87,6 +136,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Promises Strip */}
       <section className="border-y border-line bg-surface">
         <div className="mx-auto grid max-w-6xl divide-y divide-line px-5 sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:px-6">
           {promises.map(({ icon, value, label }) => (
@@ -103,50 +153,182 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Featured Products Showcase Section */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="eyebrow">D&K Collections</p>
-            <h2 className="mt-3 max-w-xl font-serif text-4xl leading-tight tracking-[-0.035em] sm:text-5xl">Chọn cảm hứng cho hôm nay</h2>
+            <p className="eyebrow">D&K Featured</p>
+            <h2 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl text-ink">
+              Thiết kế mới nổi bật
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Những mẫu trang phục được tuyển chọn kỹ lưỡng cho phong cách mùa này
+            </p>
           </div>
-          <Link className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-moss hover:text-accent" href="/products">
-            Xem tất cả sản phẩm
-            <Icon name="arrow-right" size={17} />
+          <Link
+            className="inline-flex items-center gap-2 text-sm font-semibold text-accent hover:underline"
+            href="/products"
+          >
+            <span>Xem tất cả sản phẩm</span>
+            <Icon name="arrow-right" size={16} />
           </Link>
         </div>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {collections.map((collection) => (
-            <Link
-              className={`group relative min-h-72 overflow-hidden rounded-[2rem] border p-6 transition duration-200 hover:-translate-y-1 hover:shadow-soft ${collection.classes}`}
-              href="/products"
-              key={collection.number}
-            >
-              <span className="text-xs font-semibold tracking-[0.2em] text-muted">COLLECTION {collection.number}</span>
-              <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full border border-surface/70 bg-surface/30 transition duration-300 group-hover:scale-110" />
-              <div className="relative mt-24 max-w-xs">
-                <h3 className="font-serif text-3xl leading-tight">{collection.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-muted">{collection.description}</p>
-                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-ink">
-                  Khám phá <Icon name="arrow-right" size={16} />
-                </span>
+        {loadingProducts ? (
+          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div className="animate-pulse space-y-3" key={i}>
+                <div className="aspect-[4/5] rounded-3xl bg-sand/60" />
+                <div className="h-4 w-3/4 rounded bg-sand/50" />
+                <div className="h-4 w-1/2 rounded bg-sand/40" />
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+            {featuredProducts.map((product) => (
+              <Link
+                className="group relative flex flex-col overflow-hidden rounded-3xl border border-line bg-surface p-3 transition duration-200 hover:-translate-y-1 hover:shadow-soft"
+                href={`/products/${product.slug}`}
+                key={product.public_id}
+              >
+                <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-paper">
+                  {product.image_url ? (
+                    <Image
+                      alt={product.name}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      height={400}
+                      src={product.image_url}
+                      width={320}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-muted">
+                      <Icon name="package" size={28} />
+                    </div>
+                  )}
+                  {product.in_stock ? (
+                    <span className="absolute bottom-2.5 left-2.5 rounded-full bg-surface/90 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 backdrop-blur">
+                      Còn hàng
+                    </span>
+                  ) : (
+                    <span className="absolute bottom-2.5 left-2.5 rounded-full bg-accent/90 px-2.5 py-0.5 text-[11px] font-semibold text-white backdrop-blur">
+                      Tạm hết
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-3 flex flex-1 flex-col justify-between">
+                  <div>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                      {product.category_code}
+                    </span>
+                    <h3 className="mt-0.5 line-clamp-1 font-semibold text-sm text-ink group-hover:text-accent transition">
+                      {product.name}
+                    </h3>
+                  </div>
+                  <p className="mt-2 text-sm font-bold text-ink">
+                    {formatVnd(product.min_price_vnd)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Curated Collections Section */}
+      <section className="border-t border-line bg-surface py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-5 sm:px-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="eyebrow">D&K Collections</p>
+              <h2 className="mt-2 max-w-xl font-serif text-3xl leading-tight sm:text-4xl text-ink">
+                Chọn cảm hứng cho hôm nay
+              </h2>
+            </div>
+            <Link className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-moss hover:text-accent" href="/products">
+              Khám phá tất cả
+              <Icon name="arrow-right" size={17} />
             </Link>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {collections.map((collection) => (
+              <Link
+                className={`group relative min-h-72 overflow-hidden rounded-[2rem] border p-6 transition duration-200 hover:-translate-y-1 hover:shadow-soft ${collection.classes}`}
+                href={collection.categoryLink}
+                key={collection.number}
+              >
+                <span className="text-xs font-semibold tracking-[0.2em] text-muted">COLLECTION {collection.number}</span>
+                <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full border border-surface/70 bg-surface/30 transition duration-300 group-hover:scale-110" />
+                <div className="relative mt-20 max-w-xs">
+                  <h3 className="font-serif text-3xl leading-tight text-ink">{collection.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-muted">{collection.description}</p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-ink group-hover:text-accent transition">
+                    Khám phá <Icon name="arrow-right" size={16} />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Customer Testimonials & Reviews Section */}
+      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
+        <div className="text-center max-w-2xl mx-auto">
+          <p className="eyebrow">Trải nghiệm thực tế</p>
+          <h2 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl text-ink">
+            Khách hàng nói gì về D&K
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            Hơn 1.700 đánh giá 5 sao từ những quý cô đã đồng hành cùng thời trang D&K
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
+          {testimonials.map((item, idx) => (
+            <div
+              className="flex flex-col justify-between rounded-3xl border border-line bg-surface p-6 shadow-sm"
+              key={idx}
+            >
+              <div>
+                <div className="flex items-center gap-1 text-amber-500">
+                  {Array.from({ length: item.rating }).map((_, i) => (
+                    <Icon filled key={i} name="star" size={16} />
+                  ))}
+                </div>
+                <p className="mt-4 text-sm leading-6 text-ink/80 italic">
+                  &ldquo;{item.quote}&rdquo;
+                </p>
+              </div>
+
+              <div className="mt-6 border-t border-line/60 pt-4">
+                <p className="font-semibold text-sm text-ink">{item.author}</p>
+                <p className="text-xs text-muted">{item.role}</p>
+              </div>
+            </div>
           ))}
         </div>
       </section>
 
+      {/* CTA Bottom Banner */}
       <section className="mx-auto max-w-6xl px-5 pb-16 sm:px-6 sm:pb-24">
         <div className="relative overflow-hidden rounded-[2.5rem] bg-ink px-7 py-12 text-paper shadow-lift sm:px-12 sm:py-16 lg:px-16">
           <div className="absolute -right-24 -top-32 h-96 w-96 rounded-full border border-paper/10 bg-accent/80" />
           <div className="absolute -bottom-44 right-40 h-80 w-80 rounded-full border border-paper/10 bg-moss" />
           <div className="relative max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-paper/60">Create your own line</p>
-            <h2 className="mt-4 font-serif text-4xl leading-tight tracking-[-0.03em] sm:text-5xl">Phong cách không cần ồn ào để được nhận ra.</h2>
+            <h2 className="mt-4 font-serif text-4xl leading-tight tracking-[-0.03em] sm:text-5xl">
+              Phong cách không cần ồn ào để được nhận ra.
+            </h2>
             <p className="mt-5 max-w-xl leading-7 text-paper/70">
               Bắt đầu từ những thiết kế vừa vặn, lưu lại món đồ yêu thích và hoàn thiện tủ đồ theo cách riêng.
             </p>
-            <Link className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full bg-paper px-6 py-2.5 text-sm font-semibold text-ink transition hover:bg-white" href="/products">
+            <Link
+              className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-full bg-paper px-6 py-2.5 text-sm font-semibold text-ink transition hover:bg-white"
+              href="/products"
+            >
               Bắt đầu mua sắm <Icon name="arrow-right" size={17} />
             </Link>
           </div>
