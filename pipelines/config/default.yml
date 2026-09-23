@@ -15,7 +15,7 @@ tables:
     pk: customer_id
     mutability: mutable
     silver_table: silver_customers
-    pseudonymize: [email_normalized, phone, full_name]
+    pseudonymize: [display_name, email_normalized, phone, full_name]
   - name: categories
     cursor_field: updated_at
     pk: category_id
@@ -82,9 +82,9 @@ tables:
     mutability: mutable
     silver_table: silver_coupon_redemptions
   - name: refunds
-    cursor_field: created_at
+    cursor_field: updated_at
     pk: refund_id
-    mutability: append_only
+    mutability: mutable
     silver_table: silver_refunds
   - name: product_reviews
     cursor_field: updated_at

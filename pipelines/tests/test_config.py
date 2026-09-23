@@ -55,11 +55,18 @@ def test_every_table_has_pk(config):
 def test_pseudonymize_only_customers(config):
     for table in config.tables:
         if table.name == "customers":
-            assert table.pseudonymize == ("email_normalized", "phone", "full_name")
+            assert table.pseudonymize == ("display_name", "email_normalized", "phone", "full_name")
         elif table.name == "delivery_staff":
             assert table.pseudonymize == ("phone", "full_name")
         else:
             assert table.pseudonymize == ()
+
+
+def test_refunds_is_mutable(config):
+    refunds = config.table("refunds")
+    assert refunds.mutability == "mutable"
+    assert refunds.cursor_field == "updated_at"
+
 
 
 def test_table_lookup(config):

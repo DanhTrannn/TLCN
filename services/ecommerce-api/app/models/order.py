@@ -196,6 +196,12 @@ class Refund(Base):
         DATETIME(fsp=6), nullable=False, server_default=text("CURRENT_TIMESTAMP(6)")
     )
     completed_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DATETIME(fsp=6),
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP(6)"),
+        server_onupdate=text("CURRENT_TIMESTAMP(6)"),
+    )
 
     __table_args__ = (
         CheckConstraint("status in ('succeeded','failed')", name="status"),
@@ -210,6 +216,7 @@ class Refund(Base):
         Index("uq_refunds_payment_id", "payment_id", unique=True),
         Index("uq_refunds_refund_idempotency_key", "refund_idempotency_key", unique=True),
         Index("ix_refunds_created_at_refund_id", "created_at", "refund_id"),
+        Index("ix_refunds_updated_at_refund_id", "updated_at", "refund_id"),
     )
 
 

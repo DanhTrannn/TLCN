@@ -90,6 +90,13 @@ def _validate_rows(df: DataFrame, table_name: str) -> tuple[DataFrame, DataFrame
             "transfer_received", "return_boom", "return_customer", "exchange_out", "adjustment"
         }
         violations.append(F.when(~F.col("movement_type").isin(*valid_movement_types), F.lit("invalid_movement_type")))
+    if table_name == "inbound_receipts":
+        violations.append(F.when(F.col("total_cost_vnd") < 0, F.lit("negative_total_cost")))
+        violations.append(F.when(F.col("total_items_count") < 0, F.lit("negative_items_count")))
+    if table_name == "inbound_receipt_items":
+        violations.append(F.when(F.col("quantity") <= 0, F.lit("invalid_quantity")))
+        violations.append(F.when(F.col("unit_cost_vnd") < 0, F.lit("negative_unit_cost")))
+        violations.append(F.when(F.col("total_cost_vnd") < 0, F.lit("negative_total_cost")))
 
     if not violations:
         return df, df.limit(0)

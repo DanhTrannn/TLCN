@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_cart_items (
     variant_id                      BIGINT,
     quantity                        INT,
     is_present                      BOOLEAN,
+    first_added_at                  TIMESTAMP,
     removed_at                      TIMESTAMP,
     created_at                      TIMESTAMP,
     updated_at                      TIMESTAMP,
@@ -162,6 +163,8 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_wishlist_items (
     customer_id                     BIGINT,
     product_id                      BIGINT,
     is_present                      BOOLEAN,
+    first_added_at                  TIMESTAMP,
+    last_added_at                   TIMESTAMP,
     added_at                        TIMESTAMP,
     removed_at                      TIMESTAMP,
     created_at                      TIMESTAMP,
@@ -224,6 +227,8 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_order_items (
     public_id                       BINARY,
     order_id                        BIGINT,
     variant_id                      BIGINT,
+    product_public_id_snapshot      BINARY,
+    category_code_snapshot          STRING,
     product_name_snapshot           STRING,
     category_name_snapshot          STRING,
     sku_snapshot                    STRING,
@@ -589,6 +594,54 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inventory_transactions (
     quantity_delta                  INT,
     reference_code                  STRING,
     notes                           STRING,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_inbound_receipts"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inbound_receipts (
+    receipt_id                      BIGINT,
+    public_id                       BINARY,
+    receipt_code                    STRING,
+    batch_name                      STRING,
+    status                          STRING,
+    total_items_count               INT,
+    total_cost_vnd                  BIGINT,
+    notes                           STRING,
+    created_by_customer_id          BIGINT,
+    created_at                      TIMESTAMP,
+    updated_at                      TIMESTAMP,
+    _silver_ingested_at             TIMESTAMP,
+    _source_bronze_run_id           STRING
+)
+USING iceberg
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
+
+SILVER_TABLE_DDL["silver_inbound_receipt_items"] = """
+CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inbound_receipt_items (
+    item_id                         BIGINT,
+    public_id                       BINARY,
+    receipt_id                      BIGINT,
+    variant_id                      BIGINT,
+    quantity                        INT,
+    unit_cost_vnd                   BIGINT,
+    total_cost_vnd                  BIGINT,
+    previous_cost_price_vnd         BIGINT,
+    new_cost_price_vnd              BIGINT,
     created_at                      TIMESTAMP,
     updated_at                      TIMESTAMP,
     _silver_ingested_at             TIMESTAMP,

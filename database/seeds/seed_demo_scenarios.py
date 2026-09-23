@@ -786,6 +786,7 @@ def _seed_orders_and_related(
         requested_by_customer_id=ret_order_1.customer_id,
         created_at=return_req_1.created_at + timedelta(days=1),
         completed_at=return_req_1.resolved_at,
+        updated_at=return_req_1.resolved_at,
     )
     session.add(refund_1)
 

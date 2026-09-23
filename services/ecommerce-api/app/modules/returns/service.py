@@ -465,6 +465,7 @@ def inspect_and_resolve_admin_return(
             accumulated_reason = f"{refund.reason}; {return_req.return_code}".strip("; ")
             refund.reason = accumulated_reason[:500]
             refund.completed_at = now
+            refund.updated_at = now
 
     return_req.status = "completed"
     return_req.resolved_at = now

@@ -99,3 +99,4 @@ def test_existing_tables_extended_columns() -> None:
     assert "payment_method" in _column_names("orders")
     assert "is_cod_blocked" in _column_names("customers")
     assert "boom_count" in _column_names("customers")
+    assert "updated_at" in _column_names("refunds")

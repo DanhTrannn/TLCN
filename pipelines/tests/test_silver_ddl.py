@@ -18,6 +18,7 @@ def test_all_tables_have_ddl():
         "silver_cities", "silver_stores", "silver_store_inventory",
         "silver_delivery_staff", "silver_shipments", "silver_return_requests",
         "silver_return_items", "silver_inventory_transactions",
+        "silver_inbound_receipts", "silver_inbound_receipt_items",
     }
     assert set(SILVER_TABLE_DDL.keys()) == expected_tables
 
@@ -65,3 +66,37 @@ def test_all_tables_have_metadata_columns():
     for name, ddl in SILVER_TABLE_DDL.items():
         assert "_silver_ingested_at" in ddl, f"{name} missing _silver_ingested_at"
         assert "_source_bronze_run_id" in ddl, f"{name} missing _source_bronze_run_id"
+
+
+def test_inbound_tables_ddl_columns():
+    receipts_ddl = SILVER_TABLE_DDL["silver_inbound_receipts"]
+    for col in [
+        "receipt_id", "public_id", "receipt_code", "batch_name",
+        "status", "total_items_count", "total_cost_vnd", "notes",
+        "created_by_customer_id", "created_at", "updated_at",
+    ]:
+        assert col in receipts_ddl, f"silver_inbound_receipts missing {col}"
+
+    items_ddl = SILVER_TABLE_DDL["silver_inbound_receipt_items"]
+    for col in [
+        "item_id", "public_id", "receipt_id", "variant_id",
+        "quantity", "unit_cost_vnd", "total_cost_vnd",
+        "previous_cost_price_vnd", "new_cost_price_vnd", "created_at",
+    ]:
+        assert col in items_ddl, f"silver_inbound_receipt_items missing {col}"
+
+
+def test_order_items_has_snapshot_columns():
+    ddl = SILVER_TABLE_DDL["silver_order_items"]
+    assert "product_public_id_snapshot" in ddl
+    assert "category_code_snapshot" in ddl
+
+
+def test_cart_and_wishlist_time_columns():
+    cart_ddl = SILVER_TABLE_DDL["silver_cart_items"]
+    assert "first_added_at" in cart_ddl
+
+    wishlist_ddl = SILVER_TABLE_DDL["silver_wishlist_items"]
+    assert "first_added_at" in wishlist_ddl
+    assert "last_added_at" in wishlist_ddl
+
