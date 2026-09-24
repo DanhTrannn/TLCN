@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import CouponPickerModal from "@/components/CouponPickerModal";
-import { FreeShippingBar } from "@/components/FreeShippingBar";
+import { CartCrossSell } from "@/components/CartCrossSell";
+import { TieredRewardsBar } from "@/components/TieredRewardsBar";
+import { VariantSwitcherModal } from "@/components/VariantSwitcherModal";
 import { Icon } from "@/components/ui/Icon";
 import {
   ApiError,
@@ -16,6 +18,8 @@ import {
   removeCartItem,
   setCartItem,
   type Cart,
+  type CartItem,
+  type Variant,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
@@ -34,6 +38,7 @@ export default function CartPage() {
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [variantModalItem, setVariantModalItem] = useState<CartItem | null>(null);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -190,6 +195,45 @@ export default function CartPage() {
     }
   }
 
+  async function handleSwitchVariant(item: CartItem, newVariant: Variant) {
+    setBusyItem(item.variant_public_id);
+    setError(null);
+    try {
+      await setCartItem(item.variant_public_id, 0);
+      const updated = await setCartItem(newVariant.public_id, item.quantity);
+      setCart(updated);
+      setActionNotice(`Đã đổi sang Size ${newVariant.size_code} / Màu ${newVariant.color_code}.`);
+      setTimeout(() => setActionNotice(null), 4000);
+      if (appliedCouponCode) {
+        const nextQuote = await quoteCheckout(appliedCouponCode);
+        setQuote(nextQuote);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Đổi phân loại thất bại");
+      throw err;
+    } finally {
+      setBusyItem(null);
+    }
+  }
+
+  async function handleQuickAddCrossSell(variantPublicId: string) {
+    setError(null);
+    try {
+      const existing = cart?.items.find((i) => i.variant_public_id === variantPublicId);
+      const nextQty = existing ? existing.quantity + 1 : 1;
+      const updated = await setCartItem(variantPublicId, nextQty);
+      setCart(updated);
+      setActionNotice("Đã thêm sản phẩm phối vào giỏ hàng.");
+      setTimeout(() => setActionNotice(null), 3000);
+      if (appliedCouponCode) {
+        const nextQuote = await quoteCheckout(appliedCouponCode);
+        setQuote(nextQuote);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Thêm vào giỏ thất bại");
+    }
+  }
+
   async function handleApplyCoupon(codeToApply?: string) {
     const code = (codeToApply ?? couponCode).trim().toUpperCase();
     if (!code) {
@@ -305,10 +349,11 @@ export default function CartPage() {
         </section>
       ) : (
         <div className="mt-8 space-y-6">
-          {/* Prominent Free Shipping Progress Goal */}
-          <FreeShippingBar
+          {/* Prominent Tiered Rewards Progress Bar */}
+          <TieredRewardsBar
+            appliedCouponCode={appliedCouponCode}
+            onApplyCoupon={(code) => void handleApplyCoupon(code)}
             subtotalVnd={subtotal}
-            thresholdVnd={freeShippingThreshold}
           />
 
           {/* Main Grid: Flat Product List + Light Summary Card */}
@@ -361,14 +406,21 @@ export default function CartPage() {
                           <p className="mt-0.5 text-xs text-muted">SKU: {item.sku}</p>
 
                           <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs font-medium text-ink/80">
-                              Size {item.size_code}
-                            </span>
-                            <span className="rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs font-medium text-ink/80">
-                              Màu {item.color_code}
-                            </span>
+                            <button
+                              aria-label={`Đổi phân loại cho ${item.product_name}`}
+                              className="group inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-2.5 py-1 text-xs font-medium text-ink/80 hover:border-accent hover:text-accent transition shadow-2xs"
+                              disabled={isBusy}
+                              onClick={() => setVariantModalItem(item)}
+                              title="Bấm để đổi Size hoặc Màu khác"
+                              type="button"
+                            >
+                              <span>Size {item.size_code}</span>
+                              <span className="text-muted/60 font-semibold">/</span>
+                              <span>Màu {item.color_code}</span>
+                              <span className="text-[10px] text-muted group-hover:text-accent font-bold">▾</span>
+                            </button>
                             <span
-                              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                                 item.in_stock
                                   ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                                   : "bg-danger/10 text-danger"
@@ -587,6 +639,12 @@ export default function CartPage() {
               </div>
             </aside>
           </div>
+
+          {/* Complete the Look Cross-Sell */}
+          <CartCrossSell
+            cartItems={items}
+            onAddToCart={handleQuickAddCrossSell}
+          />
         </div>
       )}
 
@@ -601,6 +659,16 @@ export default function CartPage() {
           onClose={() => setCouponModalOpen(false)}
           onRefresh={refreshAvailableCoupons}
           onSelect={(code) => void handleApplyCoupon(code)}
+        />
+      ) : null}
+
+      {/* Variant Switcher Modal */}
+      {variantModalItem ? (
+        <VariantSwitcherModal
+          isOpen={Boolean(variantModalItem)}
+          item={variantModalItem}
+          onClose={() => setVariantModalItem(null)}
+          onSwitchVariant={handleSwitchVariant}
         />
       ) : null}
     </main>
