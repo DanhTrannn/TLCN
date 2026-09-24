@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import CouponPickerModal from "@/components/CouponPickerModal";
 import { CartCrossSell } from "@/components/CartCrossSell";
-import { TieredRewardsBar } from "@/components/TieredRewardsBar";
+import { FreeShippingBar } from "@/components/FreeShippingBar";
 import { VariantSwitcherModal } from "@/components/VariantSwitcherModal";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -349,11 +349,10 @@ export default function CartPage() {
         </section>
       ) : (
         <div className="mt-8 space-y-6">
-          {/* Prominent Tiered Rewards Progress Bar */}
-          <TieredRewardsBar
-            appliedCouponCode={appliedCouponCode}
-            onApplyCoupon={(code) => void handleApplyCoupon(code)}
+          {/* Prominent Free Shipping Progress Goal */}
+          <FreeShippingBar
             subtotalVnd={subtotal}
+            thresholdVnd={freeShippingThreshold}
           />
 
           {/* Main Grid: Flat Product List + Light Summary Card */}
