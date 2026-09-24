@@ -7,6 +7,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 
 const links: ReadonlyArray<{ href: string; label: string; icon: IconName }> = [
   { href: "/store", label: "Tổng quan", icon: "dashboard" },
+  { href: "/admin/analytics?role=store", label: "Báo cáo Cửa hàng", icon: "bar-chart" },
   { href: "/store/pos", label: "POS", icon: "bag" },
   { href: "/store/orders", label: "Đơn hàng", icon: "receipt" },
   { href: "/store/inventory", label: "Tồn kho", icon: "package" },
@@ -19,7 +20,11 @@ export function StoreNav() {
   return (
     <nav aria-label="Điều hướng cửa hàng" className="flex gap-1 overflow-x-auto p-1 lg:flex-col lg:overflow-visible lg:p-2">
       {links.map(({ href, label, icon }) => {
-        const active = href === "/store" ? pathname === href : pathname.startsWith(href);
+        const basePath = href.split("?")[0];
+        const active =
+          basePath === "/store"
+            ? pathname === basePath
+            : pathname.startsWith(basePath);
         return (
           <Link
             aria-current={active ? "page" : undefined}

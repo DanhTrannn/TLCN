@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Icon } from "@/components/ui/Icon";
 import { apiFetch } from "@/lib/api-client";
@@ -21,14 +21,27 @@ interface DashboardData {
 export default function StoreDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
+    setRefreshing(true);
     apiFetch<DashboardData>("/api/v1/admin/store/dashboard")
-      .then(setData)
+      .then((res) => {
+        setData(res);
+        setLastUpdated(new Date());
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Không thể tải dữ liệu."))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   if (loading) {
     return (
@@ -58,9 +71,30 @@ export default function StoreDashboardPage() {
 
   return (
     <div>
-      <p className="eyebrow">Tổng quan vận hành</p>
-      <h1 className="admin-heading mt-2">Quản lý cửa hàng</h1>
-      <p className="mt-2 text-sm leading-6 text-muted">{data.store_name}</p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">Tổng quan vận hành</p>
+          <h1 className="admin-heading mt-2">Quản lý cửa hàng</h1>
+          <p className="mt-2 text-sm leading-6 text-muted">{data.store_name}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastUpdated ? (
+            <span className="text-xs text-muted tabular-nums">
+              Cập nhật lúc {lastUpdated.toLocaleTimeString("vi-VN")}
+            </span>
+          ) : null}
+          <button
+            className="button-secondary inline-flex items-center gap-1.5 h-10 px-3.5 text-xs font-semibold"
+            disabled={refreshing}
+            onClick={loadData}
+            title="Làm mới dữ liệu cửa hàng"
+            type="button"
+          >
+            <Icon className={refreshing ? "animate-spin text-accent" : ""} name="rotate-ccw" size={15} />
+            <span>Làm mới</span>
+          </button>
+        </div>
+      </header>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         <article className="min-w-0 overflow-hidden rounded-2xl bg-ink p-6 text-paper shadow-lift">

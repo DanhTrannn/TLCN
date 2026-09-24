@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { ReturnStatusBadge } from "@/components/OrderStatusBadge";
@@ -10,6 +11,7 @@ import {
   getAdminReturnsList,
   type ReturnRequestDetail,
 } from "@/lib/commerce";
+import { exportToCsv } from "@/lib/csv-export";
 import { formatVietnamDateTime } from "@/lib/datetime";
 
 const FILTER_TABS = [
@@ -25,7 +27,10 @@ const FILTER_TABS = [
 const PAGE_SIZE = 20;
 
 export default function AdminReturnsPage() {
-  const [statusTab, setStatusTab] = useState<string>("");
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status") ?? "";
+
+  const [statusTab, setStatusTab] = useState<string>(initialStatus);
   const [search, setSearch] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [returns, setReturns] = useState<ReturnRequestDetail[]>([]);
@@ -72,6 +77,34 @@ export default function AdminReturnsPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  function handleExportCsv() {
+    exportToCsv(
+      `yeu_cau_doi_tra_${new Date().toISOString().slice(0, 10)}`,
+      [
+        "Mã yêu cầu",
+        "Mã đơn hàng",
+        "Khách hàng",
+        "Email",
+        "Số món hoàn",
+        "Số tiền hoàn (VNĐ)",
+        "Trạng thái",
+        "Lý do",
+        "Ngày tạo",
+      ],
+      returns.map((r) => [
+        r.return_code,
+        r.order_number,
+        r.customer_name,
+        r.customer_email,
+        r.items.length,
+        r.total_refund_amount_vnd,
+        r.status,
+        r.customer_reason || "",
+        formatVietnamDateTime(r.created_at),
+      ])
+    );
+  }
+
   return (
     <section>
       <header className="flex flex-col gap-4">
@@ -109,30 +142,43 @@ export default function AdminReturnsPage() {
             })}
           </div>
 
-          {/* Search input */}
-          <div className="relative w-full max-w-sm">
-            <Icon
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-              name="search"
-              size={16}
-            />
-            <input
-              className="admin-input w-full pl-10 pr-4"
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm mã RT-, mã đơn, tên, SĐT..."
-              type="search"
-              value={search}
-            />
-            {search ? (
-              <button
-                aria-label="Xóa tìm kiếm"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
-                onClick={() => setSearch("")}
-                type="button"
-              >
-                <Icon name="close" size={14} />
-              </button>
-            ) : null}
+          <div className="flex items-center gap-2.5 w-full lg:w-auto">
+            {/* Search input */}
+            <div className="relative flex-1 sm:w-72">
+              <Icon
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                name="search"
+                size={16}
+              />
+              <input
+                className="admin-input w-full pl-10 pr-4"
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm mã RT-, mã đơn, tên, SĐT..."
+                type="search"
+                value={search}
+              />
+              {search ? (
+                <button
+                  aria-label="Xóa tìm kiếm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                  onClick={() => setSearch("")}
+                  type="button"
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              ) : null}
+            </div>
+
+            <button
+              className="button-secondary inline-flex items-center gap-1.5 h-11 px-3.5 text-xs font-semibold shrink-0"
+              disabled={returns.length === 0}
+              onClick={handleExportCsv}
+              title="Xuất file CSV"
+              type="button"
+            >
+              <Icon name="receipt" size={16} />
+              <span>Xuất CSV</span>
+            </button>
           </div>
         </div>
       </header>

@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { apiFetch } from "@/lib/api-client";
 import { formatVnd } from "@/lib/api";
+import { exportToCsv } from "@/lib/csv-export";
 
 interface InventoryItem {
   store_id: number;
@@ -28,6 +29,7 @@ export default function StoreInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -47,6 +49,9 @@ export default function StoreInventoryPage() {
     if (category) {
       result = result.filter((i) => i.category_name === category);
     }
+    if (onlyLowStock) {
+      result = result.filter((i) => i.on_hand <= 5);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -58,13 +63,39 @@ export default function StoreInventoryPage() {
       );
     }
     return result;
-  }, [items, search, category]);
+  }, [items, search, category, onlyLowStock]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalStock = items.reduce((sum, i) => sum + i.on_hand, 0);
   const lowStock = items.filter((i) => i.on_hand <= 5).length;
+
+  function handleExportCsv() {
+    exportToCsv(
+      `ton_kho_cua_hang_${new Date().toISOString().slice(0, 10)}`,
+      [
+        "Mã SKU",
+        "Tên sản phẩm",
+        "Danh mục",
+        "Size",
+        "Màu",
+        "Giá bán (VNĐ)",
+        "Tồn kho thực tế",
+        "Tồn kho ban đầu",
+      ],
+      filtered.map((i) => [
+        i.variant_sku,
+        i.product_name,
+        i.category_name,
+        i.size_code,
+        i.color_code,
+        i.price_vnd,
+        i.on_hand,
+        i.opening_on_hand,
+      ])
+    );
+  }
 
   return (
     <section>
@@ -75,7 +106,22 @@ export default function StoreInventoryPage() {
             {items.length} sản phẩm · {totalStock} tồn kho{lowStock > 0 ? ` · ${lowStock} sắp hết` : ""}
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+              onlyLowStock
+                ? "border-danger bg-danger text-white shadow-sm"
+                : "border-line bg-surface text-muted hover:border-danger hover:text-danger"
+            }`}
+            onClick={() => {
+              setOnlyLowStock(!onlyLowStock);
+              setPage(1);
+            }}
+            type="button"
+          >
+            <Icon name="alert" size={14} />
+            <span>Sắp hết (≤ 5) {lowStock > 0 ? `(${lowStock})` : ""}</span>
+          </button>
           <select
             className="admin-input"
             value={category}
@@ -95,6 +141,16 @@ export default function StoreInventoryPage() {
               value={search}
             />
           </div>
+          <button
+            className="button-secondary inline-flex items-center gap-1.5 h-10 px-3 text-xs font-semibold"
+            disabled={filtered.length === 0}
+            onClick={handleExportCsv}
+            title="Xuất file CSV"
+            type="button"
+          >
+            <Icon name="package" size={16} />
+            <span>Xuất CSV</span>
+          </button>
         </div>
       </header>
 

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
 import { Icon } from "@/components/ui/Icon";
 import { ApiError, formatVnd } from "@/lib/api";
 import { cancelStoreOrder, confirmStoreOrder } from "@/lib/commerce";
+import { exportToCsv } from "@/lib/csv-export";
 import { formatVietnamDateTime } from "@/lib/datetime";
 import { apiFetch } from "@/lib/api-client";
 
@@ -23,6 +24,7 @@ interface StoreOrder {
 
 export default function StoreOrdersPage() {
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
   const [orders, setOrders] = useState<StoreOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
@@ -66,6 +68,43 @@ export default function StoreOrdersPage() {
     void mutate(cancellingOrder, () => cancelStoreOrder(cancellingOrder, cancelReason.trim()), "Không hủy được đơn hàng");
   }
 
+  const filteredOrders = useMemo(() => {
+    if (!search.trim()) return orders;
+    const q = search.trim().toLowerCase();
+    return orders.filter(
+      (o) =>
+        o.order_number.toLowerCase().includes(q) ||
+        o.customer_name.toLowerCase().includes(q) ||
+        o.customer_email.toLowerCase().includes(q)
+    );
+  }, [orders, search]);
+
+  function handleExportCsv() {
+    exportToCsv(
+      `don_hang_cua_hang_${new Date().toISOString().slice(0, 10)}`,
+      [
+        "Mã đơn hàng",
+        "Khách hàng",
+        "Email",
+        "Kênh",
+        "Trạng thái",
+        "Số món",
+        "Tổng tiền (VNĐ)",
+        "Ngày tạo",
+      ],
+      filteredOrders.map((o) => [
+        o.order_number,
+        o.customer_name,
+        o.customer_email,
+        o.channel || "pos",
+        o.status,
+        o.item_count,
+        o.total_vnd,
+        formatVietnamDateTime(o.created_at),
+      ])
+    );
+  }
+
   return (
     <section>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -73,16 +112,40 @@ export default function StoreOrdersPage() {
           <h1 className="admin-heading">Đơn hàng cửa hàng</h1>
           <p className="mt-2 text-sm leading-6 text-muted">Xác nhận đơn đã thanh toán; khách hàng sẽ hoàn tất sau khi nhận hàng.</p>
         </div>
-        <label className="field-label min-w-52" htmlFor="store-order-status">Trạng thái
-          <select className="admin-input" id="store-order-status" onChange={(event) => setStatus(event.target.value)} value={status}>
-            <option value="">Tất cả</option>
-            <option value="paid">Chờ xác nhận</option>
-            <option value="payment_failed">Thanh toán lỗi</option>
-            <option value="confirmed">Đã xác nhận</option>
-            <option value="completed">Hoàn tất</option>
-            <option value="cancelled">Đã hủy</option>
-          </select>
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="relative min-w-56">
+            <span className="field-label">Tìm kiếm</span>
+            <div className="relative mt-1">
+              <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" name="search" size={15} />
+              <input
+                className="admin-input pl-9"
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Mã đơn, tên, email..."
+                value={search}
+              />
+            </div>
+          </div>
+          <label className="field-label min-w-44" htmlFor="store-order-status">Trạng thái
+            <select className="admin-input" id="store-order-status" onChange={(event) => setStatus(event.target.value)} value={status}>
+              <option value="">Tất cả</option>
+              <option value="paid">Chờ xác nhận</option>
+              <option value="payment_failed">Thanh toán lỗi</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="completed">Hoàn tất</option>
+              <option value="cancelled">Đã hủy</option>
+            </select>
+          </label>
+          <button
+            className="button-secondary inline-flex items-center gap-1.5 h-11 px-3.5 text-xs font-semibold"
+            disabled={filteredOrders.length === 0}
+            onClick={handleExportCsv}
+            title="Xuất file CSV"
+            type="button"
+          >
+            <Icon name="receipt" size={16} />
+            <span>Xuất CSV</span>
+          </button>
+        </div>
       </header>
 
       {error ? <div className="feedback-error mt-5">{error}</div> : null}
@@ -107,6 +170,11 @@ export default function StoreOrdersPage() {
 
       {loading ? (
         <div className="mt-6 h-72 animate-pulse rounded-2xl bg-sand/60" />
+      ) : filteredOrders.length === 0 ? (
+        <div className="admin-panel mt-6 text-center text-muted">
+          <Icon className="mx-auto text-muted mb-2" name="receipt" size={24} />
+          <p>{search ? "Không tìm thấy đơn hàng nào phù hợp với tìm kiếm." : "Chưa có đơn hàng nào."}</p>
+        </div>
       ) : (
         <div className="admin-table-shell mt-6">
           <table>
@@ -121,7 +189,7 @@ export default function StoreOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <tr key={order.order_number}>
                   <td>
                     <Link className="font-semibold hover:text-accent" href={`/store/orders/${order.order_number}`}>{order.order_number}</Link>

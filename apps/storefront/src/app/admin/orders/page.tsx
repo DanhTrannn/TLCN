@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminModal } from "@/components/admin/AdminModal";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
@@ -22,11 +23,17 @@ import {
   getDeliveryStaffList,
   type DeliveryStaff,
 } from "@/lib/commerce";
+import { exportToCsv } from "@/lib/csv-export";
 import { formatVietnamDateTime } from "@/lib/datetime";
 
 export default function AdminOrdersPage() {
-  const [status, setStatus] = useState("");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status") ?? "";
+  const initialChannel = searchParams.get("channel") ?? "all";
+
+  const [status, setStatus] = useState(initialStatus);
+  const [channelFilter, setChannelFilter] = useState<string>(initialChannel);
+  const [search, setSearch] = useState("");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
@@ -208,6 +215,43 @@ export default function AdminOrdersPage() {
 
   const activeStaff = staffList.filter((s) => s.is_active);
 
+  const filteredOrders = useMemo(() => {
+    if (!search.trim()) return orders;
+    const q = search.trim().toLowerCase();
+    return orders.filter(
+      (o) =>
+        o.order_number.toLowerCase().includes(q) ||
+        o.customer_name.toLowerCase().includes(q) ||
+        o.customer_email.toLowerCase().includes(q)
+    );
+  }, [orders, search]);
+
+  function handleExportCsv() {
+    exportToCsv(
+      `don_hang_admin_${new Date().toISOString().slice(0, 10)}`,
+      [
+        "Mã đơn hàng",
+        "Khách hàng",
+        "Email",
+        "Kênh",
+        "Trạng thái",
+        "Số món",
+        "Tổng tiền (VNĐ)",
+        "Ngày tạo",
+      ],
+      filteredOrders.map((o) => [
+        o.order_number,
+        o.customer_name,
+        o.customer_email,
+        o.channel || "online",
+        o.status,
+        o.item_count,
+        o.total_vnd,
+        formatVietnamDateTime(o.created_at),
+      ])
+    );
+  }
+
   return (
     <section>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -219,7 +263,19 @@ export default function AdminOrdersPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="field-label min-w-56" htmlFor="admin-order-status">
+          <div className="relative min-w-56">
+            <span className="field-label">Tìm kiếm</span>
+            <div className="relative mt-1">
+              <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" name="search" size={15} />
+              <input
+                className="admin-input pl-9"
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Mã đơn, tên, email..."
+                value={search}
+              />
+            </div>
+          </div>
+          <label className="field-label min-w-52" htmlFor="admin-order-status">
             Trạng thái
             <select
               className="admin-input"
@@ -238,7 +294,7 @@ export default function AdminOrdersPage() {
               <option value="payment_failed">Thanh toán lỗi (payment_failed)</option>
             </select>
           </label>
-          <label className="field-label min-w-36" htmlFor="admin-order-channel">
+          <label className="field-label min-w-32" htmlFor="admin-order-channel">
             Kênh
             <select
               className="admin-input"
@@ -251,6 +307,16 @@ export default function AdminOrdersPage() {
               <option value="pos">POS</option>
             </select>
           </label>
+          <button
+            className="button-secondary inline-flex items-center gap-1.5 h-11 px-3.5 text-xs font-semibold"
+            disabled={filteredOrders.length === 0}
+            onClick={handleExportCsv}
+            title="Xuất file CSV"
+            type="button"
+          >
+            <Icon name="receipt" size={16} />
+            <span>Xuất CSV</span>
+          </button>
         </div>
       </header>
 
@@ -258,6 +324,11 @@ export default function AdminOrdersPage() {
 
       {loading ? (
         <div className="mt-6 h-72 animate-pulse rounded-2xl bg-sand/60" />
+      ) : filteredOrders.length === 0 ? (
+        <div className="admin-panel mt-6 text-center text-muted">
+          <Icon className="mx-auto text-muted mb-2" name="receipt" size={24} />
+          <p>{search ? "Không tìm thấy đơn hàng nào phù hợp với tìm kiếm." : "Chưa có đơn hàng nào."}</p>
+        </div>
       ) : (
         <div className="admin-table-shell mt-6">
           <table>
@@ -272,7 +343,7 @@ export default function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => {
+              {filteredOrders.map((order) => {
                 const isBusy = busyOrder === order.order_number;
 
                 return (
