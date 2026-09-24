@@ -4,7 +4,6 @@ import "./globals.css";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { LocationProvider } from "@/components/LocationContext";
-import { MiniCartDrawer } from "@/components/MiniCartDrawer";
 import { AuthProvider } from "@/lib/auth";
 import { CartProvider } from "@/lib/cart-context";
 
@@ -26,7 +25,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Header />
               {children}
               <Footer />
-              <MiniCartDrawer />
             </LocationProvider>
           </CartProvider>
         </AuthProvider>

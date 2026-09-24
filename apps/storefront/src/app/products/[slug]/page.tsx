@@ -200,7 +200,17 @@ export default function ProductDetailPage() {
           </button>
 
           <div aria-live="polite" className="mt-4 space-y-3">
-            {message ? <p className="feedback-success flex items-center gap-2"><Icon name="check" size={18} />{message}</p> : null}
+            {message ? (
+              <div className="feedback-success flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <Icon name="check" size={18} />
+                  {message}
+                </span>
+                <Link className="font-semibold underline hover:opacity-80 shrink-0 text-xs sm:text-sm" href="/cart">
+                  Xem giỏ hàng →
+                </Link>
+              </div>
+            ) : null}
             {error ? <p className="feedback-error">{error}</p> : null}
           </div>
 

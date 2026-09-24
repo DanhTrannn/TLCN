@@ -19,7 +19,7 @@ const customerLinks: ReadonlyArray<{ href: string; label: string; icon: IconName
 
 export function Header() {
   const { customer, loading, logout } = useAuth();
-  const { openDrawer, itemCount } = useCartDrawer();
+  const { itemCount } = useCartDrawer();
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -111,14 +111,6 @@ export function Header() {
                   }`}
                   href={href}
                   key={href}
-                  onClick={
-                    isCart
-                      ? (e) => {
-                          e.preventDefault();
-                          openDrawer();
-                        }
-                      : undefined
-                  }
                 >
                   <span>{label}</span>
                   {isCart && itemCount > 0 ? (
@@ -189,14 +181,6 @@ export function Header() {
               }`}
               href={href}
               key={href}
-              onClick={
-                isCart
-                  ? (e) => {
-                      e.preventDefault();
-                      openDrawer();
-                    }
-                  : undefined
-              }
             >
               <div className="relative">
                 <Icon filled={active && icon === "heart"} name={icon} size={18} />

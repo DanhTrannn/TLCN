@@ -95,7 +95,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       const updated = await setCartItem(variantPublicId, quantity);
       setCart(updated);
-      setIsOpen(true);
     } catch (err) {
       throw err;
     }
