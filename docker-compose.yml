@@ -46,7 +46,7 @@ x-spark-common: &spark-common
     args:
       ICEBERG_VERSION: ${ICEBERG_VERSION:-1.10.1}
   image: lakehouse-spark:3.5.9-iceberg-${ICEBERG_VERSION:-1.10.1}
-  profiles: ["batch"]
+  profiles: ["batch", "streaming"]
   environment:
     POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
   networks: ["lakehouse-network"]

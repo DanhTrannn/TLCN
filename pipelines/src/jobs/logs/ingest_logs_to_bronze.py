@@ -178,13 +178,38 @@ def main() -> None:
     # 6. Transform and write to Bronze
     enriched_df = transform_valid_logs(bronze_ready_df, args.run_id)
 
+    bronze_columns = [
+        "event_id",
+        "event_ts",
+        "observed_timestamp",
+        "schema",
+        "service",
+        "severity_number",
+        "severity_text",
+        "trace_id",
+        "span_id",
+        "event",
+        "http",
+        "request",
+        "actor",
+        "client",
+        "ecommerce",
+        "error",
+        "data_origin",
+        "_run_id",
+        "_source_system",
+        "_source_file",
+        "_ingested_at",
+    ]
+    final_df = enriched_df.select(*bronze_columns)
+
     if args.replay_date:
-        enriched_df.writeTo(BRONZE_EVENTS_TABLE).overwrite(
+        final_df.writeTo(BRONZE_EVENTS_TABLE).overwrite(
             col("event_ts").cast("date") == lit(args.replay_date)
         )
         print(f"[{args.run_id}] Atomically overwritten partition {args.replay_date} in {BRONZE_EVENTS_TABLE}.")
     else:
-        enriched_df.writeTo(BRONZE_EVENTS_TABLE).append()
+        final_df.writeTo(BRONZE_EVENTS_TABLE).append()
         print(f"[{args.run_id}] Appended {new_count} records to {BRONZE_EVENTS_TABLE}.")
 
     landing_df.unpersist()
