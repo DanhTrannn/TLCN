@@ -156,6 +156,30 @@ def main() -> None:
     """)
     log.info("Iceberg catalog 'lakehouse' registered via Polaris REST at %s", MINIO_ENDPOINT)
 
+    # Ensure Landing database and Iceberg table exist
+    t_env.execute_sql("CREATE DATABASE IF NOT EXISTS lakehouse.landing")
+    t_env.execute_sql("""
+        CREATE TABLE IF NOT EXISTS lakehouse.landing.access_logs (
+            event_id            STRING,
+            event_ts            TIMESTAMP(6),
+            ingest_ts           TIMESTAMP(6),
+            service_name        STRING,
+            http_method         STRING,
+            http_route          STRING,
+            http_status_code    INT,
+            duration_ns         BIGINT,
+            actor_type          STRING,
+            ecommerce_action    STRING,
+            raw_payload         STRING
+        )
+        PARTITIONED BY (service_name)
+        WITH (
+            'format-version' = '2',
+            'write.parquet.compression-codec' = 'zstd'
+        )
+    """)
+    log.info("Ensured lakehouse.landing database and access_logs table exist")
+
     # 3. Kafka source (DataStream API – pure Java/Python bridge, no SQL connector DDL)
     kafka_source = (
         KafkaSource.builder()
