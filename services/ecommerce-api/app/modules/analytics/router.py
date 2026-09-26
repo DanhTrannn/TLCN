@@ -48,6 +48,7 @@ def get_role_metrics(
 def get_analytics_sales_trend(
     days: int = Query(30, ge=1, le=365, description="Number of days for sales trend"),
     actor: Customer = Depends(get_current_staff),
+    db: Session = Depends(get_db),
 ) -> SalesTrendResponse:
     """Daily revenue, COGS, and profit trend (Admin or Sales Manager only)."""
     if actor.role not in ("admin", "sales_manager"):
@@ -56,4 +57,4 @@ def get_analytics_sales_trend(
             "Chỉ quản trị viên hoặc trưởng phòng kinh doanh mới có quyền truy cập biểu đồ xu hướng.",
             status_code=403,
         )
-    return get_sales_trend(days=days)
+    return get_sales_trend(days=days, db=db)
