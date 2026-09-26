@@ -599,7 +599,6 @@ export type {
   ShipmentDetail,
   StoreContribution,
   StoreMetricsResponse,
-  SupersetConfigResponse,
   SystemMetricsResponse,
   TopProductMetric,
 } from "./commerce";
@@ -627,5 +626,5 @@ export {
   createAdminInboundReceipt,
   getAdminRoleMetrics,
   getAdminSalesTrend,
-  getSupersetConfig,
 } from "./commerce";
+

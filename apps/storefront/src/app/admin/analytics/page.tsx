@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { EChart, type EChartsOption, BRAND_COLORS } from "@/components/ui/EChart";
 import {
   ApiError,
   formatMetricVnd,
@@ -105,7 +106,6 @@ const ROLE_CANONICAL_MAP: Record<string, string> = {
 const metricValueClasses =
   "mt-3 max-w-full truncate whitespace-nowrap text-[clamp(1.25rem,1.8vw,1.75rem)] font-semibold leading-tight tracking-[-0.03em] tabular-nums";
 
-
 function ExecutiveDashboard({
   metrics,
   salesTrend,
@@ -117,10 +117,146 @@ function ExecutiveDashboard({
   trendDays: number;
   onTrendDaysChange: (days: number) => void;
 }) {
-  const maxRevenue = useMemo(() => {
-    if (!salesTrend?.points?.length) return 1;
-    return Math.max(...salesTrend.points.map((p) => p.revenue_vnd), 1);
+  // Dual-Axis Bar & Line Chart Option:
+  const trendOption: EChartsOption = useMemo(() => {
+    if (!salesTrend?.points?.length) return {};
+    const dates = salesTrend.points.map((p) => p.date.slice(5));
+    const revenues = salesTrend.points.map((p) => p.revenue_vnd);
+    const cogs = salesTrend.points.map((p) => p.cogs_vnd);
+    const profits = salesTrend.points.map((p) => p.profit_vnd);
+
+    return {
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        formatter: (params: any) => {
+          if (!Array.isArray(params)) return "";
+          let tip = `<div class="font-bold text-xs mb-1">${params[0]?.axisValue}</div>`;
+          params.forEach((item: any) => {
+            tip += `<div class="flex items-center justify-between gap-4 text-xs">
+              <span style="color:${item.color}">${item.seriesName}:</span>
+              <span class="font-semibold">${formatVnd(Number(item.value) || 0)}</span>
+            </div>`;
+          });
+          return tip;
+        },
+      },
+      legend: {
+        top: 0,
+        textStyle: { color: "#5c4d3c", fontSize: 12 },
+        data: ["Doanh thu", "Giá vốn (COGS)", "Lợi nhuận gộp"],
+      },
+      grid: {
+        left: "3%",
+        right: "4%",
+        bottom: "12%",
+        top: "14%",
+        containLabel: true,
+      },
+      xAxis: {
+        type: "category",
+        data: dates,
+        axisLine: { lineStyle: { color: "#dcd8cf" } },
+        axisLabel: { color: "#5c4d3c", fontSize: 11 },
+      },
+      yAxis: [
+        {
+          type: "value",
+          axisLine: { show: false },
+          axisLabel: {
+            color: "#5c4d3c",
+            formatter: (v: number) => formatMetricVnd(v),
+            fontSize: 11,
+          },
+          splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)", type: "dashed" } },
+        },
+      ],
+      dataZoom: [
+        { type: "inside", start: 0, end: 100 },
+        {
+          type: "slider",
+          bottom: 0,
+          height: 18,
+          borderColor: "transparent",
+          backgroundColor: "rgba(0,0,0,0.03)",
+          fillerColor: "rgba(169, 71, 40, 0.2)",
+        },
+      ],
+      series: [
+        {
+          name: "Doanh thu",
+          type: "bar",
+          data: revenues,
+          itemStyle: { color: "#a94728", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 20,
+        },
+        {
+          name: "Giá vốn (COGS)",
+          type: "bar",
+          data: cogs,
+          itemStyle: { color: "#315b4f", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 20,
+        },
+        {
+          name: "Lợi nhuận gộp",
+          type: "line",
+          data: profits,
+          itemStyle: { color: "#059669" },
+          lineStyle: { width: 3, color: "#059669" },
+          smooth: true,
+        },
+      ],
+    };
   }, [salesTrend]);
+
+  // Donut Chart for Executive Fulfillment & Boom/Return Breakdown
+  const executiveDonutOption: EChartsOption = useMemo(() => {
+    const boomCount = Math.round((metrics.total_orders * metrics.boom_rate_percent) / 100);
+    const returnCount = Math.round((metrics.total_orders * metrics.return_rate_percent) / 100);
+    const deliveredCount = Math.max(0, metrics.total_orders - boomCount - returnCount);
+
+    return {
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) => {
+          return `<div class="font-bold text-xs mb-1">${params.name}</div>
+            <div class="text-xs">${Number(params.value).toLocaleString("vi-VN")} đơn (${params.percent}%)</div>`;
+        },
+      },
+      legend: {
+        bottom: 0,
+        textStyle: { color: "#5c4d3c", fontSize: 11 },
+      },
+      series: [
+        {
+          name: "Cơ cấu đơn hàng",
+          type: "pie",
+          radius: ["42%", "70%"],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: "#fff",
+            borderWidth: 2,
+          },
+          label: {
+            show: false,
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 12,
+              fontWeight: "bold",
+            },
+          },
+          data: [
+            { value: deliveredCount, name: "Giao thành công", itemStyle: { color: "#059669" } },
+            { value: boomCount, name: "Giao thất bại (Boom)", itemStyle: { color: "#e11d48" } },
+            { value: returnCount, name: "Yêu cầu đổi trả", itemStyle: { color: "#d97706" } },
+          ],
+        },
+      ],
+    };
+  }, [metrics]);
 
   return (
     <div className="space-y-6">
@@ -249,153 +385,204 @@ function ExecutiveDashboard({
         </article>
       </div>
 
-      {/* Daily Sales & Profit Trend Visualization */}
-      <section className="admin-panel space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Interactive ECharts Visualizations */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Dual-Axis Trend Chart */}
+        <section className="admin-panel lg:col-span-2 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-ink">Xu hướng Doanh thu & Lợi nhuận gộp theo ngày</h3>
+              <p className="text-xs text-muted">Dữ liệu thực thời từ Lakehouse Mart (mart_sales_daily via Trino)</p>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl border border-line bg-paper p-1">
+              {[7, 14, 30].map((days) => (
+                <button
+                  className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                    trendDays === days ? "bg-ink text-paper shadow-xs" : "text-muted hover:text-ink"
+                  }`}
+                  key={days}
+                  onClick={() => onTrendDaysChange(days)}
+                  type="button"
+                >
+                  {days} ngày
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {salesTrend?.points?.length ? (
+            <EChart height={340} option={trendOption} />
+          ) : (
+            <div className="py-12 text-center text-sm text-muted">Không có dữ liệu xu hướng cho khoảng thời gian này.</div>
+          )}
+        </section>
+
+        {/* Executive Fulfillment Donut */}
+        <section className="admin-panel space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-ink">Xu hướng Doanh thu & Lợi nhuận gộp theo ngày</h3>
-            <p className="text-xs text-muted">Dữ liệu tổng hợp từ các đơn hàng thực tế trong kỳ</p>
+            <h3 className="text-lg font-semibold text-ink">Cơ cấu Đơn hàng & Boom rate</h3>
+            <p className="text-xs text-muted">Tỷ trọng giao thành công vs rủi ro hoàn hủy</p>
           </div>
-          <div className="flex items-center gap-1.5 rounded-xl border border-line bg-paper p-1">
-            {[7, 14, 30].map((days) => (
-              <button
-                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-                  trendDays === days ? "bg-ink text-paper shadow-xs" : "text-muted hover:text-ink"
-                }`}
-                key={days}
-                onClick={() => onTrendDaysChange(days)}
-                type="button"
-              >
-                {days} ngày
-              </button>
-            ))}
-          </div>
-        </div>
+          <EChart height={340} option={executiveDonutOption} />
+        </section>
+      </div>
 
-        {salesTrend?.points?.length ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5 font-medium text-ink">
-                <span className="h-3 w-3 rounded-sm bg-accent" /> Doanh thu (Revenue)
-              </span>
-              <span className="flex items-center gap-1.5 font-medium text-ink">
-                <span className="h-3 w-3 rounded-sm bg-emerald-600" /> Lợi nhuận gộp (Profit)
-              </span>
-            </div>
-
-            {/* Bar Chart Visualization */}
-            <div className="flex h-48 items-end gap-1.5 overflow-x-auto rounded-xl border border-line bg-paper/50 px-3 pb-3 pt-6 sm:gap-2">
-              {salesTrend.points.map((pt) => {
-                const revHeight = maxRevenue > 0 ? Math.max(4, Math.round((pt.revenue_vnd / maxRevenue) * 100)) : 4;
-                const profitHeight =
-                  maxRevenue > 0 ? Math.max(2, Math.round((Math.max(0, pt.profit_vnd) / maxRevenue) * 100)) : 2;
-
-                return (
-                  <div
-                    className="group relative flex h-full min-w-[28px] flex-1 flex-col justify-end items-center"
-                    key={pt.date}
-                  >
-                    <div className="flex w-full items-end justify-center gap-1">
-                      <div
-                        className="w-full max-w-[12px] rounded-t bg-accent transition-all group-hover:brightness-110"
-                        style={{ height: `${revHeight}%` }}
-                        title={`${pt.date} - Doanh thu: ${formatVnd(pt.revenue_vnd)}`}
-                      />
-                      <div
-                        className="w-full max-w-[12px] rounded-t bg-emerald-600 transition-all group-hover:brightness-110"
-                        style={{ height: `${profitHeight}%` }}
-                        title={`${pt.date} - Lợi nhuận: ${formatVnd(pt.profit_vnd)}`}
-                      />
-                    </div>
-                    <span className="mt-1.5 truncate text-[10px] text-muted">
-                      {pt.date.slice(5)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Trend Summary Table */}
-            <div className="admin-table-shell max-h-64 overflow-y-auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Ngày</th>
-                    <th className="text-right">Doanh thu</th>
-                    <th className="text-right">Giá vốn (COGS)</th>
-                    <th className="text-right">Lợi nhuận gộp</th>
-                    <th className="text-right">Số đơn</th>
+      {/* Trend Summary Table */}
+      {salesTrend?.points?.length ? (
+        <section className="admin-panel space-y-3">
+          <h3 className="text-base font-semibold text-ink">Bảng số liệu chi tiết gần nhất</h3>
+          <div className="admin-table-shell max-h-60 overflow-y-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th className="text-right">Doanh thu</th>
+                  <th className="text-right">Giá vốn (COGS)</th>
+                  <th className="text-right">Lợi nhuận gộp</th>
+                  <th className="text-right">Số đơn</th>
+                </tr>
+              </thead>
+              <tbody>
+                {salesTrend.points.slice(-7).map((pt) => (
+                  <tr key={pt.date}>
+                    <td className="font-medium text-ink">{pt.date}</td>
+                    <td className="text-right font-semibold">{formatVnd(pt.revenue_vnd)}</td>
+                    <td className="text-right text-muted">{formatVnd(pt.cogs_vnd)}</td>
+                    <td
+                      className={`text-right font-semibold ${
+                        pt.profit_vnd >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-danger"
+                      }`}
+                    >
+                      {formatVnd(pt.profit_vnd)}
+                    </td>
+                    <td className="text-right">{pt.orders_count}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {salesTrend.points.slice(-7).map((pt) => (
-                    <tr key={pt.date}>
-                      <td className="font-medium text-ink">{pt.date}</td>
-                      <td className="text-right font-semibold">{formatVnd(pt.revenue_vnd)}</td>
-                      <td className="text-right text-muted">{formatVnd(pt.cogs_vnd)}</td>
-                      <td
-                        className={`text-right font-semibold ${
-                          pt.profit_vnd >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-danger"
-                        }`}
-                      >
-                        {formatVnd(pt.profit_vnd)}
-                      </td>
-                      <td className="text-right">{pt.orders_count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          <div className="py-8 text-center text-sm text-muted">Không có dữ liệu xu hướng cho khoảng thời gian này.</div>
-        )}
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }
 
 function SalesDashboard({ metrics }: { metrics: SalesMetricsResponse }) {
-  const totalStoreRevenue = useMemo(
-    () => metrics.store_contributions.reduce((acc, s) => acc + s.revenue_vnd, 0),
-    [metrics.store_contributions]
-  );
+  // Category Share Donut:
+  const categoryOption: EChartsOption = useMemo(() => {
+    return {
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) => {
+          return `<div class="font-bold text-xs mb-1">${params.name}</div>
+            <div class="text-xs">Doanh thu: <b>${formatVnd(Number(params.value) || 0)}</b></div>
+            <div class="text-xs text-muted">Tỷ trọng: <b>${params.percent}%</b></div>`;
+        },
+      },
+      legend: {
+        orient: "horizontal",
+        bottom: 0,
+        textStyle: { color: "#5c4d3c", fontSize: 11 },
+      },
+      series: [
+        {
+          name: "Danh mục",
+          type: "pie",
+          radius: ["42%", "72%"],
+          itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
+          data: metrics.category_shares.map((cat, idx) => ({
+            name: cat.category_name,
+            value: cat.revenue_vnd,
+            itemStyle: { color: BRAND_COLORS[idx % BRAND_COLORS.length] },
+          })),
+        },
+      ],
+    };
+  }, [metrics.category_shares]);
+
+  // Top Products Horizontal Bar Chart:
+  const topProductsOption: EChartsOption = useMemo(() => {
+    const prods = [...metrics.top_selling_products].reverse();
+    return {
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        formatter: (params: any) => {
+          const item = params[0];
+          return `<div class="font-bold text-xs mb-1">${item?.axisValue}</div>
+            <div class="text-xs">Doanh thu: <b>${formatVnd(Number(item?.value) || 0)}</b></div>`;
+        },
+      },
+      grid: { left: "3%", right: "8%", top: "4%", bottom: "4%", containLabel: true },
+      xAxis: {
+        type: "value",
+        axisLine: { show: false },
+        axisLabel: { formatter: (v: number) => formatMetricVnd(v), fontSize: 10 },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)", type: "dashed" } },
+      },
+      yAxis: {
+        type: "category",
+        data: prods.map((p) => p.product_name),
+        axisLine: { lineStyle: { color: "#dcd8cf" } },
+        axisLabel: { color: "#152722", fontSize: 11, width: 140, overflow: "truncate" },
+      },
+      series: [
+        {
+          type: "bar",
+          data: prods.map((p) => p.revenue_vnd),
+          itemStyle: { color: "#a94728", borderRadius: [0, 4, 4, 0] },
+          barMaxWidth: 20,
+        },
+      ],
+    };
+  }, [metrics.top_selling_products]);
+
+  // Store Contributions Column Chart:
+  const storeOption: EChartsOption = useMemo(() => {
+    return {
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        formatter: (params: any) => {
+          const item = params[0];
+          return `<div class="font-bold text-xs mb-1">${item?.axisValue}</div>
+            <div class="text-xs">Doanh thu: <b>${formatVnd(Number(item?.value) || 0)}</b></div>`;
+        },
+      },
+      grid: { left: "3%", right: "4%", top: "8%", bottom: "14%", containLabel: true },
+      xAxis: {
+        type: "category",
+        data: metrics.store_contributions.map((s) => s.store_name),
+        axisLabel: { color: "#5c4d3c", fontSize: 11, interval: 0, rotate: 15 },
+        axisLine: { lineStyle: { color: "#dcd8cf" } },
+      },
+      yAxis: {
+        type: "value",
+        axisLine: { show: false },
+        axisLabel: { formatter: (v: number) => formatMetricVnd(v), fontSize: 10 },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)", type: "dashed" } },
+      },
+      series: [
+        {
+          name: "Doanh thu",
+          type: "bar",
+          data: metrics.store_contributions.map((s) => s.revenue_vnd),
+          itemStyle: { color: "#152722", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 32,
+        },
+      ],
+    };
+  }, [metrics.store_contributions]);
 
   return (
     <div className="space-y-6">
-      {/* Store Contributions */}
+      {/* Store Contributions Chart */}
       <section className="admin-panel space-y-4">
         <div>
           <h3 className="text-lg font-semibold text-ink">Đóng góp Doanh thu theo Chi nhánh & Kênh</h3>
           <p className="text-xs text-muted">Phân tích hiệu quả kinh doanh đa kênh (Multi-city & Online)</p>
         </div>
-
-        <div className="space-y-3.5">
-          {metrics.store_contributions.map((store) => {
-            const share = totalStoreRevenue > 0 ? Math.round((store.revenue_vnd / totalStoreRevenue) * 100) : 0;
-            return (
-              <div className="space-y-1.5 rounded-xl border border-line bg-paper/60 p-3.5" key={store.store_id ?? "online"}>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Icon className="text-accent" name="store" size={16} />
-                    <span className="font-semibold text-ink">{store.store_name}</span>
-                    <span className="text-xs text-muted">({store.order_count} đơn hàng)</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-ink">{formatVnd(store.revenue_vnd)}</span>
-                    <span className="ml-2 text-xs font-semibold text-accent">({share}%)</span>
-                  </div>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-sand">
-                  <div
-                    className="h-full rounded-full bg-accent transition-all duration-300"
-                    style={{ width: `${Math.max(share, 1)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <EChart height={280} option={storeOption} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -403,69 +590,18 @@ function SalesDashboard({ metrics }: { metrics: SalesMetricsResponse }) {
         <section className="admin-panel space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-ink">Top Sản phẩm bán chạy</h3>
-            <p className="text-xs text-muted">Xếp hạng theo tổng doanh thu phát sinh</p>
+            <p className="text-xs text-muted">Xếp hạng theo tổng doanh thu phát sinh trên DWH</p>
           </div>
-
-          <div className="admin-table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th className="w-12 text-center">#</th>
-                  <th>Sản phẩm</th>
-                  <th className="text-right">Đã bán</th>
-                  <th className="text-right">Doanh thu</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.top_selling_products.map((prod, idx) => (
-                  <tr key={prod.product_id}>
-                    <td className="text-center font-bold text-muted">
-                      {idx < 3 ? (
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-xs text-accent">
-                          {idx + 1}
-                        </span>
-                      ) : (
-                        idx + 1
-                      )}
-                    </td>
-                    <td className="max-w-[180px] truncate font-medium text-ink" title={prod.product_name}>
-                      {prod.product_name}
-                    </td>
-                    <td className="text-right font-semibold">{prod.units_sold}</td>
-                    <td className="text-right font-semibold text-accent">{formatVnd(prod.revenue_vnd)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <EChart height={300} option={topProductsOption} />
         </section>
 
         {/* Category Share */}
         <section className="admin-panel space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-ink">Tỷ trọng Doanh thu Danh mục</h3>
-            <p className="text-xs text-muted">Tỷ trọng cơ cấu doanh số theo phân loại mặt hàng</p>
+            <p className="text-xs text-muted">Cơ cấu doanh số mặt hàng theo Data Mart</p>
           </div>
-
-          <div className="space-y-3">
-            {metrics.category_shares.map((cat) => (
-              <div className="space-y-1.5 rounded-xl border border-line bg-paper/50 p-3" key={cat.category_id}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-ink">{cat.category_name}</span>
-                  <div className="text-right">
-                    <span className="font-semibold">{formatVnd(cat.revenue_vnd)}</span>
-                    <span className="ml-2 text-xs font-bold text-emerald-600">({cat.share_percent}%)</span>
-                  </div>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-sand">
-                  <div
-                    className="h-full rounded-full bg-emerald-600 transition-all duration-300"
-                    style={{ width: `${Math.max(cat.share_percent, 1)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <EChart height={300} option={categoryOption} />
         </section>
       </div>
     </div>
@@ -485,6 +621,75 @@ function StoreDashboard({
   onStoreChange: (storeId: number) => void;
   availableStores: Array<{ store_id: number; name: string }>;
 }) {
+  const gaugeOption: EChartsOption = useMemo(() => {
+    const pct = metrics.target_achievement_percent;
+    const color = pct >= 80 ? "#059669" : pct >= 50 ? "#d97706" : "#e11d48";
+
+    return {
+      series: [
+        {
+          type: "gauge",
+          startAngle: 180,
+          endAngle: 0,
+          min: 0,
+          max: 120,
+          splitNumber: 4,
+          itemStyle: { color },
+          progress: {
+            show: true,
+            roundCap: true,
+            width: 14,
+          },
+          pointer: {
+            icon: "roundRect",
+            length: "60%",
+            width: 5,
+            offsetCenter: [0, "-12%"],
+          },
+          axisLine: {
+            roundCap: true,
+            lineStyle: {
+              width: 14,
+              color: [
+                [0.5, "rgba(225, 29, 72, 0.25)"],
+                [0.8, "rgba(217, 119, 6, 0.25)"],
+                [1, "rgba(5, 150, 105, 0.25)"],
+              ],
+            },
+          },
+          axisTick: { show: false },
+          splitLine: { length: 8, lineStyle: { width: 1, color: "#dcd8cf" } },
+          axisLabel: {
+            distance: 18,
+            color: "#6b7280",
+            fontSize: 10,
+            formatter: "{value}%",
+          },
+          title: {
+            offsetCenter: [0, "26%"],
+            fontSize: 13,
+            color: "#152722",
+            fontWeight: "bold",
+          },
+          detail: {
+            fontSize: 24,
+            offsetCenter: [0, "-2%"],
+            valueAnimation: true,
+            formatter: "{value}%",
+            color,
+            fontWeight: "bold",
+          },
+          data: [
+            {
+              value: pct,
+              name: "Tiến độ ngày",
+            },
+          ],
+        },
+      ],
+    };
+  }, [metrics.target_achievement_percent]);
+
   return (
     <div className="space-y-6">
       {/* Store Selector for Admin */}
@@ -547,7 +752,7 @@ function StoreDashboard({
             <p className="text-xs text-muted">Tiến độ chỉ tiêu ngày</p>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                metrics.target_achievement_percent >= 100
+                metrics.target_achievement_percent >= 80
                   ? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                   : "border border-line bg-paper text-muted"
               }`}
@@ -569,9 +774,18 @@ function StoreDashboard({
           <p className={`${metricValueClasses} ${metrics.low_stock_at_store_count > 0 ? "text-danger" : ""}`}>
             {metrics.low_stock_at_store_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Biến thể còn dưới 5 đơn vị</p>
+          <p className="mt-3 text-xs text-muted">Biến thể có tồn kho ≤ 5</p>
         </article>
       </div>
+
+      {/* Target Gauge Visualization */}
+      <section className="admin-panel space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-ink">Đồng hồ Tiến độ Doanh số Chỉ tiêu (Daily Target Gauge)</h3>
+          <p className="text-xs text-muted">Mức độ hoàn thành chỉ tiêu doanh thu ngày của chi nhánh</p>
+        </div>
+        <EChart height={280} option={gaugeOption} />
+      </section>
 
       {/* Low Stock Warning Alert */}
       {metrics.low_stock_at_store_count > 0 && (
@@ -590,9 +804,38 @@ function StoreDashboard({
 }
 
 function InventoryDashboard({ metrics }: { metrics: InventoryMetricsResponse }) {
-  const totalUnits = metrics.warehouse_stock_units + metrics.store_stock_units;
-  const whShare = totalUnits > 0 ? Math.round((metrics.warehouse_stock_units / totalUnits) * 100) : 0;
-  const storeShare = totalUnits > 0 ? 100 - whShare : 0;
+  const stockOption: EChartsOption = useMemo(() => {
+    return {
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+      },
+      legend: {
+        bottom: 0,
+        textStyle: { color: "#5c4d3c", fontSize: 11 },
+      },
+      grid: { left: "3%", right: "4%", top: "8%", bottom: "15%", containLabel: true },
+      xAxis: {
+        type: "category",
+        data: ["Tổng kho trung tâm", "Hệ thống Cửa hàng"],
+        axisLine: { lineStyle: { color: "#dcd8cf" } },
+      },
+      yAxis: {
+        type: "value",
+        axisLabel: { formatter: (v: number) => v.toLocaleString("vi-VN") },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)", type: "dashed" } },
+      },
+      series: [
+        {
+          name: "Số lượng tồn kho (Units)",
+          type: "bar",
+          data: [metrics.warehouse_stock_units, metrics.store_stock_units],
+          itemStyle: { color: "#152722", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 56,
+        },
+      ],
+    };
+  }, [metrics]);
 
   return (
     <div className="space-y-6">
@@ -633,23 +876,9 @@ function InventoryDashboard({ metrics }: { metrics: InventoryMetricsResponse }) 
       <section className="admin-panel space-y-4">
         <div>
           <h3 className="text-lg font-semibold text-ink">Phân bổ Tồn kho: Tổng kho vs Điểm bán</h3>
-          <p className="text-xs text-muted">Tỷ lệ phân tán hàng hóa trong mạng lưới cung ứng</p>
+          <p className="text-xs text-muted">Tỷ lệ phân tán hàng hóa theo dữ liệu mart_inventory_health</p>
         </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-1.5 font-semibold text-ink">
-              <span className="h-3 w-3 rounded-full bg-accent" /> Tổng kho trung tâm ({metrics.warehouse_stock_units.toLocaleString("vi-VN")} chiếc - {whShare}%)
-            </span>
-            <span className="flex items-center gap-1.5 font-semibold text-ink">
-              <span className="h-3 w-3 rounded-full bg-moss" /> Các cửa hàng ({metrics.store_stock_units.toLocaleString("vi-VN")} chiếc - {storeShare}%)
-            </span>
-          </div>
-          <div className="flex h-3.5 w-full overflow-hidden rounded-full bg-sand">
-            <div className="bg-accent transition-all duration-300" style={{ width: `${whShare}%` }} />
-            <div className="bg-moss transition-all duration-300" style={{ width: `${storeShare}%` }} />
-          </div>
-        </div>
+        <EChart height={280} option={stockOption} />
 
         <div className="pt-2">
           <Link className="button-secondary text-xs" href="/admin/inbound">
@@ -663,6 +892,33 @@ function InventoryDashboard({ metrics }: { metrics: InventoryMetricsResponse }) 
 }
 
 function OperationsDashboard({ metrics }: { metrics: OperationsMetricsResponse }) {
+  const opsDonutOption: EChartsOption = useMemo(() => {
+    return {
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) => {
+          return `<div class="font-bold text-xs mb-1">${params.name}</div>
+            <div class="text-xs">Số lượng: <b>${Number(params.value).toLocaleString("vi-VN")}</b> (${params.percent}%)</div>`;
+        },
+      },
+      legend: { bottom: 0, textStyle: { color: "#5c4d3c", fontSize: 11 } },
+      series: [
+        {
+          name: "Vận hành",
+          type: "pie",
+          radius: ["42%", "72%"],
+          itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
+          data: [
+            { value: Math.max(1, 100 - metrics.boom_orders_count), name: "Giao nhận bình thường", itemStyle: { color: "#059669" } },
+            { value: metrics.boom_orders_count, name: "Boom hàng (Giao thất bại)", itemStyle: { color: "#e11d48" } },
+            { value: metrics.shipping_sla_violations_count, name: "Vi phạm SLA", itemStyle: { color: "#d97706" } },
+            { value: metrics.return_requests_count, name: "Yêu cầu đổi trả", itemStyle: { color: "#3d647a" } },
+          ],
+        },
+      ],
+    };
+  }, [metrics]);
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -723,20 +979,61 @@ function OperationsDashboard({ metrics }: { metrics: OperationsMetricsResponse }
         </Link>
       </div>
 
-      <section className="admin-panel space-y-3">
-        <h3 className="text-base font-semibold text-ink">Quy trình Vận hành Đơn & SLA Giao nhận</h3>
-        <p className="text-xs text-muted">
-          Giám sát liên tục các mắt xích từ chốt đơn đến giao hàng tận tay khách nhằm tối ưu chi phí hoàn và giữ vững cam kết SLA.
-        </p>
+      {/* Logistics Performance Donut */}
+      <section className="admin-panel space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-ink">Chỉ số Hiệu suất Giao vận & Tỷ lệ Boom (Logistics Mart)</h3>
+          <p className="text-xs text-muted">Dữ liệu tổng hợp từ mart_logistics_performance</p>
+        </div>
+        <EChart height={290} option={opsDonutOption} />
       </section>
     </div>
   );
 }
 
 function MarketingDashboard({ metrics }: { metrics: MarketingMetricsResponse }) {
-  const maxStepCount = useMemo(() => {
-    if (!metrics.funnel_steps.length) return 1;
-    return Math.max(...metrics.funnel_steps.map((s) => s.count), 1);
+  const funnelOption: EChartsOption = useMemo(() => {
+    return {
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) => {
+          return `<div class="font-bold text-xs mb-1">${params.name}</div>
+            <div class="text-xs">Số lượng: <b>${Number(params.value).toLocaleString("vi-VN")}</b></div>`;
+        },
+      },
+      legend: { bottom: 0, textStyle: { color: "#5c4d3c", fontSize: 11 } },
+      series: [
+        {
+          name: "Phễu chuyển đổi",
+          type: "funnel",
+          left: "15%",
+          top: "8%",
+          bottom: "15%",
+          width: "70%",
+          min: 0,
+          maxSize: "100%",
+          sort: "descending",
+          gap: 3,
+          label: {
+            show: true,
+            position: "inside",
+            formatter: "{b}: {c}",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: "bold",
+          },
+          itemStyle: {
+            borderColor: "#fff",
+            borderWidth: 1,
+          },
+          data: metrics.funnel_steps.map((s, idx) => ({
+            value: s.count,
+            name: s.step_name.split("(")[0].trim(),
+            itemStyle: { color: BRAND_COLORS[idx % BRAND_COLORS.length] },
+          })),
+        },
+      ],
+    };
   }, [metrics.funnel_steps]);
 
   return (
@@ -768,42 +1065,7 @@ function MarketingDashboard({ metrics }: { metrics: MarketingMetricsResponse }) 
           <h3 className="text-lg font-semibold text-ink">Phễu chuyển đổi E-commerce (Conversion Funnel)</h3>
           <p className="text-xs text-muted">Theo dõi tỷ lệ suy giảm qua từng bước trong hành trình khách hàng</p>
         </div>
-
-        <div className="space-y-3">
-          {metrics.funnel_steps.map((step, idx) => {
-            const widthPct = maxStepCount > 0 ? Math.max(10, Math.round((step.count / maxStepCount) * 100)) : 10;
-            const prevStep = idx > 0 ? metrics.funnel_steps[idx - 1] : null;
-            const dropoffPct =
-              prevStep && prevStep.count > 0
-                ? Math.round(((prevStep.count - step.count) / prevStep.count) * 100)
-                : null;
-
-            return (
-              <div className="space-y-1.5 rounded-xl border border-line bg-paper/60 p-3.5" key={step.step_name}>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <span className="font-semibold text-ink">
-                    {idx + 1}. {step.step_name}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-ink">{step.count.toLocaleString("vi-VN")}</span>
-                    <span className="text-xs font-semibold text-accent">({step.conversion_rate_percent}%)</span>
-                    {dropoffPct !== null && (
-                      <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400">
-                        Rơi rụng -{dropoffPct}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-sand">
-                  <div
-                    className="h-full rounded-full bg-accent transition-all duration-300"
-                    style={{ width: `${widthPct}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <EChart height={320} option={funnelOption} />
       </section>
 
       <div className="flex flex-wrap gap-3">
@@ -822,6 +1084,43 @@ function MarketingDashboard({ metrics }: { metrics: MarketingMetricsResponse }) 
 
 function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
   const allMatch = metrics.reconciliation_variance.every((v: ReconciliationVariance) => v.variance_percent === 0);
+
+  const reconOption: EChartsOption = useMemo(() => {
+    return {
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+      },
+      legend: { bottom: 0, textStyle: { color: "#5c4d3c", fontSize: 11 } },
+      grid: { left: "3%", right: "4%", top: "8%", bottom: "15%", containLabel: true },
+      xAxis: {
+        type: "category",
+        data: metrics.reconciliation_variance.map((v) => v.metric_name),
+        axisLine: { lineStyle: { color: "#dcd8cf" } },
+      },
+      yAxis: {
+        type: "value",
+        axisLabel: { formatter: (v: number) => formatMetricVnd(v) },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)", type: "dashed" } },
+      },
+      series: [
+        {
+          name: "OLTP MySQL",
+          type: "bar",
+          data: metrics.reconciliation_variance.map((v) => v.oltp_value),
+          itemStyle: { color: "#315b4f", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 36,
+        },
+        {
+          name: "Lakehouse Iceberg",
+          type: "bar",
+          data: metrics.reconciliation_variance.map((v) => v.lakehouse_value),
+          itemStyle: { color: "#a94728", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 36,
+        },
+      ],
+    };
+  }, [metrics.reconciliation_variance]);
 
   return (
     <div className="space-y-6">
@@ -848,7 +1147,7 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
         </article>
       </div>
 
-      {/* Reconciliation Gate Table */}
+      {/* Reconciliation Comparison Chart */}
       <section className="admin-panel space-y-4">
         <div>
           <h3 className="text-lg font-semibold text-ink">Đối soát Dữ liệu (Reconciliation Gate: OLTP vs Lakehouse)</h3>
@@ -867,42 +1166,7 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
           </div>
         )}
 
-        <div className="admin-table-shell">
-          <table>
-            <thead>
-              <tr>
-                <th>Chỉ số nghiệp vụ</th>
-                <th className="text-right">Nguồn OLTP</th>
-                <th className="text-right">Kho Lakehouse</th>
-                <th className="text-right">Độ lệch (Variance)</th>
-                <th className="text-center">Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.reconciliation_variance.map((row: ReconciliationVariance) => (
-                <tr key={row.metric_name}>
-                  <td className="font-semibold text-ink">{row.metric_name}</td>
-                  <td className="text-right tabular-nums">{row.oltp_value.toLocaleString("vi-VN")}</td>
-                  <td className="text-right tabular-nums">{row.lakehouse_value.toLocaleString("vi-VN")}</td>
-                  <td className="text-right tabular-nums font-semibold">
-                    {row.variance_percent.toFixed(2)}%
-                  </td>
-                  <td className="text-center">
-                    {row.variance_percent === 0 ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                        <Icon name="check" size={12} /> Khớp
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
-                        Lệch
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <EChart height={280} option={reconOption} />
       </section>
     </div>
   );
@@ -1037,7 +1301,7 @@ function AnalyticsHubContent() {
           <p className="eyebrow">Phân tích kinh doanh đa chiều</p>
           <h1 className="admin-heading mt-1">Báo cáo BI Lakehouse</h1>
           <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-muted">
-            Trung tâm dữ liệu điều hành đa vai trò, tích hợp mô hình Medallion Lakehouse.
+            Trung tâm dữ liệu điều hành đa vai trò, tích hợp trực tiếp Apache ECharts và Trino Distributed Query Engine.
           </p>
         </div>
       </header>

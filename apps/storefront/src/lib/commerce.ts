@@ -908,12 +908,6 @@ export interface SalesTrendResponse {
   points: DailySalesTrendPoint[];
 }
 
-export interface SupersetConfigResponse {
-  superset_url: string;
-  enabled: boolean;
-  guest_token_enabled: boolean;
-}
-
 export function getAdminRoleMetrics<T = RoleMetricsResponse>(role: string, storeId?: number): Promise<T> {
   const params = new URLSearchParams({ target_role: role });
   if (storeId !== undefined && storeId !== null) {
@@ -926,6 +920,4 @@ export function getAdminSalesTrend(days: number = 30): Promise<SalesTrendRespons
   return apiFetch<SalesTrendResponse>(`/api/v1/admin/analytics/sales-trend?days=${encodeURIComponent(days)}`);
 }
 
-export function getSupersetConfig(): Promise<SupersetConfigResponse> {
-  return apiFetch<SupersetConfigResponse>("/api/v1/admin/analytics/superset-config");
-}
+
