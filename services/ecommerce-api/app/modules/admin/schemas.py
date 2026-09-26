@@ -126,6 +126,9 @@ class AdminOrderResponse(BaseModel):
     total_vnd: int
     item_count: int
     created_at: datetime
+    channel: str = "online"
+    payment_method: str = "vietqr"
+
 
 
 class AdminCustomerResponse(BaseModel):

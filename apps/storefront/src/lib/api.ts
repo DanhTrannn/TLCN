@@ -262,6 +262,7 @@ export interface AdminOrder {
   item_count: number;
   created_at: string;
   channel: string;
+  payment_method?: string;
 }
 
 export interface AdminCustomer {

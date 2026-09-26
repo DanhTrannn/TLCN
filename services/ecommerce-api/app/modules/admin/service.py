@@ -356,6 +356,8 @@ def list_orders(db: Session, status: str | None) -> list[AdminOrderResponse]:
             total_vnd=order.total_vnd,
             item_count=int(item_count_value),
             created_at=order.created_at,
+            channel=order.channel or "online",
+            payment_method=order.payment_method or "vietqr",
         )
         for order, customer_name, email, item_count_value in rows
     ]
