@@ -11,8 +11,9 @@ pipelines/
 ├── config/
 │   └── default.yml                       # Lakehouse table specifications, cursor mappings, and mutability
 ├── src/
-│   ├── jobs/                             # Standalone Spark batch & maintenance jobs submitted via Airflow
-│   │   ├── logs/                         # Access Logs analytical jobs
+│   ├── jobs/                             # Data pipeline execution jobs (Streaming & Batch)
+│   │   ├── logs/                         # Access Logs streaming & analytical jobs
+│   │   │   ├── kafka_to_lakehouse.py     # Pure Streaming: Kafka -> Medallion (Landing, Bronze, Silver, Gold)
 │   │   │   └── build_logs_gold.py        # Builds Gold Data Marts from real-time fact_web_events
 │   │   ├── maintenance/                  # Lakehouse Iceberg maintenance
 │   │   │   └── iceberg_table_maintenance.py # Compaction (rewrite_data_files), snapshot expiration, orphan cleanup
@@ -22,9 +23,10 @@ pipelines/
 │   │       ├── ingest_oltp_to_bronze.py  # Auto-discovers Landing run_id and ingests to Bronze
 │   │       └── ingest_oltp_silver.py     # Ingests OLTP Bronze to Silver via MERGE
 │   └── lakehouse/                        # Core Python library
+│       ├── flink.py                      # Flink environment & Polaris REST catalog factory
+│       ├── spark.py                      # SparkSession factory with S3A and Polaris OAuth2 authentication
 │       ├── config.py                     # Pipeline configuration loader and validation
 │       ├── landing.py                    # Landing Zone paths builder and MD5 manifest serialization
-│       ├── spark.py                      # SparkSession factory with S3A and Polaris OAuth2 authentication
 │       ├── validate.py                   # S3 object validation and manifest verification
 │       ├── logs/                         # Access Logs domain logic
 │       │   ├── bronze.py                 # OpenTelemetry log schema and Bronze DDLs

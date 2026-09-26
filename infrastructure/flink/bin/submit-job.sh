@@ -4,7 +4,7 @@
 set -euo pipefail
 
 JOB_MANAGER_ADDRESS="${JOB_MANAGER_ADDRESS:-flink-jobmanager:8081}"
-JOB_SCRIPT="${JOB_SCRIPT:-/opt/project/flink/jobs/kafka_to_lakehouse.py}"
+JOB_SCRIPT="${JOB_SCRIPT:-/opt/project/pipelines/src/jobs/logs/kafka_to_lakehouse.py}"
 
 # Source Polaris credentials (sets POLARIS_FLINK_CLIENT_ID / SECRET / REALM)
 CRED_FILE="${POLARIS_CREDENTIAL_FILE:-/run/polaris/clients.env}"
@@ -13,6 +13,8 @@ if [[ -f "$CRED_FILE" ]]; then
     source "$CRED_FILE"
     export POLARIS_FLINK_CLIENT_ID POLARIS_FLINK_CLIENT_SECRET POLARIS_REALM
 fi
+
+export PYTHONPATH="/opt/project/pipelines/src:${PYTHONPATH:-}"
 
 # Flink CLI tries to write to $FLINK_CONF_DIR/flink-conf.yaml during startup.
 # Since /opt/flink/conf is owned by root (read-only for flink user), we copy
@@ -39,5 +41,5 @@ exec /opt/flink/bin/flink run \
     -d \
     -m "${JOB_MANAGER_ADDRESS}" \
     --python "${JOB_SCRIPT}" \
-    --pyFiles /opt/project/flink/jobs \
+    --pyFiles /opt/project/pipelines/src \
     "$@"

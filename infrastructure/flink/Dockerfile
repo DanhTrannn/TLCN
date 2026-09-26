@@ -43,10 +43,11 @@ RUN apt-get update -qq \
 
 COPY infrastructure/flink/conf/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
 COPY infrastructure/flink/bin/with-polaris-credentials.sh /opt/project/flink/bin/with-polaris-credentials.sh
-COPY infrastructure/flink/jobs /opt/project/flink/jobs
+
+ENV PYTHONPATH=/opt/project/pipelines/src
 
 RUN chmod 0755 /opt/project/flink/bin/with-polaris-credentials.sh \
-    && mkdir -p /opt/flink/checkpoints \
-    && chown -R flink:flink /opt/flink/checkpoints /opt/project/flink
+    && mkdir -p /opt/flink/checkpoints /opt/project/pipelines \
+    && chown -R flink:flink /opt/flink/checkpoints /opt/project
 
 USER flink

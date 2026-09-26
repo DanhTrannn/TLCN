@@ -9,14 +9,8 @@ with Merge-on-Read Iceberg tables:
   3. lakehouse.silver.silver_logs      (Flattened, sanitized, typed log records)
   4. lakehouse.gold.fact_web_events    (Real-time dimensional facts with duration & status flags)
 
-Environment variables (injected by docker-compose / with-polaris-credentials.sh):
-    POLARIS_FLINK_CLIENT_ID      – Polaris OAuth2 client id
-    POLARIS_FLINK_CLIENT_SECRET  – Polaris OAuth2 client secret
-    POLARIS_REALM                – Polaris realm name  (default: POLARIS)
-    KAFKA_BOOTSTRAP_SERVERS      – Kafka broker address (default: kafka:9092)
-    MINIO_ENDPOINT               – MinIO S3 endpoint   (default: http://minio:9000)
-    AWS_ACCESS_KEY_ID            – MinIO access key     (default: minioadmin)
-    AWS_SECRET_ACCESS_KEY        – MinIO secret key     (default: password)
+Submission:
+    flink run -m flink-jobmanager:8081 --python /opt/project/pipelines/src/jobs/logs/kafka_to_lakehouse.py
 """
 
 import json
@@ -25,21 +19,24 @@ import os
 import uuid
 
 import pendulum
-
-VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
-
-from pyflink.common import Configuration, Row
+from pyflink.common import Row
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy
-from pyflink.datastream import StreamExecutionEnvironment, CheckpointingMode
-from pyflink.datastream.connectors.kafka import (
-    KafkaSource,
-    KafkaOffsetsInitializer,
-)
+from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaSource
 from pyflink.datastream.functions import MapFunction
-from pyflink.table import StreamTableEnvironment, EnvironmentSettings, Schema
+from pyflink.table import Schema
 from pyflink.table.types import DataTypes
+
+from lakehouse.flink import (
+    create_stream_environment,
+    create_table_environment,
+    ensure_medallion_namespaces,
+    ensure_merge_on_read,
+    register_polaris_catalog,
+)
+
+VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,31 +44,17 @@ logging.basicConfig(
 )
 log = logging.getLogger("flink.kafka_to_lakehouse")
 
-# ---------------------------------------------------------------------------
-# Configuration from environment
-# ---------------------------------------------------------------------------
-POLARIS_CLIENT_ID = os.environ["POLARIS_FLINK_CLIENT_ID"]
-POLARIS_CLIENT_SECRET = os.environ["POLARIS_FLINK_CLIENT_SECRET"]
-POLARIS_REALM = os.environ.get("POLARIS_REALM", "POLARIS")
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://minio:9000")
-S3_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY_ID", "minioadmin")
-S3_SECRET_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "password")
-
 KAFKA_TOPIC = "ecommerce.access_logs"
 KAFKA_GROUP_ID = "flink-lakehouse-pure-stream"
-CHECKPOINT_INTERVAL_MS = 10_000  # 10 seconds micro-commits
+CHECKPOINT_INTERVAL_MS = 10_000
 
 
 # ---------------------------------------------------------------------------
 # Event parsing with Pendulum Asia/Ho_Chi_Minh timezone
 # ---------------------------------------------------------------------------
 class ParseAccessLog(MapFunction):
-    """Parse raw JSON string from Kafka into multi-layer schema fields.
-
-    Converts timestamps to Asia/Ho_Chi_Minh timezone via Pendulum.
-    Computes duration_ms and HTTP status flags for real-time Gold facts.
-    """
+    """Parse raw JSON string from Kafka into multi-layer schema fields."""
 
     def map(self, raw: str):  # noqa: ANN001
         try:
@@ -198,67 +181,21 @@ class ParseAccessLog(MapFunction):
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
-    # 1. StreamExecutionEnvironment
-    config = Configuration()
-    env = StreamExecutionEnvironment.get_execution_environment(config)
+    # 1. Environments
+    env = create_stream_environment(checkpoint_interval_ms=CHECKPOINT_INTERVAL_MS)
+    t_env = create_table_environment(env, pipeline_name="kafka_to_lakehouse_pure_streaming")
 
-    # Exactly-Once Checkpointing
-    env.enable_checkpointing(CHECKPOINT_INTERVAL_MS, CheckpointingMode.EXACTLY_ONCE)
-    env.get_checkpoint_config().set_checkpoint_storage_dir("file:///opt/flink/checkpoints")
-    env.get_checkpoint_config().set_min_pause_between_checkpoints(5_000)
-    env.get_checkpoint_config().set_checkpoint_timeout(60_000)
-
-    # Table Environment
-    t_env = StreamTableEnvironment.create(env, EnvironmentSettings.new_instance().in_streaming_mode().build())
-    t_env.get_config().set("pipeline.name", "kafka_to_lakehouse_pure_streaming")
-
-    # 2. Register Polaris Iceberg REST catalog
-    t_env.execute_sql(f"""
-        CREATE CATALOG lakehouse WITH (
-            'type'                   = 'iceberg',
-            'catalog-type'           = 'rest',
-            'uri'                    = 'http://polaris:8181/api/catalog',
-            'credential'             = '{POLARIS_CLIENT_ID}:{POLARIS_CLIENT_SECRET}',
-            'warehouse'              = 'lakehouse',
-            'scope'                  = 'PRINCIPAL_ROLE:ALL',
-            'header.Polaris-Realm'   = '{POLARIS_REALM}',
-            'io-impl'                = 'org.apache.iceberg.aws.s3.S3FileIO',
-            's3.endpoint'            = '{MINIO_ENDPOINT}',
-            's3.path-style-access'   = 'true',
-            's3.access-key-id'       = '{S3_ACCESS_KEY}',
-            's3.secret-access-key'   = '{S3_SECRET_KEY}'
-        )
-    """)
-    log.info("Iceberg catalog 'lakehouse' registered via Polaris REST")
-
-    # Ensure namespaces exist
-    t_env.execute_sql("CREATE DATABASE IF NOT EXISTS lakehouse.landing")
-    t_env.execute_sql("CREATE DATABASE IF NOT EXISTS lakehouse.bronze")
-    t_env.execute_sql("CREATE DATABASE IF NOT EXISTS lakehouse.silver")
-    t_env.execute_sql("CREATE DATABASE IF NOT EXISTS lakehouse.gold")
-
-    # Ensure Merge-on-Read write mode on all 4 tables
-    tables_to_ensure = [
+    # 2. Polaris Iceberg REST Catalog
+    register_polaris_catalog(t_env, catalog_name="lakehouse")
+    ensure_medallion_namespaces(t_env, catalog_name="lakehouse")
+    ensure_merge_on_read(t_env, [
         "lakehouse.landing.access_logs",
         "lakehouse.bronze.web_events",
         "lakehouse.silver.silver_logs",
         "lakehouse.gold.fact_web_events",
-    ]
-    for tbl in tables_to_ensure:
-        try:
-            t_env.execute_sql(f"""
-                ALTER TABLE {tbl} SET (
-                    'write.delete.mode' = 'merge-on-read',
-                    'write.update.mode' = 'merge-on-read',
-                    'write.merge.mode'  = 'merge-on-read'
-                )
-            """)
-        except Exception as exc:
-            log.warning("Could not set merge-on-read on %s: %s", tbl, exc)
+    ])
 
-    log.info("Ensured Merge-On-Read write mode on Lakehouse Medallion tables")
-
-    # 3. Kafka DataStream Source
+    # 3. Kafka Source
     kafka_source = (
         KafkaSource.builder()
         .set_bootstrap_servers(KAFKA_BOOTSTRAP)
@@ -503,10 +440,7 @@ def main() -> None:
         FROM raw_events_view
     """)
 
-    log.info(
-        "Submitting Pure Streaming Job: Kafka[%s] → Medallion Lakehouse (Landing, Bronze, Silver, Gold)",
-        KAFKA_TOPIC,
-    )
+    log.info("Submitting Pure Streaming Job: Kafka[%s] → Medallion Lakehouse", KAFKA_TOPIC)
     statement_set.execute().wait()
 
 
