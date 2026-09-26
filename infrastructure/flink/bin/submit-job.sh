@@ -29,8 +29,8 @@ echo "[submit-job] JobManager is ready."
 
 # Idempotency check: skip submission if job is already RUNNING
 RUNNING_JOBS="$(curl -sf "http://${JOB_MANAGER_ADDRESS}/jobs/overview" 2>/dev/null || echo "{}")"
-if echo "$RUNNING_JOBS" | grep -q '"name":"insert-into_lakehouse.landing.access_logs".*"state":"RUNNING"'; then
-    echo "[submit-job] Job 'insert-into_lakehouse.landing.access_logs' is already RUNNING. Skipping."
+if echo "$RUNNING_JOBS" | grep -qE '"name":"(kafka_to_lakehouse_pure_streaming|insert-into_lakehouse)".*"state":"RUNNING"'; then
+    echo "[submit-job] Streaming Lakehouse job is already RUNNING. Skipping."
     exit 0
 fi
 
