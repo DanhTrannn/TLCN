@@ -3,7 +3,7 @@ x-airflow-common: &airflow-common
     context: .
     dockerfile: infrastructure/docker/airflow/Dockerfile
   image: lakehouse-airflow:2.10.5
-  profiles: ["batch"]
+  profiles: ["batch", "streaming"]
   user: "${AIRFLOW_UID:-50000}:0"
   environment: &airflow-environment
     AIRFLOW__CORE__EXECUTOR: LocalExecutor

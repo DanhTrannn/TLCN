@@ -36,6 +36,7 @@ fi
 
 echo "[submit-job] Submitting PyFlink job: ${JOB_SCRIPT}"
 exec /opt/flink/bin/flink run \
+    -d \
     -m "${JOB_MANAGER_ADDRESS}" \
     --python "${JOB_SCRIPT}" \
     --pyFiles /opt/project/flink/jobs \

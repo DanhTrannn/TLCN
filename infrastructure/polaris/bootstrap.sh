@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Avoid apk TLS hang in Docker bridge
+# Avoid apk TLS hang in Docker bridge and terminal progress wait
 sed -i 's|https://|http://|g' /etc/apk/repositories
-apk add --no-cache python3 py3-yaml jq
+apk add --no-cache --no-progress python3 py3-yaml jq
 
 POLARIS_URL="${POLARIS_URL:-http://polaris:8181}"
 REALM="${POLARIS_REALM:-POLARIS}"
