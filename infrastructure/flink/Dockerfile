@@ -38,7 +38,7 @@ RUN apt-get update -qq \
         python3.11 python3.11-dev python3-pip \
     && ln -sf /usr/bin/python3.11 /usr/bin/python3 \
     && ln -sf /usr/bin/python3.11 /usr/bin/python \
-    && pip install --no-cache-dir "apache-flink==1.19.4" \
+    && pip install --no-cache-dir "apache-flink==1.19.3" \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY infrastructure/flink/conf/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
