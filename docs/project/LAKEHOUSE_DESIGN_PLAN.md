@@ -12,11 +12,10 @@ The platform employs a decoupled storage and compute architecture:
 - **Processing (Writer):** Apache Spark (v3.5.9) handles all extraction, parsing, transformation, data quality checks, and Iceberg table commits.
 - **Serving (Reader):** Trino (v483) serves SQL queries directly from Iceberg tables via Polaris REST catalog.
 - **Query UI:** LibreDB Studio provides a web-based SQL IDE for MySQL, PostgreSQL, and Trino.
-- **Visualization:** Apache Superset (v4.1.2) connects to Trino to serve executive and operational dashboards.
 - **Orchestration:** Apache Airflow (v2.10.5) manages all pipeline dependencies, schedules, and retries.
 
 > [!IMPORTANT]  
-> Spark is the only engine permitted to write to Iceberg tables. Trino and Superset have read-only access. Transactional web APIs must not communicate directly with Spark or Trino.
+> Spark is the only engine permitted to write to Iceberg tables. Trino has read-only access. Transactional web APIs must not communicate directly with Spark or Trino.
 
 ---
 
@@ -112,8 +111,11 @@ To maintain query performance and manage storage costs, Airflow schedules regula
 
 ## 5. Security and Access Control
 
-- **Service Isolation:** Extractors use read-only MySQL accounts scoped strictly to the **24 allowed analytical tables** (excludes `customer_credentials`).
-- **Engine Roles:** Spark uses a dedicated `spark_writer` principal (`CATALOG_MANAGE_CONTENT`). Trino uses a read-only `trino_reader` principal (`CATALOG_READ_DATA`).
+- **Service Isolation:** Extractors use read-only MySQL accounts scoped strictly to the **26 allowed analytical tables** (excludes `customer_credentials`).
+- **Polaris Catalog RBAC (3 Principals):**
+  - `trino_admin`: Full administrative rights on catalog `lakehouse` (assigned `catalog_admin` role, `CATALOG_MANAGE_CONTENT`, `CATALOG_MANAGE_ACCESS`, `CATALOG_MANAGE_METADATA`).
+  - `trino_reader`: Strictly read-only data & basic metadata inspection (`TABLE_READ_DATA`, `TABLE_FULL_METADATA`, `VIEW_FULL_METADATA`, `NAMESPACE_FULL_METADATA`, `CATALOG_READ_PROPERTIES`).
+  - `spark_writer`: Dedicated batch processing writer with full read/write data and table/partition management rights (`CATALOG_MANAGE_CONTENT`).
 - **PII Protection:** Passwords, tokens, cookies, and raw IP addresses are stripped before ingestion. Customer PII is pseudonymized before entering Silver and Gold layers.
 - **Credential Isolation:** MinIO and Polaris credentials are injected via runtime environment variables and Docker secrets.
 

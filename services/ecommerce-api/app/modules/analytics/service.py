@@ -502,7 +502,7 @@ def get_sales_trend(db: Session, days: int = 30) -> SalesTrendResponse:
 
 def get_superset_config() -> SupersetConfigResponse:
     return SupersetConfigResponse(
-        superset_url="http://localhost:8088",
-        enabled=True,
+        superset_url="",
+        enabled=False,
         guest_token_enabled=False,
     )

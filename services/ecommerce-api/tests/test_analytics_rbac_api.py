@@ -464,8 +464,8 @@ def test_superset_config_endpoint(setup_analytics_db):
     res = client_admin.get("/api/v1/admin/analytics/superset-config")
     assert res.status_code == 200
     data = res.json()
-    assert data["superset_url"] == "http://localhost:8088"
-    assert data["enabled"] is True
+    assert data["superset_url"] == ""
+    assert data["enabled"] is False
     assert data["guest_token_enabled"] is False
 
     # Customer -> 403

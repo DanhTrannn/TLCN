@@ -12,7 +12,6 @@ The local stack implements the decoupled architecture defined in the lakehouse p
 - **Trino (v483):** The distributed SQL query engine for read-only serving.
 - **LibreDB Studio (vlatest):** Web-based SQL IDE for MySQL, PostgreSQL, and Trino (`:3001`).
 - **Polaris Web Console:** Catalog and RBAC management UI (`:8183`).
-- **Apache Superset (v4.1.2):** Business intelligence dashboards connected to Trino.
 
 *Note: Polaris does not store Parquet files or execute queries. PostgreSQL holds only catalog/RBAC metadata, not actual Iceberg data.*
 
@@ -49,10 +48,10 @@ docker compose --profile core --profile batch --profile bi up -d --build
 ### Automated Bootstrap Workflow
 
 1. `minio-init` creates the private `lakehouse` bucket if not present.
-2. `postgres` provisions isolated databases for `polaris`, `airflow`, and `superset`.
+2. `postgres` provisions isolated databases for `polaris` and `airflow`.
 3. `polaris-bootstrap` initializes the JDBC metadata store and default `POLARIS` realm.
 4. `polaris-init` creates the `lakehouse` catalog mapped to `s3://lakehouse/warehouse` and registers the namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
-5. `polaris-init` provisions `spark_writer` (with `CATALOG_MANAGE_CONTENT`) and `trino_reader` principals, persisting credentials to the `polaris-client-credentials` Docker volume.
+5. `polaris-init` provisions 3 dedicated service principals (`trino_admin` with full administrative rights, `spark_writer` with read/write `CATALOG_MANAGE_CONTENT`, and `trino_reader` with least-privilege read access), persisting credentials to the `polaris-client-credentials` Docker volume.
 
 ---
 
@@ -67,7 +66,6 @@ docker compose --profile core --profile batch --profile bi up -d --build
 | **Airflow UI** | `http://localhost:8080` | 8080 | DAG orchestration UI (`airflow` / `password`) |
 | **Spark Master UI** | `http://localhost:8082` | 8082 | Compute cluster status |
 | **Trino Web UI** | `http://localhost:8084` | 8084 | Query execution status |
-| **Apache Superset** | `http://localhost:8088` | 8088 | BI dashboards (`admin` / `password`) |
 | **Polaris Console** | `http://localhost:8183` | 8183 | Catalog & RBAC UI (Realm: `POLARIS`) |
 | **MinIO Console** | `http://localhost:9001` | 9001 | S3 Object browser (`minioadmin` / `password`) |
 
@@ -96,7 +94,35 @@ docker compose exec trino trino --execute "SELECT * FROM lakehouse.system.stack_
 
 ---
 
-## 6. Troubleshooting
+## 6. Polaris RBAC as Code (`rbac.yml`)
+
+The platform manages Polaris access control declaratively using `infrastructure/polaris/rbac.yml`. Changes made to this YAML file are automatically reconciled by `infrastructure/polaris/sync_polaris_rbac.py` inside `polaris-init`.
+
+### Configuration Structure (`infrastructure/polaris/rbac.yml`)
+- **`catalog`**: Defines catalog settings, S3 endpoints, and default warehouse locations.
+- **`namespaces`**: Pre-created Iceberg namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
+- **`catalog_roles`**: Defines catalog-level roles and their granted privileges (e.g. `CATALOG_MANAGE_CONTENT`, `TABLE_READ_DATA`).
+- **`principal_roles`**: Maps principal roles to catalog roles (e.g., binding `spark_writer_role` to `spark_writer_catalog_role`).
+- **`principals`**: Defines principals (`spark_writer`, `trino_reader`, `trino_admin`), their role bindings, and target environment variables in `/run/polaris/clients.env`.
+- **`purge_unmanaged_principals`**: When `true`, automatically removes any unmanaged principals (excluding `root`).
+
+### Applying RBAC Changes on Demand
+Whenever you add, modify, or remove roles, privileges, or principals in `rbac.yml`, apply the changes immediately with:
+
+```bash
+docker compose run --rm polaris-init
+```
+
+The reconciler:
+1. Re-authenticates as Polaris `root`.
+2. Verifies and applies changes to catalog, catalog roles, grants, and principal roles.
+3. Preserves existing valid credentials in `/run/polaris/clients.env` without rotating unnecessarily.
+4. Generates credentials for new principals and updates the credentials file.
+5. Purges any unmanaged entities if enabled.
+
+---
+
+## 7. Troubleshooting
 
 ### Container Logs
 
@@ -110,8 +136,8 @@ docker compose --profile batch logs --tail=200 postgres polaris-bootstrap polari
 # Spark cluster logs
 docker compose --profile batch logs --tail=200 spark-master spark-worker
 
-# Trino and Superset logs
-docker compose --profile bi logs --tail=200 trino superset-init superset
+# Trino query engine logs
+docker compose logs --tail=200 trino
 ```
 
 ### Common Issues
@@ -122,7 +148,7 @@ docker compose --profile bi logs --tail=200 trino superset-init superset
 
 ---
 
-## 7. Teardown and Environment Reset
+## 8. Teardown and Environment Reset
 
 To stop services while keeping data intact:
 

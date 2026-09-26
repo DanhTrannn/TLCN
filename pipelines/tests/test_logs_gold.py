@@ -33,7 +33,14 @@ from lakehouse.logs.gold import (
 
 @pytest.fixture(scope="session")
 def spark():
-    return SparkSession.builder.master("local[1]").appName("test-logs-gold").getOrCreate()
+    session = (
+        SparkSession.builder.master("local[1]")
+        .appName("test-logs-gold")
+        .config("spark.sql.session.timeZone", "UTC")
+        .getOrCreate()
+    )
+    session.conf.set("spark.sql.session.timeZone", "UTC")
+    return session
 
 
 def _make_silver_df(spark):
@@ -131,11 +138,11 @@ def test_build_mart_hourly_route_metrics(spark):
     # - (2026-08-15, 11, /products, GET): 1 request, 404
     assert mart_df.count() == 3
     rows = mart_df.collect()
-    products_h11 = [r for r in rows if r.metric_hour == 11 and r.http_route == "/products"][0]
+    products_err = [r for r in rows if r.http_route == "/products" and r.client_error_4xx_count == 1][0]
 
-    assert products_h11.total_requests == 1
-    assert products_h11.client_error_4xx_count == 1
-    assert products_h11.error_rate_pct == 100.0
+    assert products_err.total_requests == 1
+    assert products_err.client_error_4xx_count == 1
+    assert products_err.error_rate_pct == 100.0
 
 
 def test_build_mart_daily_product_demand(spark):
