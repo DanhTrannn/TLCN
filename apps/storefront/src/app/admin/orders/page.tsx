@@ -54,7 +54,7 @@ export default function AdminOrdersPage() {
 
   // Pagination state
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(15);
+  const [pageSize, setPageSize] = useState<number>(25);
 
   // Cancel modal state
   const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
@@ -627,15 +627,15 @@ export default function AdminOrdersPage() {
       ) : (
         <div className="space-y-4">
           <div className="admin-table-shell overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead>
-                <tr className="border-b border-line bg-sand/30 text-xs font-medium text-muted uppercase tracking-wider">
-                  <th className="py-3 px-4">Đơn hàng</th>
-                  <th className="py-3 px-4">Khách hàng</th>
-                  <th className="py-3 px-4">Kênh & Thanh toán</th>
-                  <th className="py-3 px-4">Tổng tiền</th>
-                  <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4 text-right">Thao tác</th>
+                <tr className="border-b border-line bg-sand/30 text-xs font-semibold text-muted uppercase tracking-wider">
+                  <th className="py-3.5 px-5">Đơn hàng</th>
+                  <th className="py-3.5 px-5">Khách hàng</th>
+                  <th className="py-3.5 px-5">Kênh & Thanh toán</th>
+                  <th className="py-3.5 px-5">Tổng tiền</th>
+                  <th className="py-3.5 px-5">Trạng thái</th>
+                  <th className="py-3.5 px-5 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -645,7 +645,7 @@ export default function AdminOrdersPage() {
                   return (
                     <tr key={order.order_number} className="hover:bg-sand/20 transition-colors">
                       {/* Mã đơn hàng & Ngày tạo */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-4 px-5 align-top">
                         <Link
                           className="font-mono font-bold text-accent hover:underline inline-flex items-center gap-1"
                           href={`/admin/orders/${order.order_number}`}
@@ -661,36 +661,36 @@ export default function AdminOrdersPage() {
                       </td>
 
                       {/* Khách hàng */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-4 px-5 align-top">
                         <p className="font-semibold text-ink">{order.customer_name}</p>
-                        <p className="text-xs text-muted truncate max-w-44" title={order.customer_email}>
+                        <p className="text-xs text-muted break-all max-w-sm" title={order.customer_email}>
                           {order.customer_email}
                         </p>
                       </td>
 
                       {/* Kênh & Phương thức thanh toán */}
-                      <td className="py-3.5 px-4 align-top">
-                        <div className="flex flex-col gap-1.5 items-start">
+                      <td className="py-4 px-5 align-top">
+                        <div className="flex flex-wrap items-center gap-2">
                           {/* Channel Badge */}
                           {order.channel === "pos" ? (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/25 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/25 bg-purple-500/10 px-2.5 py-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
                               <Icon name="store" size={12} />
-                              POS Tại quầy
+                              POS Quầy
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-700 dark:text-sky-300">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-sky-500/25 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300">
                               Online 🌐
                             </span>
                           )}
 
                           {/* Payment Method Badge */}
                           {order.payment_method === "cod" ? (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                               <Icon name="cash" size={12} />
                               COD Thu hộ
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                               <Icon name="check" size={12} />
                               VietQR
                             </span>
@@ -699,19 +699,22 @@ export default function AdminOrdersPage() {
                       </td>
 
                       {/* Tổng tiền */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-4 px-5 align-top">
                         <p className="font-mono font-bold text-ink text-base">
                           {formatVnd(order.total_vnd)}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted">
+                          {order.payment_method === "cod" ? "Thu tiền mặt khi giao" : "Đã thanh toán QR"}
                         </p>
                       </td>
 
                       {/* Trạng thái */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-4 px-5 align-top">
                         <OrderStatusBadge status={order.status} />
                       </td>
 
                       {/* Thao tác */}
-                      <td className="py-3.5 px-4 align-top text-right">
+                      <td className="py-4 px-5 align-top text-right">
                         <div className="flex flex-col items-end gap-2">
                           <div className="flex flex-wrap items-center justify-end gap-1.5">
                             {order.status === "paid" ? (
@@ -836,10 +839,10 @@ export default function AdminOrdersPage() {
                   }}
                   value={pageSize}
                 >
-                  <option value={10}>10</option>
-                  <option value={15}>15</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
+                  <option value={10}>10 đơn/trang</option>
+                  <option value={25}>25 đơn/trang</option>
+                  <option value={50}>50 đơn/trang</option>
+                  <option value={100}>100 đơn/trang</option>
                 </select>
               </label>
             </div>

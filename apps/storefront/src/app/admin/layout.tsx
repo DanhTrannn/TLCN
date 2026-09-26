@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (loading || !customer) {
     return (
-      <main className="mx-auto max-w-7xl px-5 py-12 sm:px-6">
+      <main className="mx-auto max-w-[1680px] 2xl:max-w-[1800px] px-5 py-12 sm:px-6">
         <div className="admin-panel animate-pulse text-muted">Đang kiểm tra quyền truy cập…</div>
       </main>
     );
@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+    <div className="mx-auto min-h-[calc(100vh-4rem)] max-w-[1680px] 2xl:max-w-[1800px] px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
       <div className="grid items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <aside className="sticky top-16 z-30 -mx-1 rounded-2xl border border-line bg-surface/95 shadow-admin backdrop-blur lg:top-24 lg:mx-0">
           <div className="hidden border-b border-line px-5 py-4 lg:block">
