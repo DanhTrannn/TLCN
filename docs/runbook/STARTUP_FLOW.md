@@ -13,7 +13,7 @@ Running `docker compose up -d` without flags brings up the core **Storage, Metad
 | Service | Startup Behavior |
 |---|---|
 | `mysql` | Boots MySQL 8.4.5 LTS (`utf8mb4_0900_ai_ci`, UTC). Creates the `ecommerce` database and `ecommerce_app` user. |
-| `postgres` | Boots PostgreSQL 16.8 → Runs `01-create-multiple-databases.sh` to initialize isolated metadata databases for `polaris`, `airflow`, and `superset`. |
+| `postgres` | Boots PostgreSQL 16.8 → Runs `01-create-multiple-databases.sh` to initialize isolated metadata databases for `polaris` and `airflow`. |
 | `minio` | Starts MinIO S3 server (`:9000`) and web console (`:9001`). |
 | `minio-init` | One-shot: Configures `mc` alias → Idempotently creates `lakehouse` bucket → Disables anonymous public access. |
 
@@ -23,7 +23,7 @@ Running `docker compose up -d` without flags brings up the core **Storage, Metad
 |---|---|
 | `polaris-bootstrap` | One-shot: Executes `polaris-admin-tool bootstrap` to create the default realm (`POLARIS`) and root client credentials in PostgreSQL. |
 | `polaris` | Waits for `postgres`, `polaris-bootstrap`, and `minio-init` → Starts Polaris REST catalog (`:8181`) and management server (`:8182`). |
-| `polaris-init` | One-shot: Configures S3 warehouse storage → Creates `spark_writer` and `trino_reader` principals → Exports OAuth credentials to shared volume (`/run/polaris/clients.env`) → Creates namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`). |
+| `polaris-init` | One-shot: Executes `sync_polaris_rbac.py` to declaratively reconcile Polaris RBAC from `infrastructure/polaris/rbac.yml` (catalog, namespaces, roles, privileges, principals) → Exports OAuth credentials to `/run/polaris/clients.env`. |
 | `polaris-console` | Waits for `polaris-init` → Launches the catalog management web UI on port 8183. |
 
 ### 1.3. Query Engine & SQL Editor
@@ -60,18 +60,7 @@ Brings up log collection, Spark cluster, and Airflow orchestration:
 
 ---
 
-## 3. Profile: `bi` (`docker compose --profile bi up -d`)
-
-Brings up Apache Superset visualization dashboards:
-
-| Service | Startup Behavior |
-|---|---|
-| `superset-init` | Waits for `postgres` and `trino` → Runs `superset db upgrade` → Provisions Superset admin account → Executes `superset init` → Imports Trino datasource configuration (`datasources.yml`). |
-| `superset` | Starts Gunicorn web server serving Superset dashboards on port 8088. |
-
----
-
-## 4. Profile: `core` (`docker compose --profile core up -d`)
+## 3. Profile: `core` (`docker compose --profile core up -d`)
 
 Brings up the transactional e-commerce application:
 
@@ -82,7 +71,7 @@ Brings up the transactional e-commerce application:
 
 ---
 
-## 5. Startup Dependency Graph
+## 4. Startup Dependency Graph
 
 ```text
 minio ──▶ minio-init ──▶ polaris
@@ -94,9 +83,6 @@ mysql (independent)
 minio-init ──▶ fluent-bit
 spark-master ──▶ spark-worker
 postgres ──▶ airflow-init ──▶ (airflow-webserver, airflow-scheduler)
-
-[When --profile bi is enabled]
-(postgres, trino) ──▶ superset-init ──▶ superset
 
 [When --profile core is enabled]
 mysql ──▶ ecommerce-api ──▶ storefront

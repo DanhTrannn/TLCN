@@ -34,9 +34,8 @@ This directory contains the architecture specifications, data schemas, operation
 | Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
 | Trino (query engine) | Done | v483, read-only via Polaris |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
-| MySQL (OLTP source) | Done | 25 tables, synthetic data via generator |
+| MySQL (OLTP source) | Done | 27 tables, synthetic data via generator |
 | LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
-| Superset (dashboards) | Done | Connected to Trino |
 | E-Commerce API + Storefront | Done | FastAPI + Next.js |
 
 ### Batch Pipelines

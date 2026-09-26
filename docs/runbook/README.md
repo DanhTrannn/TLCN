@@ -23,10 +23,7 @@ docker compose up -d --build
 # 3. Start Batch Processing & Log Collector (Fluent Bit, Spark Cluster, Airflow)
 docker compose --profile batch up -d --build
 
-# 4. Start BI Dashboards (Apache Superset)
-docker compose --profile bi up -d --build
-
-# 5. Start Storefront & FastAPI Web Application (Optional)
+# 4. Start Storefront & FastAPI Web Application (Optional)
 docker compose --profile core up -d --build
 ```
 
@@ -44,7 +41,6 @@ After starting the `core` profile, access the applications at:
 ### Data Platform & Analytics Endpoints
 
 - **LibreDB Studio (SQL IDE):** `http://localhost:3001`
-- **Apache Superset (BI Dashboards):** `http://localhost:8088` (Default: `admin` / `password`)
 - **Apache Airflow (Orchestration):** `http://localhost:8080` (Default: `airflow` / `airflow`)
 - **Apache Polaris Web Console:** `http://localhost:8183`
 - **MinIO Object Storage Console:** `http://localhost:9001` (Default: `minioadmin` / `password`)

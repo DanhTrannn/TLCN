@@ -39,22 +39,6 @@ x-airflow-common: &airflow-common
     postgres:
       condition: service_healthy
 
-x-superset-common: &superset-common
-  build:
-    context: .
-    dockerfile: infrastructure/docker/superset/Dockerfile
-  image: lakehouse-superset:4.1.2
-  profiles: ["bi"]
-  environment: &superset-environment
-    SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-change-me-superset-secret}
-    SUPERSET_DATABASE_URI: postgresql+psycopg2://${SUPERSET_DB_USER:-superset}:${SUPERSET_DB_PASSWORD:-password}@postgres:5432/${SUPERSET_DB_NAME:-superset}
-    SUPERSET_CONFIG_PATH: /app/pythonpath/superset_config.py
-  volumes:
-    - ./infrastructure/superset/superset_config.py:/app/pythonpath/superset_config.py:ro
-    - ./infrastructure/superset/datasources.yml:/app/config/datasources.yml:ro
-    - superset-home:/app/superset_home
-  networks: ["lakehouse-network"]
-
 x-spark-common: &spark-common
   build:
     context: .
@@ -205,7 +189,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POLARIS_DB_PASSWORD: ${POLARIS_DB_PASSWORD:-password}
       AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD:-password}
-      SUPERSET_DB_PASSWORD: ${SUPERSET_DB_PASSWORD:-password}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --data-checksums"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -295,6 +278,7 @@ services:
       POLARIS_S3_ENDPOINT_INTERNAL: http://minio:9000
       AWS_REGION: ${AWS_REGION:-us-east-1}
       POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
+      POLARIS_RBAC_CONFIG: /bootstrap/rbac.yml
     entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
     volumes:
       - ./infrastructure/polaris:/bootstrap:ro
@@ -446,48 +430,6 @@ services:
       start_period: 30s
     networks: ["lakehouse-network"]
 
-  superset-init:
-    <<: *superset-common
-    command:
-      - /bin/sh
-      - -c
-      - >-
-        superset db upgrade &&
-        (superset fab create-admin
-        --username $${SUPERSET_ADMIN_USER}
-        --password $${SUPERSET_ADMIN_PASSWORD}
-        --firstname Web
-        --lastname Admin
-        --role Admin
-        --email admin@example.local || true) &&
-        superset init &&
-        superset import_datasources -p /app/config/datasources.yml
-    environment:
-      <<: *superset-environment
-      SUPERSET_ADMIN_USER: ${SUPERSET_ADMIN_USER:-admin}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-password}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      trino:
-        condition: service_healthy
-
-  superset:
-    <<: *superset-common
-    command: ["gunicorn", "--bind", "0.0.0.0:8088", "--workers", "2", "--timeout", "120", "superset.app:create_app()"]
-    ports:
-      - "${SUPERSET_PORT:-8088}:8088"
-    depends_on:
-      superset-init:
-        condition: service_completed_successfully
-      trino:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8088/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 20
-
   libredb-studio:
     image: ghcr.io/libredb/libredb-studio:latest
     ports:
@@ -521,4 +463,3 @@ volumes:
   polaris-client-credentials:
   airflow-logs:
   pipeline-run-data:
-  superset-home:

@@ -1,0 +1,95 @@
+# Apache Polaris RBAC & Catalog Configuration (RBAC as Code)
+# Declaratively reconciled by sync_polaris_rbac.py.
+# Any modification to this file will be automatically reconciled upon running polaris-init.
+
+version: "1"
+
+catalog:
+  name: "lakehouse"
+  default_base_location: "${POLARIS_WAREHOUSE_LOCATION:-s3://lakehouse/warehouse}"
+  allowed_locations:
+    - "${POLARIS_ALLOWED_LOCATION:-s3://lakehouse/}"
+  s3:
+    endpoint: "${POLARIS_S3_ENDPOINT:-http://minio:9000}"
+    endpoint_internal: "${POLARIS_S3_ENDPOINT_INTERNAL:-http://minio:9000}"
+    region: "${AWS_REGION:-us-east-1}"
+    path_style_access: true
+
+# Namespaces to ensure in the catalog
+namespaces:
+  - bronze
+  - silver
+  - gold
+  - quarantine
+  - system
+
+# Policy on principals not defined in this file (except 'root')
+# If true, any principal existing in Polaris that is not defined below will be purged.
+purge_unmanaged_principals: true
+
+# Catalog roles and their privileges on the catalog
+catalog_roles:
+  spark_writer_catalog_role:
+    grants:
+      - type: catalog
+        privilege: CATALOG_MANAGE_CONTENT
+
+  trino_reader_catalog_role:
+    grants:
+      - type: catalog
+        privilege: TABLE_READ_DATA
+      - type: catalog
+        privilege: TABLE_FULL_METADATA
+      - type: catalog
+        privilege: VIEW_FULL_METADATA
+      - type: catalog
+        privilege: NAMESPACE_FULL_METADATA
+      - type: catalog
+        privilege: CATALOG_READ_PROPERTIES
+
+  trino_admin_catalog_role:
+    grants:
+      - type: catalog
+        privilege: CATALOG_MANAGE_CONTENT
+      - type: catalog
+        privilege: CATALOG_MANAGE_ACCESS
+      - type: catalog
+        privilege: CATALOG_MANAGE_METADATA
+
+# Principal roles and the catalog roles they inherit
+principal_roles:
+  spark_writer_role:
+    catalog_roles:
+      - spark_writer_catalog_role
+
+  trino_reader_role:
+    catalog_roles:
+      - trino_reader_catalog_role
+
+  trino_admin_role:
+    catalog_roles:
+      - trino_admin_catalog_role
+      - catalog_admin # Built-in Polaris role for full catalog administration
+
+# Principals, their principal role assignments, and output credential mappings
+principals:
+  spark_writer:
+    principal_roles:
+      - spark_writer_role
+    credentials_export:
+      client_id_var: POLARIS_SPARK_CLIENT_ID
+      client_secret_var: POLARIS_SPARK_CLIENT_SECRET
+
+  trino_reader:
+    principal_roles:
+      - trino_reader_role
+    credentials_export:
+      client_id_var: POLARIS_TRINO_CLIENT_ID
+      client_secret_var: POLARIS_TRINO_CLIENT_SECRET
+
+  trino_admin:
+    principal_roles:
+      - trino_admin_role
+    credentials_export:
+      client_id_var: POLARIS_TRINO_ADMIN_CLIENT_ID
+      client_secret_var: POLARIS_TRINO_ADMIN_CLIENT_SECRET

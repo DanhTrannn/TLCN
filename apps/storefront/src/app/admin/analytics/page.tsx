@@ -11,7 +11,6 @@ import {
   formatVnd,
   getAdminRoleMetrics,
   getAdminSalesTrend,
-  getSupersetConfig,
   type DailySalesTrendPoint,
   type ExecutiveMetricsResponse,
   type InventoryMetricsResponse,
@@ -22,7 +21,6 @@ import {
   type SalesMetricsResponse,
   type SalesTrendResponse,
   type StoreMetricsResponse,
-  type SupersetConfigResponse,
   type SystemMetricsResponse,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -107,42 +105,6 @@ const ROLE_CANONICAL_MAP: Record<string, string> = {
 const metricValueClasses =
   "mt-3 max-w-full truncate whitespace-nowrap text-[clamp(1.25rem,1.8vw,1.75rem)] font-semibold leading-tight tracking-[-0.03em] tabular-nums";
 
-function SupersetLauncherBanner({ config }: { config: SupersetConfigResponse | null }) {
-  const url = config?.superset_url || "http://localhost:8088";
-
-  return (
-    <aside className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-paper p-5 sm:p-6 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/15 px-2.5 py-0.5 text-xs font-semibold text-accent">
-              <Icon name="sparkles" size={13} />
-              BI Lakehouse Studio
-            </span>
-            <span className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-              Star-Schema Connected
-            </span>
-          </div>
-          <h2 className="text-lg font-bold text-ink sm:text-xl">Trung tâm Báo cáo BI Apache Superset</h2>
-          <p className="max-w-2xl text-xs sm:text-sm text-muted">
-            Khám phá các dashboard phân tích chuyên sâu đa chiều trên Apache Superset Studio với kiến trúc Lakehouse Medallion.
-          </p>
-        </div>
-        <div className="shrink-0">
-          <a
-            className="button-accent inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold shadow-md transition hover:scale-105"
-            href={url}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Mở Superset Studio
-            <Icon name="external" size={16} />
-          </a>
-        </div>
-      </div>
-    </aside>
-  );
-}
 
 function ExecutiveDashboard({
   metrics,
@@ -962,7 +924,6 @@ function AnalyticsHubContent() {
 
   const [roleMetrics, setRoleMetrics] = useState<RoleMetricsResponse | null>(null);
   const [salesTrend, setSalesTrend] = useState<SalesTrendResponse | null>(null);
-  const [supersetConfig, setSupersetConfig] = useState<SupersetConfigResponse | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -983,11 +944,6 @@ function AnalyticsHubContent() {
     setActiveRole(targetRole);
     setInitialized(true);
   }, [authLoading, customer, isAdmin, userCanonicalRole, searchParams]);
-
-  // Load Superset configuration once
-  useEffect(() => {
-    getSupersetConfig().then(setSupersetConfig).catch(() => null);
-  }, []);
 
   const handleRoleChange = useCallback((newRole: string) => {
     if (newRole !== activeRole) {
@@ -1081,13 +1037,10 @@ function AnalyticsHubContent() {
           <p className="eyebrow">Phân tích kinh doanh đa chiều</p>
           <h1 className="admin-heading mt-1">Báo cáo BI Lakehouse</h1>
           <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-muted">
-            Trung tâm dữ liệu điều hành đa vai trò, tích hợp mô hình Medallion Lakehouse và Apache Superset.
+            Trung tâm dữ liệu điều hành đa vai trò, tích hợp mô hình Medallion Lakehouse.
           </p>
         </div>
       </header>
-
-      {/* Superset Launcher Banner */}
-      <SupersetLauncherBanner config={supersetConfig} />
 
       {/* Admin Role Simulator Switcher */}
       {isAdmin && (
