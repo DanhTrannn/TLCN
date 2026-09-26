@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.core.errors import not_found
-from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
+from app.db.deps import get_current_customer, get_current_marketing_staff, get_db, verify_csrf
 from app.models.customer import Customer
 from app.modules.admin.schemas import ArchiveRequest
 from app.modules.coupons.schemas import (
@@ -41,7 +41,7 @@ def available_coupons(
 
 @admin_router.get("", response_model=list[CouponResponse])
 def admin_coupons(
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_marketing_staff),
     db: Session = Depends(get_db),
 ) -> list[CouponResponse]:
     return list_coupons(db)
@@ -50,7 +50,7 @@ def admin_coupons(
 @admin_router.post("", response_model=CouponResponse, status_code=201)
 def add_coupon(
     payload: CreateCouponRequest,
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_marketing_staff),
     __: None = Depends(verify_csrf),
 ) -> CouponResponse:
     return create_coupon(payload)
@@ -60,7 +60,7 @@ def add_coupon(
 def patch_coupon(
     public_id: str,
     payload: UpdateCouponRequest,
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_marketing_staff),
     __: None = Depends(verify_csrf),
 ) -> Response:
     try:
@@ -75,7 +75,7 @@ def patch_coupon(
 def delete_coupon(
     public_id: str,
     payload: ArchiveRequest,
-    admin: Customer = Depends(get_current_admin),
+    admin: Customer = Depends(get_current_marketing_staff),
     _: None = Depends(verify_csrf),
 ) -> Response:
     try:

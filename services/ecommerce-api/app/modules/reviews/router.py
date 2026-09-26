@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.deps import (
-    get_current_admin,
     get_current_customer,
+    get_current_marketing_staff,
     get_db,
     get_optional_customer,
     verify_csrf,
@@ -59,7 +59,7 @@ def add_review(
 @admin_router.get("", response_model=list[AdminReviewResponse])
 def admin_reviews(
     status: str | None = Query(default=None, pattern=r"^(approved|rejected)$"),
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_marketing_staff),
     db: Session = Depends(get_db),
 ) -> list[AdminReviewResponse]:
     return list_admin_reviews(db, status)
@@ -69,7 +69,7 @@ def admin_reviews(
 def patch_review(
     public_id: str,
     payload: ModerateReviewRequest,
-    admin: Customer = Depends(get_current_admin),
+    admin: Customer = Depends(get_current_marketing_staff),
     _: None = Depends(verify_csrf),
 ) -> CustomerReviewResponse:
     return moderate_review(admin.customer_id, public_id, payload)

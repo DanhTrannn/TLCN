@@ -55,3 +55,33 @@ def test_get_current_staff_rejects_customer():
     with pytest.raises(AppError) as excinfo:
         get_current_staff(customer)
     assert excinfo.value.status_code == 403
+
+
+# --- get_current_marketing_staff dependency ---
+
+
+def test_get_current_marketing_staff_accepts_admin():
+    from app.db.deps import get_current_marketing_staff
+
+    admin = Customer(role="admin", store_id=None, city_id=None)
+    result = get_current_marketing_staff(admin)
+    assert result.role == "admin"
+
+
+def test_get_current_marketing_staff_accepts_marketing_manager():
+    from app.db.deps import get_current_marketing_staff
+
+    marketing_mgr = Customer(role="marketing_manager", store_id=None, city_id=None)
+    result = get_current_marketing_staff(marketing_mgr)
+    assert result.role == "marketing_manager"
+
+
+def test_get_current_marketing_staff_rejects_other_roles():
+    from app.db.deps import get_current_marketing_staff
+
+    for non_marketing_role in ["customer", "store_manager", "inventory_manager", "operations_manager", "system_admin"]:
+        user = Customer(role=non_marketing_role, store_id=None, city_id=None)
+        with pytest.raises(AppError) as excinfo:
+            get_current_marketing_staff(user)
+        assert excinfo.value.status_code == 403
+

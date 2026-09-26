@@ -84,6 +84,16 @@ def get_current_staff(customer: Customer = Depends(get_current_customer)) -> Cus
     return customer
 
 
+MARKETING_ROLES = frozenset({"admin", "marketing_manager"})
+
+
+def get_current_marketing_staff(customer: Customer = Depends(get_current_customer)) -> Customer:
+    if customer.role not in MARKETING_ROLES:
+        raise forbidden("Chỉ quản trị viên hoặc quản lý marketing mới có quyền truy cập.")
+    return customer
+
+
+
 def verify_csrf(request: Request) -> None:
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return
