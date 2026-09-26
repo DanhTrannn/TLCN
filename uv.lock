@@ -11,6 +11,25 @@ members = [
 ]
 
 [[package]]
+name = "aiokafka"
+version = "0.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "async-timeout" },
+    { name = "packaging" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bc/1c/654b955dcca965003f04703caea15a826be0b60bb4c3d064cbd6565c31a1/aiokafka-0.11.0.tar.gz", hash = "sha256:f2def07fe1720c4fe37c0309e355afa9ff4a28e0aabfe847be0692461ac69352", size = 564682, upload-time = "2024-06-30T16:53:26.662Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/06/a4f9e4b0142bef2f38f5209bf54db219724c1a999155b03b17305923bea5/aiokafka-0.11.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:0e957b42ae959365efbb45c9b5de38032c573608553c3670ad8695cc210abec9", size = 372212, upload-time = "2024-06-30T16:52:47.001Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/cd/349fd91c2d30b79d2cd9c7f7aa565069e1e59b8431da20dd07e35a0a5908/aiokafka-0.11.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:224db2447f6c1024198d8342e7099198f90401e2fa29c0762afbc51eadf5c490", size = 1141685, upload-time = "2024-06-30T16:52:48.776Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/25/a987c2a132deb742b21815a51bec5e244135ac59cefef16accbe861963c4/aiokafka-0.11.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6ef3e7c8a923e502caa4d24041f2be778fd7f9ee4587bf0bcb4f74cac05122fa", size = 1155642, upload-time = "2024-06-30T16:52:50.182Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/ea/00511d3d7d5508ac6076b69a7566284fba560ffb966b7daf6391d9783603/aiokafka-0.11.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:59f4b935589ebb244620afad8bf3320e3bc86879a8b1c692ad06bd324f6c6127", size = 1110127, upload-time = "2024-06-30T16:52:52.062Z" },
+    { url = "https://files.pythonhosted.org/packages/21/01/34e3bce1073a5e7c596500816dff6e90be92fbda10390492b792c8d73bb2/aiokafka-0.11.0-cp311-cp311-win32.whl", hash = "sha256:560839ae6bc13e71025d71e94df36980f5c6e36a64916439e598b6457267a37f", size = 348496, upload-time = "2024-06-30T16:52:53.647Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/66/f119e1d8383a172568f3c8e46b5f505038d03a300c85051f1a82f7f195ec/aiokafka-0.11.0-cp311-cp311-win_amd64.whl", hash = "sha256:1f8ae91f0373830e4664376157fe61b611ca7e573d8a559b151aef5bf53df46c", size = 368070, upload-time = "2024-06-30T16:52:55.391Z" },
+]
+
+[[package]]
 name = "alembic"
 version = "1.16.4"
 source = { registry = "https://pypi.org/simple" }
@@ -77,6 +96,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/74/cd/15777dfde1c29d96de7f18edf4cc94c385646852e7c7b0320aa91ccca583/argon2_cffi_bindings-25.1.0-cp39-abi3-win32.whl", hash = "sha256:473bcb5f82924b1becbb637b63303ec8d10e84c8d241119419897a26116515d2", size = 27180, upload-time = "2025-07-30T10:01:57.759Z" },
     { url = "https://files.pythonhosted.org/packages/e2/c6/a759ece8f1829d1f162261226fbfd2c6832b3ff7657384045286d2afa384/argon2_cffi_bindings-25.1.0-cp39-abi3-win_amd64.whl", hash = "sha256:a98cd7d17e9f7ce244c0803cad3c23a7d379c301ba618a5fa76a67d116618b98", size = 31715, upload-time = "2025-07-30T10:01:58.56Z" },
     { url = "https://files.pythonhosted.org/packages/42/b9/f8d6fa329ab25128b7e98fd83a3cb34d9db5b059a9847eddb840a0af45dd/argon2_cffi_bindings-25.1.0-cp39-abi3-win_arm64.whl", hash = "sha256:b0fdbcf513833809c882823f98dc2f931cf659d9a1429616ac3adebb49f5db94", size = 27149, upload-time = "2025-07-30T10:01:59.329Z" },
+]
+
+[[package]]
+name = "async-timeout"
+version = "5.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a5/ae/136395dfbfe00dfc94da3f3e136d0b13f394cba8f4841120e34226265780/async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3", size = 9274, upload-time = "2024-11-06T16:41:39.6Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/ba/e2081de779ca30d473f21f5b30e0e737c438205440784c7dfc81efc2b029/async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c", size = 6233, upload-time = "2024-11-06T16:41:37.9Z" },
 ]
 
 [[package]]
@@ -272,6 +300,7 @@ name = "ecommerce-api"
 version = "0.1.0"
 source = { editable = "services/ecommerce-api" }
 dependencies = [
+    { name = "aiokafka" },
     { name = "alembic" },
     { name = "argon2-cffi" },
     { name = "email-validator" },
@@ -292,6 +321,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiokafka", specifier = "==0.11.0" },
     { name = "alembic", specifier = "==1.16.4" },
     { name = "argon2-cffi", specifier = "==25.1.0" },
     { name = "email-validator", specifier = "==2.2.0" },
