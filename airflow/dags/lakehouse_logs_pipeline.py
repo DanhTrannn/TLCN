@@ -1,11 +1,12 @@
 import uuid
 from datetime import timedelta
-
 import pendulum
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.task_group import TaskGroup
+import os
+import requests
 
 VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 
@@ -33,9 +34,6 @@ def check_iceberg_landing(**context) -> int:
     Uses the Trino REST API so Airflow workers need no Spark session.
     Returns the row count and stores it as XCom for downstream visibility.
     """
-    import os
-
-    import requests
 
     ingest_date = context["ti"].xcom_pull(task_ids="begin_run", key="ingest_date")
 
@@ -74,14 +72,15 @@ def check_iceberg_landing(**context) -> int:
 with DAG(
     dag_id="lakehouse_logs_pipeline",
     default_args=DEFAULT_ARGS,
-    schedule="0 */2 * * *",  # Every 2 hours
+    schedule="*/5 * * * *",  # Every 5 minutes (near real-time micro-batch)
+    max_active_runs=1,
     catchup=False,
     start_date=pendulum.datetime(2026, 8, 15, tz=VN_TZ),
     description=(
         "End-to-End Medallion Lakehouse Logs Pipeline: "
         "Iceberg Landing (via Flink) -> Bronze -> Silver -> Gold"
     ),
-    tags=["lakehouse", "logs", "medallion", "production", "streaming"],
+    tags=["lakehouse", "logs", "medallion", "streaming", "micro-batch"],
 ) as dag:
 
     begin = PythonOperator(
