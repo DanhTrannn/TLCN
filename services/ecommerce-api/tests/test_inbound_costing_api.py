@@ -457,3 +457,89 @@ def test_midnight_boundary_idempotency(admin_client, test_db):
     assert res.status_code in (200, 201)
     assert res.json()["receipt_code"] == past_date_code
 
+
+def test_inventory_manager_can_access_inbound_and_products(setup_db):
+    """Verify inventory_manager role can create receipts, view list, and access products list."""
+    session = setup_db()
+    inv_user = Customer(
+        customer_id=99,
+        public_id=uuid7(),
+        role="inventory_manager",
+        display_name="Trưởng Kho",
+        status="active",
+    )
+    session.add(inv_user)
+    session.commit()
+    session.close()
+
+    fastapi_app.dependency_overrides[get_current_customer] = lambda: inv_user
+    fastapi_app.dependency_overrides[verify_csrf] = lambda: None
+
+    with TestClient(fastapi_app, raise_server_exceptions=False) as client:
+        # Can read products
+        res_prod = client.get("/api/v1/admin/products")
+        assert res_prod.status_code == 200
+
+        # Can create inbound receipt
+        payload = {
+            "batch_name": "Lô hàng của Trưởng Kho",
+            "items": [{"variant_id": 1, "quantity": 4, "unit_cost_vnd": 120000}],
+        }
+        res_create = client.post(
+            "/api/v1/admin/inbound/receipts",
+            json=payload,
+            headers={"Idempotency-Key": "idemp-inv-mgr-1"},
+        )
+        assert res_create.status_code == 201
+        receipt_code = res_create.json()["receipt_code"]
+
+        # Can list inbound receipts
+        res_list = client.get("/api/v1/admin/inbound/receipts")
+        assert res_list.status_code == 200
+        assert res_list.json()["total"] >= 1
+
+        # Can view inbound receipt detail
+        res_detail = client.get(f"/api/v1/admin/inbound/receipts/{receipt_code}")
+        assert res_detail.status_code == 200
+        assert res_detail.json()["created_by_name"] == "Trưởng Kho"
+
+    fastapi_app.dependency_overrides.pop(get_current_customer, None)
+    fastapi_app.dependency_overrides.pop(verify_csrf, None)
+
+
+def test_unauthorized_role_cannot_access_inbound(setup_db):
+    """Verify other roles (e.g. marketing_manager, customer) get 403 Forbidden on inbound receipts."""
+    session = setup_db()
+    marketing_user = Customer(
+        customer_id=100,
+        public_id=uuid7(),
+        role="marketing_manager",
+        display_name="Trưởng Marketing",
+        status="active",
+    )
+    session.add(marketing_user)
+    session.commit()
+    session.close()
+
+    fastapi_app.dependency_overrides[get_current_customer] = lambda: marketing_user
+    fastapi_app.dependency_overrides[verify_csrf] = lambda: None
+
+    with TestClient(fastapi_app, raise_server_exceptions=False) as client:
+        res_list = client.get("/api/v1/admin/inbound/receipts")
+        assert res_list.status_code == 403
+
+        payload = {
+            "batch_name": "Lô không hợp lệ",
+            "items": [{"variant_id": 1, "quantity": 1, "unit_cost_vnd": 100000}],
+        }
+        res_create = client.post(
+            "/api/v1/admin/inbound/receipts",
+            json=payload,
+            headers={"Idempotency-Key": "idemp-unauth-1"},
+        )
+        assert res_create.status_code == 403
+
+    fastapi_app.dependency_overrides.pop(get_current_customer, None)
+    fastapi_app.dependency_overrides.pop(verify_csrf, None)
+
+

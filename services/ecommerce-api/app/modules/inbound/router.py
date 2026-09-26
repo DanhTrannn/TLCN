@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, VALIDATION_ERROR
-from app.db.deps import get_current_admin, get_db, verify_csrf
+from app.db.deps import get_current_inventory_staff, get_db, verify_csrf
 from app.models.customer import Customer
 from app.modules.inbound.schemas import (
     CreateInboundReceiptPayload,
@@ -33,14 +33,14 @@ def _require_idempotency_key(value: str | None) -> str:
 def create_receipt(
     payload: CreateInboundReceiptPayload,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    admin: Customer = Depends(get_current_admin),
+    actor: Customer = Depends(get_current_inventory_staff),
     _: None = Depends(verify_csrf),
     db: Session = Depends(get_db),
 ) -> InboundReceiptDetailResponse:
     validated_key = _require_idempotency_key(idempotency_key)
     return create_inbound_receipt(
         db,
-        admin_customer_id=admin.customer_id,
+        admin_customer_id=actor.customer_id,
         payload=payload,
         idempotency_key=validated_key,
     )
@@ -51,7 +51,7 @@ def list_receipts(
     search: str | None = Query(default=None, max_length=200),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_inventory_staff),
     db: Session = Depends(get_db),
 ) -> InboundReceiptListResponse:
     return list_inbound_receipts(db, search=search, limit=limit, offset=offset)
@@ -60,7 +60,7 @@ def list_receipts(
 @router.get("/receipts/{receipt_code}", response_model=InboundReceiptDetailResponse)
 def get_receipt(
     receipt_code: str,
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_inventory_staff),
     db: Session = Depends(get_db),
 ) -> InboundReceiptDetailResponse:
     return get_inbound_receipt_detail(db, receipt_code)

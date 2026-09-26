@@ -5,7 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import OUT_OF_STOCK, VALIDATION_ERROR, AppError, not_found
-from app.db.deps import get_current_admin, get_current_staff, get_db, verify_csrf
+from app.db.deps import (
+    get_current_admin,
+    get_current_inventory_staff,
+    get_current_staff,
+    get_db,
+    verify_csrf,
+)
 from app.models.customer import Customer
 from app.models.inventory import Inventory
 from app.models.multicity import Store, StoreInventory
@@ -77,7 +83,7 @@ def overview(
 @router.get("/products", response_model=list[AdminProductResponse])
 def products(
     search: str | None = Query(default=None, max_length=200),
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_staff),
     db: Session = Depends(get_db),
 ) -> list[AdminProductResponse]:
     return list_products(db, search)
@@ -86,7 +92,7 @@ def products(
 @router.post("/products", response_model=AdminProductResponse, status_code=201)
 def add_product(
     payload: CreateProductRequest,
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_inventory_staff),
     __: None = Depends(verify_csrf),
 ) -> AdminProductResponse:
     return create_product(payload)
@@ -96,7 +102,7 @@ def add_product(
 def patch_product(
     public_id: str,
     payload: UpdateProductRequest,
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_inventory_staff),
     __: None = Depends(verify_csrf),
 ) -> Response:
     update_product(public_id, payload)
@@ -107,7 +113,7 @@ def patch_product(
 def delete_product(
     public_id: str,
     payload: ArchiveRequest,
-    admin: Customer = Depends(get_current_admin),
+    admin: Customer = Depends(get_current_inventory_staff),
     _: None = Depends(verify_csrf),
 ) -> Response:
     archive_product(admin.customer_id, public_id, payload.reason)
@@ -118,7 +124,7 @@ def delete_product(
 def patch_variant(
     public_id: str,
     payload: UpdateVariantRequest,
-    _: Customer = Depends(get_current_admin),
+    _: Customer = Depends(get_current_inventory_staff),
     __: None = Depends(verify_csrf),
 ) -> Response:
     update_variant(public_id, payload)

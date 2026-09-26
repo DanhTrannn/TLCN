@@ -85,3 +85,33 @@ def test_get_current_marketing_staff_rejects_other_roles():
             get_current_marketing_staff(user)
         assert excinfo.value.status_code == 403
 
+
+# --- get_current_inventory_staff dependency ---
+
+
+def test_get_current_inventory_staff_accepts_admin():
+    from app.db.deps import get_current_inventory_staff
+
+    admin = Customer(role="admin", store_id=None, city_id=None)
+    result = get_current_inventory_staff(admin)
+    assert result.role == "admin"
+
+
+def test_get_current_inventory_staff_accepts_inventory_manager():
+    from app.db.deps import get_current_inventory_staff
+
+    inv_mgr = Customer(role="inventory_manager", store_id=None, city_id=None)
+    result = get_current_inventory_staff(inv_mgr)
+    assert result.role == "inventory_manager"
+
+
+def test_get_current_inventory_staff_rejects_other_roles():
+    from app.db.deps import get_current_inventory_staff
+
+    for non_inventory_role in ["customer", "store_manager", "marketing_manager", "sales_manager", "operations_manager", "system_admin"]:
+        user = Customer(role=non_inventory_role, store_id=None, city_id=None)
+        with pytest.raises(AppError) as excinfo:
+            get_current_inventory_staff(user)
+        assert excinfo.value.status_code == 403
+
+

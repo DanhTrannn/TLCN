@@ -53,6 +53,7 @@ export function AdminNav() {
     } else if (customer.role === "inventory_manager") {
       visibleLinks = [
         { href: "/admin/inbound", label: "Nhập kho sản xuất", icon: "box" },
+        { href: "/admin/products", label: "Sản phẩm", icon: "package" },
         { href: "/admin/analytics?role=inventory", label: "Báo cáo Tồn kho", icon: "bar-chart" },
       ];
     } else if (customer.role === "operations_manager") {
