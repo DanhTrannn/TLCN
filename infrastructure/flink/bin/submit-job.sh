@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Submit the PyFlink kafka_to_landing job to the running Flink cluster.
+# Submit the PyFlink Pure Streaming kafka_to_lakehouse job to the running Flink cluster.
 # Called by the flink-submit one-shot service after the cluster is healthy.
 set -euo pipefail
 
 JOB_MANAGER_ADDRESS="${JOB_MANAGER_ADDRESS:-flink-jobmanager:8081}"
-JOB_SCRIPT="${JOB_SCRIPT:-/opt/project/flink/jobs/kafka_to_landing.py}"
+JOB_SCRIPT="${JOB_SCRIPT:-/opt/project/flink/jobs/kafka_to_lakehouse.py}"
 
 # Source Polaris credentials (sets POLARIS_FLINK_CLIENT_ID / SECRET / REALM)
 CRED_FILE="${POLARIS_CREDENTIAL_FILE:-/run/polaris/clients.env}"
