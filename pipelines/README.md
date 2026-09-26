@@ -11,11 +11,11 @@ pipelines/
 ├── config/
 │   └── default.yml                       # Lakehouse table specifications, cursor mappings, and mutability
 ├── src/
-│   ├── jobs/                             # Standalone Spark batch jobs submitted via Airflow
-│   │   ├── logs/                         # Access Logs ingestion & analytical jobs
-│   │   │   ├── ingest_logs_to_bronze.py  # Ingests micro-batch Access Logs into Iceberg Bronze
-│   │   │   ├── ingest_logs_silver.py     # Ingests Logs Bronze to Silver with anti-join dedup
-│   │   │   └── build_logs_gold.py        # Builds Gold Fact and Data Marts from Silver logs
+│   ├── jobs/                             # Standalone Spark batch & maintenance jobs submitted via Airflow
+│   │   ├── logs/                         # Access Logs analytical jobs
+│   │   │   └── build_logs_gold.py        # Builds Gold Data Marts from real-time fact_web_events
+│   │   ├── maintenance/                  # Lakehouse Iceberg maintenance
+│   │   │   └── iceberg_table_maintenance.py # Compaction (rewrite_data_files), snapshot expiration, orphan cleanup
 │   │   └── oltp/                         # MySQL OLTP ingestion jobs
 │   │       ├── extract_oltp.py           # Extracts MySQL OLTP tables to MinIO Landing Zone
 │   │       ├── ingest_bronze.py          # Ingests Landing OLTP Parquet files into Iceberg Bronze tables
@@ -27,8 +27,8 @@ pipelines/
 │       ├── spark.py                      # SparkSession factory with S3A and Polaris OAuth2 authentication
 │       ├── validate.py                   # S3 object validation and manifest verification
 │       ├── logs/                         # Access Logs domain logic
-│       │   ├── bronze.py                 # OpenTelemetry log schema, DDLs, and partition-pruned anti-join
-│       │   ├── silver.py                 # Logs Silver: anti-join dedup, struct flattening, metadata
+│       │   ├── bronze.py                 # OpenTelemetry log schema and Bronze DDLs
+│       │   ├── silver.py                 # Logs Silver: struct flattening, schema DDLs
 │       │   └── gold.py                   # Logs Gold: Fact web events & Marts (hourly route metrics, daily product demand)
 │       └── oltp/                         # MySQL OLTP domain logic
 │           ├── extract.py                # Multi-threaded MySQL JDBC extraction engine
@@ -55,14 +55,14 @@ pipelines/
 
 ## 2. Ingestion Pipelines
 
-### 2.1. Unified Master Access Logs Pipeline (`lakehouse_logs_pipeline` DAG)
-- **Schedule:** Every 2 hours (`0 */2 * * *`).
-- **Architecture:** Unified End-to-End DAG with 4 visual `TaskGroup` layers:
-  1. `staging_layer`: `check_minio_landing` → `discover_landing_logs` (probes Landing S3 bucket and discovers log batches).
-  2. `bronze_layer`: `ingest_logs_to_bronze` (parses OpenTelemetry JSON, anti-join via partition pruning, appends to `web_events`).
-  3. `silver_layer`: `ingest_logs_to_silver` (window deduplication by `event_id`, flattens nested structs, appends to `silver_logs`).
-  4. `gold_layer`: `build_logs_gold` (builds `fact_web_events`, `mart_hourly_route_metrics`, and `mart_daily_product_demand`).
-- **Documentation:** [`docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md`](../docs/pipelines/batch/INGEST_LOGS_LANDING_TO_BRONZE.md).
+### 2.1. Pure Streaming Medallion Logs Pipeline & Maintenance
+- **Streaming Ingestion (PyFlink):** Continuous real-time ingestion from Kafka `ecommerce.access_logs` directly into all 4 layers (`landing.access_logs`, `bronze.web_events`, `silver.silver_logs`, `gold.fact_web_events`) via Flink `StatementSet` every 10-second checkpoint with Merge-on-Read write mode.
+- **Maintenance & Data Marts DAG (`lakehouse_streaming_maintenance`):**
+  - **Schedule:** Every 2 hours (`0 */2 * * *`).
+  - **Tasks:**
+    1. `stream_monitoring`: Healthcheck Flink JobManager REST API verifying continuous `RUNNING` stream status.
+    2. `iceberg_maintenance`: Spark-based Iceberg compaction (`rewrite_data_files`, `rewrite_manifests`), snapshot expiration (`expire_snapshots`), and orphan file purge (`remove_orphan_files`).
+    3. `gold_marts`: Periodic rollup of `mart_hourly_route_metrics` and `mart_daily_product_demand` from real-time `fact_web_events`.
 
 ### 2.2. OLTP Ingestion Pipelines
 - **Extraction to Landing (`ingest_oltp_batch`):** Hourly incremental extraction of 16 tables via composite cursors.
@@ -76,19 +76,19 @@ pipelines/
 
 ### Completed
 
-| DAG | Schedule | Source → Target | Architecture | Notes |
+| DAG / Job | Schedule | Source → Target | Architecture | Notes |
 |---|---|---|---|---|
-| `lakehouse_logs_pipeline` | 2 hours | MinIO Landing → Bronze → Silver → Gold | **Master Unified DAG** | 4 TaskGroups (`staging`, `bronze`, `silver`, `gold`) |
+| `kafka_to_lakehouse_pure_streaming` | Continuous (10s checkpoints) | Kafka → Landing, Bronze, Silver, Gold | **Pure Streaming (PyFlink)** | StatementSet, Pendulum VN timezone, Merge-on-Read |
+| `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
 | `ingest_oltp_batch` | Hourly | MySQL → Landing | Modular DAG | Composite cursors, MD5 manifests |
 | `ingest_oltp_landing_to_bronze` | Daily 2 AM | Landing → Bronze | Modular DAG | Auto-discover `run_id` from Landing |
 | `ingest_oltp_silver` | Daily 2 AM | Bronze → Silver | Modular DAG | MERGE, PII pseudonymization, quarantine |
 
 ### Pending
 
-| DAG | Schedule | Source → Target | Notes |
+| Pipeline | Schedule | Source → Target | Notes |
 |---|---|---|---|
 | Silver → Gold Tasks | - | Silver → Gold | Star schema (`dim_*`, `fact_*`), analytical marts |
-| Iceberg maintenance | - | - | Compaction, snapshot expiration, orphan cleanup |
 
 ### Validation Results
 
