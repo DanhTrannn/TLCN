@@ -545,8 +545,13 @@ services:
 
   flink-submit:
     <<: *flink-common
-    command: ["/opt/project/flink/bin/submit-job.sh"]
+    command: ["/opt/project/flink/bin/with-polaris-credentials.sh", "/opt/project/flink/bin/submit-job.sh"]
     restart: "no"  # one-shot: submit job then exit
+    volumes:
+      - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
+      - ./infrastructure/flink/jobs:/opt/project/flink/jobs:ro
+      - polaris-client-credentials:/run/polaris:ro
+      - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
       flink-jobmanager:
         condition: service_healthy

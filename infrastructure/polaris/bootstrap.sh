@@ -1,8 +1,9 @@
 #!/bin/sh
 set -eu
 
-# Install runtime dependencies for RBAC reconciliation engine
-apk add --no-cache python3 py3-yaml jq >/dev/null
+# Avoid apk TLS hang in Docker bridge
+sed -i 's|https://|http://|g' /etc/apk/repositories
+apk add --no-cache python3 py3-yaml jq
 
 POLARIS_URL="${POLARIS_URL:-http://polaris:8181}"
 REALM="${POLARIS_REALM:-POLARIS}"

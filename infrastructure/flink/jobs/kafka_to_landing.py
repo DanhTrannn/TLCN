@@ -34,7 +34,8 @@ from pyflink.datastream.connectors.kafka import (
     KafkaOffsetsInitializer,
 )
 from pyflink.datastream.functions import MapFunction
-from pyflink.table import StreamTableEnvironment, EnvironmentSettings
+from pyflink.table import StreamTableEnvironment, EnvironmentSettings, Schema
+from pyflink.table.types import DataTypes
 
 logging.basicConfig(
     level=logging.INFO,
@@ -129,7 +130,7 @@ def main() -> None:
 
     # Checkpointing
     env.enable_checkpointing(CHECKPOINT_INTERVAL_MS, CheckpointingMode.EXACTLY_ONCE)
-    env.get_checkpoint_config().set_checkpoint_storage_uri("file:///opt/flink/checkpoints")
+    env.get_checkpoint_config().set_checkpoint_storage_dir("file:///opt/flink/checkpoints")
     env.get_checkpoint_config().set_min_pause_between_checkpoints(5_000)
     env.get_checkpoint_config().set_checkpoint_timeout(60_000)
 
@@ -191,19 +192,21 @@ def main() -> None:
         .filter(lambda row: row is not None)
     )
 
-    # 5. Convert DataStream → Table, then INSERT INTO Iceberg landing table
+    # 5. Convert DataStream → Table using explicit Schema object (PyFlink 1.19 API)
     landing_schema = (
-        "event_id       STRING, "
-        "event_ts       STRING, "
-        "ingest_ts      STRING, "
-        "service_name   STRING, "
-        "http_method    STRING, "
-        "http_route     STRING, "
-        "http_status_code INT, "
-        "duration_ns    BIGINT, "
-        "actor_type     STRING, "
-        "ecommerce_action STRING, "
-        "raw_payload    STRING"
+        Schema.new_builder()
+        .column("f0",  DataTypes.STRING())    # event_id
+        .column("f1",  DataTypes.STRING())    # event_ts  (ISO string → cast in SQL)
+        .column("f2",  DataTypes.STRING())    # ingest_ts
+        .column("f3",  DataTypes.STRING())    # service_name
+        .column("f4",  DataTypes.STRING())    # http_method
+        .column("f5",  DataTypes.STRING())    # http_route
+        .column("f6",  DataTypes.INT())       # http_status_code
+        .column("f7",  DataTypes.BIGINT())    # duration_ns
+        .column("f8",  DataTypes.STRING())    # actor_type
+        .column("f9",  DataTypes.STRING())    # ecommerce_action
+        .column("f10", DataTypes.STRING())    # raw_payload
+        .build()
     )
     landing_tbl = t_env.from_data_stream(parsed_stream, landing_schema)
     t_env.create_temporary_view("landing_stream", landing_tbl)
@@ -213,17 +216,17 @@ def main() -> None:
     statement_set.add_insert_sql(f"""
         INSERT INTO lakehouse.landing.access_logs
         SELECT
-            event_id,
-            TO_TIMESTAMP(event_ts,   'yyyy-MM-dd HH:mm:ss.SSSSSS'),
-            TO_TIMESTAMP(ingest_ts,  'yyyy-MM-dd HH:mm:ss.SSSSSS'),
-            service_name,
-            http_method,
-            http_route,
-            http_status_code,
-            duration_ns,
-            actor_type,
-            ecommerce_action,
-            raw_payload
+            f0,
+            TO_TIMESTAMP(f1,  'yyyy-MM-dd HH:mm:ss.SSSSSS'),
+            TO_TIMESTAMP(f2,  'yyyy-MM-dd HH:mm:ss.SSSSSS'),
+            f3,
+            f4,
+            f5,
+            f6,
+            f7,
+            f8,
+            f9,
+            f10
         FROM landing_stream
     """)
 
