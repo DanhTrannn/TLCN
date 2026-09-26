@@ -1,10 +1,15 @@
-"""Trino distributed query engine REST client for Lakehouse Iceberg DWH."""
-
+import json
 import logging
 import os
 import time
 from typing import Any
-import httpx
+import urllib.error
+import urllib.request
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 from app.core.errors import INTERNAL_ERROR, AppError
 
@@ -52,10 +57,16 @@ class TrinoClient:
 
         for u in candidates:
             try:
-                with httpx.Client(timeout=0.5) as client:
-                    resp = client.get(f"{u}/v1/info")
-                    if resp.status_code == 200:
-                        return u
+                if httpx is not None:
+                    with httpx.Client(timeout=0.5) as client:
+                        resp = client.get(f"{u}/v1/info")
+                        if resp.status_code == 200:
+                            return u
+                else:
+                    req = urllib.request.Request(f"{u}/v1/info")
+                    with urllib.request.urlopen(req, timeout=0.5) as resp:
+                        if resp.status == 200:
+                            return u
             except Exception:
                 continue
         return self.base_url
@@ -64,12 +75,20 @@ class TrinoClient:
         """Check if Trino coordinator is reachable and active."""
         active_url = self._get_active_url()
         try:
-            with httpx.Client(timeout=timeout) as client:
-                resp = client.get(f"{active_url}/v1/info")
-                if resp.status_code == 200:
-                    data = resp.json()
-                    return data.get("coordinator") is True and not data.get("starting", False)
-                return False
+            if httpx is not None:
+                with httpx.Client(timeout=timeout) as client:
+                    resp = client.get(f"{active_url}/v1/info")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        return data.get("coordinator") is True and not data.get("starting", False)
+                    return False
+            else:
+                req = urllib.request.Request(f"{active_url}/v1/info")
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        return data.get("coordinator") is True and not data.get("starting", False)
+                    return False
         except Exception:
             return False
 
@@ -80,17 +99,86 @@ class TrinoClient:
         url = f"{active_url}/v1/statement"
         headers = self._get_headers()
 
-        try:
-            with httpx.Client(timeout=timeout) as client:
-                post_resp = client.post(url, headers=headers, content=clean_sql.encode("utf-8"))
-                if post_resp.status_code != 200:
-                    raise AppError(
-                        INTERNAL_ERROR,
-                        f"Lỗi khởi tạo truy vấn Trino ({post_resp.status_code}): {post_resp.text}",
-                        status_code=500,
-                    )
+        if httpx is not None:
+            try:
+                with httpx.Client(timeout=timeout) as client:
+                    post_resp = client.post(url, headers=headers, content=clean_sql.encode("utf-8"))
+                    if post_resp.status_code != 200:
+                        raise AppError(
+                            INTERNAL_ERROR,
+                            f"Lỗi khởi tạo truy vấn Trino ({post_resp.status_code}): {post_resp.text}",
+                            status_code=500,
+                        )
 
-                body = post_resp.json()
+                    body = post_resp.json()
+                    next_uri = body.get("nextUri")
+                    columns: list[str] = [c["name"] for c in body.get("columns", [])]
+                    all_rows: list[list[Any]] = body.get("data", [])
+
+                    start_time = time.time()
+                    while next_uri:
+                        if time.time() - start_time > timeout:
+                            raise AppError(
+                                INTERNAL_ERROR,
+                                f"Trino query timed out after {timeout} seconds",
+                                status_code=504,
+                            )
+
+                        poll_resp = client.get(next_uri)
+                        if poll_resp.status_code != 200:
+                            raise AppError(
+                                INTERNAL_ERROR,
+                                f"Lỗi polling kết quả Trino: {poll_resp.status_code}",
+                                status_code=500,
+                            )
+
+                        poll_body = poll_resp.json()
+
+                        if "error" in poll_body:
+                            err = poll_body["error"]
+                            err_msg = err.get("message", "Unknown Trino execution error")
+                            logger.error("Trino SQL execution failed for %s: %s", clean_sql, err_msg)
+                            raise AppError(
+                                INTERNAL_ERROR,
+                                f"Lỗi thực thi Trino DWH: {err_msg}",
+                                status_code=500,
+                            )
+
+                        if not columns and "columns" in poll_body:
+                            columns = [c["name"] for c in poll_body["columns"]]
+
+                        if "data" in poll_body:
+                            all_rows.extend(poll_body["data"])
+
+                        next_uri = poll_body.get("nextUri")
+
+                    if not columns and not all_rows:
+                        return []
+
+                    return [dict(zip(columns, row, strict=False)) for row in all_rows]
+
+            except AppError:
+                raise
+            except Exception as exc:
+                logger.error("Failed to connect or execute Trino statement: %s", exc)
+                raise AppError(
+                    INTERNAL_ERROR,
+                    f"Không thể kết nối đến Trino DWH Coordinator ({self.base_url}): {exc}",
+                    status_code=500,
+                ) from exc
+        else:
+            try:
+                body_bytes = clean_sql.encode("utf-8")
+                req = urllib.request.Request(url, data=body_bytes, headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    if resp.status != 200:
+                        raise AppError(
+                            INTERNAL_ERROR,
+                            f"Lỗi khởi tạo truy vấn Trino ({resp.status})",
+                            status_code=500,
+                        )
+                    body = json.loads(resp.read().decode("utf-8"))
+
                 next_uri = body.get("nextUri")
                 columns: list[str] = [c["name"] for c in body.get("columns", [])]
                 all_rows: list[list[Any]] = body.get("data", [])
@@ -104,15 +192,15 @@ class TrinoClient:
                             status_code=504,
                         )
 
-                    poll_resp = client.get(next_uri)
-                    if poll_resp.status_code != 200:
-                        raise AppError(
-                            INTERNAL_ERROR,
-                            f"Lỗi polling kết quả Trino: {poll_resp.status_code}",
-                            status_code=500,
-                        )
-
-                    poll_body = poll_resp.json()
+                    poll_req = urllib.request.Request(next_uri, headers=headers)
+                    with urllib.request.urlopen(poll_req, timeout=timeout) as poll_resp:
+                        if poll_resp.status != 200:
+                            raise AppError(
+                                INTERNAL_ERROR,
+                                f"Lỗi polling kết quả Trino ({poll_resp.status})",
+                                status_code=500,
+                            )
+                        poll_body = json.loads(poll_resp.read().decode("utf-8"))
 
                     if "error" in poll_body:
                         err = poll_body["error"]
@@ -135,17 +223,17 @@ class TrinoClient:
                 if not columns and not all_rows:
                     return []
 
-                return [dict(zip(columns, row)) for row in all_rows]
+                return [dict(zip(columns, row, strict=False)) for row in all_rows]
 
-        except AppError:
-            raise
-        except Exception as exc:
-            logger.error("Failed to connect or execute Trino statement: %s", exc)
-            raise AppError(
-                INTERNAL_ERROR,
-                f"Không thể kết nối đến Trino DWH Coordinator ({self.base_url}): {exc}",
-                status_code=500,
-            ) from exc
+            except AppError:
+                raise
+            except Exception as exc:
+                logger.error("Failed to connect or execute Trino statement: %s", exc)
+                raise AppError(
+                    INTERNAL_ERROR,
+                    f"Không thể kết nối đến Trino DWH Coordinator ({self.base_url}): {exc}",
+                    status_code=500,
+                ) from exc
 
     def execute_scalar(self, sql: str, timeout: float = 30.0) -> Any:
         """Execute SQL query and return first column of the first row."""
