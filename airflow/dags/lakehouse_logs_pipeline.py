@@ -55,14 +55,19 @@ def check_iceberg_landing(**context) -> int:
     resp.raise_for_status()
     result = resp.json()
 
-    # Follow pagination until final response with data
+    all_data = []
+    if result.get("data"):
+        all_data.extend(result["data"])
+
+    # Follow pagination until final response
     while "nextUri" in result:
         resp = requests.get(result["nextUri"], headers=headers, timeout=30)
         resp.raise_for_status()
         result = resp.json()
+        if result.get("data"):
+            all_data.extend(result["data"])
 
-    rows = result.get("data", [])
-    count = int(rows[0][0]) if rows else 0
+    count = int(all_data[0][0]) if all_data else 0
 
     print(f"[check_iceberg_landing] landing.access_logs rows for {ingest_date}: {count}")
     context["ti"].xcom_push(key="landing_row_count", value=count)
