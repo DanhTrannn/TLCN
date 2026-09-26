@@ -12,6 +12,7 @@ from app.core.access_logging import (
     should_emit_access_event,
 )
 from app.core.ids import new_request_id
+from app.core.kafka_producer import send_access_event
 
 logger = logging.getLogger("ecommerce_api.access")
 
@@ -47,6 +48,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
                         "access_event": access_event,
                     },
                 )
+                send_access_event(access_event)
             logger.exception(
                 "request_failed",
                 extra={
@@ -79,4 +81,5 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             else:
                 level = logging.INFO
             logger.log(level, "http.server.request", extra={"access_event": access_event})
+            send_access_event(access_event)
         return response

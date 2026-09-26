@@ -51,6 +51,25 @@ x-spark-common: &spark-common
     POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
   networks: ["lakehouse-network"]
 
+x-flink-common: &flink-common
+  build:
+    context: .
+    dockerfile: infrastructure/flink/Dockerfile
+    args:
+      FLINK_VERSION: "1.19"
+      ICEBERG_VERSION: ${ICEBERG_VERSION:-1.10.1}
+  image: lakehouse-flink:1.19-iceberg-${ICEBERG_VERSION:-1.10.1}
+  profiles: ["streaming"]
+  environment: &flink-environment
+    POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+    POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
+    AWS_REGION: ${AWS_REGION:-us-east-1}
+    AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+    AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
+    MINIO_ENDPOINT: http://minio:9000
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  networks: ["lakehouse-network"]
+
 x-polaris-database-environment: &polaris-database-environment
   POLARIS_PERSISTENCE_TYPE: relational-jdbc
   POLARIS_PERSISTENCE_RELATIONAL_JDBC_DATABASE_TYPE: postgresql
@@ -92,6 +111,9 @@ services:
       API_BOOTSTRAP_ADMIN_EMAIL: ${API_BOOTSTRAP_ADMIN_EMAIL:-admin@web.local}
       API_BOOTSTRAP_ADMIN_PASSWORD: ${API_BOOTSTRAP_ADMIN_PASSWORD:-Admin@12345}
       API_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${API_BOOTSTRAP_ADMIN_DISPLAY_NAME:-Admin}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      KAFKA_ENABLED: ${KAFKA_ENABLED:-true}
+      KAFKA_ACCESS_LOG_TOPIC: ${KAFKA_ACCESS_LOG_TOPIC:-ecommerce.access_logs}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -162,7 +184,7 @@ services:
 
   fluent-bit:
     image: cr.fluentbit.io/fluent/fluent-bit:4.2.3
-    profiles: ["batch"]
+    profiles: ["legacy-batch"]  # Disabled: replaced by Kafka+Flink streaming pipeline
     command: ["--config", "/fluent-bit/etc/fluent-bit.yaml"]
     environment:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
@@ -448,6 +470,73 @@ services:
         condition: service_healthy
     networks: ["lakehouse-network"]
 
+  kafka:
+    image: apache/kafka:3.8.0
+    profiles: ["streaming"]
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    networks: ["lakehouse-network"]
+
+  flink-jobmanager:
+    <<: *flink-common
+    command: ["/opt/project/flink/bin/with-polaris-credentials.sh", "/docker-entrypoint.sh", "jobmanager"]
+    ports:
+      - "${FLINK_JOBMANAGER_PORT:-8085}:8081"
+    environment:
+      <<: *flink-environment
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+    volumes:
+      - ./infrastructure/flink/conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
+      - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
+      - ./infrastructure/flink/sql:/opt/project/flink/sql:ro
+      - polaris-client-credentials:/run/polaris:ro
+      - flink-checkpoints:/opt/flink/checkpoints
+    depends_on:
+      kafka:
+        condition: service_healthy
+      polaris:
+        condition: service_healthy
+      polaris-init:
+        condition: service_completed_successfully
+
+  flink-taskmanager:
+    <<: *flink-common
+    command: ["/opt/project/flink/bin/with-polaris-credentials.sh", "/docker-entrypoint.sh", "taskmanager"]
+    environment:
+      <<: *flink-environment
+      JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
+    volumes:
+      - ./infrastructure/flink/conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
+      - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
+      - ./infrastructure/flink/sql:/opt/project/flink/sql:ro
+      - polaris-client-credentials:/run/polaris:ro
+      - flink-checkpoints:/opt/flink/checkpoints
+    depends_on:
+      flink-jobmanager:
+        condition: service_started
+
 networks:
   lakehouse-network:
     name: lakehouse-network
@@ -463,3 +552,5 @@ volumes:
   polaris-client-credentials:
   airflow-logs:
   pipeline-run-data:
+  kafka-data:
+  flink-checkpoints:

@@ -17,7 +17,8 @@ dependencies = [
   "pydantic==2.11.7",
   "pydantic-settings==2.10.1",
   "SQLAlchemy==2.0.41",
-  "uvicorn[standard]==0.35.0"
+  "uvicorn[standard]==0.35.0",
+  "aiokafka==0.11.0"
 ]
 
 [project.optional-dependencies]

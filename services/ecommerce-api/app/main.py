@@ -1,20 +1,32 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router, internal_router
 from app.core.config import get_settings
 from app.core.handlers import register_exception_handlers
+from app.core.kafka_producer import start_producer, stop_producer
 from app.core.logging_config import configure_logging
 from app.core.middleware import RequestContextMiddleware
 
 settings = get_settings()
 configure_logging(settings.service_name, settings.service_version)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    await start_producer()
+    yield
+    await stop_producer()
+
+
 app = FastAPI(
     title="D&K Ecommerce API",
     version=settings.service_version,
     docs_url="/docs" if settings.enable_docs else None,
     redoc_url=None,
+    lifespan=lifespan,
 )
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(

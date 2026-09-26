@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import timedelta
 
@@ -7,8 +6,6 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.task_group import TaskGroup
-
-from lakehouse.validate import s3_client
 
 VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 
@@ -30,33 +27,47 @@ def begin_run(**context) -> None:
     context["ti"].xcom_push(key="ingest_date", value=ingest_date)
 
 
-def check_minio_landing() -> str:
-    s3 = s3_client(
-        os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
-        os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
-        os.environ.get("MINIO_SECRET_KEY", "password"),
-    )
-    bucket = os.environ.get("MINIO_LAKEHOUSE_BUCKET", "lakehouse")
-    s3.head_bucket(Bucket=bucket)
-    return "ok"
+def check_iceberg_landing(**context) -> int:
+    """Count rows in lakehouse.landing.access_logs for today's ingest date.
 
+    Uses the Trino REST API so Airflow workers need no Spark session.
+    Returns the row count and stores it as XCom for downstream visibility.
+    """
+    import os
 
-def discover_landing_logs(**context) -> int:
-    s3 = s3_client(
-        os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
-        os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
-        os.environ.get("MINIO_SECRET_KEY", "password"),
-    )
-    bucket = os.environ.get("MINIO_LAKEHOUSE_BUCKET", "lakehouse")
+    import requests
+
     ingest_date = context["ti"].xcom_pull(task_ids="begin_run", key="ingest_date")
-    prefix = f"landing/logs/ingest_date={ingest_date}/"
-    
-    paginator = s3.get_paginator("list_objects_v2")
-    count = 0
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        count += len(page.get("Contents", []))
-    
-    context["ti"].xcom_push(key="discovered_files_count", value=count)
+
+    trino_host = os.environ.get("TRINO_HOST", "trino")
+    trino_port = os.environ.get("TRINO_PORT", "8080")
+    trino_user = os.environ.get("TRINO_USER", "trino_admin")
+
+    # Count landing rows written today (event_ts cast to date for partition awareness)
+    query = (
+        "SELECT COUNT(*) FROM lakehouse.landing.access_logs "
+        f"WHERE CAST(event_ts AS DATE) = DATE '{ingest_date}'"
+    )
+
+    url = f"http://{trino_host}:{trino_port}/v1/statement"
+    headers = {"X-Trino-User": trino_user, "X-Trino-Catalog": "lakehouse", "X-Trino-Schema": "landing"}
+
+    # Trino REST API: POST query then follow nextUri until done
+    resp = requests.post(url, data=query, headers=headers, timeout=30)
+    resp.raise_for_status()
+    result = resp.json()
+
+    # Follow pagination until final response with data
+    while "nextUri" in result:
+        resp = requests.get(result["nextUri"], headers=headers, timeout=30)
+        resp.raise_for_status()
+        result = resp.json()
+
+    rows = result.get("data", [])
+    count = int(rows[0][0]) if rows else 0
+
+    print(f"[check_iceberg_landing] landing.access_logs rows for {ingest_date}: {count}")
+    context["ti"].xcom_push(key="landing_row_count", value=count)
     return count
 
 
@@ -66,8 +77,11 @@ with DAG(
     schedule="0 */2 * * *",  # Every 2 hours
     catchup=False,
     start_date=pendulum.datetime(2026, 8, 15, tz=VN_TZ),
-    description="End-to-End Medallion Lakehouse Logs Pipeline: Staging -> Bronze -> Silver -> Gold",
-    tags=["lakehouse", "logs", "medallion", "production"],
+    description=(
+        "End-to-End Medallion Lakehouse Logs Pipeline: "
+        "Iceberg Landing (via Flink) -> Bronze -> Silver -> Gold"
+    ),
+    tags=["lakehouse", "logs", "medallion", "production", "streaming"],
 ) as dag:
 
     begin = PythonOperator(
@@ -75,27 +89,20 @@ with DAG(
         python_callable=begin_run,
     )
 
-    # 1. STAGING / LANDING LAYER
+    # 1. LANDING LAYER CHECK (Iceberg – written by Flink streaming job)
     with TaskGroup(
-        group_id="staging_layer",
-        tooltip="Verify MinIO S3 Landing Zone & Discover Rotated Access Log Batches",
-    ) as tg_staging:
-        check_storage = PythonOperator(
-            task_id="check_minio_landing",
-            python_callable=check_minio_landing,
+        group_id="landing_layer",
+        tooltip="Verify Iceberg Landing table has rows for today (written by Flink+Kafka)",
+    ) as tg_landing:
+        check_landing = PythonOperator(
+            task_id="check_iceberg_landing",
+            python_callable=check_iceberg_landing,
         )
-
-        discover_logs = PythonOperator(
-            task_id="discover_landing_logs",
-            python_callable=discover_landing_logs,
-        )
-
-        check_storage >> discover_logs
 
     # 2. BRONZE LAYER
     with TaskGroup(
         group_id="bronze_layer",
-        tooltip="Parse OpenTelemetry JSON, Anti-join via Partition Pruning & Append to Bronze",
+        tooltip="Read from Iceberg Landing, parse/validate & append to Bronze",
     ) as tg_bronze:
         spark_bronze = SparkSubmitOperator(
             task_id="ingest_logs_to_bronze",
@@ -134,5 +141,5 @@ with DAG(
             ],
         )
 
-    # Pipeline End-to-End Orchestration: Staging -> Bronze -> Silver -> Gold
-    begin >> tg_staging >> tg_bronze >> tg_silver >> tg_gold
+    # Pipeline: Landing Check -> Bronze -> Silver -> Gold
+    begin >> tg_landing >> tg_bronze >> tg_silver >> tg_gold

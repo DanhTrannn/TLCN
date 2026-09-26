@@ -17,6 +17,7 @@ catalog:
 
 # Namespaces to ensure in the catalog
 namespaces:
+  - landing
   - bronze
   - silver
   - gold
@@ -79,6 +80,13 @@ principals:
     credentials_export:
       client_id_var: POLARIS_SPARK_CLIENT_ID
       client_secret_var: POLARIS_SPARK_CLIENT_SECRET
+
+  flink_writer:
+    principal_roles:
+      - spark_writer_role
+    credentials_export:
+      client_id_var: POLARIS_FLINK_CLIENT_ID
+      client_secret_var: POLARIS_FLINK_CLIENT_SECRET
 
   trino_reader:
     principal_roles:

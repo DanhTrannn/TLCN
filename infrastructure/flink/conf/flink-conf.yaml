@@ -1,0 +1,34 @@
+jobmanager.rpc.address: flink-jobmanager
+jobmanager.bind-host: 0.0.0.0
+taskmanager.bind-host: 0.0.0.0
+taskmanager.host: flink-taskmanager
+rest.address: flink-jobmanager
+rest.bind-address: 0.0.0.0
+rest.port: 8081
+
+# Parallelism & Slots
+parallelism.default: 1
+taskmanager.numberOfTaskSlots: 2
+
+# Memory configuration (compact local profile)
+jobmanager.memory.process.size: 1024m
+taskmanager.memory.process.size: 1536m
+
+# Checkpoint settings (crucial for Iceberg 2-Phase Commit snapshot generation)
+execution.checkpointing.interval: 30s
+execution.checkpointing.mode: EXACTLY_ONCE
+execution.checkpointing.timeout: 2min
+execution.checkpointing.min-pause: 10s
+execution.checkpointing.max-concurrent-checkpoints: 1
+state.backend: hashmap
+state.checkpoints.dir: file:///opt/flink/checkpoints
+
+# S3 FileSystem connector configuration for MinIO
+s3.endpoint: http://minio:9000
+s3.path.style.access: true
+s3.access-key: minioadmin
+s3.secret-key: password
+
+# Java 17 reflection open modules for Kryo serialization
+env.java.opts.all: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED
+
