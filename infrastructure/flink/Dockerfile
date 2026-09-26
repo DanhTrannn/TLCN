@@ -32,10 +32,20 @@ RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop \
 # Copy Iceberg, Kafka, and Hadoop connectors into flink lib
 COPY --from=jars /tmp/flink-jars/*.jar /opt/flink/lib/
 
+# Install Python 3.11 + PyFlink (must match Flink version exactly)
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends \
+        python3.11 python3.11-dev python3-pip \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python3 \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python \
+    && pip install --no-cache-dir "apache-flink==1.19.4" \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 COPY infrastructure/flink/conf/flink-conf.yaml /opt/flink/conf/flink-conf.yaml
 COPY infrastructure/flink/bin/with-polaris-credentials.sh /opt/project/flink/bin/with-polaris-credentials.sh
-COPY infrastructure/flink/bin/run-sql.sh /opt/project/flink/bin/run-sql.sh
-RUN chmod 0755 /opt/project/flink/bin/with-polaris-credentials.sh /opt/project/flink/bin/run-sql.sh \
+COPY infrastructure/flink/jobs /opt/project/flink/jobs
+
+RUN chmod 0755 /opt/project/flink/bin/with-polaris-credentials.sh \
     && mkdir -p /opt/flink/checkpoints \
     && chown -R flink:flink /opt/flink/checkpoints /opt/project/flink
 

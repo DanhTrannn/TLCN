@@ -510,9 +510,15 @@ services:
     volumes:
       - ./infrastructure/flink/conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
-      - ./infrastructure/flink/sql:/opt/project/flink/sql:ro
+      - ./infrastructure/flink/jobs:/opt/project/flink/jobs:ro
       - polaris-client-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/overview || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     depends_on:
       kafka:
         condition: service_healthy
@@ -530,12 +536,23 @@ services:
     volumes:
       - ./infrastructure/flink/conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
-      - ./infrastructure/flink/sql:/opt/project/flink/sql:ro
+      - ./infrastructure/flink/jobs:/opt/project/flink/jobs:ro
       - polaris-client-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
       flink-jobmanager:
         condition: service_started
+
+  flink-submit:
+    <<: *flink-common
+    command: ["/opt/project/flink/bin/submit-job.sh"]
+    restart: "no"  # one-shot: submit job then exit
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_started
+
 
 networks:
   lakehouse-network:
