@@ -126,11 +126,6 @@ class SalesTrendResponse(BaseModel):
     points: list[DailySalesTrendPoint] = Field(default_factory=list)
 
 
-class SupersetConfigResponse(BaseModel):
-    superset_url: str = "http://localhost:8088"
-    enabled: bool = True
-    guest_token_enabled: bool = False
-
 
 RoleMetricsResponse = (
     ExecutiveMetricsResponse

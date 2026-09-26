@@ -21,6 +21,7 @@ class TrinoClient:
         schema: str = "gold",
         user: str = "admin",
     ) -> None:
+        self._explicit_url = base_url is not None
         self.base_url = (
             base_url
             or os.getenv("API_TRINO_URL")
@@ -39,11 +40,32 @@ class TrinoClient:
             "Content-Type": "text/plain",
         }
 
+    def _get_active_url(self) -> str:
+        if self._explicit_url:
+            return self.base_url
+
+        candidates = [self.base_url]
+        if "trino:8080" in self.base_url:
+            candidates.append("http://localhost:8084")
+        elif "localhost:8084" in self.base_url:
+            candidates.append("http://trino:8080")
+
+        for u in candidates:
+            try:
+                with httpx.Client(timeout=0.5) as client:
+                    resp = client.get(f"{u}/v1/info")
+                    if resp.status_code == 200:
+                        return u
+            except Exception:
+                continue
+        return self.base_url
+
     def is_healthy(self, timeout: float = 2.0) -> bool:
         """Check if Trino coordinator is reachable and active."""
+        active_url = self._get_active_url()
         try:
             with httpx.Client(timeout=timeout) as client:
-                resp = client.get(f"{self.base_url}/v1/info")
+                resp = client.get(f"{active_url}/v1/info")
                 if resp.status_code == 200:
                     data = resp.json()
                     return data.get("coordinator") is True and not data.get("starting", False)
@@ -54,7 +76,8 @@ class TrinoClient:
     def execute_query(self, sql: str, timeout: float = 30.0) -> list[dict[str, Any]]:
         """Execute SQL query against Trino and return list of dictionaries."""
         clean_sql = sql.strip().rstrip(";")
-        url = f"{self.base_url}/v1/statement"
+        active_url = self._get_active_url()
+        url = f"{active_url}/v1/statement"
         headers = self._get_headers()
 
         try:
