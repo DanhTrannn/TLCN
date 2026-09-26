@@ -22,7 +22,7 @@ DEFAULT_ARGS = {
 
 def begin_run(**context) -> None:
     run_id = uuid.uuid4().hex
-    ingest_date = pendulum.now("UTC").strftime("%Y-%m-%d")
+    ingest_date = pendulum.now(VN_TZ).strftime("%Y-%m-%d")
     context["ti"].xcom_push(key="run_id", value=run_id)
     context["ti"].xcom_push(key="ingest_date", value=ingest_date)
 

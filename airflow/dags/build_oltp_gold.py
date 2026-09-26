@@ -19,7 +19,7 @@ DEFAULT_ARGS = {
 def begin_run(**context) -> None:
     context["ti"].xcom_push(key="run_id", value=uuid.uuid4().hex)
     context["ti"].xcom_push(
-        key="snapshot_date", value=pendulum.now("UTC").strftime("%Y-%m-%d")
+        key="snapshot_date", value=pendulum.now(VN_TZ).strftime("%Y-%m-%d")
     )
 
 

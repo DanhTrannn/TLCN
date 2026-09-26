@@ -21,8 +21,10 @@ import json
 import logging
 import os
 import uuid
-from datetime import timezone
-from datetime import datetime as _dt
+
+import pendulum
+
+VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 
 from pyflink.common import Configuration
 from pyflink.common.serialization import SimpleStringSchema
@@ -79,13 +81,13 @@ class ParseAccessLog(MapFunction):
             log.warning("Unparseable message dropped: %.120s", raw)
             return None
 
-        now_ts = _dt.now(timezone.utc)
+        now_ts = pendulum.now(VN_TZ)
 
-        # Parse ISO-8601 event timestamp (e.g. "2026-09-26T10:14:21.524385Z")
+        # Parse ISO-8601 event timestamp and convert to Asia/Ho_Chi_Minh timezone
         ts_str: str = msg.get("timestamp", "")
         try:
-            event_ts = _dt.fromisoformat(ts_str.replace("Z", "+00:00"))
-        except ValueError:
+            event_ts = pendulum.parse(ts_str).in_timezone(VN_TZ)
+        except Exception:
             event_ts = now_ts
 
         # Nested field extraction with safe defaults

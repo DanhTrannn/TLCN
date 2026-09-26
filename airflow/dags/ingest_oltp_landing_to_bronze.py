@@ -18,7 +18,7 @@ DEFAULT_ARGS = {
 
 def begin_run(**context) -> None:
     context["ti"].xcom_push(
-        key="extract_date", value=pendulum.now("UTC").strftime("%Y-%m-%d")
+        key="extract_date", value=pendulum.now(VN_TZ).strftime("%Y-%m-%d")
     )
 
 
