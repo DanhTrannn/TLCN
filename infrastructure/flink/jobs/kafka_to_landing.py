@@ -175,10 +175,21 @@ def main() -> None:
         PARTITIONED BY (service_name)
         WITH (
             'format-version' = '2',
-            'write.parquet.compression-codec' = 'zstd'
+            'write.parquet.compression-codec' = 'zstd',
+            'write.delete.mode' = 'merge-on-read',
+            'write.update.mode' = 'merge-on-read',
+            'write.merge.mode' = 'merge-on-read'
         )
     """)
-    log.info("Ensured lakehouse.landing database and access_logs table exist")
+    # Ensure existing table also has Merge-On-Read enabled for row-level writes
+    t_env.execute_sql("""
+        ALTER TABLE lakehouse.landing.access_logs SET (
+            'write.delete.mode' = 'merge-on-read',
+            'write.update.mode' = 'merge-on-read',
+            'write.merge.mode' = 'merge-on-read'
+        )
+    """)
+    log.info("Ensured lakehouse.landing database and access_logs table exist with Merge-On-Read write mode")
 
     # 3. Kafka source (DataStream API – pure Java/Python bridge, no SQL connector DDL)
     kafka_source = (
