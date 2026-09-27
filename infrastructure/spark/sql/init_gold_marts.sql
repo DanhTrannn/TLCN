@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_sales_daily (
     gross_revenue_vnd               BIGINT,
     cogs_vnd                        BIGINT,
     gross_profit_vnd                BIGINT,
-    gross_profit_margin_pct         DOUBLE
+    gross_profit_margin_pct         DOUBLE,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
 )
 USING iceberg
 PARTITIONED BY (order_date);
@@ -35,7 +37,9 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_logistics_performance (
     on_time_count                   BIGINT,
     on_time_rate_pct                DOUBLE,
     avg_duration_minutes            DOUBLE,
-    total_cod_collected_vnd         BIGINT
+    total_cod_collected_vnd         BIGINT,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
 )
 USING iceberg
 PARTITIONED BY (shipment_date);
@@ -51,7 +55,9 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_inventory_health (
     out_of_stock_count              BIGINT,
     low_stock_count                 BIGINT,
     total_on_hand_units             BIGINT,
-    total_inventory_value_vnd       BIGINT
+    total_inventory_value_vnd       BIGINT,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
 )
 USING iceberg
 PARTITIONED BY (snapshot_date);
@@ -69,7 +75,9 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_product_returns (
     reason                          STRING,
     total_return_requests           BIGINT,
     total_returned_quantity         BIGINT,
-    total_refund_amount_vnd         BIGINT
+    total_refund_amount_vnd         BIGINT,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
 )
 USING iceberg
 PARTITIONED BY (return_date);
@@ -79,10 +87,14 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.dim_product (
     product_key                     BIGINT,
     product_id                      BIGINT,
     product_name                    STRING,
+    slug                            STRING,
     category_id                     BIGINT,
     category_name                   STRING,
     base_price_vnd                  BIGINT,
-    is_active                       BOOLEAN
+    is_active                       BOOLEAN,
+    created_at                      TIMESTAMP,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
 )
 USING iceberg;
 
@@ -90,12 +102,20 @@ USING iceberg;
 CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_order_item (
     order_item_id                   BIGINT,
     order_id                        BIGINT,
-    variant_key                     BIGINT,
+    order_date_key                  INT,
+    customer_key                    BIGINT,
     product_key                     BIGINT,
+    variant_key                     BIGINT,
+    store_key                       BIGINT,
+    channel                         STRING,
+    order_status                    STRING,
     quantity                        INT,
     unit_price_vnd                  BIGINT,
+    unit_cost_vnd                   BIGINT,
     item_total_vnd                  BIGINT,
     item_cost_vnd                   BIGINT,
-    item_profit_vnd                 BIGINT
+    item_profit_vnd                 BIGINT,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
 )
 USING iceberg;

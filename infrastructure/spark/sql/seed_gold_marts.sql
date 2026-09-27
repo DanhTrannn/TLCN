@@ -9,7 +9,11 @@ DELETE FROM lakehouse.gold.dim_product WHERE product_key > 0;
 DELETE FROM lakehouse.gold.fact_order_item WHERE order_item_id > 0;
 
 -- 1. Seed mart_sales_daily (14 days time-series across online and POS)
-INSERT INTO lakehouse.gold.mart_sales_daily VALUES
+INSERT INTO lakehouse.gold.mart_sales_daily (
+    order_date, channel, store_key, category_id, category_name,
+    total_orders, successful_orders, boom_orders, items_sold,
+    gross_revenue_vnd, cogs_vnd, gross_profit_vnd, gross_profit_margin_pct
+) VALUES
 (date_sub(current_date(), 13), 'online', 0, 1, 'Áo Thun & Polo', 18, 16, 2, 28, 9800000, 4900000, 4900000, 50.0),
 (date_sub(current_date(), 13), 'pos', 1, 2, 'Quần Jeans & Kaki', 8, 8, 0, 12, 6200000, 3100000, 3100000, 50.0),
 (date_sub(current_date(), 12), 'online', 0, 3, 'Áo Khoác & Blazer', 14, 12, 2, 19, 12500000, 6800000, 5700000, 45.6),
@@ -34,7 +38,11 @@ INSERT INTO lakehouse.gold.mart_sales_daily VALUES
 (current_date(), 'pos', 1, 2, 'Quần Jeans & Kaki', 9, 9, 0, 13, 6300000, 3150000, 3150000, 50.0);
 
 -- 2. Seed mart_logistics_performance
-INSERT INTO lakehouse.gold.mart_logistics_performance VALUES
+INSERT INTO lakehouse.gold.mart_logistics_performance (
+    shipment_date, staff_key, staff_code, assigned_city_id, assigned_city_name,
+    total_shipments, delivered_count, boom_count, boom_rate_pct,
+    on_time_count, on_time_rate_pct, avg_duration_minutes, total_cod_collected_vnd
+) VALUES
 (date_sub(current_date(), 6), 1, 'SHIP01', 1, 'Hồ Chí Minh', 25, 23, 2, 8.0, 22, 88.0, 45.0, 8400000),
 (date_sub(current_date(), 5), 1, 'SHIP01', 1, 'Hồ Chí Minh', 28, 26, 2, 7.1, 25, 89.3, 42.0, 9200000),
 (date_sub(current_date(), 4), 2, 'SHIP02', 1, 'Hồ Chí Minh', 20, 19, 1, 5.0, 19, 95.0, 38.0, 6800000),
@@ -44,7 +52,11 @@ INSERT INTO lakehouse.gold.mart_logistics_performance VALUES
 (current_date(), 1, 'SHIP01', 1, 'Hồ Chí Minh', 18, 17, 1, 5.5, 17, 94.4, 35.0, 5800000);
 
 -- 3. Seed mart_inventory_health
-INSERT INTO lakehouse.gold.mart_inventory_health VALUES
+INSERT INTO lakehouse.gold.mart_inventory_health (
+    snapshot_date, location_type, location_id, category_id, category_name,
+    total_variants, out_of_stock_count, low_stock_count,
+    total_on_hand_units, total_inventory_value_vnd
+) VALUES
 (current_date(), 'warehouse', 0, 1, 'Áo Thun & Polo', 24, 0, 2, 1450, 290000000),
 (current_date(), 'warehouse', 0, 2, 'Quần Jeans & Kaki', 18, 0, 1, 980, 245000000),
 (current_date(), 'warehouse', 0, 3, 'Áo Khoác & Blazer', 12, 1, 3, 520, 208000000),
@@ -54,12 +66,18 @@ INSERT INTO lakehouse.gold.mart_inventory_health VALUES
 (current_date(), 'store', 1, 3, 'Áo Khoác & Blazer', 12, 0, 2, 110, 44000000);
 
 -- 4. Seed mart_product_returns
-INSERT INTO lakehouse.gold.mart_product_returns VALUES
+INSERT INTO lakehouse.gold.mart_product_returns (
+    return_date, returned_variant_key, product_id, product_name,
+    sku, size, color, action_type, reason,
+    total_return_requests, total_returned_quantity, total_refund_amount_vnd
+) VALUES
 (date_sub(current_date(), 3), 1, 1, 'Áo Thun Cotton Basic 220gsm', 'TSHIRT-BLK-M', 'M', 'Đen', 'refund', 'Khách mặc không vừa size', 2, 2, 700000),
 (date_sub(current_date(), 1), 2, 2, 'Quần Jeans Slimfit Co Giãn', 'JEAN-BLU-31', '31', 'Xanh Indigo', 'exchange', 'Khách đổi sang size 32', 1, 1, 0);
 
 -- 5. Seed dim_product
-INSERT INTO lakehouse.gold.dim_product VALUES
+INSERT INTO lakehouse.gold.dim_product (
+    product_key, product_id, product_name, category_id, category_name, base_price_vnd, is_active
+) VALUES
 (1, 1, 'Áo Thun Cotton Basic 220gsm', 1, 'Áo Thun & Polo', 350000, true),
 (2, 2, 'Quần Jeans Slimfit Co Giãn', 2, 'Quần Jeans & Kaki', 550000, true),
 (3, 3, 'Áo Khoác Bomber Kaki 2 Lớp', 3, 'Áo Khoác & Blazer', 750000, true),
@@ -67,7 +85,10 @@ INSERT INTO lakehouse.gold.dim_product VALUES
 (5, 5, 'Ví Da Bò Sáp Cầm Tay', 4, 'Phụ Kiện Thời Trang', 380000, true);
 
 -- 6. Seed fact_order_item (for Top Selling Products)
-INSERT INTO lakehouse.gold.fact_order_item VALUES
+INSERT INTO lakehouse.gold.fact_order_item (
+    order_item_id, order_id, variant_key, product_key,
+    quantity, unit_price_vnd, item_total_vnd, item_cost_vnd, item_profit_vnd
+) VALUES
 (1, 1, 1, 1, 150, 350000, 52500000, 26250000, 26250000),
 (2, 2, 2, 2, 90, 550000, 49500000, 24750000, 24750000),
 (3, 3, 3, 3, 60, 750000, 45000000, 24000000, 21000000),
