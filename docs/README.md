@@ -42,12 +42,8 @@ This directory contains the architecture specifications, data schemas, operation
 
 | DAG | Status | Tables | Notes |
 |---|---|---|---|
-| `lakehouse_logs_pipeline` | Done | 4 layers | Master Logs DAG: Landing → Bronze → Silver → Gold |
-| `ingest_oltp_batch` | Done | 24/24 | MySQL → Landing (Parquet + manifests) |
-| `ingest_oltp_landing_to_bronze` | Done | 24/24 | Landing → Bronze (auto-discover run_id) |
-| `ingest_oltp_bronze_to_silver` | Done | 24/24 | Bronze → Silver (MERGE, PII, quarantine) |
-| `build_oltp_gold` | Done | 6 dims, 5 facts, 4 marts | Star schema (`dim_*`, `fact_*`), sales, logistics, returns, inventory marts |
-| Iceberg maintenance | Pending | - | Compaction, snapshot expiration, orphan cleanup |
+| `lakehouse_oltp_pipeline` | Done | 26 tables | Unified End-to-End OLTP DAG: Landing → Bronze → Silver → Gold |
+| `lakehouse_streaming_maintenance` | Done | 4 layers | Streaming logs healthcheck, Iceberg maintenance & Gold Marts rollup |
 
 ### Validation
 

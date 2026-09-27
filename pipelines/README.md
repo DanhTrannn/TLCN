@@ -67,9 +67,11 @@ pipelines/
     3. `gold_marts`: Periodic rollup of `mart_hourly_route_metrics` and `mart_daily_product_demand` from real-time `fact_web_events`.
 
 ### 2.2. OLTP Ingestion Pipelines
-- **Extraction to Landing (`ingest_oltp_batch`):** Hourly incremental extraction of 16 tables via composite cursors.
-- **Landing to Bronze (`ingest_oltp_landing_to_bronze`):** Daily 2 AM auto-discovery of Landing files and ingestion into Iceberg Bronze tables.
-- **Bronze to Silver (`ingest_oltp_silver`):** Daily 2 AM deduplication, PII pseudonymization, business rule validation, quarantine routing, and ACID MERGE into Silver tables.
+- **Unified OLTP Pipeline (`lakehouse_oltp_pipeline`):** End-to-end daily batch ingestion of 26 OLTP tables across all Medallion layers:
+  1. **Landing Zone:** Incremental extraction via composite cursors `(cursor_field, pk)` with MD5 cryptographic manifests.
+  2. **Bronze Layer:** Append-only ingestion into Iceberg Bronze tables.
+  3. **Silver Layer:** Deduplication, PII pseudonymization (SHA-256), business rule validation, quarantine routing, and ACID MERGE into Silver tables.
+  4. **Gold Layer:** Star Schema Dimensions, Facts, and Data Marts with financial COGS and KPI rollups.
 - **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md`](../docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md) & [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md).
 
 ---
@@ -80,11 +82,9 @@ pipelines/
 
 | DAG / Job | Schedule | Source → Target | Architecture | Notes |
 |---|---|---|---|---|
+| `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors, MD5 manifests, PII, MERGE, COGS Marts |
 | `kafka_to_lakehouse_pure_streaming` | Continuous (10s checkpoints) | Kafka → Landing, Bronze, Silver, Gold | **Pure Streaming (PyFlink)** | StatementSet, Pendulum VN timezone, Merge-on-Read |
 | `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
-| `ingest_oltp_batch` | Hourly | MySQL → Landing | Modular DAG | Composite cursors, MD5 manifests |
-| `ingest_oltp_landing_to_bronze` | Daily 2 AM | Landing → Bronze | Modular DAG | Auto-discover `run_id` from Landing |
-| `ingest_oltp_silver` | Daily 2 AM | Bronze → Silver | Modular DAG | MERGE, PII pseudonymization, quarantine |
 
 ### Pending
 
