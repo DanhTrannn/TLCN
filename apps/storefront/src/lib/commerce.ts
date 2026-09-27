@@ -920,4 +920,15 @@ export function getAdminSalesTrend(days: number = 30): Promise<SalesTrendRespons
   return apiFetch<SalesTrendResponse>(`/api/v1/admin/analytics/sales-trend?days=${encodeURIComponent(days)}`);
 }
 
+export interface StoreItemResponse {
+  store_id: number;
+  name: string;
+  code: string;
+}
+
+export function getAdminAnalyticsStores(): Promise<StoreItemResponse[]> {
+  return apiFetch<StoreItemResponse[]>("/api/v1/admin/analytics/stores");
+}
+
+
 

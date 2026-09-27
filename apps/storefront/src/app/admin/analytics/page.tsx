@@ -10,6 +10,7 @@ import {
   ApiError,
   formatMetricVnd,
   formatVnd,
+  getAdminAnalyticsStores,
   getAdminRoleMetrics,
   getAdminSalesTrend,
   type DailySalesTrendPoint,
@@ -21,6 +22,7 @@ import {
   type RoleMetricsResponse,
   type SalesMetricsResponse,
   type SalesTrendResponse,
+  type StoreItemResponse,
   type StoreMetricsResponse,
   type SystemMetricsResponse,
 } from "@/lib/api";
@@ -713,7 +715,7 @@ function StoreDashboard({
               className="rounded-xl border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-ink shadow-xs outline-none focus:border-accent"
               id="store-select"
               onChange={(e) => onStoreChange(Number(e.target.value))}
-              value={selectedStoreId ?? availableStores[0]?.store_id}
+              value={selectedStoreId ?? metrics.store_id ?? availableStores[0]?.store_id ?? ""}
             >
               {availableStores.map((st) => (
                 <option key={st.store_id} value={st.store_id}>
@@ -1182,7 +1184,7 @@ function AnalyticsHubContent() {
 
   const [initialized, setInitialized] = useState<boolean>(false);
   const [activeRole, setActiveRole] = useState<string>("");
-  const [selectedStoreId, setSelectedStoreId] = useState<number>(1);
+  const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>(undefined);
   const [availableStores, setAvailableStores] = useState<Array<{ store_id: number; name: string }>>([]);
   const [trendDays, setTrendDays] = useState<number>(30);
 
@@ -1191,6 +1193,26 @@ function AnalyticsHubContent() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Load active stores from backend for store selector
+  useEffect(() => {
+    if (!customer) return;
+    let ignore = false;
+    getAdminAnalyticsStores()
+      .then((stores) => {
+        if (!ignore && stores && stores.length > 0) {
+          const list = stores.map((s) => ({ store_id: s.store_id, name: s.name }));
+          setAvailableStores(list);
+          setSelectedStoreId((prev) => (prev !== undefined && list.some((st) => st.store_id === prev) ? prev : list[0].store_id));
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load stores for analytics:", err);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [customer]);
 
   // Initial role resolution from URL query or user canonical role
   useEffect(() => {
@@ -1236,6 +1258,13 @@ function AnalyticsHubContent() {
       const metricsData = await getAdminRoleMetrics<RoleMetricsResponse>(activeRole, storeParam);
       setRoleMetrics(metricsData);
 
+      if (activeRole === "store") {
+        const storeMetrics = metricsData as StoreMetricsResponse;
+        if (storeMetrics.store_id && selectedStoreId === undefined) {
+          setSelectedStoreId(storeMetrics.store_id);
+        }
+      }
+
       // If sales metrics loaded, extract available stores for the store selector
       if (activeRole === "sales") {
         const salesData = metricsData as SalesMetricsResponse;
@@ -1243,7 +1272,7 @@ function AnalyticsHubContent() {
           .filter((s): s is { store_id: number; store_name: string; revenue_vnd: number; order_count: number } => s.store_id !== null)
           .map((s) => ({ store_id: s.store_id, name: s.store_name }));
         if (validStores.length > 0) {
-          setAvailableStores(validStores);
+          setAvailableStores((prev) => (prev.length > 0 ? prev : validStores));
         }
       }
 
@@ -1264,16 +1293,6 @@ function AnalyticsHubContent() {
       void fetchData();
     }
   }, [initialized, activeRole, fetchData]);
-
-  // Populate default stores if not yet populated
-  useEffect(() => {
-    if (availableStores.length === 0) {
-      setAvailableStores([
-        { store_id: 1, name: "Chi nhánh Quận 1 (Flagship HCM)" },
-        { store_id: 2, name: "Chi nhánh Hoàn Kiếm (Hà Nội)" },
-      ]);
-    }
-  }, [availableStores.length]);
 
   if (authLoading || !initialized) {
     return (

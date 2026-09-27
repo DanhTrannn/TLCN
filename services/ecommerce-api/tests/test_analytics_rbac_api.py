@@ -57,6 +57,7 @@ def setup_analytics_db(monkeypatch):
 
     monkeypatch.setattr(app.db.uow, "SessionLocal", testing_session)
     monkeypatch.setattr(app.db.deps, "SessionLocal", testing_session)
+    monkeypatch.setattr("app.modules.analytics.service.default_trino_client.is_healthy", lambda: False)
 
     def _get_test_db():
         db = testing_session()
@@ -488,3 +489,26 @@ def test_invalid_target_role_returns_error(setup_analytics_db):
     res = client.get("/api/v1/admin/analytics/role-metrics?target_role=nonexistent_role")
     assert res.status_code == 400
     assert "không hợp lệ" in res.text
+
+
+def test_analytics_stores_endpoint(setup_analytics_db):
+    db = setup_analytics_db()
+    admin = db.execute(select(Customer).where(Customer.role == "admin")).scalar_one()
+    store_mgr = db.execute(select(Customer).where(Customer.customer_id == 20)).scalar_one()
+
+    # Admin gets all active stores
+    client_admin = make_client_for_user(admin)
+    res_admin = client_admin.get("/api/v1/admin/analytics/stores")
+    assert res_admin.status_code == 200
+    stores_admin = res_admin.json()
+    assert len(stores_admin) == 2
+    assert {s["store_id"] for s in stores_admin} == {1, 2}
+
+    # Store manager gets only their assigned store
+    client_store = make_client_for_user(store_mgr)
+    res_store = client_store.get("/api/v1/admin/analytics/stores")
+    assert res_store.status_code == 200
+    stores_mgr = res_store.json()
+    assert len(stores_mgr) == 1
+    assert stores_mgr[0]["store_id"] == 1
+

@@ -76,6 +76,14 @@ class StoreMetricsResponse(BaseModel):
     low_stock_at_store_count: int = 0
 
 
+class StoreItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    store_id: int
+    name: str
+    code: str
+
+
 class InventoryMetricsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

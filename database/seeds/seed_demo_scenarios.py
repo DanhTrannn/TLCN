@@ -467,7 +467,14 @@ def _seed_orders_and_related(
         order_num = f"ORD-DEMO-{order_counter:03d}"
         key = f"demo-order-{order_num}"
 
-        order_time = now - timedelta(days=days_ago, hours=(idx * 2) % 24)
+        if days_ago < 1.0:
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            hours_offset = min(now.hour, max(1, int(days_ago * 24)))
+            order_time = now - timedelta(hours=hours_offset, minutes=15 * (idx % 4))
+            if order_time < today_start:
+                order_time = today_start + timedelta(minutes=30 * (idx + 1))
+        else:
+            order_time = now - timedelta(days=days_ago, hours=(idx * 2) % 24)
 
         # 1-2 items
         selected_var_1 = variants[(idx * 2) % num_variants]
@@ -596,7 +603,36 @@ def _seed_orders_and_related(
         select(func.count()).select_from(Order).where(Order.order_number.like("ORD-DEMO-%"))
     ) or 0
     if existing_orders_count >= 25:
-        # Already seeded
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_pos_count = session.scalar(
+            select(func.count()).select_from(Order).where(
+                Order.store_id == store.store_id,
+                Order.created_at >= today_start,
+                Order.status == "completed",
+            )
+        ) or 0
+        if today_pos_count == 0:
+            recent_pos = session.execute(
+                select(Order).where(
+                    Order.order_number.like("ORD-DEMO-%"),
+                    Order.channel == "pos",
+                ).order_by(Order.order_id.desc()).limit(2)
+            ).scalars().all()
+            for idx, ord_obj in enumerate(recent_pos):
+                hours_ago = 2 + idx * 2
+                new_time = now - timedelta(hours=min(now.hour, hours_ago))
+                if new_time < today_start:
+                    new_time = today_start + timedelta(minutes=30 * (idx + 1))
+                ord_obj.created_at = new_time
+                ord_obj.updated_at = new_time
+                ord_obj.completed_at = new_time
+                ord_obj.paid_at = new_time
+                for itm in ord_obj.items:
+                    itm.created_at = new_time
+                if ord_obj.payment:
+                    ord_obj.payment.attempted_at = new_time
+                    ord_obj.payment.created_at = new_time
+            session.flush()
         return 0, 0, 0, 0, 0, 0
 
     all_delivered_items: list[OrderItem] = []
@@ -653,9 +689,10 @@ def _seed_orders_and_related(
         all_delivered_items.extend(items)
 
     # 2. 6 Completed POS Store Orders
+    pos_offsets = [10.0, 7.0, 4.0, 2.0, 0.2, 0.05]
     for i in range(6):
         cust = customers[(i + 2) % len(customers)]
-        days_ago = 12.0 - (i * 1.8)
+        days_ago = pos_offsets[i]
         order, items, _ = _create_base_order(
             idx=16 + i,
             channel="pos",

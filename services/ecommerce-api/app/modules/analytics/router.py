@@ -11,8 +11,10 @@ from app.modules.admin.service import get_overview
 from app.modules.analytics.schemas import (
     RoleMetricsResponse,
     SalesTrendResponse,
+    StoreItemResponse,
 )
 from app.modules.analytics.service import (
+    get_active_stores_list,
     get_role_metrics_data,
     get_sales_trend,
     resolve_effective_store_id,
@@ -20,6 +22,15 @@ from app.modules.analytics.service import (
 )
 
 router = APIRouter(prefix="/admin/analytics", tags=["admin-analytics"])
+
+
+@router.get("/stores", response_model=list[StoreItemResponse])
+def get_analytics_stores(
+    actor: Customer = Depends(get_current_staff),
+    db: Session = Depends(get_db),
+) -> list[StoreItemResponse]:
+    """List available stores for analytics store selection."""
+    return get_active_stores_list(actor=actor, db=db)
 
 
 @router.get("/overview", response_model=AdminOverviewResponse)
@@ -58,3 +69,4 @@ def get_analytics_sales_trend(
             status_code=403,
         )
     return get_sales_trend(days=days, db=db)
+

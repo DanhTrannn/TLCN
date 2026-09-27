@@ -28,6 +28,7 @@ from app.modules.analytics.schemas import (
     SalesMetricsResponse,
     SalesTrendResponse,
     StoreContribution,
+    StoreItemResponse,
     StoreMetricsResponse,
     SystemMetricsResponse,
     TopProductMetric,
@@ -296,6 +297,13 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
 
 
 def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsResponse:
+    if store_id is None:
+        first_st = db.execute(
+            select(Store).where(Store.is_active == True).order_by(Store.store_id).limit(1)
+        ).scalar_one_or_none()
+        if first_st is not None:
+            store_id = first_st.store_id
+
     store_name = None
     if store_id is not None:
         st = db.execute(select(Store).where(Store.store_id == store_id)).scalar_one_or_none()
@@ -730,10 +738,46 @@ def get_store_metrics(
     elif isinstance(second, int):
         effective_store_id = second
 
+    if effective_store_id is None and effective_db is not None:
+        first_st = effective_db.execute(
+            select(Store).where(Store.is_active == True).order_by(Store.store_id).limit(1)
+        ).scalar_one_or_none()
+        if first_st is not None:
+            effective_store_id = first_st.store_id
+
     client = trino_client or default_trino_client
     if client.is_healthy():
         try:
-            store_name = f"Cửa hàng #{effective_store_id}" if effective_store_id is not None else None
+            store_name = None
+            if effective_store_id is None:
+                first_store_rows = client.execute_query("""
+                    SELECT store_key, store_name 
+                    FROM lakehouse.gold.dim_store 
+                    WHERE store_key > 0 
+                    ORDER BY store_key 
+                    LIMIT 1
+                """)
+                if first_store_rows:
+                    effective_store_id = int(first_store_rows[0].get("store_key"))
+                    store_name = str(first_store_rows[0].get("store_name"))
+
+            if effective_store_id is not None and not store_name:
+                dim_rows = client.execute_query(f"""
+                    SELECT store_name 
+                    FROM lakehouse.gold.dim_store 
+                    WHERE store_key = {effective_store_id}
+                """)
+                if dim_rows and dim_rows[0].get("store_name"):
+                    store_name = str(dim_rows[0].get("store_name"))
+                elif effective_db is not None:
+                    st = effective_db.execute(
+                        select(Store).where(Store.store_id == effective_store_id)
+                    ).scalar_one_or_none()
+                    if st:
+                        store_name = st.name
+                if not store_name:
+                    store_name = f"Cửa hàng #{effective_store_id}"
+
             filter_clause = f"store_key = {effective_store_id}" if effective_store_id is not None else "1=1"
 
             rows = client.execute_query(f"""
@@ -751,10 +795,15 @@ def get_store_metrics(
             daily_target = 20000000
             target_pct = round((rev_today / daily_target) * 100, 1) if daily_target > 0 else 0.0
 
+            inv_filter = (
+                f"location_type = 'store' AND location_id = {effective_store_id}"
+                if effective_store_id is not None
+                else "location_type = 'store'"
+            )
             inv_rows = client.execute_query(f"""
-                SELECT COALESCE(SUM(low_stock_variants), 0) AS low_stock_count
+                SELECT COALESCE(SUM(low_stock_count), 0) AS low_stock_count
                 FROM lakehouse.gold.mart_inventory_health
-                WHERE {filter_clause}
+                WHERE {inv_filter}
             """)
             low_stock_count = int(inv_rows[0].get("low_stock_count") or 0) if inv_rows else 0
 
@@ -776,6 +825,21 @@ def get_store_metrics(
         return _get_store_metrics_oltp(effective_db, effective_store_id)
 
     raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+
+
+def get_active_stores_list(actor: Customer, db: Session) -> list[StoreItemResponse]:
+    """Retrieve active stores list, scoped for store managers or all active stores for admins/staff."""
+    if actor.role in ("store_manager", "store"):
+        if actor.store_id is not None:
+            stores = db.execute(
+                select(Store).where(Store.store_id == actor.store_id, Store.is_active == True)
+            ).scalars().all()
+            return [StoreItemResponse.model_validate(s) for s in stores]
+
+    stores = db.execute(
+        select(Store).where(Store.is_active == True).order_by(Store.store_id)
+    ).scalars().all()
+    return [StoreItemResponse.model_validate(s) for s in stores]
 
 
 def get_inventory_metrics(

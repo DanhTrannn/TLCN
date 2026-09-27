@@ -598,6 +598,7 @@ export type {
   SalesTrendResponse,
   ShipmentDetail,
   StoreContribution,
+  StoreItemResponse,
   StoreMetricsResponse,
   SystemMetricsResponse,
   TopProductMetric,
@@ -626,5 +627,6 @@ export {
   createAdminInboundReceipt,
   getAdminRoleMetrics,
   getAdminSalesTrend,
+  getAdminAnalyticsStores,
 } from "./commerce";
 
