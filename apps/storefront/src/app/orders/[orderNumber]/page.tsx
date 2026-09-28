@@ -233,7 +233,7 @@ export default function OrderDetailPage() {
   }
 
   async function completeOrder() {
-    if (!order || (order.status !== "delivered" && order.status !== "shipping")) return;
+    if (!order || order.status !== "delivered") return;
     setCompleting(true);
     setError(null);
     try {
@@ -321,16 +321,26 @@ export default function OrderDetailPage() {
             </p>
           </div>
         ) : null}
-        {order.status === "shipping" || order.status === "delivered" ? (
+        {order.status === "shipping" ? (
+          <div className="mt-5 border-t border-line pt-5">
+            <div className="flex items-center gap-2 text-sm font-semibold text-sky-700 dark:text-sky-400">
+              <Icon name="truck" size={18} />
+              <span>Đơn hàng đang trên đường giao đến bạn</span>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              Nhân viên giao hàng sẽ liên hệ với bạn theo số điện thoại nhận hàng. Vui lòng chú ý điện thoại.
+            </p>
+          </div>
+        ) : null}
+        {order.status === "delivered" ? (
           <div className="mt-5 flex flex-col gap-4 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold">
-                {order.status === "delivered"
-                  ? "Đơn hàng đã được giao đến bạn."
-                  : "Đơn hàng đang trên đường giao đến bạn."}
-              </p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                <Icon name="check" size={18} />
+                <span>Đơn hàng đã được giao thành công</span>
+              </div>
               <p className="mt-1 text-sm text-muted">
-                Chỉ xác nhận sau khi bạn đã nhận và kiểm tra hàng thực tế.
+                Vui lòng kiểm tra sản phẩm thực tế và bấm xác nhận để hoàn tất đơn hàng.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -345,13 +355,13 @@ export default function OrderDetailPage() {
                 </button>
               ) : null}
               <button
-                className="button-primary shrink-0"
+                className="button-primary shrink-0 px-4 py-2 font-medium"
                 disabled={completing}
                 onClick={() => void completeOrder()}
                 type="button"
               >
                 <Icon name="check" size={17} />
-                {completing ? "Đang xác nhận…" : "Đã nhận hàng"}
+                {completing ? "Đang xác nhận…" : "Đã nhận được hàng"}
               </button>
             </div>
           </div>

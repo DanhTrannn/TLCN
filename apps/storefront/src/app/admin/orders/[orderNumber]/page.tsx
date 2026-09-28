@@ -17,7 +17,6 @@ import { Icon } from "@/components/ui/Icon";
 import { ApiError, formatVnd } from "@/lib/api";
 import {
   cancelAdminOrder,
-  completeAdminOrder,
   confirmAdminOrder,
   deliverAdminOrder,
   dispatchAdminOrder,
@@ -186,14 +185,6 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  function handleComplete() {
-    if (!order) return;
-    void mutate(
-      () => completeAdminOrder(order.order_number),
-      "Không hoàn tất được đơn hàng"
-    );
-  }
-
   if (error) return <div className="feedback-error">{error}</div>;
   if (!order) return <div className="h-80 animate-pulse rounded-2xl bg-sand/60" />;
 
@@ -282,15 +273,10 @@ export default function AdminOrderDetailPage() {
           ) : null}
 
           {order.status === "delivered" ? (
-            <button
-              className="button-primary px-4"
-              disabled={busy}
-              onClick={handleComplete}
-              type="button"
-            >
-              <Icon name="check" size={16} />
-              Hoàn tất đơn
-            </button>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 rounded-xl border border-amber-200/60 dark:border-amber-800/40">
+              <Icon name="clock" size={14} />
+              Đã giao hàng · Chờ khách xác nhận
+            </span>
           ) : null}
         </div>
       </header>

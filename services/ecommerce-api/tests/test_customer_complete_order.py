@@ -31,12 +31,14 @@ class Session:
         self.flushed = True
 
 
-def order(status: str = "confirmed"):
+def order(status: str = "delivered", payment_method: str = "vietqr"):
     return SimpleNamespace(
         order_id=10,
         customer_id=99,
         order_number="ORD-20260802-0001",
         status=status,
+        payment_method=payment_method,
+        paid_at=None,
         updated_at=None,
         completed_at=None,
     )
@@ -52,8 +54,8 @@ def run_complete(monkeypatch, session: Session, owner_customer_id: int = 99):
     )
 
 
-def test_owner_completes_confirmed_order(monkeypatch) -> None:
-    current_order = order()
+def test_owner_completes_delivered_order(monkeypatch) -> None:
+    current_order = order(status="delivered")
     session = Session([current_order, None])
 
     response = run_complete(monkeypatch, session)
@@ -63,7 +65,7 @@ def test_owner_completes_confirmed_order(monkeypatch) -> None:
     assert current_order.completed_at is not None
     assert session.flushed is True
     history = session.added[0]
-    assert history.from_status == "confirmed"
+    assert history.from_status == "delivered"
     assert history.to_status == "completed"
     assert history.transition_source == "customer"
 
@@ -79,8 +81,9 @@ def test_customer_cannot_complete_another_customers_order(monkeypatch) -> None:
     assert session.added == []
 
 
-def test_customer_cannot_complete_order_before_admin_confirmation(monkeypatch) -> None:
-    session = Session([order(status="paid"), None])
+@pytest.mark.parametrize("invalid_status", ["paid", "confirmed", "shipping", "cancelled", "failed_delivery"])
+def test_customer_cannot_complete_order_when_not_delivered(monkeypatch, invalid_status: str) -> None:
+    session = Session([order(status=invalid_status), None])
 
     with pytest.raises(AppError) as error:
         run_complete(monkeypatch, session)

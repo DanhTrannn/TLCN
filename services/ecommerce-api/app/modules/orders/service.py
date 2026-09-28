@@ -372,6 +372,14 @@ def _transition_order(
             order.confirmed_at = now
         elif to_status == "completed":
             order.completed_at = now
+            if order.payment_method == "cod":
+                if order.paid_at is None:
+                    order.paid_at = now
+                payment = db.execute(
+                    select(Payment).where(Payment.order_id == order.order_id).with_for_update()
+                ).scalar_one_or_none()
+                if payment and payment.status != "succeeded":
+                    payment.status = "succeeded"
         db.add(
             OrderStatusHistory(
                 order_id=order.order_id,
@@ -411,7 +419,7 @@ def complete_order(
     return _transition_order(
         order_number,
         idempotency_key,
-        ("delivered", "confirmed"),
+        "delivered",
         "completed",
         transition_source,
         owner_customer_id,

@@ -16,7 +16,6 @@ import {
 } from "@/lib/api";
 import {
   cancelAdminOrder,
-  completeAdminOrder,
   confirmAdminOrder,
   deliverAdminOrder,
   dispatchAdminOrder,
@@ -230,14 +229,6 @@ export default function AdminOrdersPage() {
       orderNumber,
       () => deliverAdminOrder(orderNumber),
       "Không cập nhật được trạng thái giao thành công"
-    );
-  }
-
-  function handleComplete(orderNumber: string) {
-    void mutate(
-      orderNumber,
-      () => completeAdminOrder(orderNumber),
-      "Không hoàn tất được đơn hàng"
     );
   }
 
@@ -785,15 +776,10 @@ export default function AdminOrdersPage() {
                             ) : null}
 
                             {order.status === "delivered" ? (
-                              <button
-                                className="button-primary px-3 py-1 text-xs inline-flex items-center gap-1"
-                                disabled={isBusy}
-                                onClick={() => handleComplete(order.order_number)}
-                                type="button"
-                              >
-                                <Icon name="check" size={13} />
-                                {isBusy ? "Đang lưu…" : "Hoàn tất đơn"}
-                              </button>
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/40">
+                                <Icon name="clock" size={12} />
+                                Chờ khách xác nhận
+                              </span>
                             ) : null}
                           </div>
 

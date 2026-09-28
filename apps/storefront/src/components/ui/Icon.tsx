@@ -9,6 +9,7 @@ export type IconName =
   | "cash"
   | "check"
   | "chevron-right"
+  | "clock"
   | "close"
   | "dashboard"
   | "external"
@@ -50,6 +51,7 @@ export function Icon({ name, size = 20, filled = false, ...props }: IconProps) {
     cash: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2" /><path d="M6 12h.01M18 12h.01" /></>,
     check: <path d="m5 12 4 4L19 6" />,
     "chevron-right": <path d="m9 18 6-6-6-6" />,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></>,
     close: <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>,
     dashboard: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
     external: <><path d="M14 4h6v6" /><path d="m20 4-9 9" /><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" /></>,
