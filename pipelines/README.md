@@ -82,32 +82,29 @@ pipelines/
 
 | DAG / Job | Schedule | Source → Target | Architecture | Notes |
 |---|---|---|---|---|
-| `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors, MD5 manifests, PII, MERGE, COGS Marts |
+| `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors (26 tables), MD5 manifests, PII, MERGE, COGS Marts |
 | `kafka_to_lakehouse_pure_streaming` | Continuous (10s checkpoints) | Kafka → Landing, Bronze, Silver, Gold | **Pure Streaming (PyFlink)** | StatementSet, Pendulum VN timezone, Merge-on-Read |
 | `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
-
-### Pending
-
-| Pipeline | Schedule | Source → Target | Notes |
-|---|---|---|---|
-| Silver → Gold Tasks | - | Silver → Gold | Star schema (`dim_*`, `fact_*`), analytical marts |
+| `build_oltp_gold` | Daily 2 AM | Silver → Gold (`dim_*`, `fact_*`, `mart_*`) | **Gold Batch Transformation** | Star schema, financial COGS parity, gross profit rollups |
 
 ### Validation Results
 
-```
-OLTP extraction (MySQL → Landing):        Pass  (16 tables, Parquet + manifests)
-Landing → Bronze ingestion:               Pass  (16 tables, 0 skipped, 0 quarantine)
-Bronze table counts (Trino):              Pass  (e.g. orders: 12,000, customers: 2,008)
+```text
+OLTP extraction (MySQL → Landing):        Pass  (26 analytical tables, Parquet + manifests)
+Landing → Bronze ingestion:               Pass  (26 tables, 0 skipped, 0 quarantine)
+Bronze table counts (Trino):              Pass  (verified via Trino & Polaris catalog)
 Access logs → Bronze:                     Pass  (web_events table)
-OLTP Bronze → Silver:                     Pass  (16 tables, MERGE, PII, quarantine)
+OLTP Bronze → Silver:                     Pass  (26 tables, MERGE, PII, quarantine)
 Logs Bronze → Silver:                     Pass  (web_events, anti-join dedup)
+Silver → Gold Marts:                      Pass  (sales marts, inventory health, COGS)
 ```
 
 ---
 
 ## 4. Running Pipeline Tests
 
+Run the pipeline unit and financial parity test suite (106 tests):
+
 ```bash
-# Run pipeline unit tests
-PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
+uv run pytest pipelines/tests
 ```

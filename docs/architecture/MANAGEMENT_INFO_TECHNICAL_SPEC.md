@@ -2,25 +2,25 @@
 ## Nền Tảng D&K E-Commerce Lakehouse & Analytics Platform
 
 **Mã tài liệu:** SPEC-ARCH-MIS-01  
-**Phiên bản:** 1.1 (Tinh gọn theo 3 Cấp Quản trị Trọng yếu)  
-**Ngày cập nhật:** 2026-09-08  
+**Phiên bản:** 2.0 (Kiến trúc Hybrid 7 Vai trò Quản trị Doanh nghiệp & Tích hợp Trino / Apache ECharts)  
+**Ngày cập nhật:** 2026-09-28  
 **Phân loại:** Tài liệu Kiến trúc & Thiết kế Hệ thống (System Analysis & Design Specification)  
 
 
 ## MỤC LỤC
 
 1. [TỔNG QUAN HỆ THỐNG & BỐI CẢNH KIẾN TRÚC](#1-tổng-quan-hệ-thống--bối-cảnh-kiến-trúc)
-   - 1.1. Mục tiêu và Phạm vi Hệ thống
-   - 1.2. Phân định Biên giới Kiến trúc: Operational Plane vs. Analytical Plane
+   - 1.1. Mục tiêu và Phạm vi Hệ thống (7 Vai trò Quản trị Nghiệp vụ)
+   - 1.2. Phân định Biên giới Kiến trúc: Operational Plane vs. Analytical Plane (Trino & ECharts BI Hub)
    - 1.3. Luồng luân chuyển Dữ liệu Tổng thể (Data Flow & Topologies)
-2. [PHÂN TÍCH NHU CẦU THÔNG TIN THEO 3 CẤP QUẢN TRỊ & TRACEABILITY MATRIX](#2-phân-tích-nhu-cầu-thông-tin-theo-3-cấp-quản-trị--traceability-matrix)
-   - 2.1. Nhu cầu Thông tin Cốt lõi của 3 Cấp Quản trị
-   - 2.2. Phân loại Phạm vi Triển khai (In-Scope Phase 1 vs. Descope/Deferred Phase 2)
-   - 2.3. Ma trận Truy xuất Nguồn gốc (Traceability Matrix: 3 Nhóm Quản trị → Data Objects)
+2. [PHÂN TÍCH NHU CẦU THÔNG TIN THEO 7 VAI TRÒ QUẢN TRỊ & TRACEABILITY MATRIX](#2-phân-tích-nhu-cầu-thông-tin-theo-3-cấp-quản-trị--traceability-matrix)
+   - 2.1. Nhu cầu Thông tin Cốt lõi của 7 Vai trò Quản trị
+   - 2.2. Phân loại Phạm vi Triển khai (Đã hoàn thiện Inbound Costing MWA & Inventory Ledger)
+   - 2.3. Ma trận Truy xuất Nguồn gốc (Traceability Matrix: 7 Nhóm Quản trị → Data Objects)
 3. [DANH MỤC CHỈ SỐ KỸ THUẬT CHUẨN HÓA (STANDARDIZED METRIC CATALOG)](#3-danh-mục-chỉ-số-kỹ-thuật-chuẩn-hóa-standardized-metric-catalog)
-   - 3.1. Nhóm Chỉ số Chiến lược & Doanh thu Cấp cao (Dành cho CEO / Ban Lãnh đạo)
-   - 3.2. Nhóm Chỉ số Vận hành Bán hàng & Xử lý Đơn hàng (Dành cho Quản lý Cửa hàng)
-   - 3.3. Nhóm Chỉ số Kỹ thuật, Giao dịch & Toàn vẹn Dữ liệu (Dành cho Người Giám sát Hệ thống)
+   - 3.1. Nhóm Chỉ số Tài chính & Lợi nhuận (COGS, Gross Profit, Gross Margin %)
+   - 3.2. Nhóm Chỉ số Kinh doanh, Chuỗi Cung ứng & Logistics
+   - 3.3. Nhóm Chỉ số Kỹ thuật, Giao dịch & Toàn vẹn Dữ liệu
 4. [THIẾT KẾ MÔ HÌNH DỮ LIỆU CHI TIẾT (DETAILED DATA MODELING)](#4-thiết-kế-mô-hình-dữ-liệu-chi-tiết-detailed-data-modeling)
    - 4.1. Sơ đồ Quan hệ Thực thể Chiều (Dimensional Bus Matrix & Architecture)
    - 4.2. Đặc tả Chi tiết các Bảng Chiều (Dimension Tables Specification)
@@ -29,13 +29,13 @@
 5. [THIẾT KẾ PHI CHỨC NĂNG, BẢO MẬT & QUẢN TRỊ DỮ LIỆU](#5-thiết-kế-phi-chức-năng-bảo-mật--quản-trị-dữ-liệu)
    - 5.1. Cam kết Mức độ Dịch vụ Dữ liệu (Data Freshness & Processing SLAs)
    - 5.2. Tuân thủ Bảo vệ Dữ liệu Cá nhân (PII Protection & NĐ 13/2023/NĐ-CP)
-   - 5.3. Mô hình Phân quyền Dữ liệu 3 Cấp (Namespace-Level RBAC)
+   - 5.3. Mô hình Phân quyền Dữ liệu & Row-Level Security (RLS)
    - 5.4. Chuẩn hóa Không gian Thời gian (Timezone & Cutoff Logic)
    - 5.5. Cổng Kiểm soát Chất lượng & Đối soát Tự động (Reconciliation Gate)
 6. [KẾ HOẠCH TRIỂN KHAI THEO GIAI ĐOẠN & SIGN-OFF GOVERNANCE](#6-kế-hoạch-triển-khai-theo-giai-đoạn--sign-off-governance)
-   - 6.1. Lộ trình Triển khai 4 Giai đoạn (Phase Breakdown)
+   - 6.1. Lộ trình Triển khai (Phase Breakdown)
    - 6.2. Danh mục Quyết định Kỹ thuật Đã Sign-off (Baseline Decisions)
-   - 6.3. Kế hoạch Kiểm tra Nghiệp vụ với 3 Cấp Quản trị (Business Verification Items)
+   - 6.3. Kế hoạch Kiểm tra Nghiệp vụ với 7 Vai trò Quản trị
 
 ---
 
@@ -43,13 +43,17 @@
 
 ### 1.1. Mục tiêu và Phạm vi Hệ thống
 Hệ thống Thông tin Quản lý D&K E-Commerce (D&K MIS) là nền tảng báo cáo phân tích toàn diện, được thiết kế nhằm đồng nhất hóa dữ liệu điều hành và ra quyết định chiến lược. Hệ thống hợp nhất hai dòng dữ liệu cốt lõi:
-1. **Dữ liệu giao dịch vận hành (OLTP):** 16 bảng quan hệ nghiệp vụ từ MySQL (Orders, Order Items, Customers, Payments, Refunds, Inventory, Coupons, Reviews, Wishlist, Audit Status History,...).
-2. **Dữ liệu hành vi người dùng (Web Event Logs):** Dòng log truy cập cấu trúc chuẩn JSON thu thập qua Fluent Bit micro-batch từ gateway/web application.
+1. **Dữ liệu giao dịch vận hành (OLTP):** 27 bảng quan hệ nghiệp vụ từ MySQL (26 bảng trích xuất sang Lakehouse, loại trừ `customer_credentials` vì lý do bảo mật).
+2. **Dữ liệu hành vi người dùng (Web Event Logs):** Dòng log truy cập cấu trúc chuẩn JSON thu thập qua Fluent Bit micro-batch và luồng streaming thời gian thực qua Apache Kafka + Apache Flink.
 
-Áp dụng phương pháp luận **Phân tích và Thiết kế Hệ thống (Systems Analysis & Design - SAD)**, tài liệu này chuẩn hóa toàn bộ nhu cầu thông tin xoay quanh **3 cấp bậc quản trị then chốt**:
-- **Tổng Giám đốc (CEO / Ban Lãnh đạo):** Người nắm giữ chiến lược tăng trưởng, doanh thu, lợi nhuận, hiệu quả kinh doanh tổng thể.
-- **Quản lý Cửa hàng (Store Manager):** Người trực tiếp điều phối vận hành ca bán hàng, giải phóng hàng đợi đơn, theo dõi hàng bán chạy và kiểm soát tồn kho khả dụng tại quầy.
-- **Người Giám sát Hệ thống (System Supervisor / Data & Platform Lead):** Người chịu trách nhiệm về tính liên tục, ổn định của dịch vụ thanh toán, phát hiện bất thường giao dịch (hủy/hoàn tiền), độ trễ dữ liệu và kiểm soát toàn vẹn dữ liệu (Reconciliation Gate).
+Áp dụng phương pháp luận **Phân tích và Thiết kế Hệ thống (Systems Analysis & Design - SAD)**, tài liệu này chuẩn hóa toàn bộ nhu cầu thông tin xoay quanh **7 vai trò quản trị nghiệp vụ cốt lõi**:
+1. **Ban Giám đốc (CEO / Executive):** Nắm giữ chiến lược tăng trưởng, doanh thu, lợi nhuận gộp, tỷ suất lợi nhuận và sức khỏe kinh doanh toàn diện.
+2. **Kinh doanh & Chiến lược (Sales & Strategy):** Theo dõi đóng góp doanh số giữa các chi nhánh, tỷ trọng danh mục và danh sách sản phẩm bán chạy nhất.
+3. **Quản lý Cửa hàng (Store Manager):** Giám sát doanh thu và số lượng đơn trong ngày, tiến độ hoàn thành chỉ tiêu doanh thu ngày, cảnh báo tồn kho quầy với cơ chế Row-Level Security (RLS) bảo vệ dữ liệu riêng biệt theo từng `store_id`.
+4. **Kho & Chuỗi cung ứng (Inventory & Supply Chain):** Quản lý định giá tổng tài sản tồn kho, tỷ lệ phân bổ kho tổng vs chi nhánh, quản lý các đợt nhập xưởng gia công (Inbound Batches) và cảnh báo sắp hết hàng/cháy hàng.
+5. **Vận hành Đơn & Logistics (Operations & Logistics):** Giám sát hàng đợi chờ đóng gói, đo lường tỷ lệ vi phạm cam kết giao vận (SLA), theo dõi đơn boom hàng COD và xử lý các yêu cầu đổi trả 7 ngày.
+6. **Marketing & Phễu chuyển đổi (Marketing & Funnel):** Đo lường hiệu quả phễu chuyển đổi (Xem -> Thêm giỏ -> Đặt hàng -> Mua hàng), tỷ lệ áp dụng mã giảm giá và điểm hài lòng đánh giá chất lượng sản phẩm.
+7. **Kỹ thuật & Đối soát dữ liệu (System Admin & Data Platform):** Giám sát trạng thái hoạt động của hạ tầng data pipeline, độ tươi của dữ liệu (Data Freshness SLA) và đối soát chênh lệch doanh thu giữa OLTP và Lakehouse.
 
 ### 1.2. Phân định Biên giới Kiến trúc: Operational Plane vs. Analytical Plane
 Kiến trúc D&K phân tách rõ rệt hai biên giới xử lý nhằm đảm bảo tính kịp thời cho vận hành và sự tối ưu hóa cho phân tích chuyên sâu:
@@ -59,90 +63,66 @@ flowchart TB
     subgraph Operational_Plane["VẬN HÀNH THỜI GIAN THỰC (Operational Plane)"]
         direction TB
         AppUser["Khách hàng Web/App"] --> WebApp["E-Commerce Backend & API"]
-        WebApp --> MySQL[("MySQL OLTP Database\n(16 Tables)")]
+        WebApp --> MySQL[("MySQL OLTP Database\n(27 Tables)")]
         
-        StoreMgr["Quản lý Cửa hàng (Store Manager)\n- Doanh thu theo ca/ngày\n- Hàng đợi đơn chờ xử lý\n- Cảnh báo tồn kho quầy"] --> OLTP_API["OLTP Direct Read APIs\n(Độ trễ < 200ms, Indexed)"]
+        StoreMgr["Quản lý Cửa hàng (Store Manager)\n- Doanh thu theo ca/ngày\n- Hàng đợi đơn chờ xử lý\n- Cảnh báo tồn kho quầy"] --> OLTP_API["OLTP Direct Read APIs\n(Độ trễ < 200ms, RLS Filtered)"]
         OLTP_API --> MySQL
     end
 
-    subgraph ETL_Boundary["BIÊN GIỚI TÍCH HỢP & CHUYỂN HÓA (CDC / Batch ETL)"]
-        MySQL --> Ingestion["Spark Daily Batch (02:00 ICT)\n+ Fluent Bit Log Pipeline"]
+    subgraph Integration_Boundary["BIÊN GIỚI TÍCH HỢP (Streaming & Batch ETL)"]
+        WebApp -->|Event Bus| Kafka["Apache Kafka"]
+        Kafka --> Flink["Apache Flink Streaming Ingest"]
+        MySQL -->|Batch Ingestion 02:00 ICT| Spark["Apache Spark ETL Engine"]
+        WebApp -->|15-minute Logs| FluentBit["Fluent Bit Log Pipeline"]
     end
 
     subgraph Analytical_Plane["KHO DỮ LIỆU & PHÂN TÍCH QUẢN TRỊ (Analytical Plane)"]
         direction TB
-        Ingestion --> Lakehouse[("Apache Iceberg Lakehouse (MinIO)\n- Bronze Layer (Raw Ingest)\n- Silver Layer (Cleansed, De-PII)\n- Gold Layer (Star Schema & Marts)")]
+        Spark & Flink & FluentBit --> Lakehouse[("Apache Iceberg Lakehouse (MinIO)\n- Bronze Layer (Raw Ingest 26 Tables)\n- Silver Layer (Cleansed, De-PII)\n- Gold Layer (Star Schema, Fact, Marts)")]
         
         Engine["Trino Distributed SQL Engine"] --> Lakehouse
         Catalog["Apache Polaris (Catalog & Namespace RBAC)"] -.-> Lakehouse
         
-        Superset["Apache Superset BI Platform"] --> Engine
-        CEO["CEO / Ban Lãnh đạo\n- GMV, Net Revenue, AOV\n- Tăng trưởng & Xu hướng danh mục\n- Dòng tiền & Hiệu quả Coupon"] --> Superset
-        SysAdmin["Người Giám sát Hệ thống\n- Tỷ lệ lỗi thanh toán & Hủy đơn\n- Cổng đối soát dữ liệu (Reconciliation)\n- Tải hệ thống & Độ trễ dữ liệu SLA"] --> Superset
+        Hub["Admin BI Analytics Hub (/admin/analytics)\n- Tích hợp trực tiếp Apache ECharts\n- Tab-gating 7 vai trò quản trị\n- Trino Live Telemetry Query Engine"] --> Engine
+        Hub --> OLTP_API
+        
+        Superset["Apache Superset Studio (Port 8088)\n- Báo cáo phân tích chuyên sâu đa chiều"] --> Engine
     end
 ```
 
 **Nguyên tắc phân định ranh giới:**
-1. **Operational Plane (Phục vụ Quản lý Cửa hàng):** Truy vấn trực tiếp từ bản sao đọc (Read Replica) của MySQL OLTP qua API tối ưu hóa (độ trễ $< 200\text{ms}$). Đảm bảo nhân viên cửa hàng can thiệp đơn hàng tức thời, không bị trễ theo chu kỳ mẻ DWH.
-2. **Analytical Plane (Phục vụ CEO và Người Giám sát Hệ thống):** Truy vấn trên nền tảng Lakehouse (Apache Iceberg/Trino/Superset) với chu kỳ mẻ hàng ngày (T+1 lúc 02:00 ICT). Phục vụ các báo cáo xu hướng lịch sử nhiều chiều, tổng hợp tài chính và kiểm toán toàn vẹn dữ liệu.
+1. **Operational Plane (Vận hành tác nghiệp):** Truy vấn trực tiếp từ MySQL OLTP qua API tối ưu hóa (độ trễ $< 200\text{ms}$).
+2. **Analytical Plane (Phân tích chiến lược & Đa vai trò):** Truy vấn trên nền tảng Lakehouse (Apache Iceberg/Trino) kết nối trực tiếp với giao diện đồ thị **Apache ECharts** tại Trung tâm Phân tích `/admin/analytics` và **Apache Superset Studio** tại cổng 8088.
 
 ### 1.3. Luồng luân chuyển Dữ liệu Tổng thể (Data Flow & Topologies)
-1. **Bronze Layer:** Lưu trữ nguyên bản (raw data) các bảng sao chép từ MySQL OLTP và JSON logs từ S3/MinIO Landing Zone.
-2. **Silver Layer:** Chuẩn hóa kiểu dữ liệu, giải quyết xung đột mã hóa UTF-8. Ẩn danh hóa dữ liệu định danh cá nhân (Salted SHA-256 đối với Email, Phone). Bóc tách địa chỉ để chỉ lưu `region`, `city`, `district` phục vụ phân tích vùng.
-3. **Gold Layer:** Xây dựng hệ thống bảng Chiều (`dim_*`), bảng Sự kiện (`fact_*`) và các bảng Tổng hợp nghiệp vụ (`mart_*`).
-4. **Reconciliation Gate:** Tự động đối chiếu số liệu Silver và Gold trước khi xuất bản báo cáo cho CEO và Người Giám sát Hệ thống.
+1. **Bronze Layer:** Lưu trữ nguyên bản (raw data) 26 bảng sao chép từ MySQL OLTP và log sự kiện từ S3/MinIO Landing Zone.
+2. **Silver Layer:** Chuẩn hóa kiểu dữ liệu, giải quyết xung đột mã hóa UTF-8. Ẩn danh hóa dữ liệu định danh cá nhân (Salted SHA-256 đối với Email, Phone).
+3. **Gold Layer:** Xây dựng hệ thống bảng Chiều (`dim_*`), bảng Sự kiện (`fact_*`) và các bảng Tổng hợp nghiệp vụ (`mart_*`), tích hợp đầy đủ chỉ số Giá vốn hàng bán (COGS) và Lợi nhuận gộp.
+4. **Reconciliation Gate:** Tự động đối chiếu số liệu Silver và Gold trước khi xuất bản báo cáo.
 
 ---
 
-## 2. PHÂN TÍCH NHU CẦU THÔNG TIN THEO 3 CẤP QUẢN TRỊ & TRACEABILITY MATRIX
+## 2. PHÂN TÍCH NHU CẦU THÔNG TIN THEO 7 VAI TRÒ QUẢN TRỊ & TRACEABILITY MATRIX
 
-### 2.1. Nhu cầu Thông tin Cốt lõi của 3 Cấp Quản trị
+### 2.1. Nhu cầu Thông tin Cốt lõi của 7 Vai trò Quản trị
 
-Mô hình quản trị của D&K E-Commerce tập trung vào 3 trụ cột: **Chiến lược (CEO)** – **Thực thi Vận hành (Store Manager)** – **Hạ tầng & Chất lượng (Người Giám sát Hệ thống)**:
-
-| Cấp bậc Quản trị | Mục tiêu & Trách nhiệm Cốt lõi | Nhu cầu Thông tin Trọng yếu | Công cụ / Môi trường Truy xuất |
+| Vai trò Quản trị | Mục tiêu & Trách nhiệm Cốt lõi | Nhu cầu Thông tin Trọng yếu | Công cụ / Môi trường Truy xuất |
 | :--- | :--- | :--- | :--- |
-| **1. Tổng Giám đốc (CEO / Ban Lãnh đạo)** | - Tăng trưởng quy mô doanh số & thị phần.<br>- Tối ưu hóa hiệu quả kinh doanh & dòng tiền.<br>- Đánh giá sức khỏe danh mục sản phẩm & khách hàng. | - **Doanh thu:** GMV, Doanh thu hàng hóa ròng, Doanh thu xác nhận (`completed`), Doanh thu vận chuyển.<br>- **Quy mô đơn:** AOV (Giá trị đơn trung bình), Số món/đơn.<br>- **Xu hướng:** Tăng trưởng MoM/YoY, Hiệu suất danh mục 2 cấp.<br>- **Hiệu quả khuyến mãi:** Tỷ số hiệu quả mã Coupon (Coupon Efficiency Ratio), Tổng ngân sách giảm giá.<br>- **Sức khỏe tài chính:** Dòng tiền ước tính (Inflow/Outflow proxy). | **Analytical Plane**<br>(Superset Executive Dashboard) |
-| **2. Quản lý Cửa hàng (Store Manager)** | - Điều phối xử lý đơn hàng trong ca trực.<br>- Giảm thiểu tồn đọng và tắc nghẽn khâu đóng gói/giao hàng.<br>- Theo dõi sản phẩm bán chạy và bổ sung hàng kịp thời tại quầy. | - **Doanh thu trong ngày:** Bộ ba chỉ số *Order Intake Today*, *Paid Today*, *Completed Today* (theo ngày ICT).<br>- **Hàng đợi xử lý:** Số lượng đơn chờ xác nhận (`paid`), đơn đang đóng gói (`confirmed`), đơn mới bị hủy.<br>- **Cảnh báo tuổi đơn:** Đơn chờ xác nhận quá thời gian cam kết ($> 4 \text{ giờ làm việc}$).<br>- **Sản phẩm & Tồn kho:** Top 10 sản phẩm bán chạy nhất trong 7 ngày, danh sách SKU sắp hết hàng (`on_hand` dưới ngưỡng an toàn). | **Operational Plane**<br>(Storefront Admin Portal / OLTP Realtime APIs) |
-| **3. Người Giám sát Hệ thống (System Supervisor)** | - Bảo đảm tính liên tục và ổn định của cổng thanh toán.<br>- Giám sát bất thường giao dịch và chất lượng vận hành.<br>- Kiểm soát tính toàn vẹn và độ tin cậy của dữ liệu phân tích.<br>- Giám sát tải hệ thống và tuân thủ an toàn thông tin. | - **Chất lượng giao dịch:** Tỷ lệ thanh toán thất bại (Payment Failure Rate), Tỷ lệ hủy đơn, Tỷ lệ hoàn tiền.<br>- **Hiệu suất chu kỳ đơn:** Thời gian trung chuyển trạng thái đơn (Cycle time) và Tỷ lệ vi phạm SLA.<br>- **Đối soát dữ liệu (Reconciliation):** Lệch doanh thu giữa OLTP và DWH ($\le 1,000\text{ VND}$), Lệch số dòng đơn hàng ($= 0$).<br>- **Tải hệ thống & Log:** Lưu lượng truy cập (Web Events Volume), Lỗi hệ thống HTTP 5xx, Tỷ lệ tra cứu không có kết quả (Zero-result search).<br>- **Bảo mật:** Tuân thủ ẩn danh hóa dữ liệu PII theo Nghị định 13/2023/NĐ-CP. | **Analytical Plane & Alerts**<br>(Superset System Monitor, Slack Webhook Alerts) |
+| **1. Ban Giám đốc (Executive / CEO)** | - Tăng trưởng quy mô doanh số & thị phần.<br>- Tối ưu hóa hiệu quả kinh doanh & dòng tiền.<br>- Giám sát biên lợi nhuận gộp toàn diện. | - **Doanh thu & Lợi nhuận:** GMV, Net Revenue, COGS, Gross Profit, Gross Margin %.<br>- **Quy mô đơn:** AOV, Số lượng đơn hàng, Tỷ lệ đơn giao thành công.<br>- **Rủi ro:** Tỷ lệ boom hàng COD, Tỷ lệ yêu cầu đổi trả 7 ngày.<br>- **Xu hướng:** Biểu đồ xu hướng doanh thu và lợi nhuận gộp theo ngày (Daily Trend). | **Admin BI Hub & Superset**<br>(`/admin/analytics?role=executive`) |
+| **2. Kinh doanh & Chiến lược (Sales & Strategy)** | - Đánh giá sức khỏe danh mục và chi nhánh.<br>- Thúc đẩy doanh thu các kênh phân phối. | - **Đóng góp chi nhánh:** Doanh thu phân bổ theo từng cửa hàng vật lý và kênh online.<br>- **Top sản phẩm:** Xếp hạng các mặt hàng bán chạy nhất (Top Selling Products).<br>- **Tỷ trọng danh mục:** Đóng góp cơ cấu doanh số giữa các nhóm sản phẩm thời trang. | **Admin BI Hub**<br>(`/admin/analytics?role=sales`) |
+| **3. Quản lý Cửa hàng (Store Manager)** | - Điều phối bán hàng và thu ngân tại chi nhánh.<br>- Quản lý tồn kho quầy trưng bày. | - **Doanh thu chi nhánh trong ngày:** Doanh thu tại quầy hôm nay.<br>- **Đơn hàng trong ngày:** Số lượng đơn thanh toán tại quầy.<br>- **Mục tiêu ngày:** Tỷ lệ hoàn thành doanh số cam kết hàng ngày.<br>- **Cảnh báo tồn quầy:** Danh sách sản phẩm có tồn kho thấp tại quầy cần bổ sung. | **Store Dashboard & BI Hub**<br>(`/store` & `/admin/analytics?role=store`, RLS Gate) |
+| **4. Kho & Chuỗi cung ứng (Inventory Manager)** | - Quản lý tồn kho trung tâm và chi phí xưởng.<br>- Đảm bảo nguồn cung ứng ổn định. | - **Định giá tài sản kho:** Tổng giá trị hàng tồn kho (VND).<br>- **Phân bổ hàng hóa:** Tỷ lệ số lượng hàng tại Kho tổng vs Các cửa hàng chi nhánh.<br>- **Nhập xưởng may (Inbound):** Số đợt sản xuất hoàn tất, kiểm soát giá vốn MWA.<br>- **Cảnh báo hàng:** Số mặt hàng sắp hết và số mặt hàng đã cháy hàng. | **Admin Inbound & BI Hub**<br>(`/admin/inbound` & `/admin/analytics?role=inventory`) |
+| **5. Vận hành & Logistics (Operations Manager)** | - Giám sát giao vận shipper nội bộ và chất lượng đơn.<br>- Xử lý đơn boom và đổi trả. | - **Hàng đợi xuất kho:** Số đơn hàng đang chờ xử lý đóng gói.<br>- **Cam kết vận chuyển (SLA):** Tỷ lệ giao hàng đúng hẹn, đơn vi phạm thời gian cam kết.<br>- **Xử lý rủi ro:** Số lượng đơn shipper giao thất bại (Boom COD) cần hoàn kho.<br>- **Đổi trả:** Số lượng yêu cầu đổi size/trả hàng 7 ngày đang chờ thẩm định. | **Admin Orders & BI Hub**<br>(`/admin/orders` & `/admin/analytics?role=operations`) |
+| **6. Marketing & Phễu chuyển đổi (Marketing Manager)** | - Tối ưu hóa chuyển đổi khách hàng trên website.<br>- Đo lường hiệu quả khuyến mãi và sự hài lòng. | - **Phễu chuyển đổi:** Lượt xem -> Thêm vào giỏ -> Đặt hàng -> Mua hàng (kèm tỷ lệ rơi rụng %).<br>- **Khuyến mãi:** Số lượt áp dụng thành công mã Coupon ưu đãi.<br>- **Đánh giá:** Điểm đánh giá sao trung bình và phản hồi từ khách hàng sau khi nhận hàng. | **Admin BI Hub**<br>(`/admin/analytics?role=marketing`) |
+| **7. Kỹ thuật & Đối soát (System Admin / Data Lead)** | - Đảm bảo tính liên tục của hệ thống và toàn vẹn dữ liệu.<br>- Đối soát tự động giữa OLTP và Lakehouse. | - **Sức khỏe đường ống:** Trạng thái hoạt động của Lakehouse Streaming & Batch ETL.<br>- **Độ tươi dữ liệu (Data Freshness SLA):** Thời gian cập nhật mẻ dữ liệu gần nhất.<br>- **Cổng đối soát (Reconciliation Gate):** Chênh lệch doanh thu thuần và số dòng đơn hàng giữa MySQL OLTP và Lakehouse ($= 0$). | **Admin BI Hub & Alert**<br>(`/admin/analytics?role=system`) |
 
-### 2.2. Phân loại Phạm vi Triển khai (In-Scope Phase 1 vs. Descope/Deferred Phase 2)
+### 2.2. Phân loại Phạm vi Triển khai
 
-Nhằm tối ưu hóa nguồn lực và đảm bảo tính khả thi kỹ thuật, phạm vi dữ liệu được chuẩn hóa minh bạch:
-
-```mermaid
-quadrantChart
-    title Ma trận Phân bổ Phạm vi Kỹ thuật theo 3 Nhóm Quản trị
-    x-axis Độ sẵn sàng Dữ liệu Nguồn (Thấp --> Cao)
-    y-axis Giá trị Tác động Nghiệp vụ (Thấp --> Cao)
-    quadrant-1 "ƯU TIÊN TRIỂN KHAI PHA 1 (In-Scope)"
-    quadrant-2 "HOÃN TRIỂN KHAI PHA 2 (Deferred)"
-    quadrant-3 "LOẠI BỎ KHỎI DWH (Descoped)"
-    quadrant-4 "MỞ RỘNG BỔ SUNG PHA 1 (Fast-Follow)"
-    "CEO: GMV, Net Revenue, AOV": [0.95, 0.95]
-    "Store: Realtime Order Queue": [0.90, 0.92]
-    "Supervisor: Reconciliation Gate": [0.85, 0.88]
-    "Supervisor: Payment Failure Rate": [0.90, 0.85]
-    "Store: Today Intake / Paid / Done": [0.85, 0.82]
-    "Store: Inventory Snapshot Daily": [0.80, 0.80]
-    "CEO: Coupon Efficiency Ratio": [0.85, 0.70]
-    "CEO: Full P&L (COGS, Shipping Cost)": [0.15, 0.90]
-    "Supervisor: Movement Audit Trail": [0.10, 0.85]
-    "Supervisor: Search Keyword & Zero-Result": [0.25, 0.75]
-    "CEO: Seasonal Demand Forecast": [0.30, 0.65]
-    "CEO: Chi tiết Kê khai Thuế VAT": [0.10, 0.40]
-```
-
-#### Bảng Tổng hợp Hạng mục Hoãn / Giản lược (Descope & Deferred Backlog)
-
-| Mã | Hạng mục Yêu cầu Gốc | Cấp Quản trị Ảnh hưởng | Hiện trạng Dữ liệu Nguồn & Lý do Kỹ thuật | Giải pháp Thay thế trong Pha 1 | Kế hoạch Thực thi |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **D-1** | Phân tích Từ khóa & Zero-Result Search | Người Giám sát Hệ thống / CEO | Log truy cập ghi nhận hành động search nhưng chưa ghi số kết quả trả về (`result_count`). | Giám sát tổng số lượt phát sinh hành động tìm kiếm (Search Events Volume). | Phase 2 (Cập nhật router API trả về count) |
-| **D-2** | Phân tích Chiến dịch Tiếp thị (UTM Mapping) | CEO | Chưa có bảng `campaigns`, chưa có cơ chế bắt UTM parameters từ URL vào đơn hàng. | Đánh giá hiệu quả khuyến mãi tập trung vào mã Coupon (`dim_coupon`). | Phase 2 (Xây dựng Campaign Tracking Module) |
-| **D-3** | Kiểm toán Dòng chuyển Kho (Movement Audit) | Người Giám sát Hệ thống / Quản lý Kho | OLTP chỉ lưu số dư `inventory.on_hand`, không có bảng ghi log xuất/nhập/điều chuyển kho vật lý. | Xây dựng bảng `fact_inventory_snapshot_daily` chốt lúc 23:59:59 ICT để theo dõi chênh lệch tồn cuối ngày. | Phase 2 (Bổ sung bảng `inventory_movements` trong OLTP) |
-| **D-4** | Dự báo Nhu cầu theo Mùa (Seasonal Forecast) | CEO | Dữ liệu giao dịch lịch sử tích lũy < 12 tháng, chưa đủ chu kỳ năm để chạy thuật toán chuỗi thời gian. | Trực quan hóa đường xu hướng lịch sử và so sánh cùng kỳ ngắn hạn. | Phase 2 (Khi tích lũy đủ $\ge 12$ tháng data) |
-| **D-5** | Báo cáo Lãi Lỗ Đầy đủ (Full P&L: COGS, Chi phí Vận hành) | CEO | OLTP không có giá vốn hàng bán (COGS), chi phí marketing thực tế và phí cổng thanh toán. | Giới hạn ở Doanh thu ròng, Giảm giá và Hoàn tiền (Gross Margin Proxy). | Phase 2 (Tích hợp nguồn dữ liệu kế toán/ERP ngoài) |
-| **D-6** | Báo cáo Thuế Giá trị Gia tăng (VAT Ledger) | CEO | Schema OLTP không có cột `tax_rate`, `tax_amount`. | Giá bán trên đơn mặc định được coi là giá thanh toán cuối cùng. | Phase 2 (Mở rộng schema đơn hàng) |
+> [!NOTE]
+> Trong các phiên bản ban đầu, hạng mục D-3 (Kiểm toán Dòng chuyển Kho) và D-5 (Giá vốn hàng bán COGS & Lãi gộp) từng thuộc diện hoãn (deferred). Đến nay, **cả hai hạng mục này đã được thiết kế và triển khai hoàn chỉnh 100%** trong kiến trúc hệ thống:
+> - **Sổ cái biến động kho (`inventory_transactions`)**: Ghi nhận toàn bộ biến động `inbound`, `outbound_sale`, `outbound_transfer`, `return_boom`, `return_customer`.
+> - **Nhập kho xưởng may & MWA Costing (`inbound_receipts`, `inbound_receipt_items`)**: Tự động tính giá vốn bình quân gia quyền di động và chép snapshot vào `order_items.cost_price_vnd`.
+> - **Chỉ số tài chính hoàn chỉnh**: Hệ thống đã cung cấp trực tiếp COGS, Gross Profit và Gross Margin % trên cả OLTP và Lakehouse Gold Marts!
 
 ### 2.3. Ma trận Truy xuất Nguồn gốc (Traceability Matrix: 3 Nhóm Quản trị → Data Objects)
 

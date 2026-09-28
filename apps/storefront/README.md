@@ -24,20 +24,33 @@ The Storefront is a Next.js 15 application providing user interfaces for consume
 | `/checkout` | Customer | Atomic checkout with coupon validation and stock check |
 | `/checkout/result/[orderNumber]` | Customer | Post-checkout receipt and payment confirmation |
 | `/orders` | Customer | Order history listing with status badges |
-| `/orders/[orderNumber]` | Customer | Detailed order status timeline and verified review submission |
-| `/login`, `/register` | Public | Customer & Admin authentication screens |
+| `/orders/[orderNumber]` | Customer | Detailed order status timeline, customer confirmation "Đã nhận được hàng", and review submission |
+| `/login`, `/register` | Public | Customer & Staff authentication screens |
 
-### Admin Operations Routes
+### Admin & Staff Operations Routes
 
 | Path | Access | Description |
 |---|---|---|
-| `/admin` | Admin | Operations dashboard with summary metrics |
-| `/admin/products` | Admin | Product catalog management and soft-archive controls |
+| `/admin` | Admin | Operations dashboard with summary metrics, COGS, Gross Profit, and alerts |
+| `/admin/analytics` | Staff (RBAC gated) | 7-Role BI Analytics Hub with Apache ECharts and Trino query engine |
+| `/admin/inbound` | Inventory / Admin | Workshop inbound production receipts and MWA costing |
+| `/admin/inbound/[receiptCode]` | Inventory / Admin | Inbound receipt details and old → new cost price audit table |
+| `/admin/logistics` | Operations / Admin | Delivery dispatch, shipper assignment, and COD collection |
+| `/admin/returns` | Operations / Admin | Customer returns inspection, approval, and refund disbursement |
+| `/admin/products` | Admin | Product catalog management, variants, and soft-archive controls |
 | `/admin/orders` | Admin | Order queue and fulfillment state transitions |
 | `/admin/orders/[orderNumber]` | Admin | Order fulfillment inspection and detail view |
 | `/admin/coupons` | Admin | Promotion code creation, usage limits, and archive controls |
 | `/admin/reviews` | Admin | Post-publication review moderation (hide/restore with reason) |
-| `/admin/customers` | Admin | Customer account status controls |
+| `/admin/customers` | Admin | Customer account status and boom COD controls |
+| `/admin/pos` | Admin / Store Manager | Point-of-Sale counter checkout terminal |
+
+### Store Manager Routes
+
+| Path | Access | Description |
+|---|---|---|
+| `/store` | Store Manager | Store manager local operations dashboard (RLS-scoped to assigned store) |
+| `/store/pos` | Store Staff | Store-level Point-of-Sale counter checkout terminal |
 
 ---
 

@@ -9,36 +9,38 @@ Kết hợp thiết kế logic, column-level reference, transaction catalog và 
 
 Schema tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
-Hệ thống có **25 bảng nghiệp vụ** (sau Migration `0014_logistics_returns_inbound_cogs.py`). Pipeline Lakehouse DE trích xuất **24 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
+Hệ thống có **27 bảng nghiệp vụ** (sau Migration `0015_inbound_production_and_refund_updated_at.py` và `0017_allow_pending_payment_status.py`). Pipeline Lakehouse DE trích xuất **26 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
 
 ### Quy tắc thiết kế cốt lõi
 
-- Checkout yêu cầu đăng nhập và active cart có hàng hợp lệ. Hỗ trợ phương thức thanh toán `vietqr` và `cod`.
+- Checkout yêu cầu đăng nhập và active cart có hàng hợp lệ. Hỗ trợ phương thức thanh toán `vietqr` (trả trước) và `cod` (tiền mặt khi nhận hàng, `payments.status = 'pending'`).
 - Add-to-cart không giữ hàng; checkout kiểm tra và trừ `inventory.on_hand` atomically, đồng thời ghi nhận 1 transaction `movement_type = 'outbound_order'` trong `inventory_transactions`.
 - Với đơn `vietqr`, thanh toán thành công ngay khi checkout hợp lệ; với đơn `cod`, đơn được tạo với trạng thái ban đầu `confirmed` chờ điều phối giao vận.
 - POS (Point of Sale): nhân viên bán hàng tại quầy, tạo đơn `completed` ngay, trừ `store_inventory` (kho cửa hàng), ghi nhận transaction `outbound_pos`.
 - Giao vận nội bộ D&K: Mỗi đơn hàng online đi qua đội ngũ shipper nội bộ (`delivery_staff`) thông qua phiếu giao hàng (`shipments`).
-- State machine mở rộng của đơn hàng:
+- State machine chuẩn hóa của đơn hàng:
 
 ```text
-[Online VietQR] paid ────> confirmed ────> shipping ────> delivered ────> completed
-                         │               │             │               │
-                         │               │             └──> returned <─┘
+[Online VietQR] paid ────> confirmed ────> shipping ────> delivered ──(khách nhận hàng)──> completed
+                         │               │             │                               │
+                         │               │             └──> returned <─────────────────┘
                          │               └──> failed_delivery (boom COD)
                          └──> cancelled
 
-[Online COD]    confirmed ──> shipping ──> delivered (thu tiền COD) ──> completed
-                            │           │
+[Online COD]    confirmed ──> shipping ──> delivered (thu tiền COD) ──(khách nhận hàng)──> completed
+                            │           │                                                │
+                            │           └──> returned <──────────────────────────────────┘
                             │           └──> failed_delivery (boom COD / bom hàng)
                             └──> cancelled
 ```
 
+- **Quy trình Hoàn tất Đơn hàng**: Sau khi shipper giao hàng thành công, đơn hàng chuyển sang trạng thái `delivered` (Giao thành công). Admin/Shipper không tự ý hoàn tất đơn. Trên giao diện người dùng, khách hàng kiểm tra hàng thực tế và bấm nút **"Đã nhận được hàng"** để chuyển trạng thái sang `completed`. Tại thời điểm này, tiền thu hộ COD (nếu có) được quyết toán chính thức và khách hàng có quyền đánh giá sản phẩm hoặc yêu cầu đổi trả trong 7 ngày.
 - **Xử lý Boom hàng COD**: Khi đơn hàng bị boom (`failed_delivery`), hệ thống ghi nhận lý do thất bại trong `shipments`, hoàn trả tồn kho (`movement_type = 'return_boom'`), tự động tăng `customers.boom_count`. Nếu `boom_count >= 3`, khách hàng tự động bị gắn cờ `is_cod_blocked = TRUE` (chặn thanh toán COD ở các lần mua sau).
 - **Chính sách Đổi/Trả hàng 7 ngày**: Sau khi đơn hàng `delivered`/`completed`, khách hàng có quyền tạo `return_requests` với 2 nhánh nghiệp vụ:
   - `exchange`: Đổi size/màu (tạo yêu cầu kiểm hàng `return_items`, khi duyệt thì xuất hàng đổi `exchange_out`).
   - `refund`: Trả hàng hoàn tiền (khi duyệt và nhận lại hàng thì hoàn tiền `refund_amount_vnd` và nhập kho `return_customer`, trạng thái đơn chuyển sang `returned`).
-- **Mô hình Kho tập trung**: 1 Kho trung tâm duy nhất nhập hàng từ xưởng (`movement_type = 'inbound'`) và phân bổ điều phối cho các chi nhánh cửa hàng (`transfer_to_store` / `transfer_received`). Mọi biến động được lưu vết bất biến trong `inventory_transactions`.
-- **Giá vốn hàng bán (COGS)**: Ghi nhận giá vốn tại từng biến thể `product_variants.cost_price_vnd` và snapshot cố định bất biến vào từng dòng `order_items.cost_price_vnd` tại thời điểm phát sinh giao dịch.
+- **Mô hình Kho tập trung & Nhập kho sản xuất**: 1 Kho trung tâm duy nhất nhập hàng từ xưởng sản xuất thông qua phiếu nhập kho `inbound_receipts` và `inbound_receipt_items`, tự động tính toán lại giá vốn bình quân gia quyền di động (Moving Weighted Average Costing) cho từng biến thể, đồng thời điều phối hàng cho các chi nhánh cửa hàng (`transfer_to_store` / `transfer_received`). Mọi biến động được lưu vết bất biến trong `inventory_transactions`.
+- **Giá vốn hàng bán (COGS)**: Ghi nhận giá vốn tại từng biến thể `product_variants.cost_price_vnd` và snapshot cố định bất biến vào từng dòng `order_items.cost_price_vnd` tại thời điểm phát sinh giao dịch (checkout online & POS).
 
 ---
 
@@ -57,7 +59,7 @@ Hệ thống có **25 bảng nghiệp vụ** (sau Migration `0014_logistics_retu
 
 ---
 
-## 3. Tổng quan 25 bảng
+## 3. Tổng quan 27 bảng
 
 | # | Bảng | Nhóm | Grain | Mutability | Extract cursor |
 |---|------|------|-------|------------|----------------|
@@ -77,7 +79,7 @@ Hệ thống có **25 bảng nghiệp vụ** (sau Migration `0014_logistics_retu
 | 14 | `coupon_redemptions` | Promotion | Một redemption/order | Mutable redeemed/released | `(updated_at, coupon_redemption_id)` |
 | 15 | `orders` | Order | Một kết quả checkout/POS | Mutable state, snapshot amount | `(updated_at, order_id)` |
 | 16 | `order_items` | Order | Một variant line/order | Append-only snapshot | `(created_at, order_item_id)` |
-| 17 | `payments` | Payment | Một payment/order | Append-only | `(created_at, payment_id)` |
+| 17 | `payments` | Payment | Một payment/order | Append-only (hỗ trợ pending COD) | `(created_at, payment_id)` |
 | 18 | `refunds` | Refund | Một full refund/payment | Append-only | `(created_at, refund_id)` |
 | 19 | `order_status_history` | History | Một transition/order | Append-only | `(created_at, order_status_history_id)` |
 | 20 | `product_reviews` | Review | Một review/order_item | Mutable visibility | `(updated_at, review_id)` |
@@ -86,6 +88,8 @@ Hệ thống có **25 bảng nghiệp vụ** (sau Migration `0014_logistics_retu
 | 23 | `return_requests` | Returns | Một yêu cầu đổi trả sau mua 7 ngày | Mutable workflow | `(updated_at, return_id)` |
 | 24 | `return_items` | Returns | Một món hàng trong yêu cầu đổi trả | Append-only / inspection | `(created_at, return_item_id)` |
 | 25 | `inventory_transactions` | Inventory | Một biến động kho (inbound/outbound/...) | Append-only ledger | `(created_at, transaction_id)` |
+| 26 | `inbound_receipts` | Inbound | Một đợt nhập thành phẩm xưởng sản xuất | Mutable | `(updated_at, receipt_id)` |
+| 27 | `inbound_receipt_items` | Inbound | Chi tiết biến thể & đơn giá nhập xưởng | Append-only | `(created_at, item_id)` |
 
 ### Chiến lược định danh
 
@@ -157,7 +161,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 **Check constraints**:
 - `status IN ('active', 'inactive')`
-- `role IN ('customer', 'admin', 'store_manager')`
+- `role IN ('customer', 'admin', 'store_manager', 'sales_manager', 'marketing_manager', 'inventory_manager', 'operations_manager', 'system_admin')`
 - `data_origin IN ('manual', 'synthetic')`
 
 **Indexes**:
@@ -165,7 +169,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - `ix_customers_role_status_id` — `(role, status, customer_id)`
 - `ix_customers_updated_at_customer_id` — extraction cursor
 
-**Invariant**: Anonymize không xóa PK/FK. `store_manager` phải có `store_id`. Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD.
+**Invariant**: Anonymize không xóa PK/FK. `store_manager` có `store_id` liên kết cửa hàng quản lý (Row-Level Security). Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD. Hỗ trợ đầy đủ 7 role nhân viên quản trị chuyên biệt phục vụ phân quyền và báo cáo BI Lakehouse.
 
 
 ---
@@ -606,10 +610,21 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 **State machine**:
 ```text
-paid --admin xác nhận--> confirmed --admin hoàn tất--> completed
-paid --customer/admin hủy--> cancelled
+[Online VietQR] paid ──> confirmed ──> shipping ──> delivered ──(khách nhận hàng)──> completed
+                         │             │           │                               │
+                         │             │           └──> returned <─────────────────┘
+                         │             └──> failed_delivery (boom COD)
+                         └──> cancelled
+
+[Online COD]    confirmed ──> shipping ──> delivered (thu tiền COD) ──(khách nhận hàng)──> completed
+                            │           │                                                │
+                            │           └──> returned <──────────────────────────────────┘
+                            │           └──> failed_delivery (boom COD)
+                            └──> cancelled
 ```
-Chỉ order `paid` được hủy. `confirmed` và `completed` không được hủy.
+- Khách hàng (hoặc admin) được phép hủy đơn trước khi đơn được điều phối giao vận (`paid` với VietQR, hoặc `confirmed` trước khi xuất kho). Khi đã chuyển sang `shipping` hoặc `delivered`, không thể hủy đơn.
+- Khi đơn hàng `delivered`: Admin/shipper xác nhận giao thành công. Đơn hàng chuyển sang `completed` **khi khách hàng bấm "Đã nhận được hàng"** trên trang cá nhân.
+- Sau khi `delivered` hoặc `completed`, khách hàng có 7 ngày để yêu cầu Đổi / Trả hàng (`return_requests`). Nếu chấp thuận trả hàng và hoàn tiền, trạng thái đơn chuyển sang `returned`.
 
 **Channel invariants**:
 - `channel='online'`: `cart_id` NOT NULL, `checkout_idempotency_key` NOT NULL, `staff_id` NULL (hoặc allocation store)
@@ -658,7 +673,7 @@ Chỉ order `paid` được hủy. `confirmed` và `completed` không được h
 
 ### 5.17. `payments`
 
-**Mục đích**: Ghi nhận thanh toán cho order. Trong TLCN luôn `succeeded` tại checkout.
+**Mục đích**: Ghi nhận thanh toán cho order. Với `vietqr` là `succeeded` ngay tại checkout; với `cod` là `pending` tại checkout và chuyển thành `succeeded` khi giao thành công / hoàn tất đơn.
 
 | Cột | Kiểu | Constraint | Mô tả |
 |-----|------|-----------|-------|
@@ -666,7 +681,7 @@ Chỉ order `paid` được hủy. `confirmed` và `completed` không được h
 | `payment_reference` | `VARCHAR(64)` | UK, NOT NULL | Mã tham chiếu thanh toán |
 | `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, UK, NOT NULL, ON DELETE RESTRICT | Order liên kết (1:1) |
 | `payment_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key |
-| `status` | `VARCHAR(16)` | NOT NULL | `succeeded` hoặc `failed` |
+| `status` | `VARCHAR(16)` | NOT NULL | `succeeded`, `failed`, hoặc `pending` (COD) |
 | `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
 | `amount_vnd` | `BIGINT UNSIGNED` | NOT NULL | Số tiền thanh toán |
 | `failure_code` | `VARCHAR(64)` | NULLABLE | Mã lỗi (chỉ khi `failed`) |
@@ -674,10 +689,10 @@ Chỉ order `paid` được hủy. `confirmed` và `completed` không được h
 | `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
 
 **Check constraints**:
-- `status IN ('succeeded', 'failed')`
+- `status IN ('succeeded', 'failed', 'pending')`
 - `currency_code = 'VND'`
 - `amount_vnd >= 0`
-- `(status = 'succeeded' AND failure_code IS NULL) OR (status = 'failed' AND failure_code IS NOT NULL)`
+- `((status IN ('succeeded', 'pending') AND failure_code IS NULL) OR (status = 'failed' AND failure_code IS NOT NULL))`
 
 **Unique**: `order_id` — mỗi order chỉ có một payment
 
@@ -687,7 +702,7 @@ Chỉ order `paid` được hủy. `confirmed` và `completed` không được h
 - `uq_payments_payment_idempotency_key` — UK trên `payment_idempotency_key`
 - `ix_payments_created_at_payment_id` — extraction cursor
 
-**Invariant**: Amount/currency phải khớp order. `failed` chỉ giữ cho tương thích dữ liệu lịch sử.
+**Invariant**: Amount/currency phải khớp order. Đơn COD khởi tạo payment với `status='pending'`, sau khi giao hàng thành công sẽ quyết toán sang `status='succeeded'`.
 
 ---
 
@@ -974,6 +989,65 @@ Chỉ order `paid` được hủy. `confirmed` và `completed` không được h
 
 ---
 
+### 5.26. `inbound_receipts`
+
+**Mục đích**: Quản lý các đợt nhập thành phẩm từ xưởng sản xuất nội bộ vào kho trung tâm D&K, làm căn cứ cập nhật tồn kho và tính toán giá vốn hàng bán (COGS).
+
+| Cột | Kiểu | Constraint | Mô tả |
+|-----|------|-----------|-------|
+| `receipt_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
+| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
+| `receipt_code` | `VARCHAR(64)` | UK, NOT NULL | Mã phiếu nhập (VD: `'INB-20260921-0001'`) |
+| `batch_name` | `VARCHAR(255)` | NOT NULL | Tên đợt may / gia công sản xuất |
+| `status` | `VARCHAR(24)` | NOT NULL, DEFAULT `'completed'` | Trạng thái phiếu nhập (`completed`) |
+| `total_items_count` | `INT UNSIGNED` | NOT NULL, DEFAULT `0` | Tổng số lượng thành phẩm nhập kho |
+| `total_cost_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tổng chi phí xưởng sản xuất (VND) |
+| `notes` | `TEXT` | NULLABLE | Ghi chú xưởng sản xuất |
+| `created_by_customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Nhân viên kho thực hiện nhập |
+| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm tạo phiếu |
+| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | Thời điểm cập nhật cuối |
+
+**Check constraints**:
+- `status = 'completed'`
+- `total_items_count >= 0`
+- `total_cost_vnd >= 0`
+
+**Indexes**:
+- `uq_inbound_receipts_public_id` — UK trên `public_id`
+- `uq_inbound_receipts_code` — UK trên `receipt_code`
+- `ix_inbound_receipts_created_at_id` — extraction cursor
+
+---
+
+### 5.27. `inbound_receipt_items`
+
+**Mục đích**: Chi tiết từng dòng biến thể trong phiếu nhập xưởng, ghi nhận đơn giá sản xuất và lưu vết biến động giá vốn cũ → giá vốn mới.
+
+| Cột | Kiểu | Constraint | Mô tả |
+|-----|------|-----------|-------|
+| `item_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
+| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
+| `receipt_id` | `BIGINT UNSIGNED` | FK → `inbound_receipts.receipt_id`, NOT NULL, ON DELETE CASCADE | Phiếu nhập kho cha |
+| `variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NOT NULL, ON DELETE RESTRICT | Biến thể sản phẩm nhập |
+| `quantity` | `INT UNSIGNED` | NOT NULL | Số lượng sản phẩm nhập xưởng |
+| `unit_cost_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Đơn giá chi phí xưởng trên từng sản phẩm (VND) |
+| `total_cost_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tổng chi phí dòng (`quantity × unit_cost_vnd`) |
+| `previous_cost_price_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Giá vốn biến thể trước thời điểm nhập xưởng |
+| `new_cost_price_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Giá vốn biến thể mới sau khi áp dụng MWA |
+| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm ghi nhận |
+
+**Check constraints**:
+- `quantity > 0`
+- `unit_cost_vnd >= 0`
+- `total_cost_vnd >= 0`
+
+**Indexes**:
+- `uq_inbound_items_public_id` — UK trên `public_id`
+- `ix_inbound_items_receipt_id` — `(receipt_id)`
+- `ix_inbound_items_variant_id` — `(variant_id)`
+
+---
+
 ## 6. Transaction catalogue
 
 
@@ -1068,9 +1142,9 @@ Isolation: `READ COMMITTED`. Lock order và shipment là điểm tuần tự hó
    - Cập nhật order `status = 'shipping'`, ghi lịch sử `confirmed -> shipping`.
 2. **Kịch bản A — Giao hàng thành công (`delivered`)**:
    - Khóa order và shipment; cập nhật `shipments.status = 'delivered'`, `delivered_at = now`.
-   - Nếu đơn hàng thanh toán COD: cập nhật `shipments.cod_collected_vnd = shipments.cod_amount_vnd`, cập nhật `orders.paid_at = now`.
+   - Nếu đơn hàng thanh toán COD: cập nhật `shipments.cod_collected_vnd = shipments.cod_amount_vnd`.
    - Cập nhật order `status = 'delivered'`, ghi nhận lịch sử `shipping -> delivered`.
-   - Admin/hệ thống có thể chuyển tiếp sang `completed`.
+   - **Xác nhận hoàn tất đơn**: Khách hàng nhấn "Đã nhận được hàng" trên trang chi tiết đơn hàng để chuyển đơn sang `completed` (Admin không được tự ý hoàn tất đơn nhằm đảm bảo tính minh bạch và sự hài lòng của khách). Đối với đơn COD, khi đơn chuyển sang `completed`, hệ thống tự động đối soát cập nhật `payments.status = 'succeeded'` và `payments.paid_at = now`.
 3. **Kịch bản B — Giao hàng thất bại / Boom hàng (`failed_delivery`)**:
    - Shipper ghi nhận giao thất bại qua 3 lần không thành công (`attempt_count >= 3`).
    - Cập nhật `shipments.status = 'failed'`, `failed_at = now`, `failure_reason`, `cod_collected_vnd = 0`.
@@ -1099,18 +1173,24 @@ Isolation: `READ COMMITTED`.
    - Cập nhật order `status = 'returned'`, ghi nhận lịch sử sang `returned`.
    - Đánh dấu `return_requests.status = 'completed'`.
 
-### TX-12 — Nhập hàng từ xưởng vào Kho trung tâm (Inbound Restock)
+### TX-12 — Nhập hàng từ xưởng may & Cập nhật giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing)
 
 Isolation: `READ COMMITTED`.
 
-1. Khóa các biến thể sản phẩm cần nhập theo `variant_id` tăng dần.
-2. Tăng tồn kho `inventory.on_hand = on_hand + quantity`, tăng `inventory.opening_on_hand` (nếu đầu kỳ) và tăng `version`.
-3. Ghi nhận sổ cái `inventory_transactions`:
-   - `location_type = 'central_warehouse'`, `store_id = NULL`
-   - `movement_type = 'inbound'`
-   - `quantity_delta = +quantity`
-   - `reference_code = 'PO-...'` (mã phiếu nhập hàng từ xưởng)
-4. Commit atomically.
+1. **Khóa biến thể và tồn kho**:
+   - Sắp xếp và khóa các bản ghi `product_variants` và `inventory` theo `variant_id` tăng dần (`with_for_update()`) để triệt tiêu nguy cơ deadlock khi nhiều đợt nhập kho diễn ra đồng thời.
+2. **Tính toán giá vốn MWA mới**:
+   - Với từng biến thể, đọc tồn kho hiện tại $Q_{\text{current}} = \text{inventory.on\_hand}$ và giá vốn hiện tại $C_{\text{current}} = \text{product\_variants.cost\_price\_vnd}$.
+   - Áp dụng công thức Bình quân gia quyền di động:
+     $$C_{\text{new}} = \begin{cases} C_{\text{inbound}} & \text{nếu } Q_{\text{current}} \le 0 \\ \text{round}\left(\dfrac{Q_{\text{current}} \times C_{\text{current}} + Q_{\text{inbound}} \times C_{\text{inbound}}}{Q_{\text{current}} + Q_{\text{inbound}}}\right) & \text{nếu } Q_{\text{current}} > 0 \end{cases}$$
+3. **Cập nhật dữ liệu nguyên tử**:
+   - Cập nhật `product_variants.cost_price_vnd = C_{\text{new}}`.
+   - Cập nhật đồng bộ `inventory.on_hand += quantity` và `inventory.opening_on_hand += quantity` (đảm bảo thỏa mãn DB constraint `ck_inventory_on_hand_non_negative_and_bounded`: `on_hand <= opening_on_hand`).
+   - Ghi nhận `inventory_transactions` với `movement_type = 'inbound'`, `quantity_delta = +quantity`, lưu kèm ghi chú mã lô xưởng.
+   - Tạo bản ghi `inbound_receipts` và các dòng `inbound_receipt_items` lưu vết lịch sử biến động giá vốn cũ ($C_{\text{current}}$) sang giá vốn mới ($C_{\text{new}}$).
+4. **Snapshot COGS khi bán hàng**:
+   - Khi có đơn đặt hàng Online (TX-01) hoặc bán tại quầy POS (TX-09), hệ thống lập tức chụp nhanh `product_variants.cost_price_vnd` vào cột `order_items.cost_price_vnd` tại thời điểm tạo đơn, cố định giá vốn để phục vụ tính Lợi nhuận gộp và Tỷ suất lợi nhuận chuẩn xác trên hồ dữ liệu.
+5. Commit atomically.
 
 ---
 
@@ -1119,7 +1199,7 @@ Isolation: `READ COMMITTED`.
 Thứ tự chuẩn khi transaction chạm nhiều aggregate:
 
 ```text
-customer -> cart -> cart_item -> catalog/variant -> coupon -> inventory -> order children (payments, history, shipments, return_requests) -> inventory_transactions
+customer -> cart -> cart_item -> catalog/variant -> coupon -> inventory -> order children (payments, history, shipments, return_requests) -> inbound_receipts/items -> inventory_transactions
 ```
 
 Cancel bắt đầu từ order rồi khóa children theo ID ổn định. Không transaction nào khóa ngược từ coupon/inventory sang order đang tồn tại.
@@ -1146,7 +1226,7 @@ Deadlock vẫn có thể xảy ra; application chỉ retry transaction khi lỗi
 
 ## 8. OLAP readiness và reconciliation
 
-Hệ thống trích xuất **24 bảng** sang hồ dữ liệu Lakehouse (toàn bộ trừ `customer_credentials`). Extraction cursor cho các bảng mới:
+Hệ thống trích xuất **26 bảng** sang hồ dữ liệu Lakehouse (toàn bộ trừ `customer_credentials` vì lý do bảo mật thông tin định danh mật khẩu). Extraction cursor cho các bảng:
 
 | Bảng | Cursor | Mutability |
 |---|---|---|
@@ -1160,13 +1240,16 @@ Hệ thống trích xuất **24 bảng** sang hồ dữ liệu Lakehouse (toàn 
 | `return_requests` | `(updated_at, return_id)` | Mutable |
 | `return_items` | `(created_at, return_item_id)` | Append-only |
 | `inventory_transactions` | `(created_at, transaction_id)` | Append-only ledger |
+| `inbound_receipts` | `(updated_at, receipt_id)` | Mutable |
+| `inbound_receipt_items` | `(created_at, item_id)` | Append-only |
 
 ### Reconciliation rules
 
 - `orders.total_vnd = subtotal_vnd - discount_amount_vnd + shipping_fee_vnd`
-- Succeeded payment amount = order total (cho đơn VietQR)
-- Đơn COD giao thành công: `orders.status = 'delivered'` và `shipments.cod_collected_vnd = shipments.cod_amount_vnd`
+- Succeeded payment amount = order total (cho đơn VietQR khi đặt hàng thành công)
+- Đơn COD: Tạo đơn với `orders.status = 'confirmed'`, `payments.status = 'pending'`. Khi giao thành công `orders.status = 'delivered'`, `shipments.cod_collected_vnd = shipments.cod_amount_vnd`. Khi khách hàng nhấn "Đã nhận được hàng", `orders.status = 'completed'`, hệ thống kích hoạt chốt COD thành công `payments.status = 'succeeded'` và `payments.paid_at = now`.
 - Đơn boom COD: `orders.status = 'failed_delivery'`, `shipments.status = 'failed'`, `shipments.cod_collected_vnd = 0`, doanh thu thuần trên Lakehouse = 0
+- Hoàn tất đơn: Nút hoàn tất đơn chỉ dành cho Khách hàng xác nhận sau khi nhận hàng (`delivered -> completed`), quản trị viên chỉ theo dõi trạng thái giao hàng.
 - Succeeded refund amount = payment amount và order cancelled
 - Cancelled order phải có history, refund và inventory đã restore
 - Active redeemed count theo coupon = `coupons.used_count`
@@ -1176,16 +1259,24 @@ Hệ thống trích xuất **24 bảng** sang hồ dữ liệu Lakehouse (toàn 
 - `inventory.on_hand = opening_on_hand + SUM(inventory_transactions.quantity_delta)` tại kho tổng
 - `SUM(store_inventory.on_hand) <= inventory.on_hand`
 - POS order: `channel='pos'`, `store_id` NOT NULL, `staff_id` NOT NULL, status=`completed`
+- Snapshot COGS: `order_items.cost_price_vnd` cố định tại thời điểm checkout từ `product_variants.cost_price_vnd`. Với đơn hàng `delivered` hoặc `completed`:
+  $$\text{COGS} = \sum (\text{quantity} \times \text{cost\_price\_vnd})$$
+  $$\text{Gross Profit} = \text{Net Revenue} - \text{COGS}$$
+  $$\text{Gross Margin \%} = \frac{\text{Gross Profit}}{\text{Net Revenue}} \times 100\%$$
 
 PII ở `customers` (tên, email, phone) và `delivery_staff` (tên, phone) phải được hash/pseudonymize ở downstream Silver & Gold. OLTP là source of truth; lakehouse chỉ dẫn xuất.
 
 ---
 
-## 9. Định hướng Mở rộng tiếp theo (KLTN)
+## 9. Định hướng Mở rộng tiếp theo
 
-Trong phạm vi TLCN hiện tại, hệ thống đã hoàn thiện đầy đủ mô hình CSDL OLTP 25 bảng cùng luồng nghiệp vụ giao vận nội bộ, xử lý boom hàng COD, đổi trả 7 ngày và sổ cái biến động kho. Nếu phát triển tiếp thành Khóa luận Tốt nghiệp (KLTN), các hạng mục mở rộng kiến trúc bao gồm:
-1. **Change Data Capture (CDC)**: Thay thế batch extraction định kỳ bằng Debezium đọc MySQL binlog truyền qua Apache Kafka vào Lakehouse theo thời gian thực (Streaming Ingestion).
-2. **Transactional Outbox Pattern**: Đảm bảo tính nhất quán tuyệt đối giữa thay đổi dữ liệu OLTP và phát sinh sự kiện phân tán.
-3. **Cổng thanh toán thực tế**: Tích hợp webhook xác thực thanh toán thời gian thực từ VietQR / MoMo / ZaloPay.
-4. **Machine Learning Feature Store**: Khai thác dữ liệu từ tầng Gold (RFM customer, hành vi clickstream logs) để huấn luyện mô hình dự đoán khách hàng có nguy cơ boom hàng và mô hình gợi ý sản phẩm cá nhân hóa.
+Hệ thống đồ án tốt nghiệp hiện tại đã triển khai thành công toàn diện:
+1. **Kiến trúc Hybrid Lakehouse hoàn chỉnh**: Tích hợp 26 bảng OLTP, luồng Batch qua PySpark và luồng Streaming qua Apache Kafka + Apache Flink Ingestion.
+2. **Công cụ truy vấn phân tán & Trực quan hóa**: Tích hợp Apache Trino Distributed SQL Engine truy vấn trực tiếp bảng Gold Marts và Iceberg/Delta Lake, liên kết giao diện đồ họa quản trị Apache ECharts đa vai trò (7 chức năng quản trị nghiệp vụ) và Apache Superset Studio.
+3. **Mô hình kế toán kho & tài chính hiện đại**: Quản lý chi phí xưởng, tính giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing), snapshot COGS tức thời khi tạo đơn, theo dõi biên lợi nhuận gộp theo thời gian thực.
+4. **Luồng vận hành chuẩn thương mại điện tử**: Tích hợp kiểm soát giao vận nội bộ, xử lý boom hàng COD 3 lần kèm chặn COD tự động, hoàn tồn kho tự động, quy trình đổi trả hàng 7 ngày và xác nhận hoàn tất đơn từ phía khách hàng.
+
+Các hạng mục có thể nghiên cứu mở rộng trong tương lai:
+1. **Machine Learning Feature Store & AI Agent**: Khai thác dữ liệu từ tầng Gold (RFM customer, hành vi clickstream logs) để huấn luyện mô hình dự đoán khách hàng có nguy cơ boom hàng và mô hình gợi ý sản phẩm cá nhân hóa.
+2. **Cổng thanh toán thực tế**: Mở rộng webhook xác thực thanh toán thời gian thực từ các cổng trung gian thanh toán lớn (MoMo, VNPay, ZaloPay).
 
