@@ -1337,48 +1337,8 @@ function AnalyticsHubContent() {
         <div>
           <p className="eyebrow">Phân tích kinh doanh đa chiều</p>
           <h1 className="admin-heading mt-1">Báo cáo BI Lakehouse</h1>
-          <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-muted">
-            Trung tâm dữ liệu điều hành đa vai trò, tích hợp trực tiếp Apache ECharts và Trino Distributed Query Engine.
-          </p>
         </div>
       </header>
-
-      {/* Admin Role Simulator Switcher */}
-      {isAdmin && (
-        <aside className="rounded-2xl border border-accent/20 bg-paper/90 p-4 shadow-xs">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-accent animate-ping" />
-              <span className="text-xs font-bold uppercase tracking-wider text-accent">
-                Admin Role Simulator:
-              </span>
-              <span className="text-xs text-muted hidden sm:inline">
-                (Mô phỏng góc nhìn nghiệp vụ cho thuyết trình & demo)
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {ALL_ROLES.map((r) => {
-                const isCurrent = activeRole === r.id;
-                return (
-                  <button
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
-                      isCurrent
-                        ? "bg-accent text-white shadow-xs"
-                        : "border border-line bg-surface text-ink hover:border-accent/40"
-                    }`}
-                    key={r.id}
-                    onClick={() => handleRoleChange(r.id)}
-                    type="button"
-                  >
-                    <Icon name={r.icon} size={13} />
-                    {r.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
-      )}
 
       {/* Role Tabs Bar */}
       <div className="border-b border-line">
