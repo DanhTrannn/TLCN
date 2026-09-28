@@ -22,6 +22,7 @@ import {
   type RoleMetricsResponse,
   type SalesMetricsResponse,
   type SalesTrendResponse,
+  type StoreContribution,
   type StoreItemResponse,
   type StoreMetricsResponse,
   type SystemMetricsResponse,
@@ -541,20 +542,37 @@ function SalesDashboard({ metrics }: { metrics: SalesMetricsResponse }) {
 
   // Store Contributions Column Chart:
   const storeOption: EChartsOption = useMemo(() => {
+    const aggregatedContributions: StoreContribution[] = [];
+    const nameMap = new Map<string, StoreContribution>();
+    for (const sc of metrics.store_contributions) {
+      const existing = nameMap.get(sc.store_name);
+      if (existing) {
+        existing.revenue_vnd += sc.revenue_vnd;
+        existing.order_count += sc.order_count;
+      } else {
+        const item: StoreContribution = { ...sc };
+        nameMap.set(sc.store_name, item);
+        aggregatedContributions.push(item);
+      }
+    }
+    aggregatedContributions.sort((a, b) => b.revenue_vnd - a.revenue_vnd);
+
     return {
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
         formatter: (params: any) => {
           const item = params[0];
+          const matched = aggregatedContributions.find((s) => s.store_name === item?.axisValue);
           return `<div class="font-bold text-xs mb-1">${item?.axisValue}</div>
-            <div class="text-xs">Doanh thu: <b>${formatVnd(Number(item?.value) || 0)}</b></div>`;
+            <div class="text-xs">Doanh thu: <b>${formatVnd(Number(item?.value) || 0)}</b></div>
+            ${matched ? `<div class="text-xs text-muted">Số đơn hàng: <b>${matched.order_count.toLocaleString("vi-VN")}</b></div>` : ""}`;
         },
       },
       grid: { left: "3%", right: "4%", top: "8%", bottom: "14%", containLabel: true },
       xAxis: {
         type: "category",
-        data: metrics.store_contributions.map((s) => s.store_name),
+        data: aggregatedContributions.map((s) => s.store_name),
         axisLabel: { color: "#5c4d3c", fontSize: 11, interval: 0, rotate: 15 },
         axisLine: { lineStyle: { color: "#dcd8cf" } },
       },
@@ -568,7 +586,7 @@ function SalesDashboard({ metrics }: { metrics: SalesMetricsResponse }) {
         {
           name: "Doanh thu",
           type: "bar",
-          data: metrics.store_contributions.map((s) => s.revenue_vnd),
+          data: aggregatedContributions.map((s) => s.revenue_vnd),
           itemStyle: { color: "#152722", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 32,
         },

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 import logging
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import FORBIDDEN, INTERNAL_ERROR, VALIDATION_ERROR, AppError
@@ -159,11 +159,16 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
             select(func.coalesce(func.sum(Order.total_vnd), 0))
             .where(
                 Order.store_id == st_id,
+                Order.channel == "pos",
                 Order.status.in_(("delivered", "completed", "paid", "confirmed", "processing", "dispatched")),
             )
         ) or 0
         st_cnt = db.scalar(
-            select(func.count()).select_from(Order).where(Order.store_id == st_id)
+            select(func.count()).select_from(Order).where(
+                Order.store_id == st_id,
+                Order.channel == "pos",
+                Order.status.in_(("delivered", "completed", "paid", "confirmed", "processing", "dispatched")),
+            )
         ) or 0
         store_contributions.append(
             StoreContribution(
@@ -176,12 +181,15 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
 
     online_rev = db.scalar(
         select(func.coalesce(func.sum(Order.total_vnd), 0)).where(
-            Order.store_id.is_(None),
+            or_(Order.store_id.is_(None), Order.channel == "online"),
             Order.status.in_(("delivered", "completed", "paid", "confirmed", "processing", "dispatched")),
         )
     ) or 0
     online_cnt = db.scalar(
-        select(func.count()).select_from(Order).where(Order.store_id.is_(None))
+        select(func.count()).select_from(Order).where(
+            or_(Order.store_id.is_(None), Order.channel == "online"),
+            Order.status.in_(("delivered", "completed", "paid", "confirmed", "processing", "dispatched")),
+        )
     ) or 0
     if online_cnt > 0 or not stores:
         store_contributions.append(
@@ -192,6 +200,7 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
                 order_count=int(online_cnt),
             )
         )
+    store_contributions.sort(key=lambda s: s.revenue_vnd, reverse=True)
 
     valid_order_statuses = ("paid", "shipping", "delivered", "completed")
 
@@ -566,32 +575,55 @@ def get_sales_metrics(
         try:
             store_rows = client.execute_query("""
                 SELECT 
-                    store_key,
-                    channel,
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd,
-                    COALESCE(SUM(total_orders), 0) AS order_count
-                FROM lakehouse.gold.mart_sales_daily
-                GROUP BY store_key, channel
+                    CASE 
+                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
+                        ELSE m.store_key
+                    END AS effective_store_key,
+                    CASE 
+                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                        ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                    END AS channel_name,
+                    COALESCE(SUM(m.gross_revenue_vnd), 0) AS revenue_vnd,
+                    COALESCE(SUM(m.total_orders), 0) AS order_count
+                FROM lakehouse.gold.mart_sales_daily m
+                LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
+                GROUP BY 
+                    CASE 
+                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
+                        ELSE m.store_key
+                    END,
+                    CASE 
+                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                        ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                    END
                 ORDER BY revenue_vnd DESC
             """)
-            store_contributions: list[StoreContribution] = []
+            contributions_map: dict[str, StoreContribution] = {}
             for row in store_rows:
-                store_key = row.get("store_key")
-                channel = row.get("channel")
-                if store_key == 0 or channel == "online":
-                    s_id = None
-                    s_name = "Kênh Online Toàn Quốc"
-                else:
-                    s_id = int(store_key) if store_key is not None else None
-                    s_name = f"Cửa hàng #{store_key}"
-                store_contributions.append(
-                    StoreContribution(
-                        store_id=s_id,
-                        store_name=s_name,
-                        revenue_vnd=int(row.get("revenue_vnd") or 0),
-                        order_count=int(row.get("order_count") or 0),
-                    )
+                store_key = int(row.get("effective_store_key") or 0)
+                store_name = str(
+                    row.get("channel_name")
+                    or ("Kênh Online Toàn Quốc" if store_key == 0 else f"Cửa hàng #{store_key}")
                 )
+                s_id = store_key if store_key > 0 else None
+                rev = int(row.get("revenue_vnd") or 0)
+                cnt = int(row.get("order_count") or 0)
+                if store_name in contributions_map:
+                    existing = contributions_map[store_name]
+                    contributions_map[store_name] = StoreContribution(
+                        store_id=existing.store_id or s_id,
+                        store_name=store_name,
+                        revenue_vnd=existing.revenue_vnd + rev,
+                        order_count=existing.order_count + cnt,
+                    )
+                else:
+                    contributions_map[store_name] = StoreContribution(
+                        store_id=s_id,
+                        store_name=store_name,
+                        revenue_vnd=rev,
+                        order_count=cnt,
+                    )
+            store_contributions = sorted(contributions_map.values(), key=lambda x: x.revenue_vnd, reverse=True)
 
             prod_rows = client.execute_query("""
                 SELECT 
