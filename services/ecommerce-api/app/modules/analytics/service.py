@@ -656,15 +656,36 @@ def get_sales_metrics(
                 GROUP BY category_id, category_name
                 ORDER BY revenue_vnd DESC
             """)
-            total_cat_rev = sum(int(r.get("revenue_vnd") or 0) for r in cat_rows)
+            aggregated_cats: dict[str, dict] = {}
+            for row in cat_rows:
+                c_id = int(row.get("category_id") or 0)
+                c_name = str(row.get("category_name") or "").strip()
+                if c_name in ("Unknown", "", "None"):
+                    if c_id > 0 and db is not None:
+                        real_name = db.scalar(select(Category.name).where(Category.category_id == c_id))
+                        if real_name:
+                            c_name = real_name
+                    if c_name in ("Unknown", "", "None"):
+                        c_name = "Khác" if c_id == 0 else f"Danh mục #{c_id}"
+                rev = int(row.get("revenue_vnd") or 0)
+                if c_name in aggregated_cats:
+                    aggregated_cats[c_name]["revenue"] += rev
+                else:
+                    aggregated_cats[c_name] = {
+                        "category_id": c_id,
+                        "category_name": c_name,
+                        "revenue": rev,
+                    }
+
+            total_cat_rev = sum(item["revenue"] for item in aggregated_cats.values())
             category_shares = [
                 CategoryShareMetric(
-                    category_id=int(row.get("category_id") or 0),
-                    category_name=str(row.get("category_name") or ""),
-                    revenue_vnd=int(row.get("revenue_vnd") or 0),
-                    share_percent=round((int(row.get("revenue_vnd") or 0) / total_cat_rev) * 100, 1) if total_cat_rev > 0 else 0.0,
+                    category_id=item["category_id"],
+                    category_name=item["category_name"],
+                    revenue_vnd=item["revenue"],
+                    share_percent=round((item["revenue"] / total_cat_rev) * 100, 1) if total_cat_rev > 0 else 0.0,
                 )
-                for row in cat_rows
+                for item in sorted(aggregated_cats.values(), key=lambda x: x["revenue"], reverse=True)
             ]
 
             return SalesMetricsResponse(

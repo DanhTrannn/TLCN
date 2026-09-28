@@ -494,7 +494,7 @@ function SalesDashboard({ metrics }: { metrics: SalesMetricsResponse }) {
           radius: ["42%", "72%"],
           itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
           data: metrics.category_shares.map((cat, idx) => ({
-            name: cat.category_name,
+            name: (!cat.category_name || cat.category_name === "Unknown") ? "Khác" : cat.category_name,
             value: cat.revenue_vnd,
             itemStyle: { color: BRAND_COLORS[idx % BRAND_COLORS.length] },
           })),
