@@ -53,7 +53,7 @@ Hệ thống cần tích hợp toàn bộ các dữ liệu này vào luồng ph�
 flowchart TB
     subgraph Data_Layer["1. LAKEHOUSE DATA PIPELINE (DE ROLE)"]
         direction TB
-        MySQL[("MySQL OLTP (18 Tables)\n+ Inbound Receipts\n+ OrderItems COGS Snapshot")] --> Ingestion["Spark Daily Batch (Airflow)\n+ Fluent Bit Access Logs"]
+        MySQL[("MySQL OLTP (18 Tables)\n+ Inbound Receipts\n+ OrderItems COGS Snapshot")] --> Ingestion["Spark Daily Batch (Airflow)\n+ Kafka & Flink Streaming Ingest"]
         Ingestion --> Iceberg[("Apache Iceberg Lakehouse (MinIO)\n- Bronze Layer\n- Silver Layer (De-PII)\n- Gold Layer (Star Schema & Marts)")]
         Iceberg --> Marts["Gold Data Marts:\n• mart_sales_daily\n• mart_inventory_health\n• mart_logistics_performance\n• mart_product_returns\n• mart_web_funnel_daily"]
         Marts --> Trino["Trino Distributed SQL Engine (Port 8080)"]

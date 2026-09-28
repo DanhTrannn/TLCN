@@ -84,7 +84,6 @@ flowchart LR
 │   └── logs/                             # Airflow operational logs
 ├── infrastructure/
 │   ├── docker/                           # Custom images (Airflow, Superset, Flink, Spark)
-│   ├── fluent-bit/                       # Real-time access log collector config
 │   ├── polaris/                          # Idempotent Polaris catalog bootstrap script
 │   ├── postgres/                         # Multi-database init scripts (polaris, airflow, superset)
 │   ├── spark/                            # Spark Dockerfile, credentials script & conf
@@ -125,7 +124,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | Profile | Services | Purpose |
 |---|---|---|
 | *(Default)* | `mysql`, `postgres`, `minio`, `minio-init`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `trino`, `libredb-studio` | Core storage, PostgreSQL metadata, Polaris REST catalog, Trino SQL query engine, and LibreDB Studio SQL IDE |
-| `batch` | `fluent-bit`, `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
+| `batch` | `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
 | `streaming` | `kafka`, `flink-jobmanager`, `flink-taskmanager` | Distributed event streaming (Kafka) and real-time streaming ingestion into Iceberg (Flink) |
 | `bi` | `superset-init`, `superset` | Apache Superset BI visualization dashboards |
 | `core` | `ecommerce-api`, `storefront` | Operational e-commerce web application, POS, and customer storefront |

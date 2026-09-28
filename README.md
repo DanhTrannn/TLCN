@@ -60,7 +60,7 @@ You need the following tools to run this platform locally:
 
 ### 1. Start Core Services
 
-Clone the repository and launch the core operational stack (MySQL, FastAPI Backend, Next.js Storefront, MinIO S3, and Fluent Bit):
+Clone the repository and launch the core operational stack (MySQL, FastAPI Backend, Next.js Storefront, and MinIO S3):
 
 ```bash
 cp .env.example .env
@@ -125,20 +125,20 @@ The system processes data from two operational pipelines: transactional business
                                     │
                                     ▼
                        FastAPI API (Port 8000)
-                      /           │           \
-            Short TX /            │            \ Structured Logs
-                    ▼             ▼             ▼
-               MySQL 8.4     Apache Kafka   Fluent Bit
-            (27 OLTP tables)  (Event Bus)   (15m micro-batch gzip)
-                    │             │             │
-                    │             ▼             │
-                    │       Apache Flink        │
-                    │    (Streaming Ingest)     │
-                    │             │             │
-                    └─────────────┼─────────────┘
-                                  ▼
-                        MinIO S3 Landing Zone
-                       s3://lakehouse/landing/
+                       /                 \
+             Short TX /                   \ Event Streaming
+                     ▼                     ▼
+                MySQL 8.4             Apache Kafka
+             (27 OLTP tables)          (Event Bus)
+                     │                     │
+                     │                     ▼
+                     │               Apache Flink
+                     │            (Streaming Ingest)
+                     │                     │
+                     └─────────────┬───────┘
+                                   ▼
+                         MinIO S3 / Apache Iceberg
+                        s3://lakehouse/ (Polaris REST)
                                   │
                              Apache Spark
                       (Medallion ETL Pipeline)
@@ -163,7 +163,6 @@ The system processes data from two operational pipelines: transactional business
 | **Operational DB** | MySQL | 8.4 LTS | Primary relational database (27 tables, 26 analytical) |
 | **Event Streaming** | Apache Kafka | 3.7 | Distributed event streaming backbone |
 | **Stream Processing** | Apache Flink | 1.19 | Real-time event consumption and Iceberg streaming ingest |
-| **Log Collector** | Fluent Bit | 4.2.3 | Container log tailing, disk buffering, S3 gzip flushing |
 | **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`lakehouse` bucket) |
 | **Table Catalog** | Apache Polaris | 1.6.0 | REST catalog managing Iceberg namespaces and RBAC |
 | **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
@@ -261,7 +260,7 @@ Explore the detailed architecture and planning documents:
 | **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
 | **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
 | **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and Superset reporting |
-| **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Fluent Bit buffering, S3 layout |
+| **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Kafka + Flink streaming pipeline, S3 layout |
 | **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
 | **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |
 | **Design System** | [`docs/design-system/DESIGN.md`](docs/design-system/DESIGN.md) | UI tokens, typography, component guidelines, and color palette |

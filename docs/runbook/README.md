@@ -20,7 +20,7 @@ cp .env.example .env
 # 2. Start Default Storage, Catalog & Query UI (MySQL, Postgres, MinIO, Polaris, Trino, LibreDB Studio)
 docker compose up -d --build
 
-# 3. Start Batch Processing & Log Collector (Fluent Bit, Spark Cluster, Airflow)
+# 3. Start Batch Processing (Spark Cluster, Airflow)
 docker compose --profile batch up -d --build
 
 # 4. Start Storefront & FastAPI Web Application (Optional)
@@ -90,11 +90,11 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ### Live Access Logging
 
-To stream live HTTP access logs from running API containers into MinIO Landing:
+To stream live HTTP access logs into Iceberg in real-time:
 
 ```bash
-docker compose --profile core --profile batch up -d
-docker compose --profile batch logs -f fluent-bit
+docker compose --profile core --profile streaming up -d
+docker compose --profile streaming logs -f flink-jobmanager
 ```
 
 ---

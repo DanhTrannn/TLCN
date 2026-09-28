@@ -1,33 +1,32 @@
 # Structured Access Logs
 
-This document defines the structured access log contract, Fluent Bit ingestion pipeline, Landing Zone layout, and Medallion transformation mapping for the D&K E-Commerce Data Platform.
+This document defines the structured access log contract, Kafka + Flink real-time streaming pipeline, Landing Zone layout, and Medallion transformation mapping for the D&K E-Commerce Data Platform.
 
 ## Architectural Overview
 
-The access logging pipeline captures HTTP server requests at the FastAPI boundary, serializes each event into a compact JSON record on container stdout, and delivers compressed micro-batches to MinIO S3 object storage via Fluent Bit.
+The access logging pipeline captures HTTP server requests at the FastAPI boundary, serializes each event into a compact JSON record on container stdout, and streams events in real-time through Apache Kafka to Apache Flink for continuous Iceberg lakehouse ingestion.
 
 ```text
 Browser Client
       │ HTTP Request
       ▼
 FastAPI Boundary (Middleware)
-      │ Emits JSON to Docker stdout
+      │ Publishes structured JSON event
       ▼
-Fluent Bit Collector (v4.2.3)
-      │ Memory buffer + persistent disk buffer
-      │ Flushes 15-minute micro-batches
+Apache Kafka (Event Bus)
+      │ Topic: ecommerce.access_logs (partitioned, KRaft)
       ▼
-MinIO S3 Landing Zone
-      │ s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
+Apache Flink (Streaming Ingestion Engine)
+      │ Real-time checkpointing & Iceberg streaming sink
       ▼
-Spark Batch ETL Pipeline
-      │ Bronze (Raw deduplication, metadata enrichment)
-      │ Silver (Validation, pseudonymization, quarantine)
+Apache Iceberg Tables (Landing & Bronze)
+      │ landing.access_logs -> bronze.web_events
       ▼
-Iceberg Tables (Gold Aggregates)
-      │ Hourly route metrics, product demand, search keywords
+Streaming Maintenance & Spark Rollups
+      │ Silver (silver_logs deduplication & typing)
+      │ Gold (fact_web_events, hourly route metrics, product demand)
       ▼
-Trino Query Layer & Superset Dashboards
+Trino Query Layer & Admin BI Analytics Hub
 ```
 
 ---
@@ -141,11 +140,11 @@ To comply with data privacy policies, the following fields are strictly excluded
 
 ## Ingestion and Landing Layout
 
-### 15-Minute Micro-Batch Mechanism
+### Real-Time Streaming Ingestion & Historical Backfill Mechanism
 
-- Fluent Bit is configured with `upload_timeout: 15m`.
-- Files are rotated and uploaded to S3 after 15 minutes or when the uncompressed buffer reaches 128 MiB.
-- Objects in S3 Landing Zone are immutable. Re-transmissions from buffer retries do not overwrite closed objects.
+- **Real-Time Streaming:** The FastAPI middleware publishes HTTP access log events directly to Apache Kafka (`ecommerce.access_logs`). Apache Flink consumes Kafka records continuously and commits streaming Parquet files into Apache Iceberg `landing.access_logs` with a 10-second checkpoint interval.
+- **Historical Backfill:** Deterministic synthetic logs are backfilled as compressed `.jsonl.gz` files directly into MinIO Landing (`s3://lakehouse/landing/logs/`) via `./scripts/backfill_data.sh`.
+- **Immutability:** Streaming commits and landing files are immutable. Idempotent checkpoints and lineage tracking guarantee exactly-once processing semantics.
 
 ### S3 Storage Layout
 
@@ -164,7 +163,7 @@ s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecomme
 
 | Layer | Responsibility | Primary Deduplication Key |
 |---|---|---|
-| **Landing** | Immutable gzip files delivered by Fluent Bit or historical generator. | S3 Key |
+| **Landing** | Streaming Iceberg landing table or immutable gzip files from historical generator. | S3 Key |
 | **Bronze** | Raw Iceberg table preserving full lineage, file path, line numbers, and ingestion timestamps. Retains source duplicates. | `(_source_file, _source_line_number)` |
 | **Silver** | Typed Iceberg table with JSON parsing, schema validation, actor pseudonymization, user-agent parsing, and deduplication. Bad records are routed to `quarantine.access_logs_quarantine`. | `request_id` |
 | **Gold** | Curated dimensional facts and aggregate marts: `fact_web_requests`, `mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_daily_search_keywords`. | Composite dimensional grain |
@@ -173,10 +172,11 @@ s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecomme
 
 ## Local Verification Commands
 
-### Check Live Fluent Bit Logs
+### Check Live Streaming Logs
 
 ```bash
-docker compose --profile batch logs -f fluent-bit
+docker compose --profile streaming logs -f flink-jobmanager
+docker compose --profile streaming logs -f kafka
 ```
 
 ### Inspect MinIO S3 Objects

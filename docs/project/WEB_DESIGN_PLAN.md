@@ -28,15 +28,17 @@ Next.js 15 Storefront (Port 3000)
          ▼
 FastAPI Backend (Port 8000)
         /                      \
-Short Transactions         Structured Access Logs (stdout)
+Short Transactions         Real-Time Event Streaming
       /                          \
      ▼                            ▼
-MySQL 8.4 (OLTP)              Fluent Bit
-  (19 tables)             (15-min micro-batches)
+MySQL 8.4 (OLTP)             Apache Kafka (Event Bus)
+  (27 tables)                     │
+     │                            ▼
+     │                       Apache Flink (Streaming Ingestion)
      │                            │
      └─────────────┬──────────────┘
                    ▼
-       MinIO S3 Landing Zone
+       MinIO S3 / Apache Iceberg
 ```
 
 ### 2.1. Dependency Invariants
@@ -105,7 +107,7 @@ Every completed HTTP request emits a standardized JSON log to stdout matching th
 - **Core Fields:** `request_id`, `timestamp`, `service`, `event.duration_ns`, `http.request_method`, `http.route`, `http.status_code`.
 - **E-Commerce Context:** `actor.type`, `actor.key`, `ecommerce.action`, `ecommerce.product_key`, `ecommerce.search_query`.
 - **Privacy Redaction:** Passwords, authorization tokens, session cookies, raw IP addresses, and customer PII are strictly excluded.
-- **Rotation:** Fluent Bit buffers logs and flushes gzip-compressed micro-batches to MinIO every 15 minutes.
+- **Rotation:** FastAPI publishes structured events to Apache Kafka; Apache Flink ingests them continuously into Apache Iceberg.
 
 ---
 

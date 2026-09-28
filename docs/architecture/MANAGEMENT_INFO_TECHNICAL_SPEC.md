@@ -44,7 +44,7 @@
 ### 1.1. Mục tiêu và Phạm vi Hệ thống
 Hệ thống Thông tin Quản lý D&K E-Commerce (D&K MIS) là nền tảng báo cáo phân tích toàn diện, được thiết kế nhằm đồng nhất hóa dữ liệu điều hành và ra quyết định chiến lược. Hệ thống hợp nhất hai dòng dữ liệu cốt lõi:
 1. **Dữ liệu giao dịch vận hành (OLTP):** 27 bảng quan hệ nghiệp vụ từ MySQL (26 bảng trích xuất sang Lakehouse, loại trừ `customer_credentials` vì lý do bảo mật).
-2. **Dữ liệu hành vi người dùng (Web Event Logs):** Dòng log truy cập cấu trúc chuẩn JSON thu thập qua Fluent Bit micro-batch và luồng streaming thời gian thực qua Apache Kafka + Apache Flink.
+2. **Dữ liệu hành vi người dùng (Web Event Logs):** Dòng log truy cập cấu trúc chuẩn JSON thu thập qua luồng streaming thời gian thực Apache Kafka + Apache Flink và kịch bản backfill dữ liệu lịch sử.
 
 Áp dụng phương pháp luận **Phân tích và Thiết kế Hệ thống (Systems Analysis & Design - SAD)**, tài liệu này chuẩn hóa toàn bộ nhu cầu thông tin xoay quanh **7 vai trò quản trị nghiệp vụ cốt lõi**:
 1. **Ban Giám đốc (CEO / Executive):** Nắm giữ chiến lược tăng trưởng, doanh thu, lợi nhuận gộp, tỷ suất lợi nhuận và sức khỏe kinh doanh toàn diện.
@@ -73,12 +73,11 @@ flowchart TB
         WebApp -->|Event Bus| Kafka["Apache Kafka"]
         Kafka --> Flink["Apache Flink Streaming Ingest"]
         MySQL -->|Batch Ingestion 02:00 ICT| Spark["Apache Spark ETL Engine"]
-        WebApp -->|15-minute Logs| FluentBit["Fluent Bit Log Pipeline"]
     end
 
     subgraph Analytical_Plane["KHO DỮ LIỆU & PHÂN TÍCH QUẢN TRỊ (Analytical Plane)"]
         direction TB
-        Spark & Flink & FluentBit --> Lakehouse[("Apache Iceberg Lakehouse (MinIO)\n- Bronze Layer (Raw Ingest 26 Tables)\n- Silver Layer (Cleansed, De-PII)\n- Gold Layer (Star Schema, Fact, Marts)")]
+        Spark & Flink --> Lakehouse[("Apache Iceberg Lakehouse (MinIO)\n- Bronze Layer (Raw Ingest 26 Tables)\n- Silver Layer (Cleansed, De-PII)\n- Gold Layer (Star Schema, Fact, Marts)")]
         
         Engine["Trino Distributed SQL Engine"] --> Lakehouse
         Catalog["Apache Polaris (Catalog & Namespace RBAC)"] -.-> Lakehouse

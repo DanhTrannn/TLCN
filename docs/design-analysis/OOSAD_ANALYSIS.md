@@ -2060,7 +2060,7 @@ graph LR
     end
     
     MySQL -->|Trích xuất định kỳ| MinIO
-    FastAPI -->|Thu thập Fluent Bit| MinIO
+    FastAPI -->|Streaming qua Kafka & Flink| MinIO
     MinIO -->|Nạp dữ liệu| Bronze
     Bronze -->|Làm sạch & Chuẩn hóa| Silver
     Silver -->|Tổng hợp nghiệp vụ| Gold
@@ -2080,7 +2080,7 @@ graph TB
     subgraph "Tầng thu nạp dữ liệu (Data Ingestion Layer)"
         AF[Bộ điều phối Airflow 2.10.5]
         SP[Xử lý phân tán Spark 3.5.9]
-        FB[Bộ thu thập log Fluent Bit 4.2.3]
+        KF[Hàng đợi Kafka 3.8.0] & FL[Xử lý dòng Flink 1.19]
     end
     
     subgraph "Tầng lưu trữ đối tượng & Catalog"
@@ -2261,12 +2261,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([Bắt đầu]) --> A[Fluent Bit lắng nghe luồng log từ Docker]
-    A --> B[Lưu tạm vào bộ đệm Buffer]
-    B --> C{Bộ đệm đầy hoặc hết thời gian chờ?}
-    C -->|Chưa| B
-    C -->|Rồi| D[Nén dữ liệu theo chuẩn gzip]
-    D --> E[Tạo đường dẫn phân vùng theo thời gian trên S3]
+    Start([Bắt đầu]) --> A[FastAPI Middleware phát sự kiện JSON chuẩn hóa]
+    A --> B[Gửi bất đồng bộ vào Apache Kafka topic ecommerce.access_logs]
+    B --> C[Apache Flink streaming job tiêu thụ bản ghi liên tục]
+    C --> D[Flink Iceberg Sink ghi phân vùng và commit checkpoint 10s]
+    D --> E[Lưu trữ trực tiếp vào Iceberg table landing.access_logs]
     E --> F[Tải tệp nén lên kho MinIO]
     F --> G{Tải lên thành công?}
     G -->|Không| H[Thử lại việc tải lên]

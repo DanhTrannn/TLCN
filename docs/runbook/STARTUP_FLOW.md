@@ -39,19 +39,14 @@ Running `docker compose up -d` without flags brings up the core **Storage, Metad
 
 Brings up log collection, Spark cluster, and Airflow orchestration:
 
-### 2.1. Log Collector & Streaming Buffer
-| Service | Startup Behavior |
-|---|---|
-| `fluent-bit` | Waits for `minio-init` → Tails container stdout logs, buffers to persistent storage, compresses to gzip, and flushes 15-minute micro-batches to `s3://lakehouse/landing/logs/`. |
-
-### 2.2. Apache Spark Compute Cluster
+### 2.1. Apache Spark Compute Cluster
 | Service | Startup Behavior |
 |---|---|
 | `spark-master` | Starts Spark standalone cluster master (`:7077`, Web UI: `:8082`). |
 | `spark-worker` | Registers worker with `spark-master` (Web UI: `:8083`). |
 | `spark-client` | (*Profile `lakehouse-tools`*) One-shot smoke runner injecting Polaris OAuth credentials and executing test table commits. |
 
-### 2.3. Apache Airflow Orchestration
+### 2.2. Apache Airflow Orchestration
 | Service | Startup Behavior |
 |---|---|
 | `airflow-init` | Waits for `postgres` → Runs `airflow db migrate` → Provisions Airflow admin user → Registers `spark_default` connection. |
@@ -80,7 +75,6 @@ trino ──▶ libredb-studio
 mysql (independent)
 
 [When --profile batch is enabled]
-minio-init ──▶ fluent-bit
 spark-master ──▶ spark-worker
 postgres ──▶ airflow-init ──▶ (airflow-webserver, airflow-scheduler)
 

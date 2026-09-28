@@ -183,27 +183,6 @@ services:
         condition: service_healthy
     networks: ["lakehouse-network"]
 
-  fluent-bit:
-    image: cr.fluentbit.io/fluent/fluent-bit:4.2.3
-    profiles: ["legacy-batch"]  # Disabled: replaced by Kafka+Flink streaming pipeline
-    command: ["--config", "/fluent-bit/etc/fluent-bit.yaml"]
-    environment:
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
-      FLUENT_BIT_UPLOAD_TIMEOUT: ${FLUENT_BIT_UPLOAD_TIMEOUT:-15m}
-      FLUENT_BIT_READ_FROM_HEAD: ${FLUENT_BIT_READ_FROM_HEAD:-false}
-    volumes:
-      - ./infrastructure/fluent-bit/fluent-bit.yaml:/fluent-bit/etc/fluent-bit.yaml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - fluent-bit-state:/var/lib/fluent-bit/state
-      - fluent-bit-buffer:/var/lib/fluent-bit/storage
-      - fluent-bit-s3-buffer:/var/lib/fluent-bit/s3
-    depends_on:
-      minio-init:
-        condition: service_completed_successfully
-    networks: ["lakehouse-network"]
 
   postgres:
     image: postgres:16.8-alpine
@@ -567,9 +546,6 @@ networks:
 volumes:
   mysql-data:
   minio-data:
-  fluent-bit-state:
-  fluent-bit-buffer:
-  fluent-bit-s3-buffer:
   spark-work:
   postgres-data:
   polaris-client-credentials:

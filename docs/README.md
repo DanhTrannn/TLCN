@@ -15,7 +15,7 @@ This directory contains the architecture specifications, data schemas, operation
 ### Data Contracts and Schemas
 
 - [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 27 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-12), in-house logistics, 7-day returns, inventory ledger, MWA costing, lock ordering, race handling, and reconciliation rules.
-- [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Fluent Bit collection pipeline, privacy redactions, and S3 partition layouts.
+- [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Kafka + Flink streaming collection pipeline, privacy redactions, and S3 partition layouts.
 - [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
 
 ### Operations and Deployment

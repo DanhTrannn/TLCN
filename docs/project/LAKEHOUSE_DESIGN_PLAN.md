@@ -43,7 +43,7 @@ Data is physically organized in UTC-based partition paths within the `lakehouse`
 
 ### 3.1. Landing Zone
 - **OLTP Ingestion:** Airflow triggers a Spark batch job (`extract_oltp.py`) to extract incremental MySQL rows using read-only accounts and composite cursors `(cursor_field, pk)`. Data is written as Parquet files with cryptographic MD5 manifests (`manifest.json`).
-- **Access Logs:** The API emits JSON logs to stdout; Fluent Bit flushes 15-minute gzip-compressed micro-batches to the Landing zone.
+- **Access Logs:** The API publishes JSON logs to Apache Kafka; Apache Flink streams events into Apache Iceberg in real-time. Historical logs are backfilled as gzip-compressed JSON directly to the Landing zone.
 
 ### 3.2. Bronze Layer
 Spark reads Landing files and performs append-only commits to Bronze Iceberg tables using a **Dead-Letter (Guarded)** strategy:

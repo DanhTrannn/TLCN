@@ -21,7 +21,7 @@ Key capabilities include:
 
 The platform ingests data across a **Hybrid Batch & Streaming Architecture**:
 1. **Transactional Data (Batch Extraction & CDC)**: MySQL 8.4 transactional database with 27 tables (26 analytical tables extracted).
-2. **Access & Clickstream Logs (Batch & Streaming)**: Structured HTTP request logs via Fluent Bit to MinIO, and real-time streaming events via Apache Kafka and Apache Flink into Apache Iceberg.
+2. **Access & Clickstream Logs (Batch & Streaming)**: Real-time streaming events via Apache Kafka and Apache Flink into Apache Iceberg, with deterministic historical batch logs backfill.
 
 ### 2.1. MySQL OLTP Database
 The system extracts data from **26 operational tables** (out of 27 tables total in MySQL, strictly excluding `customer_credentials` for security and privacy):
@@ -51,7 +51,7 @@ The system extracts data from **26 operational tables** (out of 27 tables total 
 ### 2.2. Structured Access Logs
 The backend API emits structured JSON logs on container stdout for every completed HTTP request.
 - **Included Fields:** `request_id`, `timestamp`, `service`, `event.duration_ns`, `http.method`, `http.route`, `http.status_code`, `actor.type`, `actor.key`, `client.user_agent`, `ecommerce.action`, and sanitized `ecommerce.search_query`.
-- **Ingestion Pattern:** Logs are buffered by Fluent Bit, flushed every 15 minutes, gzip-compressed, and uploaded to the MinIO Landing zone. Real-time events are streamed through Apache Kafka and processed by Apache Flink.
+- **Ingestion Pattern:** Real-time HTTP request logs and clickstream events are published to Apache Kafka and ingested continuously into Apache Iceberg by Apache Flink. Historical logs are backfilled as gzip-compressed JSON directly to the Landing zone.
 - **Privacy Rules:** Plaintext passwords, tokens, cookies, authorization headers, and raw IP addresses are stripped before ingestion.
 
 ---
