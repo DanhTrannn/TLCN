@@ -72,6 +72,7 @@ def test_fact_order_item_ddl_financial_columns():
     assert "item_total_vnd                  BIGINT" in ddl
     assert "item_cost_vnd                   BIGINT" in ddl
     assert "item_profit_vnd                 BIGINT" in ddl
+    assert "PARTITIONED BY (order_date)" in ddl
 
 
 def test_mart_sales_daily_ddl_financial_columns():

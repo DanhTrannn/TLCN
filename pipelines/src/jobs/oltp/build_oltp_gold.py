@@ -97,7 +97,7 @@ def main() -> None:
         fact_order_item = build_fact_order_item(
             silver_order_items, silver_orders, args.run_id, silver_product_variants
         )
-        fact_order_item.writeTo("lakehouse.gold.fact_order_item").overwrite(F.lit(True))
+        fact_order_item.writeTo("lakehouse.gold.fact_order_item").overwritePartitions()
 
         print(f"[{args.run_id}] Building fact_shipment...")
         fact_shipment = build_fact_shipment(silver_shipments, args.run_id)

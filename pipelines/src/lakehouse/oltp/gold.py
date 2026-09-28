@@ -457,6 +457,7 @@ def build_fact_order_item(
             F.col("oi.order_item_id"),
             F.col("oi.order_id"),
             F.date_format(F.col("o.created_at"), "yyyyMMdd").cast("int").alias("order_date_key"),
+            F.to_date(F.col("o.created_at")).alias("order_date"),
             F.col("o.customer_id").alias("customer_key"),
             product_key_col.alias("product_key"),
             F.col("oi.variant_id").alias("variant_key"),

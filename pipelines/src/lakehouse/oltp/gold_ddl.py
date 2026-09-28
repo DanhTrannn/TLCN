@@ -181,7 +181,10 @@ USING iceberg
 PARTITIONED BY (order_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -190,6 +193,7 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_order_item (
     order_item_id                   BIGINT                          COMMENT 'Order item ID',
     order_id                        BIGINT                          COMMENT 'Foreign key to order',
     order_date_key                  INT                             COMMENT 'Date key YYYYMMDD',
+    order_date                      DATE                            COMMENT 'Order placement date',
     customer_key                    BIGINT                          COMMENT 'Foreign key to dim_customer',
     product_key                     BIGINT                          COMMENT 'Foreign key to dim_product',
     variant_key                     BIGINT                          COMMENT 'Foreign key to dim_variant',
@@ -206,9 +210,13 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_order_item (
     _source_run_id                  STRING                          COMMENT 'Batch run ID'
 )
 USING iceberg
+PARTITIONED BY (order_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -235,7 +243,10 @@ USING iceberg
 PARTITIONED BY (shipment_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -262,7 +273,10 @@ USING iceberg
 PARTITIONED BY (return_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -287,7 +301,10 @@ USING iceberg
 PARTITIONED BY (snapshot_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -317,7 +334,10 @@ USING iceberg
 PARTITIONED BY (order_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -343,7 +363,10 @@ USING iceberg
 PARTITIONED BY (shipment_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -368,7 +391,10 @@ USING iceberg
 PARTITIONED BY (return_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
@@ -391,7 +417,10 @@ USING iceberg
 PARTITIONED BY (snapshot_date)
 TBLPROPERTIES (
     'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
+    'write.parquet.compression-codec' = 'zstd',
+    'write.target-file-size-bytes' = '134217728',
+    'history.expire.max-snapshot-age-ms' = '259200000',
+    'history.expire.min-snapshots-to-keep' = '10'
 )
 """
 
