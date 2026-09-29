@@ -42,14 +42,20 @@ pipelines/
 └── tests/                                # Unit test suite
     ├── test_bronze.py                    # Tests OLTP Bronze ingestion logic and dead-letter quarantine
     ├── test_config.py                    # Tests configuration parsing and validation
+    ├── test_build_oltp_gold_job.py       # Tests Gold stage CLI parsing and modular task functions
     ├── test_cursor.py                    # Tests cursor state management and S3 state round-trips
+    ├── test_financial_gold_marts.py      # Tests Gold marts DDL, financial COGS & margin parity
+    ├── test_gold_marts_provisioning.py   # Tests Gold marts table creation
+    ├── test_iceberg_maintenance.py       # Tests Iceberg compaction, expiry, and orphan file removal
     ├── test_ingest_oltp_to_bronze.py     # Tests Landing path builders and auto-discovery
     ├── test_landing.py                   # Tests Landing path builders and manifest serialization
     ├── test_logs_bronze.py               # Tests OpenTelemetry log schema and Bronze transformations
     ├── test_logs_silver.py               # Tests Logs Silver dedup and struct flattening
     ├── test_logs_gold.py                 # Tests Logs Gold Fact and Data Mart transformations
+    ├── test_oltp_gold.py                 # Tests OLTP Gold dimensions, facts, and marts transformations
     ├── test_query.py                     # Tests extraction window SQL predicate generation
     ├── test_silver.py                    # Tests OLTP Silver MERGE, PII, quarantine, integration
+    ├── test_silver_ddl.py                # Tests Silver DDL schema definitions
     └── test_validate.py                  # Tests S3 manifest verification logic
 ```
 
@@ -71,8 +77,8 @@ pipelines/
   1. **Landing Zone:** Incremental extraction via composite cursors `(cursor_field, pk)` with MD5 cryptographic manifests.
   2. **Bronze Layer:** Append-only ingestion into Iceberg Bronze tables.
   3. **Silver Layer:** Deduplication, PII pseudonymization (SHA-256), business rule validation, quarantine routing, and ACID MERGE into Silver tables.
-  4. **Gold Layer:** Star Schema Dimensions, Facts, and Data Marts with financial COGS and KPI rollups.
-- **Documentation:** [`docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md`](../docs/pipelines/batch/INGEST_OLTP_TO_LANDING.md) & [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](../docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md).
+  4. **Gold Layer:** Modular, parallel execution via `[spark_build_gold_dimensions, spark_build_gold_facts] >> spark_build_gold_marts` with financial COGS and KPI rollups.
+  5. **Iceberg Maintenance:** Automated small-file compaction, rewrite manifests, snapshot expiration, and orphan cleanup.
 
 ---
 

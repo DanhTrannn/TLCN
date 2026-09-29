@@ -231,14 +231,37 @@ with DAG(
         group_id="gold_layer",
         tooltip="Build Star Schema Dimensions, Facts, and Data Marts with financial COGS and KPI rollups",
     ) as tg_gold:
-        build_gold = SparkSubmitOperator(
-            task_id="spark_build_oltp_gold",
+        build_dimensions = SparkSubmitOperator(
+            task_id="spark_build_gold_dimensions",
             application=SPARK_APP_GOLD,
             application_args=[
                 "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
                 "--snapshot-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--stage", "dimensions",
             ],
         )
+
+        build_facts = SparkSubmitOperator(
+            task_id="spark_build_gold_facts",
+            application=SPARK_APP_GOLD,
+            application_args=[
+                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
+                "--snapshot-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--stage", "facts",
+            ],
+        )
+
+        build_marts = SparkSubmitOperator(
+            task_id="spark_build_gold_marts",
+            application=SPARK_APP_GOLD,
+            application_args=[
+                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
+                "--snapshot-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--stage", "marts",
+            ],
+        )
+
+        [build_dimensions, build_facts] >> build_marts
 
     # 5. ICEBERG OPTIMIZATION & TABLE MAINTENANCE
     with TaskGroup(
