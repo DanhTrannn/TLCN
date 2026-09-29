@@ -429,3 +429,13 @@ def ensure_oltp_gold_tables(spark: SparkSession) -> None:
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.gold")
     for table_name, ddl in GOLD_TABLE_DDL.items():
         spark.sql(ddl)
+        # Self-healing migration for fact_order_item created prior to order_date partitioning
+        if table_name == "fact_order_item":
+            try:
+                table_cols = [f.name.lower() for f in spark.table("lakehouse.gold.fact_order_item").schema.fields]
+                if "order_date" not in table_cols:
+                    spark.sql("DROP TABLE IF EXISTS lakehouse.gold.fact_order_item")
+                    spark.sql(ddl)
+            except Exception:
+                pass
+
