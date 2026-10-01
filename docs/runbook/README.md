@@ -106,7 +106,7 @@ Run tests and type checks across all components before submitting changes:
 ```bash
 # Check uv lockfile and Docker Compose syntax
 uv lock --check
-docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
+docker compose --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
 
 # Run Python Test Suite (163 tests total)
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests

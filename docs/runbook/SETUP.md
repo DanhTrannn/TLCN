@@ -39,10 +39,10 @@ Launch the default catalog, storage, Trino, and LibreDB Studio:
 docker compose up -d --build
 ```
 
-To run the complete system including batch processing, BI dashboards, and the e-commerce storefront:
+To run the complete system including batch processing, real-time streaming, and the e-commerce storefront:
 
 ```bash
-docker compose --profile core --profile batch --profile bi up -d --build
+docker compose --profile core --profile batch --profile streaming up -d --build
 ```
 
 ### Automated Bootstrap Workflow
@@ -128,7 +128,7 @@ The reconciler:
 
 ```bash
 # Check container status
-docker compose --profile core --profile batch --profile bi ps
+docker compose --profile core --profile batch --profile streaming ps
 
 # Polaris and Database logs
 docker compose --profile batch logs --tail=200 postgres polaris-bootstrap polaris polaris-init
@@ -153,11 +153,11 @@ docker compose logs --tail=200 trino
 To stop services while keeping data intact:
 
 ```bash
-docker compose --profile core --profile batch --profile bi down
+docker compose --profile core --profile batch --profile streaming down
 ```
 
 To perform a complete factory reset (erasing all MySQL records, MinIO objects, Polaris metadata, and Airflow state):
 
 ```bash
-docker compose --profile core --profile batch --profile bi --profile lakehouse-tools down -v --remove-orphans
+docker compose --profile core --profile batch --profile streaming --profile lakehouse-tools down -v --remove-orphans
 ```
