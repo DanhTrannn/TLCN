@@ -3,7 +3,17 @@ name: CI
 on:
   push:
     branches: [dev, main, master]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
   workflow_dispatch:
 
 permissions:
@@ -20,25 +30,53 @@ env:
 
 jobs:
   repository-validation:
-    name: Repository validation
+    name: Repository validation & static checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
 
-      - name: Validate Docker Compose
-        run: docker compose --profile core --profile batch --profile bi --profile lakehouse-tools config --quiet
+      - name: Validate Docker Compose (all active profiles)
+        run: >-
+          docker compose --profile core --profile batch --profile streaming --profile lakehouse-tools
+          config --quiet
+
+      - name: Verify Airflow DAG Python compilation
+        run: python3 -m compileall -q airflow/dags/
+
+      - name: Check critical Python syntax errors
+        run: uvx ruff check --select E9,F63,F7,F82 .
 
   python-tests:
-    name: Python tests
+    name: Python tests (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ecommerce API
+            package: ecommerce-api
+            command: >-
+              uv run --locked --package ecommerce-api --extra dev --
+              pytest services/ecommerce-api/tests
+          - name: Data Generator
+            package: data-generator
+            command: >-
+              uv run --locked --package data-generator --extra dev --
+              pytest generator/tests
+          - name: Batch Pipeline & DAGs
+            package: batch-pipeline
+            command: >-
+              PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev --
+              pytest pipelines/tests
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -51,20 +89,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
-      - name: Run Ecommerce API tests
-        run: >-
-          uv run --locked --package ecommerce-api --extra dev --
-          pytest services/ecommerce-api/tests
-
-      - name: Run data-generator tests
-        run: >-
-          uv run --locked --package data-generator --extra dev --
-          pytest generator/tests
-
-      - name: Run batch-pipeline tests
-        run: >-
-          PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev --
-          pytest pipelines/tests
+      - name: Run ${{ matrix.name }} tests
+        run: ${{ matrix.command }}
 
   storefront:
     name: Storefront checks
@@ -97,3 +123,34 @@ jobs:
 
       - name: Build storefront
         run: npm run build
+
+  docker-smoke-build:
+    name: Dockerfile build verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Ecommerce API image (Dry run)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/ecommerce-api/Dockerfile
+          push: false
+          tags: ecommerce-api:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Storefront image (Dry run)
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/storefront
+          file: apps/storefront/Dockerfile
+          push: false
+          tags: storefront:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
