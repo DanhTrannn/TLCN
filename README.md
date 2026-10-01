@@ -13,6 +13,7 @@
 [![Apache Polaris](https://img.shields.io/badge/Apache_Polaris-1.6.0-teal?style=flat-square&logo=apache&logoColor=white)](https://polaris.apache.org)
 [![Trino](https://img.shields.io/badge/Trino-483-DD00A1?style=flat-square&logo=trino&logoColor=white)](https://trino.io)
 [![Apache ECharts](https://img.shields.io/badge/Apache_ECharts-5.5-AA344D?style=flat-square&logo=apacheecharts&logoColor=white)](https://echarts.apache.org)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 
 :star: If you find this project useful, consider giving it a star!
 
@@ -268,5 +269,6 @@ Explore the detailed architecture and planning documents:
 | **Silver Ingestion (Logs)** | [`docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md) | Spark ingestion of Access Logs from Bronze to Silver (`silver_logs`) |
 | **Gold Ingestion (Logs)** | [`docs/pipelines/batch/BUILD_LOGS_GOLD.md`](docs/pipelines/batch/BUILD_LOGS_GOLD.md) | Spark transformation of Silver logs to Gold Fact and Data Marts |
 | **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and smoke testing |
+| **CI/CD & DataOps** | [`docs/runbook/CICD.md`](docs/runbook/CICD.md) | GitHub Actions CI/CD workflows, DAG integrity tests, and GHCR publishing |
 | **Startup Sequence** | [`docs/runbook/STARTUP_FLOW.md`](docs/runbook/STARTUP_FLOW.md) | Service bootstrap sequence, migrations, and health checks |
 | **Runbook Index** | [`docs/runbook/README.md`](docs/runbook/README.md) | Central index for operational tasks, commands, and validation |
