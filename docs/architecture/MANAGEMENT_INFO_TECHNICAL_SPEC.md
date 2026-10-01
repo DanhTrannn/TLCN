@@ -84,14 +84,12 @@ flowchart TB
         
         Hub["Admin BI Analytics Hub (/admin/analytics)\n- Tích hợp trực tiếp Apache ECharts\n- Tab-gating 7 vai trò quản trị\n- Trino Live Telemetry Query Engine"] --> Engine
         Hub --> OLTP_API
-        
-        Superset["Apache Superset Studio (Port 8088)\n- Báo cáo phân tích chuyên sâu đa chiều"] --> Engine
     end
 ```
 
 **Nguyên tắc phân định ranh giới:**
 1. **Operational Plane (Vận hành tác nghiệp):** Truy vấn trực tiếp từ MySQL OLTP qua API tối ưu hóa (độ trễ $< 200\text{ms}$).
-2. **Analytical Plane (Phân tích chiến lược & Đa vai trò):** Truy vấn trên nền tảng Lakehouse (Apache Iceberg/Trino) kết nối trực tiếp với giao diện đồ thị **Apache ECharts** tại Trung tâm Phân tích `/admin/analytics` và **Apache Superset Studio** tại cổng 8088.
+2. **Analytical Plane (Phân tích chiến lược & Đa vai trò):** Truy vấn trên nền tảng Lakehouse (Apache Iceberg/Trino) kết nối trực tiếp với giao diện đồ thị **Apache ECharts** tại Trung tâm Phân tích `/admin/analytics`.
 
 ### 1.3. Luồng luân chuyển Dữ liệu Tổng thể (Data Flow & Topologies)
 1. **Bronze Layer:** Lưu trữ nguyên bản (raw data) 26 bảng sao chép từ MySQL OLTP và log sự kiện từ S3/MinIO Landing Zone.
@@ -107,7 +105,7 @@ flowchart TB
 
 | Vai trò Quản trị | Mục tiêu & Trách nhiệm Cốt lõi | Nhu cầu Thông tin Trọng yếu | Công cụ / Môi trường Truy xuất |
 | :--- | :--- | :--- | :--- |
-| **1. Ban Giám đốc (Executive / CEO)** | - Tăng trưởng quy mô doanh số & thị phần.<br>- Tối ưu hóa hiệu quả kinh doanh & dòng tiền.<br>- Giám sát biên lợi nhuận gộp toàn diện. | - **Doanh thu & Lợi nhuận:** GMV, Net Revenue, COGS, Gross Profit, Gross Margin %.<br>- **Quy mô đơn:** AOV, Số lượng đơn hàng, Tỷ lệ đơn giao thành công.<br>- **Rủi ro:** Tỷ lệ boom hàng COD, Tỷ lệ yêu cầu đổi trả 7 ngày.<br>- **Xu hướng:** Biểu đồ xu hướng doanh thu và lợi nhuận gộp theo ngày (Daily Trend). | **Admin BI Hub & Superset**<br>(`/admin/analytics?role=executive`) |
+| **1. Ban Giám đốc (Executive / CEO)** | - Tăng trưởng quy mô doanh số & thị phần.<br>- Tối ưu hóa hiệu quả kinh doanh & dòng tiền.<br>- Giám sát biên lợi nhuận gộp toàn diện. | - **Doanh thu & Lợi nhuận:** GMV, Net Revenue, COGS, Gross Profit, Gross Margin %.<br>- **Quy mô đơn:** AOV, Số lượng đơn hàng, Tỷ lệ đơn giao thành công.<br>- **Rủi ro:** Tỷ lệ boom hàng COD, Tỷ lệ yêu cầu đổi trả 7 ngày.<br>- **Xu hướng:** Biểu đồ xu hướng doanh thu và lợi nhuận gộp theo ngày (Daily Trend). | **Admin BI Hub**<br>(`/admin/analytics?role=executive`) |
 | **2. Kinh doanh & Chiến lược (Sales & Strategy)** | - Đánh giá sức khỏe danh mục và chi nhánh.<br>- Thúc đẩy doanh thu các kênh phân phối. | - **Đóng góp chi nhánh:** Doanh thu phân bổ theo từng cửa hàng vật lý và kênh online.<br>- **Top sản phẩm:** Xếp hạng các mặt hàng bán chạy nhất (Top Selling Products).<br>- **Tỷ trọng danh mục:** Đóng góp cơ cấu doanh số giữa các nhóm sản phẩm thời trang. | **Admin BI Hub**<br>(`/admin/analytics?role=sales`) |
 | **3. Quản lý Cửa hàng (Store Manager)** | - Điều phối bán hàng và thu ngân tại chi nhánh.<br>- Quản lý tồn kho quầy trưng bày. | - **Doanh thu chi nhánh trong ngày:** Doanh thu tại quầy hôm nay.<br>- **Đơn hàng trong ngày:** Số lượng đơn thanh toán tại quầy.<br>- **Mục tiêu ngày:** Tỷ lệ hoàn thành doanh số cam kết hàng ngày.<br>- **Cảnh báo tồn quầy:** Danh sách sản phẩm có tồn kho thấp tại quầy cần bổ sung. | **Store Dashboard & BI Hub**<br>(`/store` & `/admin/analytics?role=store`, RLS Gate) |
 | **4. Kho & Chuỗi cung ứng (Inventory Manager)** | - Quản lý tồn kho trung tâm và chi phí xưởng.<br>- Đảm bảo nguồn cung ứng ổn định. | - **Định giá tài sản kho:** Tổng giá trị hàng tồn kho (VND).<br>- **Phân bổ hàng hóa:** Tỷ lệ số lượng hàng tại Kho tổng vs Các cửa hàng chi nhánh.<br>- **Nhập xưởng may (Inbound):** Số đợt sản xuất hoàn tất, kiểm soát giá vốn MWA.<br>- **Cảnh báo hàng:** Số mặt hàng sắp hết và số mặt hàng đã cháy hàng. | **Admin Inbound & BI Hub**<br>(`/admin/inbound` & `/admin/analytics?role=inventory`) |
@@ -127,22 +125,22 @@ flowchart TB
 
 | Cấp Quản trị | Chỉ số Nghiệp vụ Trọng yếu | Bảng Nguồn OLTP / Log | Bảng Silver / Gold DWH | Data Mart Đích | Bảng điều khiển / Kênh Cảnh báo |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **CEO / Ban Lãnh đạo** | GMV, Net Merchandise Revenue, Shipping Revenue | `orders`, `payments`, `refunds` | `fact_order`, `fact_payment`, `fact_refund` | `mart_sales_daily` | **Superset:** CEO Executive Overview |
-| **CEO / Ban Lãnh đạo** | Confirmed Revenue (Doanh thu ghi nhận) | `orders` (`completed`) | `fact_order` | `mart_sales_daily` | **Superset:** CEO Executive Overview |
-| **CEO / Ban Lãnh đạo** | AOV, Items per Order, Cancellation Rate | `orders`, `order_items` | `fact_order`, `fact_order_item` | `mart_sales_daily` | **Superset:** CEO Executive Overview |
-| **CEO / Ban Lãnh đạo** | Doanh thu theo Danh mục 2 cấp | `orders`, `order_items`, `products`, `categories` | `fact_order_item`, `dim_product`, `dim_category` | `mart_sales_daily` | **Superset:** Category Performance Hub |
-| **CEO / Ban Lãnh đạo** | Coupon Efficiency Ratio, Ngân sách Giảm giá | `orders`, `coupons`, `coupon_redemptions` | `fact_order`, `fact_coupon_redemption` | `mart_coupon_performance` | **Superset:** Promotion & Discount Report |
-| **CEO / Ban Lãnh đạo** | Cash Inflow / Outflow / Net Cash Flow Proxy | `payments`, `refunds` | `fact_payment`, `fact_refund` | `mart_sales_daily` | **Superset:** Financial Cash Flow Proxy |
+| **CEO / Ban Lãnh đạo** | GMV, Net Merchandise Revenue, Shipping Revenue | `orders`, `payments`, `refunds` | `fact_order`, `fact_payment`, `fact_refund` | `mart_sales_daily` | **Admin BI Hub:** CEO Executive Overview |
+| **CEO / Ban Lãnh đạo** | Confirmed Revenue (Doanh thu ghi nhận) | `orders` (`completed`) | `fact_order` | `mart_sales_daily` | **Admin BI Hub:** CEO Executive Overview |
+| **CEO / Ban Lãnh đạo** | AOV, Items per Order, Cancellation Rate | `orders`, `order_items` | `fact_order`, `fact_order_item` | `mart_sales_daily` | **Admin BI Hub:** CEO Executive Overview |
+| **CEO / Ban Lãnh đạo** | Doanh thu theo Danh mục 2 cấp | `orders`, `order_items`, `products`, `categories` | `fact_order_item`, `dim_product`, `dim_category` | `mart_sales_daily` | **Admin BI Hub:** Category Performance Hub |
+| **CEO / Ban Lãnh đạo** | Coupon Efficiency Ratio, Ngân sách Giảm giá | `orders`, `coupons`, `coupon_redemptions` | `fact_order`, `fact_coupon_redemption` | `mart_coupon_performance` | **Admin BI Hub:** Promotion & Discount Report |
+| **CEO / Ban Lãnh đạo** | Cash Inflow / Outflow / Net Cash Flow Proxy | `payments`, `refunds` | `fact_payment`, `fact_refund` | `mart_sales_daily` | **Admin BI Hub:** Financial Cash Flow Proxy |
 | **Quản lý Cửa hàng** | Order Intake Today, Paid Today, Completed Today | `orders` (trực tiếp) | *Không đọc DWH (Độ trễ <200ms)* | MySQL Read Replica | **Storefront Admin:** Overview Dashboard |
 | **Quản lý Cửa hàng** | Hàng đợi đơn cần xác nhận (`paid`), đơn đang giao | `orders` (trực tiếp) | *Không đọc DWH* | MySQL Read Replica | **Storefront Admin:** Order Processing Queue |
 | **Quản lý Cửa hàng** | Đơn chờ xác nhận quá hạn SLA ($> 4 \text{h}$ làm việc) | `orders`, `order_status_history` | *Không đọc DWH* | MySQL Read Replica | **Storefront Admin:** Actionable Backlog Alert |
 | **Quản lý Cửa hàng** | Cảnh báo Variant sắp hết hàng & Hết hàng tại quầy | `inventory`, `product_variants` | *Không đọc DWH* | MySQL Read Replica | **Storefront Admin:** Low Stock Panel |
 | **Quản lý Cửa hàng** | Top 10 sản phẩm bán chạy nhất trong 7 ngày | `order_items`, `orders` | `fact_order_item` (Daily) / OLTP | `mart_sales_daily` | **Storefront Admin:** Fast Moving Products |
-| **Người Giám sát Hệ thống**| Tỷ lệ Thanh toán Thất bại (Payment Failure Rate) | `payments` | `fact_payment` | `mart_order_sla` | **Superset:** System & Payment Health |
-| **Người Giám sát Hệ thống**| Tỷ lệ Hủy đơn & Phân loại Lý do Hủy | `orders`, `order_status_history` | `fact_order`, `fact_order_status_transition` | `mart_order_sla` | **Superset:** System & Payment Health |
-| **Người Giám sát Hệ thống**| Thời gian chu kỳ đơn (Cycle Time) & Vi phạm SLA | `order_status_history` | `fact_order_status_transition` | `mart_order_sla` | **Superset:** Operational SLA Monitor |
+| **Người Giám sát Hệ thống**| Tỷ lệ Thanh toán Thất bại (Payment Failure Rate) | `payments` | `fact_payment` | `mart_order_sla` | **Admin BI Hub:** System & Payment Health |
+| **Người Giám sát Hệ thống**| Tỷ lệ Hủy đơn & Phân loại Lý do Hủy | `orders`, `order_status_history` | `fact_order`, `fact_order_status_transition` | `mart_order_sla` | **Admin BI Hub:** System & Payment Health |
+| **Người Giám sát Hệ thống**| Thời gian chu kỳ đơn (Cycle Time) & Vi phạm SLA | `order_status_history` | `fact_order_status_transition` | `mart_order_sla` | **Admin BI Hub:** Operational SLA Monitor |
 | **Người Giám sát Hệ thống**| Đối soát Doanh thu ($\le 1,000\text{ VND}$) & Số đơn ($= 0$) | `orders` vs `fact_order` | `silver_orders` vs `fact_order` | Reconciliation View | **Alert Hub:** Slack `#data-quality-alerts` |
-| **Người Giám sát Hệ thống**| Lưu lượng Web Events, Lỗi HTTP 5xx & Search Volume | `access_logs` | `fact_web_events` | `mart_web_funnel_daily` | **Superset:** Platform Traffic & Logs |
+| **Người Giám sát Hệ thống**| Lưu lượng Web Events, Lỗi HTTP 5xx & Search Volume | `access_logs` | `fact_web_events` | `mart_web_funnel_daily` | **Admin BI Hub:** Platform Traffic & Logs |
 | **Người Giám sát Hệ thống**| Tuân thủ Bảo vệ Dữ liệu PII (Mã hóa Salted Hash) | `customers`, `customer_credentials`| `silver_customers`, `dim_customer` | Data Governance | **Polaris / Audit:** Compliance Report |
 
 ---
@@ -193,7 +191,7 @@ graph TD
   - `orders.created_at` nằm trong khoảng thời gian phân tích.
   - **LOẠI BỎ TUYỆT ĐỐI:** `status IN ('payment_failed', 'cancelled')`.
 - **Ranh giới tài chính:** KHÔNG bao gồm phí vận chuyển (`shipping_fee_vnd`), KHÔNG trừ chiết khấu (`discount_amount_vnd`), KHÔNG trừ tiền hoàn trả (`refunds`).
-- **Tần suất cập nhật:** Batch hàng ngày (T+1 lúc 02:00 ICT) trên Superset.
+- **Tần suất cập nhật:** Batch hàng ngày (T+1 lúc 02:00 ICT) trên Admin BI Hub.
 
 #### M-02: Doanh thu Hàng hóa Ròng (Net Merchandise Revenue)
 - **Bản chất nghiệp vụ:** Doanh thu thực nhận từ hàng hóa sau khi đã trừ chiết khấu khuyến mãi và các khoản hoàn tiền hàng hóa.
@@ -299,7 +297,7 @@ Chỉ số kiểm soát tự động chạy mỗi ngày lúc 02:30 ICT sau khi h
 
 ## 4. THIẾT KẾ MÔ HÌNH DỮ LIỆU CHI TIẾT (DETAILED DATA MODELING)
 
-Mô hình dữ liệu Gold Layer được thiết kế theo cấu trúc Ngôi sao (Kimball Star Schema) với Bus Matrix rõ ràng, phục vụ tối ưu cho công cụ truy vấn phân tán Trino và trực quan hóa Apache Superset.
+Mô hình dữ liệu Gold Layer được thiết kế theo cấu trúc Ngôi sao (Kimball Star Schema) với Bus Matrix rõ ràng, phục vụ tối ưu cho công cụ truy vấn phân tán Trino và trực quan hóa native Apache ECharts.
 
 ### 4.1. Sơ đồ Quan hệ Thực thể Chiều (Dimensional Bus Matrix & Architecture)
 
@@ -460,13 +458,13 @@ graph LR
 | Cấp Quản trị | Kênh Truy xuất | Yêu cầu Độ tươi mới (Data Freshness) | Phương thức Kỹ thuật |
 | :--- | :--- | :--- | :--- |
 | **Quản lý Cửa hàng** | Web Admin Storefront | Thời gian thực (Độ trễ $\le 200\text{ms}$) | API đọc trực tiếp Read Replica của MySQL OLTP |
-| **CEO / Ban Lãnh đạo** | Superset BI Platform | Mẻ hàng ngày (T+1, hoàn tất trước 06:00 ICT) | Spark Daily Batch Pipeline chạy lúc 02:00 ICT |
-| **Người Giám sát Hệ thống** | Superset & Slack Alerts | - Báo cáo chất lượng: Daily T+1 (02:30 ICT)<br>- Cảnh báo lỗi cổng thanh toán: Gần thời gian thực ($\le 15\text{ phút}$) | Event triggers từ Spark ETL & Script kiểm tra lỗi tự động |
+| **CEO / Ban Lãnh đạo** | Admin BI Hub | Mẻ hàng ngày (T+1, hoàn tất trước 06:00 ICT) | Spark Daily Batch Pipeline chạy lúc 02:00 ICT |
+| **Người Giám sát Hệ thống** | Admin BI Hub & Slack Alerts | - Báo cáo chất lượng: Daily T+1 (02:30 ICT)<br>- Cảnh báo lỗi cổng thanh toán: Gần thời gian thực ($\le 15\text{ phút}$) | Event triggers từ Spark ETL & Script kiểm tra lỗi tự động |
 
 ### 5.2. Tuân thủ Bảo vệ Dữ liệu Cá nhân (PII Protection & NĐ 13/2023/NĐ-CP)
 Hệ thống tuân thủ nghiêm ngặt nguyên tắc bảo mật thông tin khách hàng:
 1. **Ẩn danh hóa tại Silver Layer:** Email và Số điện thoại được băm mật mã học bằng thuật toán SHA-256 kết hợp chuỗi khóa muối ngẫu nhiên (Salted Hash). Chuỗi muối được bảo vệ trong Secret Manager.
-2. **Loại bỏ địa chỉ chi tiết:** Tầng Gold và các báo cáo Superset tuyệt đối không lưu địa chỉ nhà chi tiết (`street_address`). Chỉ trích xuất thông tin hành chính cấp vĩ mô: `region`, `city`, `district` để phân tích mật độ đơn hàng.
+2. **Loại bỏ địa chỉ chi tiết:** Tầng Gold và các báo cáo phân tích tuyệt đối không lưu địa chỉ nhà chi tiết (`street_address`). Chỉ trích xuất thông tin hành chính cấp vĩ mô: `region`, `city`, `district` để phân tích mật độ đơn hàng.
 3. **Phân quyền xem PII:** Chỉ vai trò Quản lý Cửa hàng / Admin vận hành mới được xem thông tin người nhận trên giao diện OLTP để in phiếu giao hàng. CEO và Người Giám sát Hệ thống chỉ xem dữ liệu đã được ẩn danh hóa.
 
 ### 5.3. Mô hình Phân quyền Dữ liệu 3 Cấp (Namespace-Level RBAC)
@@ -475,13 +473,13 @@ Cấu hình phân quyền trên Apache Polaris Catalog và hệ thống BI:
 
 | Nhóm Người dùng | Không gian tên `bronze` | Không gian tên `silver` | Không gian tên `gold` | Bảng điều khiển / Quyền hạn |
 | :--- | :--- | :--- | :--- | :--- |
-| **CEO / Ban Lãnh đạo** | Không truy cập | Không truy cập | Chỉ đọc (Read-only) | Truy cập toàn quyền các Dashboard Chiến lược, Doanh thu, Khách hàng trên Superset |
+| **CEO / Ban Lãnh đạo** | Không truy cập | Không truy cập | Chỉ đọc (Read-only) | Truy cập toàn quyền các Dashboard Chiến lược, Doanh thu, Khách hàng trên Admin BI Hub |
 | **Quản lý Cửa hàng** | Không truy cập | Không truy cập | Không truy cập DWH | Truy cập cổng Storefront Admin, thao tác xác nhận/hủy đơn và xem hàng tồn quầy |
 | **Người Giám sát Hệ thống** | Toàn quyền (Read/Write)| Toàn quyền (Read/Write)| Toàn quyền (Read/Write)| Truy cập Dashboard Giám sát SLA, Cổng đối soát, Cấu hình kiểm tra chất lượng dữ liệu |
 
 ### 5.4. Chuẩn hóa Không gian Thời gian (Timezone & Cutoff Logic)
 1. **Lưu trữ chuẩn:** Toàn bộ cơ sở dữ liệu MySQL và bảng Iceberg lưu trữ thời gian ở chuẩn **UTC**.
-2. **Trình diễn chuẩn:** Giao diện Superset và trang Storefront Admin tự động chuyển đổi sang múi giờ **ICT (UTC+7)** khi hiển thị.
+2. **Trình diễn chuẩn:** Giao diện Admin BI Hub và trang Storefront tự động chuyển đổi sang múi giờ **ICT (UTC+7)** khi hiển thị.
 3. **Chốt mốc ngày kinh doanh:** Bảng `dim_date` và ảnh chụp tồn kho `fact_inventory_snapshot_daily` chốt số liệu tại mốc **23:59:59 ICT** (tương ứng 16:59:59 UTC cùng ngày).
 
 ### 5.5. Cổng Kiểm soát Chất lượng & Đối soát Tự động (Reconciliation Gate)
@@ -496,7 +494,7 @@ sequenceDiagram
     participant Gold as Gold Fact Tables
     participant Gate as Reconciliation Engine
     participant Alert as Slack #data-quality-alerts
-    participant Superset as Superset Dashboards (CEO)
+    participant Hub as Admin BI Hub (CEO)
 
     Spark->>Silver: Làm sạch và chuẩn hóa dữ liệu
     Spark->>Gold: Xây dựng Gold Fact Tables
@@ -511,7 +509,7 @@ sequenceDiagram
     else Kiểm tra Đạt chuẩn (Dung sai trong ngưỡng)
         Gate-->>Spark: Xác nhận PASS
         Spark->>Gold: Xuất bản dữ liệu sang Tầng Marts
-        Spark->>Superset: Làm mới bộ nhớ đệm Báo cáo CEO
+        Spark->>Hub: Cập nhật chỉ số mới nhất lên Dashboard CEO
     end
 ```
 
@@ -534,7 +532,7 @@ gantt
     section GIAI ĐOẠN 1: Nền tảng Dữ liệu & Báo cáo CEO
     Xây dựng Bus Matrix & Dimensions cốt lõi (date, customer, product) :2026-09-08, 14d
     Triển khai Core Facts (fact_order, fact_order_item, payment, refund) :2026-09-15, 14d
-    Xây dựng mart_sales_daily & Superset Dashboard cho CEO            :2026-09-22, 14d
+    Xây dựng mart_sales_daily & ECharts Dashboard cho CEO            :2026-09-22, 14d
     section GIAI ĐOẠN 2: Vận hành Cửa hàng & Quản trị Tồn kho
     Tối ưu hóa API OLTP Realtime cho Store Manager (Today metrics)    :2026-10-06, 14d
     Xây dựng Pipeline Ảnh chụp Tồn kho (fact_inventory_snapshot_daily)  :2026-10-13, 14d
@@ -544,7 +542,7 @@ gantt
     Xây dựng Dashboard Giám sát Thanh toán & SLA cho Người Giám sát   :2026-11-10, 14d
     Tích hợp Cảnh báo Tự động qua kênh Slack #data-quality-alerts     :2026-11-17, 14d
     section GIAI ĐOẠN 4: Đánh giá Toàn diện & Nghiệm thu
-    Kiểm thử Tải Truy vấn & Tối ưu Trino / Superset Cache             :2026-12-01, 14d
+    Kiểm thử Tải Truy vấn & Tối ưu Trino / Cache                      :2026-12-01, 14d
     UAT với 3 Nhóm Quản trị (CEO, Quản lý Cửa hàng, Giám sát Hệ thống):2026-12-08, 14d
     Nghiệm thu Chính thức & Đóng băng Kiến trúc Production            :2026-12-15, 7d
 ```
@@ -573,10 +571,10 @@ Các câu hỏi chốt chặn cuối cùng cần làm việc với đại diện
 ## 7. TÀI LIỆU KẾ THỪA & LIÊN KẾT HỆ THỐNG
 
 Tài liệu này là căn cứ kiến trúc tối cao định hình mã nguồn cho các thành phần:
-- Kịch bản tạo bảng Gold Iceberg DDL: `infra/spark/jobs/gold_ddl.py`
-- Bộ điều phối luồng xử lý mẻ Airflow DAG: `dags/dag_oltp_gold_daily.py`
-- Tệp cấu hình phân quyền truy cập Polaris Catalog: `infra/polaris/rbac_policies.json`
-- Kho từ điển siêu dữ liệu đo lường số liệu Superset Datasets.
+- Kịch bản tạo bảng Gold Iceberg DDL: `pipelines/src/lakehouse/oltp/gold_ddl.py`
+- Bộ điều phối luồng xử lý mẻ Airflow DAG: `airflow/dags/lakehouse_oltp_pipeline.py`
+- Tệp cấu hình phân quyền truy cập Polaris Catalog: `infrastructure/polaris/bootstrap_catalog.sh`
+- Danh mục chỉ số đo lường chuẩn hóa (Metric Catalog).
 
 ---
 *Tài liệu được ban hành chính thức dưới sự giám sát của Kiến trúc sư Dữ liệu Nền tảng (Lead Data Platform Architect).*

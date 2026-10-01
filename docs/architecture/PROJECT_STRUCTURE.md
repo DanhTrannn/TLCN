@@ -41,7 +41,6 @@ flowchart LR
     Trino[Trino Query Engine] --> Polaris
     Trino --> Gold
     Trino --> ECharts[Admin BI Hub /admin/analytics]
-    Superset[Superset BI] --> Trino
     Gold --> Features[Repurchase Features & Labels]
     Features --> Model[Train & Score ML]
 ```
@@ -53,7 +52,7 @@ flowchart LR
 3. **Read-Only Ingestion:** The Data Engineering (DE) extractor uses a read-only account scoped strictly to the 26 allowed analytical tables (excluding `customer_credentials`).
 4. **Single Writer Principal:** Apache Airflow orchestrates workflows; Apache Spark executes the batch ingestion, transformations, and Iceberg commits. Spark is the primary Iceberg batch writer, working alongside Apache Flink for streaming ingestion.
 5. **Catalog Decoupling:** Apache Polaris manages table metadata, namespaces, and RBAC privileges. It does not perform compute or store data files.
-6. **Read-Only Query Engine:** Trino is the distributed SQL engine reading Iceberg tables via Polaris. Apache Superset and the Storefront Admin BI Hub connect to Trino for analytical dashboards.
+6. **Read-Only Query Engine:** Trino is the distributed SQL engine reading Iceberg tables via Polaris. The Storefront Admin BI Hub connects to Trino for analytical dashboards and native Apache ECharts visualizations.
 7. **Isolation of Operational DB:** Analytical dashboards, feature engineering, and ML pipelines never read directly from the primary OLTP database.
 
 ---
@@ -83,12 +82,11 @@ flowchart LR
 │   ├── dags/                             # Airflow DAGs (lakehouse_logs_pipeline.py, ingest_oltp_batch.py, ingest_oltp_landing_to_bronze.py, ingest_oltp_silver.py)
 │   └── logs/                             # Airflow operational logs
 ├── infrastructure/
-│   ├── docker/                           # Custom images (Airflow, Superset, Flink, Spark)
+│   ├── docker/                           # Custom images (Airflow, Flink, Spark)
 │   ├── polaris/                          # Idempotent Polaris catalog bootstrap script
-│   ├── postgres/                         # Multi-database init scripts (polaris, airflow, superset)
+│   ├── postgres/                         # Multi-database init scripts (polaris, airflow)
 │   ├── spark/                            # Spark Dockerfile, credentials script & conf
-│   ├── trino/                            # Trino Iceberg REST catalog configuration
-│   └── superset/                         # Superset datasources and configuration
+│   └── trino/                            # Trino Iceberg REST catalog configuration
 ├── docs/                                 # Architecture specs, data contracts, and runbooks
 │   ├── architecture/                     # Project structure, OLTP schema, access logs, management info specs
 │   ├── contracts/                        # JSON schema contracts
@@ -113,7 +111,7 @@ The monorepo uses [`uv`](https://docs.astral.sh/uv/) as the package manager and 
 - **`data-generator`** (`generator`): Faker, PyYAML, Argon2, HTTPX (55 tests).
 - **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3, PyArrow (106 tests).
 
-Infrastructure components (Trino, LibreDB Studio, Polaris, MinIO, Superset, Spark, Kafka, Flink) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
+Infrastructure components (Trino, LibreDB Studio, Polaris, MinIO, Spark, Kafka, Flink) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
 
 ---
 
@@ -126,7 +124,6 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | *(Default)* | `mysql`, `postgres`, `minio`, `minio-init`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `trino`, `libredb-studio` | Core storage, PostgreSQL metadata, Polaris REST catalog, Trino SQL query engine, and LibreDB Studio SQL IDE |
 | `batch` | `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
 | `streaming` | `kafka`, `flink-jobmanager`, `flink-taskmanager` | Distributed event streaming (Kafka) and real-time streaming ingestion into Iceberg (Flink) |
-| `bi` | `superset-init`, `superset` | Apache Superset BI visualization dashboards |
 | `core` | `ecommerce-api`, `storefront` | Operational e-commerce web application, POS, and customer storefront |
 | `lakehouse-tools` | `spark-client` | Ad-hoc Spark CLI verification and SQL smoke tests |
 
@@ -145,14 +142,13 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | **Spark Worker UI** | `8083` | HTTP | Spark worker node status |
 | **Trino Query Engine** | `8084` | HTTP | Trino web UI and JDBC/REST query port |
 | **Flink Dashboard** | `8085` | HTTP | Apache Flink streaming engine job manager UI |
-| **Apache Superset** | `8088` | HTTP | BI dashboards and SQL Lab interface |
 | **MinIO S3 API** | `9000` | HTTP (S3) | Object storage API endpoint |
 | **MinIO Web Console** | `9001` | HTTP | Web management console for S3 buckets |
 | **Apache Kafka Broker** | `9092, 9094` | TCP | Distributed event streaming backbone |
 | **Polaris REST Catalog** | `8181` | HTTP | Iceberg REST catalog API |
 | **Polaris Management** | `8182` | HTTP | Polaris health and management API |
 | **Polaris Console** | `8183` | HTTP | Web UI for Iceberg catalog & RBAC |
-| **PostgreSQL** | `5432` | TCP | Metadata database for Polaris, Airflow, and Superset |
+| **PostgreSQL** | `5432` | TCP | Metadata database for Polaris and Airflow |
 
 ---
 
@@ -171,7 +167,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | Airflow (orchestration) | 2.10.5 | Done |
 | MySQL (OLTP source) | 8.4.5 (27 tables) | Done |
 | LibreDB Studio (SQL IDE) | latest | Done |
-| Superset (BI) | 4.1.2 | Done |
+| Apache ECharts (Native BI) | 5.5 | Done |
 | E-Commerce API + Storefront | 0.1.0 (200 tests) | Done |
 
 ### Lakehouse Pipelines

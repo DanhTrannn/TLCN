@@ -12,7 +12,7 @@ Key capabilities include:
 - Medallion architecture (Bronze, Silver, Gold) using Apache Iceberg.
 - Strict data quality, quarantine, and reconciliation gates.
 - Idempotent pipelines supporting safe rerun, replay, and backfill.
-- Dimensional modeling for Superset BI dashboards via Trino.
+- Dimensional modeling for multi-role analytical dashboards and BI via Trino & Apache ECharts.
 - Point-in-time feature engineering for customer repurchase prediction.
 
 ---
@@ -63,7 +63,7 @@ The backend API emits structured JSON logs on container stdout for every complet
 3. **Immutable Landing:** Landing zone files and Bronze tables are append-only.
 4. **Idempotency:** Silver layer pipelines handle deduplication and state merging. Rerunning a pipeline with the same input yields the exact same logical state.
 5. **Quality Gates:** Data is only published to the Gold layer after passing exact-match reconciliation checks (e.g., row counts, monetary amounts, COGS parity).
-6. **Separation of Compute:** Spark and Flink handle Iceberg writes. Trino handles all read queries from Apache Superset, LibreDB Studio, and the Storefront Admin BI Hub (`/admin/analytics`). Transactional web APIs never communicate directly with Spark or Trino.
+6. **Separation of Compute:** Spark and Flink handle Iceberg writes. Trino handles all read queries from LibreDB Studio and the Storefront Admin BI Hub (`/admin/analytics`). Transactional web APIs never communicate directly with Spark or Polaris write paths.
 
 ---
 

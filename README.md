@@ -12,7 +12,6 @@
 [![Apache Iceberg](https://img.shields.io/badge/Apache_Iceberg-1.10.1-blue?style=flat-square&logo=apache&logoColor=white)](https://iceberg.apache.org)
 [![Apache Polaris](https://img.shields.io/badge/Apache_Polaris-1.6.0-teal?style=flat-square&logo=apache&logoColor=white)](https://polaris.apache.org)
 [![Trino](https://img.shields.io/badge/Trino-483-DD00A1?style=flat-square&logo=trino&logoColor=white)](https://trino.io)
-[![Apache Superset](https://img.shields.io/badge/Apache_Superset-4.1.2-0CA144?style=flat-square&logo=apache&logoColor=white)](https://superset.apache.org)
 [![Apache ECharts](https://img.shields.io/badge/Apache_ECharts-5.5-AA344D?style=flat-square&logo=apacheecharts&logoColor=white)](https://echarts.apache.org)
 
 :star: If you find this project useful, consider giving it a star!
@@ -21,7 +20,7 @@
 
 </div>
 
-The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse monorepo combining high-throughput transactional processing, real-time event streaming, and analytical data lakehouse architecture. It operates an operational MySQL 8.4 database with 27 relational tables (26 analytical tables ingested into Lakehouse), a FastAPI e-commerce backend, and a modern Next.js 15 storefront. The data platform combines Apache Kafka + Apache Flink for real-time streaming ingestion alongside Apache Spark for Medallion batch processing (Bronze, Silver, Gold) on Apache Iceberg with Polaris catalog. The analytical layer powers distributed SQL queries via Apache Trino, direct executive and multi-role visual analytics via Apache ECharts in the Admin BI Hub (`/admin/analytics`), and deep exploratory dashboards in Apache Superset.
+The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse monorepo combining high-throughput transactional processing, real-time event streaming, and analytical data lakehouse architecture. It operates an operational MySQL 8.4 database with 27 relational tables (26 analytical tables ingested into Lakehouse), a FastAPI e-commerce backend, and a modern Next.js 15 storefront. The data platform combines Apache Kafka + Apache Flink for real-time streaming ingestion alongside Apache Spark for Medallion batch processing (Bronze, Silver, Gold) on Apache Iceberg with Polaris catalog. The analytical layer powers distributed SQL queries via Apache Trino and direct executive and multi-role visual analytics via Apache ECharts in the Admin BI Hub (`/admin/analytics`).
 
 > [!NOTE]
 > The platform implements a **Hybrid Batch & Streaming Architecture**: Kafka & Apache Flink handle real-time clickstream events and streaming ingestion into Iceberg, while Apache Spark orchestrates scheduled batch transformations across Bronze, Silver, and Gold Medallion layers.
@@ -76,10 +75,10 @@ curl -fsS http://localhost:8000/health/ready
 
 ### 2. Start Data Platform Services
 
-Launch the Lakehouse processing and query services (Polaris Catalog, Spark Master/Worker, Airflow Scheduler/Webserver, Trino, and Apache Superset):
+Launch the Lakehouse processing and query services (Polaris Catalog, Spark Master/Worker, Airflow Scheduler/Webserver, and Trino):
 
 ```bash
-docker compose --profile batch --profile bi up -d
+docker compose --profile batch up -d
 ```
 
 To start the real-time streaming pipeline (Kafka + Apache Flink):
@@ -106,7 +105,6 @@ Once the services are running, access the following dashboards and endpoints:
 | **Spark Master UI** | 8082 | `http://localhost:8082` | (Web UI) |
 | **Trino Query Engine** | 8084 | `http://localhost:8084` | `trino` |
 | **Flink Dashboard** | 8085 | `http://localhost:8085` | (Web UI) |
-| **Apache Superset** | 8088 | `http://localhost:8088` | `admin` / `password` |
 | **Kafka Broker** | 9092, 9094 | `localhost:9092` | PLAINTEXT |
 
 ---
@@ -147,10 +145,10 @@ The system processes data from two operational pipelines: transactional business
                       (Bronze → Silver → Gold)
                                   │
                          Trino SQL Engine
-                        /        │       \
-                       ▼         ▼        ▼
-                LibreDB Studio  Apache   Admin BI Hub (ECharts)
-                   (Port 3001)  Superset   (/admin/analytics)
+                        /                \
+                       ▼                  ▼
+                LibreDB Studio       Admin BI Hub (ECharts)
+                   (Port 3001)          (/admin/analytics)
 ```
 
 ### Technology Stack
@@ -169,7 +167,6 @@ The system processes data from two operational pipelines: transactional business
 | **Orchestration** | Apache Airflow | 2.10.5 | DAG scheduling and job orchestration |
 | **Query Engine** | Trino | 483 | Distributed SQL query engine reading Iceberg tables |
 | **Query UI** | LibreDB Studio | Latest | Web-based SQL IDE for MySQL, PostgreSQL, and Trino |
-| **Visualization** | Apache Superset | 4.1.2 | Multi-dimensional BI exploratory dashboards |
 
 ---
 
@@ -259,7 +256,7 @@ Explore the detailed architecture and planning documents:
 | **Business Requirements** | [`docs/project/BUSINESS_REQUIREMENTS.md`](docs/project/BUSINESS_REQUIREMENTS.md) | Full e-commerce operations, POS, Lakehouse mapping & extensions |
 | **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
 | **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
-| **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and Superset reporting |
+| **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and analytical reporting |
 | **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Kafka + Flink streaming pipeline, S3 layout |
 | **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
 | **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |

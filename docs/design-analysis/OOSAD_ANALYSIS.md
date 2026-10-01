@@ -1980,7 +1980,7 @@ classDiagram
 
 > **Phạm vi:** Nền tảng dữ liệu phân tích và báo cáo quản trị  
 > **Tác nhân (Actors):** Data Engineer (Kỹ sư dữ liệu), Data Analyst (Chuyên viên phân tích dữ liệu)  
-> **Ngăn xếp công nghệ (Stack):** Apache Spark, Apache Iceberg, Polaris Catalog, Apache Airflow, Trino, Apache Superset, MinIO S3
+> **Ngăn xếp công nghệ (Stack):** Apache Spark, Apache Iceberg, Polaris Catalog, Apache Airflow, Trino, Apache ECharts, MinIO S3
 
 ---
 
@@ -1991,7 +1991,7 @@ classDiagram
 | Actor (Tác nhân) | Vai trò | Mô tả | Giao diện |
 |-------|---------|-------|-----------|
 | **Data Engineer** | Kỹ sư dữ liệu | Thiết kế, vận hành các đường ống ETL/ELT, kiểm soát chất lượng dữ liệu và quản lý metadata catalog | Giao diện Airflow, Spark CLI, Polaris Console |
-| **Data Analyst** | Chuyên viên phân tích | Khai thác truy vấn dữ liệu phân tích, xây dựng biểu đồ BI dashboard và tạo các đặc trưng phục vụ Machine Learning | Trino/LibreDB Studio, Superset, Jupyter Notebook |
+| **Data Analyst** | Chuyên viên phân tích | Khai thác truy vấn dữ liệu phân tích, xây dựng biểu đồ BI dashboard và tạo các đặc trưng phục vụ Machine Learning | Trino/LibreDB Studio, Apache ECharts BI Hub, Jupyter Notebook |
 
 ---
 
@@ -2055,7 +2055,7 @@ graph LR
     
     subgraph "Tầng dịch vụ phục vụ (Serving Layer)"
         Trino[(Công cụ truy vấn Trino)]
-        Superset[(Bảng điều khiển Superset)]
+        ECH[(Bảng điều khiển Apache ECharts)]
         ML[(Tập đặc trưng ML Features)]
     end
     
@@ -2065,7 +2065,7 @@ graph LR
     Bronze -->|Làm sạch & Chuẩn hóa| Silver
     Silver -->|Tổng hợp nghiệp vụ| Gold
     Gold -->|Truy vấn OLAP| Trino
-    Trino -->|Trực quan hóa| Superset
+    Trino -->|Trực quan hóa| ECH
     Gold -->|Huấn luyện mô hình| ML
 ```
 
@@ -2097,17 +2097,17 @@ graph TB
     end
     
     subgraph "Tầng hiển thị và phân tích (Presentation Layer)"
-        SU[Trực quan hóa Superset 4.1.2]
+        ECH[Trực quan hóa Apache ECharts]
         LU[Giao diện truy vấn LibreDB Studio]
     end
     
     AF --> SP
     SP --> S3
-    FB --> S3
+    KF & FL --> S3
     S3 --> ICE
     POL --> ICE
     ICE --> TR
-    TR --> SU
+    TR --> ECH
     TR --> HU
 ```
 
@@ -2437,24 +2437,24 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     participant DA as Chuyên viên Phân tích (Data Analyst)
-    participant SU as Giao diện Apache Superset
+    participant ECH as Giao diện Apache ECharts BI Hub
     participant TR as Động cơ truy vấn Trino
     
-    DA->>SU: Khởi tạo bảng điều khiển mới
-    SU-->>DA: Hiển thị khung làm việc thiết kế dashboard
+    DA->>ECH: Khởi tạo bảng điều khiển mới
+    ECH-->>DA: Hiển thị khung làm việc thiết kế dashboard
     
-    DA->>SU: Thêm một biểu đồ trực quan hóa
-    SU-->>DA: Mở màn hình cấu hình biểu đồ
+    DA->>ECH: Thêm một biểu đồ trực quan hóa
+    ECH-->>DA: Mở màn hình cấu hình biểu đồ
     
-    DA->>SU: Chọn nguồn dữ liệu kết nối Trino
-    DA->>SU: Viết câu lệnh truy vấn phân tích SQL
-    SU->>TR: Gửi lệnh thực thi truy vấn
-    TR-->>SU: Trả về tập dữ liệu kết quả
-    SU->>SU: Dựng hình và kết xuất biểu đồ
-    SU-->>DA: Hiển thị bản xem trước biểu đồ trực quan
+    DA->>ECH: Chọn nguồn dữ liệu kết nối Trino
+    DA->>ECH: Viết câu lệnh truy vấn phân tích SQL
+    ECH->>TR: Gửi lệnh thực thi truy vấn
+    TR-->>ECH: Trả về tập dữ liệu kết quả
+    ECH->>ECH: Dựng hình và kết xuất biểu đồ
+    ECH-->>DA: Hiển thị bản xem trước biểu đồ trực quan
     
-    DA->>SU: Nhấn lưu bảng điều khiển
-    SU->>SU: Lưu trữ cấu hình vào cơ sở dữ liệu Superset
+    DA->>ECH: Nhấn lưu bảng điều khiển
+    ECH->>ECH: Lưu trữ cấu hình biểu đồ vào hệ thống
 ```
 
 ### 2.6.5 UC20: Sơ đồ tuần tự Trích xuất đặc trưng ML (Generate ML Features Sequence)
@@ -2552,7 +2552,7 @@ sequenceDiagram
 | Sơ đồ thành phần thể hiện đầy đủ kiến trúc hạ tầng | ✅ Đạt | Bao gồm tổng thể hệ thống và chi tiết đường ống ETL |
 | Sơ đồ luồng dữ liệu minh họa rõ ràng luồng đường ống | ✅ Đạt | Kiến trúc Medallion (Bronze, Silver, Gold) và luồng trích xuất dữ liệu |
 | Sơ đồ hoạt động phản ánh đúng quy trình vận hành dữ liệu | ✅ Đạt | 4 sơ đồ hoạt động chính cho vận hành, giám sát và kiểm tra chất lượng |
-| Sơ đồ tuần tự thể hiện rõ tương tác giữa các công cụ | ✅ Đạt | 6 sơ đồ tuần tự giữa Airflow, Spark, MinIO, Trino, Polaris và Superset |
+| Sơ đồ tuần tự thể hiện rõ tương tác giữa các công cụ | ✅ Đạt | 6 sơ đồ tuần tự giữa Airflow, Spark, MinIO, Trino, Polaris và Apache ECharts |
 
 ### Bảng tổng kết số lượng biểu đồ (Diagram Count Summary)
 

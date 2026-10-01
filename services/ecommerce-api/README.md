@@ -68,7 +68,6 @@ uv run --package ecommerce-api uvicorn app.main:app --host 0.0.0.0 --port 8000 -
 | `/api/v1/admin/inbound/receipts` | GET / POST | Inventory / Admin | Workshop inbound production receipts and MWA inventory costing |
 | `/api/v1/admin/analytics/role-metrics`| GET | Staff (RBAC gated) | Role-based operational telemetry (7 roles, RLS for store managers) |
 | `/api/v1/admin/analytics/sales-trend` | GET | Sales / Admin | Historical daily sales and profit trend |
-| `/api/v1/admin/analytics/superset-config`| GET | Staff | Apache Superset Studio connection config |
 | `/api/v1/admin/logistics/*` | GET / POST | Operations / Admin | Delivery dispatch, shipper assignment, and COD collection |
 | `/api/v1/admin/returns/*` | GET / POST | Operations / Admin | Customer return inspection, approval, and refund disbursement |
 

@@ -43,7 +43,7 @@ MySQL 8.4 (OLTP)             Apache Kafka (Event Bus)
 
 ### 2.1. Dependency Invariants
 - The Storefront only communicates with the FastAPI Backend; it never accesses MySQL directly.
-- The FastAPI Backend never interacts with Spark, Polaris, Trino, or Superset.
+- The FastAPI Backend interacts with Trino via read-only queries for Lakehouse analytics, and never interacts directly with Spark or Polaris.
 - The Data Lakehouse batch pipelines only read from MySQL with a dedicated read-only user and never write back to the OLTP database.
 
 ---

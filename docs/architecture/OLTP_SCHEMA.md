@@ -1272,7 +1272,7 @@ PII ở `customers` (tên, email, phone) và `delivery_staff` (tên, phone) ph�
 
 Hệ thống đồ án tốt nghiệp hiện tại đã triển khai thành công toàn diện:
 1. **Kiến trúc Hybrid Lakehouse hoàn chỉnh**: Tích hợp 26 bảng OLTP, luồng Batch qua PySpark và luồng Streaming qua Apache Kafka + Apache Flink Ingestion.
-2. **Công cụ truy vấn phân tán & Trực quan hóa**: Tích hợp Apache Trino Distributed SQL Engine truy vấn trực tiếp bảng Gold Marts và Iceberg/Delta Lake, liên kết giao diện đồ họa quản trị Apache ECharts đa vai trò (7 chức năng quản trị nghiệp vụ) và Apache Superset Studio.
+2. **Công cụ truy vấn phân tán & Trực quan hóa**: Tích hợp Apache Trino Distributed SQL Engine truy vấn trực tiếp bảng Gold Marts trên Apache Iceberg, liên kết giao diện đồ họa quản trị native Apache ECharts đa vai trò (7 chức năng quản trị nghiệp vụ) trực tiếp trên Storefront Admin BI Hub.
 3. **Mô hình kế toán kho & tài chính hiện đại**: Quản lý chi phí xưởng, tính giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing), snapshot COGS tức thời khi tạo đơn, theo dõi biên lợi nhuận gộp theo thời gian thực.
 4. **Luồng vận hành chuẩn thương mại điện tử**: Tích hợp kiểm soát giao vận nội bộ, xử lý boom hàng COD 3 lần kèm chặn COD tự động, hoàn tồn kho tự động, quy trình đổi trả hàng 7 ngày và xác nhận hoàn tất đơn từ phía khách hàng.
 
