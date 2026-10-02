@@ -7,6 +7,7 @@ DELETE FROM lakehouse.gold.mart_inventory_health WHERE snapshot_date >= current_
 DELETE FROM lakehouse.gold.mart_product_returns WHERE return_date >= current_date() - INTERVAL 30 DAYS;
 DELETE FROM lakehouse.gold.dim_product WHERE product_key > 0;
 DELETE FROM lakehouse.gold.fact_order_item WHERE order_item_id > 0;
+DELETE FROM lakehouse.gold.mart_marketing_funnel_daily WHERE metric_date >= current_date() - INTERVAL 30 DAYS;
 
 -- 1. Seed mart_sales_daily (14 days time-series across online and POS)
 INSERT INTO lakehouse.gold.mart_sales_daily (
@@ -94,3 +95,15 @@ INSERT INTO lakehouse.gold.fact_order_item (
 (3, 3, 3, 3, 60, 750000, 45000000, 24000000, 21000000),
 (4, 4, 4, 1, 75, 420000, 31500000, 15750000, 15750000),
 (5, 5, 5, 4, 50, 380000, 19000000, 8550000, 10450000);
+
+-- 7. Seed mart_marketing_funnel_daily
+INSERT INTO lakehouse.gold.mart_marketing_funnel_daily (
+    metric_date, product_views, cart_additions, checkout_initiations, orders_completed,
+    view_to_cart_rate_pct, cart_to_checkout_rate_pct, checkout_to_order_rate_pct, overall_conversion_rate_pct,
+    unique_visitors
+) VALUES
+(date_sub(current_date(), 3), 450, 120, 65, 38, 26.67, 54.17, 58.46, 8.44, 380),
+(date_sub(current_date(), 2), 520, 145, 80, 48, 27.88, 55.17, 60.0, 9.23, 440),
+(date_sub(current_date(), 1), 680, 190, 110, 68, 27.94, 57.89, 61.82, 10.0, 560),
+(current_date(), 310, 85, 45, 28, 27.42, 52.94, 62.22, 9.03, 270);
+

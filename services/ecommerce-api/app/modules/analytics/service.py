@@ -269,7 +269,8 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
     checkouts_count = db.scalar(select(func.count()).select_from(Order)) or 0
     cart_items_count = db.scalar(select(func.count()).select_from(CartItem)) or 0
     add_to_cart_count = max(cart_items_count + checkouts_count, checkouts_count)
-    visitors_count = max(add_to_cart_count * 3, 100) if add_to_cart_count > 0 else 100
+    customer_count = db.scalar(select(func.count(Customer.customer_id)).select_from(Customer)) or 0
+    visitors_count = max(add_to_cart_count, customer_count)
 
     conv_rate = round((purchases_count / visitors_count) * 100, 2) if visitors_count > 0 else 0.0
 
@@ -277,7 +278,7 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
         FunnelStep(
             step_name="Lượt xem sản phẩm (Product Views)",
             count=visitors_count,
-            conversion_rate_percent=100.0,
+            conversion_rate_percent=100.0 if visitors_count > 0 else 0.0,
         ),
         FunnelStep(
             step_name="Thêm vào giỏ (Add to Cart)",
@@ -712,21 +713,47 @@ def get_marketing_metrics(
     client = trino_client or default_trino_client
     if client.is_healthy():
         try:
-            funnel_rows = client.execute_query("""
-                SELECT 
-                    COALESCE(SUM(product_views), 0) AS visitors_count,
-                    COALESCE(SUM(cart_additions), 0) AS add_to_cart_count,
-                    COALESCE(SUM(checkout_initiations), 0) AS checkouts_count,
-                    COALESCE(SUM(orders_completed), 0) AS purchases_count
-                FROM lakehouse.gold.mart_marketing_funnel_daily
-            """)
+            funnel_rows = None
+            try:
+                funnel_rows = client.execute_query("""
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('product_detail', 'catalog_search') OR http_route LIKE '/api/v1/products%' THEN 1 ELSE 0 END), 0) AS visitors_count,
+                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('cart_item_set', 'cart_add') OR http_route LIKE '/api/v1/cart%' THEN 1 ELSE 0 END), 0) AS add_to_cart_count,
+                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('checkout_quote', 'checkout_submit') OR http_route LIKE '/api/v1/checkout%' THEN 1 ELSE 0 END), 0) AS checkouts_count,
+                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('order_complete', 'order_confirm_internal') OR (ecommerce_action = 'checkout_submit' AND is_success) THEN 1 ELSE 0 END), 0) AS purchases_count
+                    FROM lakehouse.gold.fact_web_events
+                """)
+            except Exception as stream_exc:
+                logger.info("Direct fact_web_events query not ready, checking mart_marketing_funnel_daily: %s", stream_exc)
+
             f_row = funnel_rows[0] if funnel_rows else {}
-            visitors = int(f_row.get("visitors_count") or 100)
-            if visitors == 0:
-                visitors = 100
+            visitors = int(f_row.get("visitors_count") or 0)
             add_to_cart = int(f_row.get("add_to_cart_count") or 0)
             checkouts = int(f_row.get("checkouts_count") or 0)
             purchases = int(f_row.get("purchases_count") or 0)
+
+            # If fact_web_events had 0 records or failed, try mart_marketing_funnel_daily
+            if visitors == 0 and add_to_cart == 0 and checkouts == 0:
+                try:
+                    mart_rows = client.execute_query("""
+                        SELECT 
+                            COALESCE(SUM(product_views), 0) AS visitors_count,
+                            COALESCE(SUM(cart_additions), 0) AS add_to_cart_count,
+                            COALESCE(SUM(checkout_initiations), 0) AS checkouts_count,
+                            COALESCE(SUM(orders_completed), 0) AS purchases_count
+                        FROM lakehouse.gold.mart_marketing_funnel_daily
+                    """)
+                    if mart_rows:
+                        m_row = mart_rows[0]
+                        visitors = int(m_row.get("visitors_count") or 0)
+                        add_to_cart = int(m_row.get("add_to_cart_count") or 0)
+                        checkouts = int(m_row.get("checkouts_count") or 0)
+                        purchases = int(m_row.get("purchases_count") or 0)
+                except Exception as mart_exc:
+                    logger.info("mart_marketing_funnel_daily query skipped: %s", mart_exc)
+
+            if visitors == 0 and add_to_cart == 0 and checkouts == 0 and purchases == 0 and db is not None:
+                return _get_marketing_metrics_oltp(db)
 
             conv_rate = round((purchases / visitors) * 100, 2) if visitors > 0 else 0.0
 
@@ -734,7 +761,7 @@ def get_marketing_metrics(
                 FunnelStep(
                     step_name="Lượt xem sản phẩm (Product Views)",
                     count=visitors,
-                    conversion_rate_percent=100.0,
+                    conversion_rate_percent=100.0 if visitors > 0 else 0.0,
                 ),
                 FunnelStep(
                     step_name="Thêm vào giỏ (Add to Cart)",

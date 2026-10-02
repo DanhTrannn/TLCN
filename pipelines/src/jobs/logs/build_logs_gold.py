@@ -7,8 +7,10 @@ from lakehouse.logs.gold import (
     FACT_WEB_EVENTS_TABLE,
     MART_DAILY_PRODUCT_DEMAND_TABLE,
     MART_HOURLY_ROUTE_METRICS_TABLE,
+    MART_MARKETING_FUNNEL_DAILY_TABLE,
     build_mart_daily_product_demand,
     build_mart_hourly_route_metrics,
+    build_mart_marketing_funnel_daily,
     ensure_logs_gold_tables,
 )
 from lakehouse.spark import spark_session
@@ -65,7 +67,17 @@ def main() -> None:
             product_demand_df.writeTo(MART_DAILY_PRODUCT_DEMAND_TABLE).overwritePartitions()
             print(f"[{args.run_id}] Written {product_count} rows to {MART_DAILY_PRODUCT_DEMAND_TABLE}")
 
-        print(f"Logs Gold Marts Rollup Complete: hourly_routes={hourly_count}, product_demand={product_count}")
+        # 5. Build and write Daily Marketing Funnel Mart
+        funnel_mart_df = build_mart_marketing_funnel_daily(target_facts, args.run_id)
+        funnel_count = funnel_mart_df.count()
+        if funnel_count > 0:
+            funnel_mart_df.writeTo(MART_MARKETING_FUNNEL_DAILY_TABLE).overwritePartitions()
+            print(f"[{args.run_id}] Written {funnel_count} rows to {MART_MARKETING_FUNNEL_DAILY_TABLE}")
+
+        print(
+            f"Logs Gold Marts Rollup Complete: hourly_routes={hourly_count}, "
+            f"product_demand={product_count}, marketing_funnel={funnel_count}"
+        )
     finally:
         spark.stop()
 

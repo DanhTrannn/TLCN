@@ -15,8 +15,26 @@ def test_gold_marts_ddl_and_seed_files_exist():
     assert "lakehouse.gold.mart_logistics_performance" in init_content
     assert "lakehouse.gold.mart_inventory_health" in init_content
     assert "lakehouse.gold.mart_product_returns" in init_content
+    assert "lakehouse.gold.mart_marketing_funnel_daily" in init_content
 
     seed_content = seed_sql.read_text(encoding="utf-8")
     assert "INSERT INTO lakehouse.gold.mart_sales_daily" in seed_content
     assert "INSERT INTO lakehouse.gold.mart_logistics_performance" in seed_content
     assert "INSERT INTO lakehouse.gold.mart_inventory_health" in seed_content
+    assert "INSERT INTO lakehouse.gold.mart_marketing_funnel_daily" in seed_content
+
+
+def test_logs_gold_marketing_funnel_ddl_and_table():
+    from lakehouse.logs.gold import (
+        MART_MARKETING_FUNNEL_DAILY_DDL,
+        MART_MARKETING_FUNNEL_DAILY_TABLE,
+    )
+
+    assert MART_MARKETING_FUNNEL_DAILY_TABLE == "lakehouse.gold.mart_marketing_funnel_daily"
+    assert "CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_marketing_funnel_daily" in MART_MARKETING_FUNNEL_DAILY_DDL
+    assert "product_views" in MART_MARKETING_FUNNEL_DAILY_DDL
+    assert "cart_additions" in MART_MARKETING_FUNNEL_DAILY_DDL
+    assert "checkout_initiations" in MART_MARKETING_FUNNEL_DAILY_DDL
+    assert "orders_completed" in MART_MARKETING_FUNNEL_DAILY_DDL
+    assert "view_to_cart_rate_pct" in MART_MARKETING_FUNNEL_DAILY_DDL
+

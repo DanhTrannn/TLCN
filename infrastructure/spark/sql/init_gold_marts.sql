@@ -119,3 +119,22 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_order_item (
     _source_run_id                  STRING
 )
 USING iceberg;
+
+-- 7. mart_marketing_funnel_daily
+CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_marketing_funnel_daily (
+    metric_date                     DATE,
+    product_views                   BIGINT,
+    cart_additions                  BIGINT,
+    checkout_initiations            BIGINT,
+    orders_completed                BIGINT,
+    view_to_cart_rate_pct           DOUBLE,
+    cart_to_checkout_rate_pct       DOUBLE,
+    checkout_to_order_rate_pct      DOUBLE,
+    overall_conversion_rate_pct     DOUBLE,
+    unique_visitors                 BIGINT,
+    _gold_ingested_at               TIMESTAMP,
+    _source_run_id                  STRING
+)
+USING iceberg
+PARTITIONED BY (metric_date);
+

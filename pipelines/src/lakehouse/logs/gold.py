@@ -13,6 +13,7 @@ except ImportError:
 FACT_WEB_EVENTS_TABLE = "lakehouse.gold.fact_web_events"
 MART_HOURLY_ROUTE_METRICS_TABLE = "lakehouse.gold.mart_hourly_route_metrics"
 MART_DAILY_PRODUCT_DEMAND_TABLE = "lakehouse.gold.mart_daily_product_demand"
+MART_MARKETING_FUNNEL_DAILY_TABLE = "lakehouse.gold.mart_marketing_funnel_daily"
 
 FACT_WEB_EVENTS_DDL = f"""
 CREATE TABLE IF NOT EXISTS {FACT_WEB_EVENTS_TABLE} (
@@ -91,12 +92,36 @@ TBLPROPERTIES (
 )
 """
 
+MART_MARKETING_FUNNEL_DAILY_DDL = f"""
+CREATE TABLE IF NOT EXISTS {MART_MARKETING_FUNNEL_DAILY_TABLE} (
+    metric_date             DATE                            COMMENT 'Metric observation date',
+    product_views           BIGINT                          COMMENT 'Product detail and browsing views count',
+    cart_additions          BIGINT                          COMMENT 'Cart item additions count',
+    checkout_initiations    BIGINT                          COMMENT 'Checkout initiation count',
+    orders_completed        BIGINT                          COMMENT 'Orders completed count',
+    view_to_cart_rate_pct   DOUBLE                          COMMENT 'Conversion percentage from view to cart',
+    cart_to_checkout_rate_pct DOUBLE                        COMMENT 'Conversion percentage from cart to checkout',
+    checkout_to_order_rate_pct DOUBLE                       COMMENT 'Conversion percentage from checkout to order',
+    overall_conversion_rate_pct DOUBLE                      COMMENT 'Overall conversion percentage from view to order',
+    unique_visitors         BIGINT                          COMMENT 'Unique actor count',
+    _gold_ingested_at       TIMESTAMP                       COMMENT 'UTC timestamp when record was written to Gold',
+    _source_run_id          STRING                          COMMENT 'Airflow/Spark execution batch run ID'
+)
+USING iceberg
+PARTITIONED BY (metric_date)
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.parquet.compression-codec' = 'zstd'
+)
+"""
+
 
 def ensure_logs_gold_tables(spark: SparkSession) -> None:
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.gold")
     spark.sql(FACT_WEB_EVENTS_DDL)
     spark.sql(MART_HOURLY_ROUTE_METRICS_DDL)
     spark.sql(MART_DAILY_PRODUCT_DEMAND_DDL)
+    spark.sql(MART_MARKETING_FUNNEL_DAILY_DDL)
 
 
 def build_fact_web_events(silver_df: DataFrame, run_id: str) -> DataFrame:
@@ -222,3 +247,87 @@ def build_mart_daily_product_demand(fact_df: DataFrame, run_id: str) -> DataFram
             "_source_run_id",
         )
     )
+
+
+def build_mart_marketing_funnel_daily(fact_df: DataFrame, run_id: str) -> DataFrame:
+    return (
+        fact_df
+        .groupBy("event_date")
+        .agg(
+            F.sum(
+                F.when(
+                    (F.col("ecommerce_action").isin("product_detail", "catalog_search"))
+                    | (F.col("http_route").startswith("/api/v1/products")),
+                    1,
+                ).otherwise(0)
+            ).alias("product_views"),
+            F.sum(
+                F.when(
+                    (F.col("ecommerce_action").isin("cart_item_set", "cart_add"))
+                    | (F.col("http_route").startswith("/api/v1/cart")),
+                    1,
+                ).otherwise(0)
+            ).alias("cart_additions"),
+            F.sum(
+                F.when(
+                    (F.col("ecommerce_action").isin("checkout_quote", "checkout_submit"))
+                    | (F.col("http_route").startswith("/api/v1/checkout")),
+                    1,
+                ).otherwise(0)
+            ).alias("checkout_initiations"),
+            F.sum(
+                F.when(
+                    (F.col("ecommerce_action").isin("order_complete", "order_confirm_internal"))
+                    | ((F.col("ecommerce_action") == "checkout_submit") & F.col("is_success")),
+                    1,
+                ).otherwise(0)
+            ).alias("orders_completed"),
+            F.countDistinct("actor_key").alias("unique_visitors"),
+        )
+        .withColumn(
+            "view_to_cart_rate_pct",
+            F.when(
+                F.col("product_views") > 0,
+                F.round((F.col("cart_additions") / F.col("product_views")) * 100.0, 2),
+            ).otherwise(0.0),
+        )
+        .withColumn(
+            "cart_to_checkout_rate_pct",
+            F.when(
+                F.col("cart_additions") > 0,
+                F.round((F.col("checkout_initiations") / F.col("cart_additions")) * 100.0, 2),
+            ).otherwise(0.0),
+        )
+        .withColumn(
+            "checkout_to_order_rate_pct",
+            F.when(
+                F.col("checkout_initiations") > 0,
+                F.round((F.col("orders_completed") / F.col("checkout_initiations")) * 100.0, 2),
+            ).otherwise(0.0),
+        )
+        .withColumn(
+            "overall_conversion_rate_pct",
+            F.when(
+                F.col("product_views") > 0,
+                F.round((F.col("orders_completed") / F.col("product_views")) * 100.0, 2),
+            ).otherwise(0.0),
+        )
+        .withColumn("metric_date", F.col("event_date"))
+        .withColumn("_gold_ingested_at", F.current_timestamp())
+        .withColumn("_source_run_id", F.lit(run_id))
+        .select(
+            "metric_date",
+            "product_views",
+            "cart_additions",
+            "checkout_initiations",
+            "orders_completed",
+            "view_to_cart_rate_pct",
+            "cart_to_checkout_rate_pct",
+            "checkout_to_order_rate_pct",
+            "overall_conversion_rate_pct",
+            "unique_visitors",
+            "_gold_ingested_at",
+            "_source_run_id",
+        )
+    )
+
