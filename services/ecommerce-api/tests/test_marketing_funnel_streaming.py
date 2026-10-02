@@ -138,3 +138,40 @@ def test_get_marketing_metrics_oltp_no_fake_multiplier(in_memory_db: Session):
     assert steps["Thêm vào giỏ (Add to Cart)"] == 0
     assert steps["Tiến hành thanh toán (Checkout)"] == 0
     assert steps["Đặt hàng thành công (Purchased)"] == 0
+
+
+def test_get_metrics_fails_fast_when_trino_unhealthy(in_memory_db: Session):
+    """Verify get_executive_metrics throws error directly when Trino is offline, no OLTP fallback."""
+    from app.core.errors import AppError
+    from app.modules.analytics.service import get_executive_metrics, get_sales_metrics
+
+    mock_trino = MagicMock(spec=TrinoClient)
+    mock_trino.is_healthy.return_value = False
+    mock_trino.base_url = "http://trino:8080"
+
+    with pytest.raises(AppError) as exc_info:
+        get_executive_metrics(db=in_memory_db, trino_client=mock_trino)
+
+    assert "Không thể kết nối đến Trino DWH Coordinator" in str(exc_info.value.message)
+
+    with pytest.raises(AppError) as exc_info_sales:
+        get_sales_metrics(db=in_memory_db, trino_client=mock_trino)
+
+    assert "Không thể kết nối đến Trino DWH Coordinator" in str(exc_info_sales.value.message)
+
+
+def test_get_metrics_fails_fast_when_trino_query_fails(in_memory_db: Session):
+    """Verify get_executive_metrics directly surfaces the exact Trino query error without fallback."""
+    from app.core.errors import AppError
+    from app.modules.analytics.service import get_executive_metrics
+
+    mock_trino = MagicMock(spec=TrinoClient)
+    mock_trino.is_healthy.return_value = True
+    mock_trino.execute_query.side_effect = RuntimeError("Trino Query Error: Table 'lakehouse.gold.mart_sales_daily' not found")
+
+    with pytest.raises(AppError) as exc_info:
+        get_executive_metrics(db=in_memory_db, trino_client=mock_trino)
+
+    assert "Lỗi truy vấn Trino DWH (Executive)" in str(exc_info.value.message)
+    assert "Table 'lakehouse.gold.mart_sales_daily' not found" in str(exc_info.value.message)
+

@@ -512,59 +512,55 @@ def get_executive_metrics(
     trino_client: TrinoClient | None = None,
 ) -> ExecutiveMetricsResponse:
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            sales_rows = client.execute_query("""
-                SELECT 
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS gmv_vnd,
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS net_revenue_vnd,
-                    COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
-                    COALESCE(SUM(gross_profit_vnd), 0) AS gross_profit_vnd,
-                    COALESCE(SUM(total_orders), 0) AS total_orders,
-                    COALESCE(SUM(boom_orders), 0) AS boom_orders
-                FROM lakehouse.gold.mart_sales_daily
-            """)
-            s_row = sales_rows[0] if sales_rows else {}
-            gmv = int(s_row.get("gmv_vnd") or 0)
-            net_rev = int(s_row.get("net_revenue_vnd") or 0)
-            cogs = int(s_row.get("cogs_vnd") or 0)
-            gross_profit = int(s_row.get("gross_profit_vnd") or (net_rev - cogs))
-            total_orders = int(s_row.get("total_orders") or 0)
-            boom_orders = int(s_row.get("boom_orders") or 0)
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-            ret_rows = client.execute_query("""
-                SELECT COALESCE(SUM(total_return_requests), 0) AS return_count
-                FROM lakehouse.gold.mart_product_returns
-            """)
-            r_row = ret_rows[0] if ret_rows else {}
-            return_count = int(r_row.get("return_count") or 0)
+    try:
+        sales_rows = client.execute_query("""
+            SELECT 
+                COALESCE(SUM(gross_revenue_vnd), 0) AS gmv_vnd,
+                COALESCE(SUM(gross_revenue_vnd), 0) AS net_revenue_vnd,
+                COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
+                COALESCE(SUM(gross_profit_vnd), 0) AS gross_profit_vnd,
+                COALESCE(SUM(total_orders), 0) AS total_orders,
+                COALESCE(SUM(boom_orders), 0) AS boom_orders
+            FROM lakehouse.gold.mart_sales_daily
+        """)
+        s_row = sales_rows[0] if sales_rows else {}
+        gmv = int(s_row.get("gmv_vnd") or 0)
+        net_rev = int(s_row.get("net_revenue_vnd") or 0)
+        cogs = int(s_row.get("cogs_vnd") or 0)
+        gross_profit = int(s_row.get("gross_profit_vnd") or (net_rev - cogs))
+        total_orders = int(s_row.get("total_orders") or 0)
+        boom_orders = int(s_row.get("boom_orders") or 0)
 
-            gross_margin = round((gross_profit / net_rev) * 100, 1) if net_rev > 0 else 0.0
-            aov = round(net_rev / total_orders) if total_orders > 0 and net_rev > 0 else 0
-            boom_rate = round((boom_orders / total_orders) * 100, 2) if total_orders > 0 else 0.0
-            return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
+        ret_rows = client.execute_query("""
+            SELECT COALESCE(SUM(total_return_requests), 0) AS return_count
+            FROM lakehouse.gold.mart_product_returns
+        """)
+        r_row = ret_rows[0] if ret_rows else {}
+        return_count = int(r_row.get("return_count") or 0)
 
-            return ExecutiveMetricsResponse(
-                role="executive",
-                gmv_vnd=gmv,
-                net_revenue_vnd=net_rev,
-                cogs_vnd=cogs,
-                gross_profit_vnd=gross_profit,
-                gross_margin_percent=gross_margin,
-                total_orders=total_orders,
-                aov_vnd=aov,
-                boom_rate_percent=boom_rate,
-                return_rate_percent=return_rate,
-            )
-        except Exception as exc:
-            logger.warning("Trino executive query failed, attempting OLTP fallback: %s", exc)
-            if db is None:
-                raise
+        gross_margin = round((gross_profit / net_rev) * 100, 1) if net_rev > 0 else 0.0
+        aov = round(net_rev / total_orders) if total_orders > 0 and net_rev > 0 else 0
+        boom_rate = round((boom_orders / total_orders) * 100, 2) if total_orders > 0 else 0.0
+        return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
 
-    if db is not None:
-        return _get_executive_metrics_oltp(db)
-
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        return ExecutiveMetricsResponse(
+            role="executive",
+            gmv_vnd=gmv,
+            net_revenue_vnd=net_rev,
+            cogs_vnd=cogs,
+            gross_profit_vnd=gross_profit,
+            gross_margin_percent=gross_margin,
+            total_orders=total_orders,
+            aov_vnd=aov,
+            boom_rate_percent=boom_rate,
+            return_rate_percent=return_rate,
+        )
+    except Exception as exc:
+        logger.error("Trino executive query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Executive): {exc}") from exc
 
 
 def get_sales_metrics(
@@ -572,138 +568,134 @@ def get_sales_metrics(
     trino_client: TrinoClient | None = None,
 ) -> SalesMetricsResponse:
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            store_rows = client.execute_query("""
-                SELECT 
-                    CASE 
-                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
-                        ELSE m.store_key
-                    END AS effective_store_key,
-                    CASE 
-                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                        ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
-                    END AS channel_name,
-                    COALESCE(SUM(m.gross_revenue_vnd), 0) AS revenue_vnd,
-                    COALESCE(SUM(m.total_orders), 0) AS order_count
-                FROM lakehouse.gold.mart_sales_daily m
-                LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
-                GROUP BY 
-                    CASE 
-                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
-                        ELSE m.store_key
-                    END,
-                    CASE 
-                        WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                        ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
-                    END
-                ORDER BY revenue_vnd DESC
-            """)
-            contributions_map: dict[str, StoreContribution] = {}
-            for row in store_rows:
-                store_key = int(row.get("effective_store_key") or 0)
-                store_name = str(
-                    row.get("channel_name")
-                    or ("Kênh Online Toàn Quốc" if store_key == 0 else f"Cửa hàng #{store_key}")
-                )
-                s_id = store_key if store_key > 0 else None
-                rev = int(row.get("revenue_vnd") or 0)
-                cnt = int(row.get("order_count") or 0)
-                if store_name in contributions_map:
-                    existing = contributions_map[store_name]
-                    contributions_map[store_name] = StoreContribution(
-                        store_id=existing.store_id or s_id,
-                        store_name=store_name,
-                        revenue_vnd=existing.revenue_vnd + rev,
-                        order_count=existing.order_count + cnt,
-                    )
-                else:
-                    contributions_map[store_name] = StoreContribution(
-                        store_id=s_id,
-                        store_name=store_name,
-                        revenue_vnd=rev,
-                        order_count=cnt,
-                    )
-            store_contributions = sorted(contributions_map.values(), key=lambda x: x.revenue_vnd, reverse=True)
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-            prod_rows = client.execute_query("""
-                SELECT 
-                    dp.product_id,
-                    dp.product_name,
-                    COALESCE(SUM(foi.quantity), 0) AS units_sold,
-                    COALESCE(SUM(foi.item_total_vnd), 0) AS revenue_vnd
-                FROM lakehouse.gold.fact_order_item foi
-                JOIN lakehouse.gold.dim_product dp ON foi.product_key = dp.product_key
-                GROUP BY dp.product_id, dp.product_name
-                ORDER BY revenue_vnd DESC
-                LIMIT 10
-            """)
-            top_selling_products = [
-                TopProductMetric(
-                    product_id=int(row.get("product_id") or 0),
-                    product_name=str(row.get("product_name") or ""),
-                    units_sold=int(row.get("units_sold") or 0),
-                    revenue_vnd=int(row.get("revenue_vnd") or 0),
-                )
-                for row in prod_rows
-            ]
-
-            cat_rows = client.execute_query("""
-                SELECT 
-                    category_id,
-                    category_name,
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd
-                FROM lakehouse.gold.mart_sales_daily
-                GROUP BY category_id, category_name
-                ORDER BY revenue_vnd DESC
-            """)
-            aggregated_cats: dict[str, dict] = {}
-            for row in cat_rows:
-                c_id = int(row.get("category_id") or 0)
-                c_name = str(row.get("category_name") or "").strip()
-                if c_name in ("Unknown", "", "None"):
-                    if c_id > 0 and db is not None:
-                        real_name = db.scalar(select(Category.name).where(Category.category_id == c_id))
-                        if real_name:
-                            c_name = real_name
-                    if c_name in ("Unknown", "", "None"):
-                        c_name = "Khác" if c_id == 0 else f"Danh mục #{c_id}"
-                rev = int(row.get("revenue_vnd") or 0)
-                if c_name in aggregated_cats:
-                    aggregated_cats[c_name]["revenue"] += rev
-                else:
-                    aggregated_cats[c_name] = {
-                        "category_id": c_id,
-                        "category_name": c_name,
-                        "revenue": rev,
-                    }
-
-            total_cat_rev = sum(item["revenue"] for item in aggregated_cats.values())
-            category_shares = [
-                CategoryShareMetric(
-                    category_id=item["category_id"],
-                    category_name=item["category_name"],
-                    revenue_vnd=item["revenue"],
-                    share_percent=round((item["revenue"] / total_cat_rev) * 100, 1) if total_cat_rev > 0 else 0.0,
-                )
-                for item in sorted(aggregated_cats.values(), key=lambda x: x["revenue"], reverse=True)
-            ]
-
-            return SalesMetricsResponse(
-                role="sales",
-                store_contributions=store_contributions,
-                top_selling_products=top_selling_products,
-                category_shares=category_shares,
+    try:
+        store_rows = client.execute_query("""
+            SELECT 
+                CASE 
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
+                    ELSE m.store_key
+                END AS effective_store_key,
+                CASE 
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                END AS channel_name,
+                COALESCE(SUM(m.gross_revenue_vnd), 0) AS revenue_vnd,
+                COALESCE(SUM(m.total_orders), 0) AS order_count
+            FROM lakehouse.gold.mart_sales_daily m
+            LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
+            GROUP BY 
+                CASE 
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
+                    ELSE m.store_key
+                END,
+                CASE 
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                END
+            ORDER BY revenue_vnd DESC
+        """)
+        contributions_map: dict[str, StoreContribution] = {}
+        for row in store_rows:
+            store_key = int(row.get("effective_store_key") or 0)
+            store_name = str(
+                row.get("channel_name")
+                or ("Kênh Online Toàn Quốc" if store_key == 0 else f"Cửa hàng #{store_key}")
             )
-        except Exception as exc:
-            logger.warning("Trino sales query failed, attempting OLTP fallback: %s", exc)
-            if db is None:
-                raise
+            s_id = store_key if store_key > 0 else None
+            rev = int(row.get("revenue_vnd") or 0)
+            cnt = int(row.get("order_count") or 0)
+            if store_name in contributions_map:
+                existing = contributions_map[store_name]
+                contributions_map[store_name] = StoreContribution(
+                    store_id=existing.store_id or s_id,
+                    store_name=store_name,
+                    revenue_vnd=existing.revenue_vnd + rev,
+                    order_count=existing.order_count + cnt,
+                )
+            else:
+                contributions_map[store_name] = StoreContribution(
+                    store_id=s_id,
+                    store_name=store_name,
+                    revenue_vnd=rev,
+                    order_count=cnt,
+                )
+        store_contributions = sorted(contributions_map.values(), key=lambda x: x.revenue_vnd, reverse=True)
 
-    if db is not None:
-        return _get_sales_metrics_oltp(db)
+        prod_rows = client.execute_query("""
+            SELECT 
+                dp.product_id,
+                dp.product_name,
+                COALESCE(SUM(foi.quantity), 0) AS units_sold,
+                COALESCE(SUM(foi.item_total_vnd), 0) AS revenue_vnd
+            FROM lakehouse.gold.fact_order_item foi
+            JOIN lakehouse.gold.dim_product dp ON foi.product_key = dp.product_key
+            GROUP BY dp.product_id, dp.product_name
+            ORDER BY revenue_vnd DESC
+            LIMIT 10
+        """)
+        top_selling_products = [
+            TopProductMetric(
+                product_id=int(row.get("product_id") or 0),
+                product_name=str(row.get("product_name") or ""),
+                units_sold=int(row.get("units_sold") or 0),
+                revenue_vnd=int(row.get("revenue_vnd") or 0),
+            )
+            for row in prod_rows
+        ]
 
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        cat_rows = client.execute_query("""
+            SELECT 
+                category_id,
+                category_name,
+                COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd
+            FROM lakehouse.gold.mart_sales_daily
+            GROUP BY category_id, category_name
+            ORDER BY revenue_vnd DESC
+        """)
+        aggregated_cats: dict[str, dict] = {}
+        for row in cat_rows:
+            c_id = int(row.get("category_id") or 0)
+            c_name = str(row.get("category_name") or "").strip()
+            if c_name in ("Unknown", "", "None"):
+                if c_id > 0 and db is not None:
+                    real_name = db.scalar(select(Category.name).where(Category.category_id == c_id))
+                    if real_name:
+                        c_name = real_name
+                if c_name in ("Unknown", "", "None"):
+                    c_name = "Khác" if c_id == 0 else f"Danh mục #{c_id}"
+            rev = int(row.get("revenue_vnd") or 0)
+            if c_name in aggregated_cats:
+                aggregated_cats[c_name]["revenue"] += rev
+            else:
+                aggregated_cats[c_name] = {
+                    "category_id": c_id,
+                    "category_name": c_name,
+                    "revenue": rev,
+                }
+
+        total_cat_rev = sum(item["revenue"] for item in aggregated_cats.values())
+        category_shares = [
+            CategoryShareMetric(
+                category_id=item["category_id"],
+                category_name=item["category_name"],
+                revenue_vnd=item["revenue"],
+                share_percent=round((item["revenue"] / total_cat_rev) * 100, 1) if total_cat_rev > 0 else 0.0,
+            )
+            for item in sorted(aggregated_cats.values(), key=lambda x: x["revenue"], reverse=True)
+        ]
+
+        return SalesMetricsResponse(
+            role="sales",
+            store_contributions=store_contributions,
+            top_selling_products=top_selling_products,
+            category_shares=category_shares,
+        )
+    except Exception as exc:
+        logger.error("Trino sales query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Sales): {exc}") from exc
 
 
 def get_marketing_metrics(
@@ -711,91 +703,84 @@ def get_marketing_metrics(
     trino_client: TrinoClient | None = None,
 ) -> MarketingMetricsResponse:
     client = trino_client or default_trino_client
-    if client.is_healthy():
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+
+    try:
+        funnel_rows = None
         try:
-            funnel_rows = None
+            funnel_rows = client.execute_query("""
+                SELECT 
+                    COALESCE(SUM(CASE WHEN ecommerce_action IN ('product_detail', 'catalog_search') OR http_route LIKE '/api/v1/products%' THEN 1 ELSE 0 END), 0) AS visitors_count,
+                    COALESCE(SUM(CASE WHEN ecommerce_action IN ('cart_item_set', 'cart_add') OR http_route LIKE '/api/v1/cart%' THEN 1 ELSE 0 END), 0) AS add_to_cart_count,
+                    COALESCE(SUM(CASE WHEN ecommerce_action IN ('checkout_quote', 'checkout_submit') OR http_route LIKE '/api/v1/checkout%' THEN 1 ELSE 0 END), 0) AS checkouts_count,
+                    COALESCE(SUM(CASE WHEN ecommerce_action IN ('order_complete', 'order_confirm_internal') OR (ecommerce_action = 'checkout_submit' AND is_success) THEN 1 ELSE 0 END), 0) AS purchases_count
+                FROM lakehouse.gold.fact_web_events
+            """)
+        except Exception as stream_exc:
+            logger.info("Direct fact_web_events query not ready, checking mart_marketing_funnel_daily: %s", stream_exc)
+
+        f_row = funnel_rows[0] if funnel_rows else {}
+        visitors = int(f_row.get("visitors_count") or 0)
+        add_to_cart = int(f_row.get("add_to_cart_count") or 0)
+        checkouts = int(f_row.get("checkouts_count") or 0)
+        purchases = int(f_row.get("purchases_count") or 0)
+
+        # If fact_web_events had 0 records or failed, try mart_marketing_funnel_daily
+        if visitors == 0 and add_to_cart == 0 and checkouts == 0:
             try:
-                funnel_rows = client.execute_query("""
+                mart_rows = client.execute_query("""
                     SELECT 
-                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('product_detail', 'catalog_search') OR http_route LIKE '/api/v1/products%' THEN 1 ELSE 0 END), 0) AS visitors_count,
-                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('cart_item_set', 'cart_add') OR http_route LIKE '/api/v1/cart%' THEN 1 ELSE 0 END), 0) AS add_to_cart_count,
-                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('checkout_quote', 'checkout_submit') OR http_route LIKE '/api/v1/checkout%' THEN 1 ELSE 0 END), 0) AS checkouts_count,
-                        COALESCE(SUM(CASE WHEN ecommerce_action IN ('order_complete', 'order_confirm_internal') OR (ecommerce_action = 'checkout_submit' AND is_success) THEN 1 ELSE 0 END), 0) AS purchases_count
-                    FROM lakehouse.gold.fact_web_events
+                        COALESCE(SUM(product_views), 0) AS visitors_count,
+                        COALESCE(SUM(cart_additions), 0) AS add_to_cart_count,
+                        COALESCE(SUM(checkout_initiations), 0) AS checkouts_count,
+                        COALESCE(SUM(orders_completed), 0) AS purchases_count
+                    FROM lakehouse.gold.mart_marketing_funnel_daily
                 """)
-            except Exception as stream_exc:
-                logger.info("Direct fact_web_events query not ready, checking mart_marketing_funnel_daily: %s", stream_exc)
+                if mart_rows:
+                    m_row = mart_rows[0]
+                    visitors = int(m_row.get("visitors_count") or 0)
+                    add_to_cart = int(m_row.get("add_to_cart_count") or 0)
+                    checkouts = int(m_row.get("checkouts_count") or 0)
+                    purchases = int(m_row.get("purchases_count") or 0)
+            except Exception as mart_exc:
+                logger.info("mart_marketing_funnel_daily query skipped: %s", mart_exc)
 
-            f_row = funnel_rows[0] if funnel_rows else {}
-            visitors = int(f_row.get("visitors_count") or 0)
-            add_to_cart = int(f_row.get("add_to_cart_count") or 0)
-            checkouts = int(f_row.get("checkouts_count") or 0)
-            purchases = int(f_row.get("purchases_count") or 0)
+        conv_rate = round((purchases / visitors) * 100, 2) if visitors > 0 else 0.0
 
-            # If fact_web_events had 0 records or failed, try mart_marketing_funnel_daily
-            if visitors == 0 and add_to_cart == 0 and checkouts == 0:
-                try:
-                    mart_rows = client.execute_query("""
-                        SELECT 
-                            COALESCE(SUM(product_views), 0) AS visitors_count,
-                            COALESCE(SUM(cart_additions), 0) AS add_to_cart_count,
-                            COALESCE(SUM(checkout_initiations), 0) AS checkouts_count,
-                            COALESCE(SUM(orders_completed), 0) AS purchases_count
-                        FROM lakehouse.gold.mart_marketing_funnel_daily
-                    """)
-                    if mart_rows:
-                        m_row = mart_rows[0]
-                        visitors = int(m_row.get("visitors_count") or 0)
-                        add_to_cart = int(m_row.get("add_to_cart_count") or 0)
-                        checkouts = int(m_row.get("checkouts_count") or 0)
-                        purchases = int(m_row.get("purchases_count") or 0)
-                except Exception as mart_exc:
-                    logger.info("mart_marketing_funnel_daily query skipped: %s", mart_exc)
+        funnel_steps = [
+            FunnelStep(
+                step_name="Lượt xem sản phẩm (Product Views)",
+                count=visitors,
+                conversion_rate_percent=100.0 if visitors > 0 else 0.0,
+            ),
+            FunnelStep(
+                step_name="Thêm vào giỏ (Add to Cart)",
+                count=add_to_cart,
+                conversion_rate_percent=round((add_to_cart / visitors) * 100, 1) if visitors > 0 else 0.0,
+            ),
+            FunnelStep(
+                step_name="Tiến hành thanh toán (Checkout)",
+                count=checkouts,
+                conversion_rate_percent=round((checkouts / visitors) * 100, 1) if visitors > 0 else 0.0,
+            ),
+            FunnelStep(
+                step_name="Đặt hàng thành công (Purchased)",
+                count=purchases,
+                conversion_rate_percent=round((purchases / visitors) * 100, 1) if visitors > 0 else 0.0,
+            ),
+        ]
 
-            if visitors == 0 and add_to_cart == 0 and checkouts == 0 and purchases == 0 and db is not None:
-                return _get_marketing_metrics_oltp(db)
-
-            conv_rate = round((purchases / visitors) * 100, 2) if visitors > 0 else 0.0
-
-            funnel_steps = [
-                FunnelStep(
-                    step_name="Lượt xem sản phẩm (Product Views)",
-                    count=visitors,
-                    conversion_rate_percent=100.0 if visitors > 0 else 0.0,
-                ),
-                FunnelStep(
-                    step_name="Thêm vào giỏ (Add to Cart)",
-                    count=add_to_cart,
-                    conversion_rate_percent=round((add_to_cart / visitors) * 100, 1) if visitors > 0 else 0.0,
-                ),
-                FunnelStep(
-                    step_name="Tiến hành thanh toán (Checkout)",
-                    count=checkouts,
-                    conversion_rate_percent=round((checkouts / visitors) * 100, 1) if visitors > 0 else 0.0,
-                ),
-                FunnelStep(
-                    step_name="Đặt hàng thành công (Purchased)",
-                    count=purchases,
-                    conversion_rate_percent=round((purchases / visitors) * 100, 1) if visitors > 0 else 0.0,
-                ),
-            ]
-
-            return MarketingMetricsResponse(
-                role="marketing",
-                funnel_steps=funnel_steps,
-                conversion_rate_percent=conv_rate,
-                total_visitors=visitors,
-                total_purchases=purchases,
-            )
-        except Exception as exc:
-            logger.warning("Trino marketing query failed, attempting OLTP fallback: %s", exc)
-            if db is None:
-                raise
-
-    if db is not None:
-        return _get_marketing_metrics_oltp(db)
-
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        return MarketingMetricsResponse(
+            role="marketing",
+            funnel_steps=funnel_steps,
+            conversion_rate_percent=conv_rate,
+            total_visitors=visitors,
+            total_purchases=purchases,
+        )
+    except Exception as exc:
+        logger.error("Trino marketing query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Marketing): {exc}") from exc
 
 
 def get_store_metrics(
@@ -826,85 +811,81 @@ def get_store_metrics(
             effective_store_id = first_st.store_id
 
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            store_name = None
-            if effective_store_id is None:
-                first_store_rows = client.execute_query("""
-                    SELECT store_key, store_name 
-                    FROM lakehouse.gold.dim_store 
-                    WHERE store_key > 0 
-                    ORDER BY store_key 
-                    LIMIT 1
-                """)
-                if first_store_rows:
-                    effective_store_id = int(first_store_rows[0].get("store_key"))
-                    store_name = str(first_store_rows[0].get("store_name"))
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-            if effective_store_id is not None and not store_name:
-                dim_rows = client.execute_query(f"""
-                    SELECT store_name 
-                    FROM lakehouse.gold.dim_store 
-                    WHERE store_key = {effective_store_id}
-                """)
-                if dim_rows and dim_rows[0].get("store_name"):
-                    store_name = str(dim_rows[0].get("store_name"))
-                elif effective_db is not None:
-                    st = effective_db.execute(
-                        select(Store).where(Store.store_id == effective_store_id)
-                    ).scalar_one_or_none()
-                    if st:
-                        store_name = st.name
-                if not store_name:
-                    store_name = f"Cửa hàng #{effective_store_id}"
-
-            filter_clause = f"store_key = {effective_store_id}" if effective_store_id is not None else "1=1"
-
-            rows = client.execute_query(f"""
-                SELECT 
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS store_revenue_today_vnd,
-                    COALESCE(SUM(total_orders), 0) AS store_orders_count
-                FROM lakehouse.gold.mart_sales_daily
-                WHERE {filter_clause}
-                  AND order_date = current_date
+    try:
+        store_name = None
+        if effective_store_id is None:
+            first_store_rows = client.execute_query("""
+                SELECT store_key, store_name 
+                FROM lakehouse.gold.dim_store 
+                WHERE store_key > 0 
+                ORDER BY store_key 
+                LIMIT 1
             """)
-            row = rows[0] if rows else {}
-            rev_today = int(row.get("store_revenue_today_vnd") or 0)
-            orders_today = int(row.get("store_orders_count") or 0)
+            if first_store_rows:
+                effective_store_id = int(first_store_rows[0].get("store_key"))
+                store_name = str(first_store_rows[0].get("store_name"))
 
-            daily_target = 20000000
-            target_pct = round((rev_today / daily_target) * 100, 1) if daily_target > 0 else 0.0
-
-            inv_filter = (
-                f"location_type = 'store' AND location_id = {effective_store_id}"
-                if effective_store_id is not None
-                else "location_type = 'store'"
-            )
-            inv_rows = client.execute_query(f"""
-                SELECT COALESCE(SUM(low_stock_count), 0) AS low_stock_count
-                FROM lakehouse.gold.mart_inventory_health
-                WHERE {inv_filter}
+        if effective_store_id is not None and not store_name:
+            dim_rows = client.execute_query(f"""
+                SELECT store_name 
+                FROM lakehouse.gold.dim_store 
+                WHERE store_key = {effective_store_id}
             """)
-            low_stock_count = int(inv_rows[0].get("low_stock_count") or 0) if inv_rows else 0
+            if dim_rows and dim_rows[0].get("store_name"):
+                store_name = str(dim_rows[0].get("store_name"))
+            elif effective_db is not None:
+                st = effective_db.execute(
+                    select(Store).where(Store.store_id == effective_store_id)
+                ).scalar_one_or_none()
+                if st:
+                    store_name = st.name
+            if not store_name:
+                store_name = f"Cửa hàng #{effective_store_id}"
 
-            return StoreMetricsResponse(
-                role="store",
-                store_id=effective_store_id,
-                store_name=store_name,
-                store_revenue_today_vnd=rev_today,
-                store_orders_count=orders_today,
-                target_achievement_percent=target_pct,
-                low_stock_at_store_count=low_stock_count,
-            )
-        except Exception as exc:
-            logger.warning("Trino store query failed, attempting OLTP fallback: %s", exc)
-            if effective_db is None:
-                raise
+        filter_clause = f"store_key = {effective_store_id}" if effective_store_id is not None else "1=1"
 
-    if effective_db is not None:
-        return _get_store_metrics_oltp(effective_db, effective_store_id)
+        rows = client.execute_query(f"""
+            SELECT 
+                COALESCE(SUM(gross_revenue_vnd), 0) AS store_revenue_today_vnd,
+                COALESCE(SUM(total_orders), 0) AS store_orders_count
+            FROM lakehouse.gold.mart_sales_daily
+            WHERE {filter_clause}
+              AND order_date = current_date
+        """)
+        row = rows[0] if rows else {}
+        rev_today = int(row.get("store_revenue_today_vnd") or 0)
+        orders_today = int(row.get("store_orders_count") or 0)
 
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        daily_target = 20000000
+        target_pct = round((rev_today / daily_target) * 100, 1) if daily_target > 0 else 0.0
+
+        inv_filter = (
+            f"location_type = 'store' AND location_id = {effective_store_id}"
+            if effective_store_id is not None
+            else "location_type = 'store'"
+        )
+        inv_rows = client.execute_query(f"""
+            SELECT COALESCE(SUM(low_stock_count), 0) AS low_stock_count
+            FROM lakehouse.gold.mart_inventory_health
+            WHERE {inv_filter}
+        """)
+        low_stock_count = int(inv_rows[0].get("low_stock_count") or 0) if inv_rows else 0
+
+        return StoreMetricsResponse(
+            role="store",
+            store_id=effective_store_id,
+            store_name=store_name,
+            store_revenue_today_vnd=rev_today,
+            store_orders_count=orders_today,
+            target_achievement_percent=target_pct,
+            low_stock_at_store_count=low_stock_count,
+        )
+    except Exception as exc:
+        logger.error("Trino store query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Store): {exc}") from exc
 
 
 def get_active_stores_list(actor: Customer, db: Session) -> list[StoreItemResponse]:
@@ -927,41 +908,37 @@ def get_inventory_metrics(
     trino_client: TrinoClient | None = None,
 ) -> InventoryMetricsResponse:
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            inv_rows = client.execute_query("""
-                SELECT 
-                    COALESCE(SUM(inventory_value_vnd), 0) AS total_val,
-                    COALESCE(SUM(warehouse_on_hand), 0) AS wh_units,
-                    COALESCE(SUM(store_on_hand), 0) AS st_units,
-                    COALESCE(SUM(out_of_stock_variants), 0) AS stockout_count
-                FROM lakehouse.gold.mart_inventory_health
-            """)
-            i_row = inv_rows[0] if inv_rows else {}
-            total_val = int(i_row.get("total_val") or 0)
-            wh_units = int(i_row.get("wh_units") or 0)
-            st_units = int(i_row.get("st_units") or 0)
-            stockout_count = int(i_row.get("stockout_count") or 0)
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-            inbound_batches = 3
+    try:
+        inv_rows = client.execute_query("""
+            SELECT 
+                COALESCE(SUM(total_inventory_value_vnd), 0) AS total_val,
+                COALESCE(SUM(CASE WHEN location_type = 'warehouse' THEN total_on_hand_units ELSE 0 END), 0) AS wh_units,
+                COALESCE(SUM(CASE WHEN location_type = 'store' THEN total_on_hand_units ELSE 0 END), 0) AS st_units,
+                COALESCE(SUM(out_of_stock_count), 0) AS stockout_count
+            FROM lakehouse.gold.mart_inventory_health
+        """)
+        i_row = inv_rows[0] if inv_rows else {}
+        total_val = int(i_row.get("total_val") or 0)
+        wh_units = int(i_row.get("wh_units") or 0)
+        st_units = int(i_row.get("st_units") or 0)
+        stockout_count = int(i_row.get("stockout_count") or 0)
 
-            return InventoryMetricsResponse(
-                role="inventory",
-                total_inventory_value_vnd=total_val,
-                warehouse_stock_units=wh_units,
-                store_stock_units=st_units,
-                inbound_batches_count=inbound_batches,
-                stockout_count=stockout_count,
-            )
-        except Exception as exc:
-            logger.warning("Trino inventory query failed, attempting OLTP fallback: %s", exc)
-            if db is None:
-                raise
+        inbound_batches = 3
 
-    if db is not None:
-        return _get_inventory_metrics_oltp(db)
-
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        return InventoryMetricsResponse(
+            role="inventory",
+            total_inventory_value_vnd=total_val,
+            warehouse_stock_units=wh_units,
+            store_stock_units=st_units,
+            inbound_batches_count=inbound_batches,
+            stockout_count=stockout_count,
+        )
+    except Exception as exc:
+        logger.error("Trino inventory query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Inventory): {exc}") from exc
 
 
 def get_operations_metrics(
@@ -969,42 +946,38 @@ def get_operations_metrics(
     trino_client: TrinoClient | None = None,
 ) -> OperationsMetricsResponse:
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            log_rows = client.execute_query("""
-                SELECT 
-                    COALESCE(SUM(pending_fulfillment), 0) AS pending_fulfillment,
-                    COALESCE(SUM(sla_violations), 0) AS sla_violations,
-                    COALESCE(SUM(failed_deliveries), 0) AS failed_deliveries
-                FROM lakehouse.gold.mart_logistics_performance
-            """)
-            l_row = log_rows[0] if log_rows else {}
-            pending_fulfillment = int(l_row.get("pending_fulfillment") or 0)
-            sla_violations = int(l_row.get("sla_violations") or 0)
-            failed_deliveries = int(l_row.get("failed_deliveries") or 0)
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-            ret_rows = client.execute_query("""
-                SELECT COALESCE(SUM(total_return_requests), 0) AS return_requests
-                FROM lakehouse.gold.mart_product_returns
-            """)
-            return_requests = int(ret_rows[0].get("return_requests") or 0) if ret_rows else 0
+    try:
+        log_rows = client.execute_query("""
+            SELECT 
+                COALESCE(SUM(total_shipments - delivered_count), 0) AS pending_fulfillment,
+                COALESCE(SUM(total_shipments - on_time_count), 0) AS sla_violations,
+                COALESCE(SUM(boom_count), 0) AS failed_deliveries
+            FROM lakehouse.gold.mart_logistics_performance
+        """)
+        l_row = log_rows[0] if log_rows else {}
+        pending_fulfillment = int(l_row.get("pending_fulfillment") or 0)
+        sla_violations = int(l_row.get("sla_violations") or 0)
+        failed_deliveries = int(l_row.get("failed_deliveries") or 0)
 
-            return OperationsMetricsResponse(
-                role="operations",
-                pending_fulfillment_count=pending_fulfillment,
-                shipping_sla_violations_count=sla_violations,
-                boom_orders_count=failed_deliveries,
-                return_requests_count=return_requests,
-            )
-        except Exception as exc:
-            logger.warning("Trino operations query failed, attempting OLTP fallback: %s", exc)
-            if db is None:
-                raise
+        ret_rows = client.execute_query("""
+            SELECT COALESCE(SUM(total_return_requests), 0) AS return_requests
+            FROM lakehouse.gold.mart_product_returns
+        """)
+        return_requests = int(ret_rows[0].get("return_requests") or 0) if ret_rows else 0
 
-    if db is not None:
-        return _get_operations_metrics_oltp(db)
-
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        return OperationsMetricsResponse(
+            role="operations",
+            pending_fulfillment_count=pending_fulfillment,
+            shipping_sla_violations_count=sla_violations,
+            boom_orders_count=failed_deliveries,
+            return_requests_count=return_requests,
+        )
+    except Exception as exc:
+        logger.error("Trino operations query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Operations): {exc}") from exc
 
 
 def get_system_metrics(
@@ -1012,49 +985,55 @@ def get_system_metrics(
     trino_client: TrinoClient | None = None,
 ) -> SystemMetricsResponse:
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            status = "healthy"
-            sales_rows = client.execute_query("""
-                SELECT 
-                    COALESCE(SUM(total_orders), 0) AS total_orders,
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd
-                FROM lakehouse.gold.mart_sales_daily
-            """)
-            s_row = sales_rows[0] if sales_rows else {}
-            total_orders = float(s_row.get("total_orders") or 0)
-            gross_rev = float(s_row.get("gross_revenue_vnd") or 0)
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-            reconciliation = [
-                ReconciliationVariance(
-                    metric_name="total_orders",
-                    oltp_value=total_orders,
-                    lakehouse_value=total_orders,
-                    variance_percent=0.0,
-                ),
-                ReconciliationVariance(
-                    metric_name="gross_revenue_vnd",
-                    oltp_value=gross_rev,
-                    lakehouse_value=gross_rev,
-                    variance_percent=0.0,
-                ),
-            ]
+    try:
+        status = "healthy"
+        sales_rows = client.execute_query("""
+            SELECT 
+                COALESCE(SUM(total_orders), 0) AS total_orders,
+                COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd
+            FROM lakehouse.gold.mart_sales_daily
+        """)
+        s_row = sales_rows[0] if sales_rows else {}
+        total_orders = float(s_row.get("total_orders") or 0)
+        gross_rev = float(s_row.get("gross_revenue_vnd") or 0)
 
-            return SystemMetricsResponse(
-                role="system",
-                pipeline_status=status,
-                data_freshness_sla_minutes=15,
-                reconciliation_variance=reconciliation,
-            )
-        except Exception as exc:
-            logger.warning("Trino system query failed, attempting OLTP fallback: %s", exc)
-            if db is None:
-                raise
+        # Variance vs OLTP if db is available
+        oltp_orders = total_orders
+        oltp_rev = gross_rev
+        if db is not None:
+            oltp_orders = float(db.scalar(select(func.count(Order.order_id))) or 0)
+            oltp_rev = float(db.scalar(select(func.sum(Order.total_vnd)).where(Order.status != "cancelled")) or 0)
 
-    if db is not None:
-        return _get_system_metrics_oltp(db)
+        orders_var = round(abs(oltp_orders - total_orders) / oltp_orders * 100, 2) if oltp_orders > 0 else 0.0
+        rev_var = round(abs(oltp_rev - gross_rev) / oltp_rev * 100, 2) if oltp_rev > 0 else 0.0
 
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+        reconciliation = [
+            ReconciliationVariance(
+                metric_name="total_orders",
+                oltp_value=oltp_orders,
+                lakehouse_value=total_orders,
+                variance_percent=orders_var,
+            ),
+            ReconciliationVariance(
+                metric_name="gross_revenue_vnd",
+                oltp_value=oltp_rev,
+                lakehouse_value=gross_rev,
+                variance_percent=rev_var,
+            ),
+        ]
+
+        return SystemMetricsResponse(
+            role="system",
+            pipeline_status=status,
+            data_freshness_sla_minutes=15,
+            reconciliation_variance=reconciliation,
+        )
+    except Exception as exc:
+        logger.error("Trino system query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (System): {exc}") from exc
 
 
 def get_role_metrics_data(
@@ -1104,37 +1083,33 @@ def get_sales_trend(
         effective_days = second
 
     client = trino_client or default_trino_client
-    if client.is_healthy():
-        try:
-            rows = client.execute_query(f"""
-                SELECT 
-                    CAST(order_date AS VARCHAR) AS date_str,
-                    COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd,
-                    COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
-                    COALESCE(SUM(gross_profit_vnd), 0) AS profit_vnd,
-                    COALESCE(SUM(total_orders), 0) AS orders_count
-                FROM lakehouse.gold.mart_sales_daily
-                WHERE order_date >= current_date - INTERVAL '{effective_days}' DAY
-                GROUP BY order_date
-                ORDER BY order_date ASC
-            """)
-            points = [
-                DailySalesTrendPoint(
-                    date=str(r.get("date_str") or ""),
-                    revenue_vnd=int(r.get("revenue_vnd") or 0),
-                    cogs_vnd=int(r.get("cogs_vnd") or 0),
-                    profit_vnd=int(r.get("profit_vnd") or 0),
-                    orders_count=int(r.get("orders_count") or 0),
-                )
-                for r in rows
-            ]
-            return SalesTrendResponse(days=effective_days, points=points)
-        except Exception as exc:
-            logger.warning("Trino sales trend query failed, attempting OLTP fallback: %s", exc)
-            if effective_db is None:
-                raise
+    if not client.is_healthy():
+        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
-    if effective_db is not None:
-        return _get_sales_trend_oltp(effective_db, effective_days)
-
-    raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}).")
+    try:
+        rows = client.execute_query(f"""
+            SELECT 
+                CAST(order_date AS VARCHAR) AS date_str,
+                COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd,
+                COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
+                COALESCE(SUM(gross_profit_vnd), 0) AS profit_vnd,
+                COALESCE(SUM(total_orders), 0) AS orders_count
+            FROM lakehouse.gold.mart_sales_daily
+            WHERE order_date >= current_date - INTERVAL '{effective_days}' DAY
+            GROUP BY order_date
+            ORDER BY order_date ASC
+        """)
+        points = [
+            DailySalesTrendPoint(
+                date=str(r.get("date_str") or ""),
+                revenue_vnd=int(r.get("revenue_vnd") or 0),
+                cogs_vnd=int(r.get("cogs_vnd") or 0),
+                profit_vnd=int(r.get("profit_vnd") or 0),
+                orders_count=int(r.get("orders_count") or 0),
+            )
+            for r in rows
+        ]
+        return SalesTrendResponse(days=effective_days, points=points)
+    except Exception as exc:
+        logger.error("Trino sales trend query failed: %s", exc)
+        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Sales Trend): {exc}") from exc

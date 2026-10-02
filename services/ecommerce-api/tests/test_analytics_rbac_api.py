@@ -56,8 +56,76 @@ def setup_analytics_db(monkeypatch):
     testing_session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
     monkeypatch.setattr(app.db.uow, "SessionLocal", testing_session)
-    monkeypatch.setattr(app.db.deps, "SessionLocal", testing_session)
-    monkeypatch.setattr("app.modules.analytics.service.default_trino_client.is_healthy", lambda: False)
+    def _mock_trino_query(query: str):
+        q = query.lower()
+        if "dim_store" in q:
+            return [{"store_key": 1, "store_name": "Cửa hàng Quận 1"}]
+        if "mart_sales_daily" in q and "effective_store_key" in q:
+            return [{
+                "effective_store_key": 1,
+                "channel_name": "Cửa hàng Quận 1",
+                "revenue_vnd": 10000000,
+                "order_count": 20,
+            }]
+        if "mart_sales_daily" in q and "date_str" in q:
+            return [{
+                "date_str": "2026-09-25",
+                "revenue_vnd": 10000000,
+                "cogs_vnd": 5000000,
+                "profit_vnd": 5000000,
+                "orders_count": 10,
+            }]
+        if "mart_sales_daily" in q and "category_id" in q:
+            return [{
+                "category_id": 1,
+                "category_name": "Áo Nam",
+                "revenue_vnd": 10000000,
+            }]
+        if "mart_sales_daily" in q:
+            return [{
+                "gmv_vnd": 20000000,
+                "net_revenue_vnd": 20000000,
+                "cogs_vnd": 10000000,
+                "gross_profit_vnd": 10000000,
+                "total_orders": 30,
+                "boom_orders": 2,
+                "store_revenue_today_vnd": 5000000,
+                "store_orders_count": 5,
+            }]
+        if "fact_order_item" in q:
+            return [{
+                "product_id": 1,
+                "product_name": "Áo Polo Nam",
+                "units_sold": 15,
+                "revenue_vnd": 4500000,
+            }]
+        if "fact_web_events" in q or "mart_marketing_funnel_daily" in q:
+            return [{
+                "visitors_count": 500,
+                "add_to_cart_count": 150,
+                "checkouts_count": 80,
+                "purchases_count": 30,
+            }]
+        if "mart_product_returns" in q:
+            return [{"return_count": 1, "return_requests": 1}]
+        if "mart_inventory_health" in q:
+            return [{
+                "total_val": 50000000,
+                "wh_units": 100,
+                "st_units": 50,
+                "stockout_count": 0,
+                "low_stock_count": 1,
+            }]
+        if "mart_logistics_performance" in q:
+            return [{
+                "pending_fulfillment": 3,
+                "sla_violations": 1,
+                "failed_deliveries": 2,
+            }]
+        return []
+
+    monkeypatch.setattr("app.modules.analytics.service.default_trino_client.is_healthy", lambda: True)
+    monkeypatch.setattr("app.modules.analytics.service.default_trino_client.execute_query", _mock_trino_query)
 
     def _get_test_db():
         db = testing_session()
