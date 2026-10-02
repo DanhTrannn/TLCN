@@ -6,6 +6,7 @@ This directory contains operational runbooks and development workflows for the D
 
 - [`SETUP.md`](SETUP.md): Step-by-step Lakehouse deployment, Polaris REST Catalog RBAC bootstrapping, smoke testing, and troubleshooting for the Iceberg-Spark-Trino stack.
 - [`STARTUP_FLOW.md`](STARTUP_FLOW.md): Detailed initialization sequence, Docker Compose profiles, one-shot init containers, database migrations, and health checks.
+- [`CI.md`](CI.md): GitHub Actions CI workflow, static code analysis, multi-matrix testing, and pre-push verification commands.
 
 ---
 
