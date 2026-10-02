@@ -58,7 +58,29 @@ You need the following tools to run this platform locally:
 - [Python 3.11](https://www.python.org/downloads/) with [`uv`](https://docs.astral.sh/uv/) package manager
 - [Node.js](https://nodejs.org/) 22+ (for host storefront development)
 
-### 1. Start Core Services
+### Quick Start (One Command - Fastest)
+
+Start the entire platform stack (Core Web, MySQL, Polaris, Trino, Spark, Airflow, Kafka, Flink) with health verification and Gold Marts initialization in a single command:
+
+```bash
+make up
+# or
+./scripts/start_all.sh
+```
+
+To stop all services:
+
+```bash
+make down
+# or
+./scripts/stop_all.sh
+```
+
+---
+
+### Step-by-Step Profile Startup (Alternative)
+
+#### 1. Start Core Services
 
 Clone the repository and launch the core operational stack (MySQL, FastAPI Backend, Next.js Storefront, and MinIO S3):
 
