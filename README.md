@@ -243,21 +243,42 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ---
 
+### Real-Time CDC Operational Signals & Instant Action Controls
+
+While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts across days and months, operational managers need **sub-minute Change Data Capture (CDC)** alerts to stop revenue loss and stockouts during high-velocity campaigns (e.g., Flash Sales). The BI Hub integrates real-time transactional signals directly from MySQL 8.4 OLTP and stream events with instant operational actions:
+
+| Role | CDC Real-Time Signal | Threshold / Detection Logic | Instant Action Control |
+|---|---|---|---|
+| **Executive (CEO)** | **Margin Erosion Alert** | Intra-day gross margin drops < 20% due to aggressive coupon stacking | *"Hạ mức chiết khấu tối nay"* (Throttles voucher discounts) |
+| | **Floating Cash in Transit** | Sum of unpaid COD orders held by couriers (GHN/GHTK) | *"Lên lịch đối soát 17h00"* (Triggers courier reconciliation) |
+| **Sales Manager** | **Viral Product Spike** | Sudden sales velocity increase ≥ 3x compared to 3-day baseline | *"Đưa lên Banner"* (Pins viral item to homepage banner) |
+| | **Channel Pace Divergence** | Online growth velocity diverges from Store retail growth | *"Voucher Pick-up"* (Activates Click & Collect foot-traffic promo) |
+| **Store Manager** | **Counter Local Stockout** | Physical counter shelf inventory reaches 0 while warehouse has stock | *"Ship từ Kho Tổng"* (Dispatches stock transfer from central warehouse) |
+| | **Hourly Run-Rate Pace** | Hourly cumulative revenue vs. linear trajectory for 15M target | *"Gợi ý Upsell ca tối"* (Pushes evening cross-sell prompt to POS) |
+| **Inventory Manager** | **Depletion Runway Alert** | Depletion rate per minute calculates runway to 0 stock < 60 mins | *"Phát lệnh may gấp"* (Sends emergency production work order to workshop) |
+| | **Overselling Prevention** | Stock reaches threshold (≤ 5 units); real-time checkout lock | *"Đã đồng bộ Web"* (Live confirmation of storefront inventory lock) |
+| **Operations Manager** | **Regional Boom Rate Spike** | COD return/refusal rate in a specific district exceeds ≥ 25% (e.g. Bình Tân 38%) | *"Tạm dừng xuất đơn"* (Restricts COD payment, requires MoMo/SePay) |
+| | **Fulfillment Bottleneck** | Paid orders waiting in packaging queue > 2 hours | *"Điều động nhân sự"* (Reallocates returns staff to packing line) |
+| **Marketing Manager** | **Voucher Burn Rate** | Flash sale coupon budget consumption rate (e.g. `SALE50K` reaches 85%) | *"Đóng mã sớm / Bơm ngân sách"* (Adjusts cap or injects marketing budget) |
+| | **Negative Review Spikes** | Sudden burst of 1–2 star product reviews within 60 minutes | *"Tạm dừng Ads"* (Pauses Meta/Google ads targeting defective batch) |
+
+---
+
 ## Testing and Verification
 
-Run the full test suite across all Python workspace packages and the frontend (397 Python tests total across workspace):
+Run the full test suite across all Python workspace packages and the frontend (411 Python tests total across workspace):
 
 | Package / Suite | Tests Count | Local (Host without Java) | CI Environment (with Java 17) |
 |---|---|---|---|
-| **ecommerce-api** | 207 | 206 passed, 1 skipped | 206 passed, 1 skipped |
+| **ecommerce-api** | 221 | 220 passed, 1 skipped | 220 passed, 1 skipped |
 | **data-generator** | 55 | 55 passed | 55 passed |
 | **pipelines** | 135 | 98 passed, 37 skipped* | 135 passed |
-| **Total Python** | **397** | **359 passed, 38 skipped** | **396 passed, 1 skipped** |
+| **Total Python** | **411** | **373 passed, 38 skipped** | **410 passed, 1 skipped** |
 
 *\*Note: 37 Spark unit tests in `pipelines/tests/` require a Java JDK runtime. When running on local host without JDK, tests gracefully skip; in Docker containers or GitHub Actions CI (with `setup-java@v4`), all Spark tests execute and pass.*
 
 ```bash
-# Backend API tests (206 passed: auth, cart, checkout, pos, inbound, analytics RBAC, logistics, returns, kafka DLQ)
+# Backend API tests (220 passed: auth, cart, checkout, pos, inbound, analytics RBAC, CDC signals, logistics, returns, kafka DLQ)
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 
 # Data Generator tests (55 passed: distributions, synthetic seed, export validation)
