@@ -173,21 +173,21 @@ jobs:
       - name: Create .env from .env.example
         run: cp .env.example .env
 
-      - name: Start Core Services
-        run: docker compose --profile core up -d postgres redis
+      - name: Start Core Database Services
+        run: docker compose up -d mysql postgres
 
-      - name: Wait for PostgreSQL and Redis readiness
+      - name: Wait for MySQL OLTP and PostgreSQL readiness
         run: |
           for i in {1..30}; do
-            if docker compose exec -T postgres pg_isready -U postgres && docker compose exec -T redis redis-cli ping | grep PONG; then
-              echo "Core services are healthy"
+            if docker compose exec -T mysql mysqladmin ping -u root -ppassword --silent && docker compose exec -T postgres pg_isready -U postgres; then
+              echo "Core database services are healthy"
               break
             fi
-            echo "Waiting for services..."
+            echo "Waiting for database services..."
             sleep 2
           done
 
       - name: Teardown
         if: always()
-        run: docker compose --profile core down -v
+        run: docker compose down -v
 
