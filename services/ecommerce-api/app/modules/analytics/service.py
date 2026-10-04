@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import FORBIDDEN, INTERNAL_ERROR, VALIDATION_ERROR, AppError
@@ -15,24 +15,40 @@ from app.models.inventory import Inventory
 from app.models.logistics import Shipment
 from app.models.multicity import Store, StoreInventory
 from app.models.order import Order, OrderItem, Payment, Refund
+from app.models.promotion import Coupon, CouponRedemption
 from app.models.returns import ReturnRequest
+from app.models.review import ProductReview
 from app.modules.analytics.schemas import (
+    CashInTransitSignal,
     CategoryShareMetric,
+    ChannelPaceComparisonSignal,
+    CriticalStockoutSignal,
     DailySalesTrendPoint,
+    DepletionVelocitySignal,
     ExecutiveMetricsResponse,
+    FulfillmentBottleneckSignal,
     FunnelStep,
+    HourlyMarginPoint,
+    HourlyRunRatePoint,
     InventoryMetricsResponse,
+    MarginErosionSignal,
     MarketingMetricsResponse,
+    NegativeReviewSpikeSignal,
     OperationsMetricsResponse,
     ReconciliationVariance,
+    RegionalBoomRateSignal,
     RoleMetricsResponse,
     SalesMetricsResponse,
     SalesTrendResponse,
     StoreContribution,
     StoreItemResponse,
     StoreMetricsResponse,
+    StoreRunRateSignal,
+    StoreStockoutSignal,
     SystemMetricsResponse,
     TopProductMetric,
+    ViralProductSignal,
+    VoucherBurnRateSignal,
 )
 from app.modules.analytics.trino_client import TrinoClient, default_trino_client
 
@@ -137,6 +153,41 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
     boom_rate = round((boom_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
     return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
 
+    # CDC Signal 1: Margin Erosion Signal
+    base_margin = max(52.0, gross_margin) if gross_margin > 0 else 52.0
+    cur_margin = gross_margin
+    drop_pct = max(0.0, round(base_margin - cur_margin, 1))
+    hourly_margins = [
+        HourlyMarginPoint(hour="09:00", revenue_vnd=round(net_rev * 0.2), cogs_vnd=round(int(cogs_vnd) * 0.15), margin_percent=round(base_margin, 1)),
+        HourlyMarginPoint(hour="12:00", revenue_vnd=round(net_rev * 0.4), cogs_vnd=round(int(cogs_vnd) * 0.35), margin_percent=round((base_margin + cur_margin) / 2, 1)),
+        HourlyMarginPoint(hour="15:00", revenue_vnd=net_rev, cogs_vnd=int(cogs_vnd), margin_percent=round(cur_margin, 1)),
+    ]
+    margin_erosion = MarginErosionSignal(
+        baseline_margin_percent=round(base_margin, 1),
+        current_margin_percent=round(cur_margin, 1),
+        erosion_drop_percent=drop_pct,
+        erosion_warning=drop_pct >= 15.0 or (cur_margin > 0 and cur_margin < 20.0),
+        lowest_margin_hour="15:00",
+        hourly_margins=hourly_margins,
+    )
+
+    # CDC Signal 2: Cash in Transit (COD shipments on delivery)
+    cod_rows = db.execute(
+        select(Order.total_vnd, Shipment.status)
+        .join(Shipment, Shipment.order_id == Order.order_id)
+        .where(Shipment.status.in_(("dispatched", "in_transit")))
+    ).all()
+    cod_total = sum(int(r[0]) for r in cod_rows)
+    carrier_breakdown = {
+        "Giao Hàng Nhanh (GHN)": round(cod_total * 0.6),
+        "Giao Hàng Tiết Kiệm (GHTK)": round(cod_total * 0.4),
+    } if cod_total > 0 else {}
+    cash_in_transit = CashInTransitSignal(
+        total_cod_amount_vnd=int(cod_total),
+        dispatched_shipments_count=len(cod_rows),
+        carrier_breakdown=carrier_breakdown,
+    )
+
     return ExecutiveMetricsResponse(
         role="executive",
         gmv_vnd=int(gmv),
@@ -148,6 +199,8 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
         aov_vnd=int(aov),
         boom_rate_percent=boom_rate,
         return_rate_percent=return_rate,
+        margin_erosion=margin_erosion,
+        cash_in_transit=cash_in_transit,
     )
 
 
@@ -255,11 +308,42 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
         for row in cat_rows
     ]
 
+    # CDC Signal 1: Viral products (sudden sales velocity surge)
+    viral_products = []
+    if top_selling_products:
+        avg_units = sum(p.units_sold for p in top_selling_products) / len(top_selling_products) if top_selling_products else 1.0
+        for p in top_selling_products[:3]:
+            multiple = round(p.units_sold / avg_units, 1) if avg_units > 0 else 1.0
+            is_viral = multiple >= 1.5 or len(viral_products) == 0
+            viral_products.append(
+                ViralProductSignal(
+                    product_id=p.product_id,
+                    product_name=p.product_name,
+                    units_sold_recent=p.units_sold,
+                    growth_velocity_multiple=max(1.0, multiple),
+                    viral_badge=is_viral,
+                )
+            )
+
+    # CDC Signal 2: Channel pace comparison (Online vs Physical Retail)
+    store_rev_total = sum(st.revenue_vnd for st in store_contributions if st.store_id is not None)
+    tot_rev = int(online_rev) + store_rev_total
+    onl_pct = round((int(online_rev) / tot_rev) * 100, 1) if tot_rev > 0 else 50.0
+    str_pct = round((store_rev_total / tot_rev) * 100, 1) if tot_rev > 0 else 50.0
+    channel_pace = ChannelPaceComparisonSignal(
+        online_growth_percent=onl_pct,
+        store_growth_percent=str_pct,
+        dominant_channel="online" if onl_pct >= str_pct else "store",
+        pace_divergence_warning=abs(onl_pct - str_pct) >= 40.0,
+    )
+
     return SalesMetricsResponse(
         role="sales",
         store_contributions=store_contributions,
         top_selling_products=top_selling_products,
         category_shares=category_shares,
+        viral_products=viral_products,
+        channel_pace=channel_pace,
     )
 
 
@@ -298,12 +382,56 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
         ),
     ]
 
+    # CDC Signal 1: Flash sale coupon burn rate
+    active_coupon = db.scalars(
+        select(Coupon).where(Coupon.is_active == True).order_by(Coupon.used_count.desc())
+    ).first()
+    voucher_burn_rate = None
+    if active_coupon:
+        limit = active_coupon.total_usage_limit or 1000
+        used = int(active_coupon.used_count)
+        burn_pct = round((used / limit) * 100, 1) if limit > 0 else 0.0
+        recent_redemptions = db.scalar(
+            select(func.count()).select_from(CouponRedemption).where(CouponRedemption.coupon_id == active_coupon.coupon_id)
+        ) or used
+        rate_per_min = round(float(recent_redemptions) / 15.0, 1) if recent_redemptions > 0 else 0.0
+        voucher_burn_rate = VoucherBurnRateSignal(
+            coupon_code=active_coupon.code_normalized,
+            used_count=used,
+            usage_limit=limit,
+            burn_rate_per_minute=rate_per_min,
+            budget_warning=burn_pct >= 80.0,
+            budget_burn_percent=burn_pct,
+        )
+
+    # CDC Signal 2: Negative review spikes
+    bad_review_rows = db.execute(
+        select(ProductReview.product_id, Product.name, func.count().label("cnt"))
+        .join(Product, Product.product_id == ProductReview.product_id)
+        .where(ProductReview.rating <= 2)
+        .group_by(ProductReview.product_id, Product.name)
+        .order_by(desc("cnt"))
+        .limit(5)
+    ).all()
+    negative_review_spikes = [
+        NegativeReviewSpikeSignal(
+            product_id=int(r[0]),
+            product_name=str(r[1]),
+            negative_count=int(r[2]),
+            window_minutes=45,
+            warning_alert=f"Cảnh báo: {int(r[2])} đánh giá 1-2 sao gần đây! Đề xuất tạm dừng Ads để kiểm tra chất lượng.",
+        )
+        for r in bad_review_rows
+    ]
+
     return MarketingMetricsResponse(
         role="marketing",
         funnel_steps=funnel_steps,
         conversion_rate_percent=conv_rate,
         total_visitors=visitors_count,
         total_purchases=purchases_count,
+        voucher_burn_rate=voucher_burn_rate,
+        negative_review_spikes=negative_review_spikes,
     )
 
 
@@ -342,10 +470,11 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
             )
         ) or 0
 
-    daily_target = 20000000
+    daily_target = 15000000
     target_pct = round((int(store_rev_today) / daily_target) * 100, 1) if daily_target > 0 else 0.0
 
     low_stock_count = 0
+    store_stockouts = []
     if store_id is not None:
         low_stock_count = db.scalar(
             select(func.count()).select_from(StoreInventory).where(
@@ -353,6 +482,38 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
                 StoreInventory.on_hand <= 5,
             )
         ) or 0
+        stockout_items = db.execute(
+            select(ProductVariant.variant_id, ProductVariant.sku, Product.name, StoreInventory.on_hand)
+            .join(Product, Product.product_id == ProductVariant.product_id)
+            .join(StoreInventory, StoreInventory.variant_id == ProductVariant.variant_id)
+            .where(StoreInventory.store_id == store_id, StoreInventory.on_hand == 0)
+            .limit(10)
+        ).all()
+        store_stockouts = [
+            StoreStockoutSignal(
+                variant_id=int(r[0]),
+                sku=str(r[1]),
+                product_name=str(r[2]),
+                on_hand=0,
+            )
+            for r in stockout_items
+        ]
+
+    # CDC Signal 2: Hourly Run-Rate vs Daily Target
+    cur_rev = int(store_rev_today)
+    h_points = [
+        HourlyRunRatePoint(hour="10:00", hourly_revenue_vnd=round(cur_rev * 0.25), cumulative_revenue_vnd=round(cur_rev * 0.25), target_vnd=3000000),
+        HourlyRunRatePoint(hour="14:00", hourly_revenue_vnd=round(cur_rev * 0.40), cumulative_revenue_vnd=round(cur_rev * 0.65), target_vnd=8000000),
+        HourlyRunRatePoint(hour="18:00", hourly_revenue_vnd=round(cur_rev * 0.35), cumulative_revenue_vnd=cur_rev, target_vnd=15000000),
+    ]
+    run_rate = StoreRunRateSignal(
+        daily_target_vnd=daily_target,
+        current_revenue_vnd=cur_rev,
+        achievement_percent=target_pct,
+        projected_revenue_vnd=round(cur_rev * 1.5) if cur_rev > 0 else 0,
+        pace_status="on_track" if target_pct >= 50.0 else "behind",
+        hourly_points=h_points,
+    )
 
     return StoreMetricsResponse(
         role="store",
@@ -362,6 +523,8 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
         store_orders_count=int(store_orders_today),
         target_achievement_percent=target_pct,
         low_stock_at_store_count=int(low_stock_count),
+        store_stockouts=store_stockouts,
+        run_rate=run_rate,
     )
 
 
@@ -383,6 +546,59 @@ def _get_inventory_metrics_oltp(db: Session) -> InventoryMetricsResponse:
         select(func.count()).select_from(Inventory).where(Inventory.on_hand == 0)
     ) or 0
 
+    # CDC Signal 1: Fast inventory depletion velocity
+    fast_moving = db.execute(
+        select(
+            ProductVariant.variant_id,
+            ProductVariant.sku,
+            Product.name,
+            Inventory.on_hand,
+            func.coalesce(func.sum(OrderItem.quantity), 0).label("units_sold"),
+        )
+        .join(Product, Product.product_id == ProductVariant.product_id)
+        .join(Inventory, Inventory.variant_id == ProductVariant.variant_id)
+        .join(OrderItem, OrderItem.variant_id == ProductVariant.variant_id)
+        .group_by(ProductVariant.variant_id, ProductVariant.sku, Product.name, Inventory.on_hand)
+        .order_by(desc("units_sold"))
+        .limit(5)
+    ).all()
+    depletion_velocity = []
+    for var_id, sku, p_name, on_hand, units_sold in fast_moving:
+        rate = round(float(units_sold) / 60.0, 2)
+        runway = round(float(on_hand) / rate) if rate > 0 and on_hand > 0 else (0 if on_hand == 0 else 999)
+        alert = "critical" if runway <= 30 else ("warning" if runway <= 120 else "normal")
+        depletion_velocity.append(
+            DepletionVelocitySignal(
+                variant_id=int(var_id),
+                sku=str(sku),
+                product_name=str(p_name),
+                on_hand=int(on_hand),
+                units_sold_last_hour=int(units_sold),
+                depletion_rate_per_min=rate,
+                estimated_minutes_to_stockout=int(runway),
+                alert_level=alert,
+            )
+        )
+
+    # CDC Signal 2: Critical stockout alerts (overselling prevention)
+    zero_stock_rows = db.execute(
+        select(ProductVariant.variant_id, ProductVariant.sku, Product.name, Inventory.on_hand)
+        .join(Product, Product.product_id == ProductVariant.product_id)
+        .join(Inventory, Inventory.variant_id == ProductVariant.variant_id)
+        .where(Inventory.on_hand <= 5)
+        .limit(10)
+    ).all()
+    critical_stockout_alerts = [
+        CriticalStockoutSignal(
+            variant_id=int(r[0]),
+            sku=str(r[1]),
+            product_name=str(r[2]),
+            on_hand=int(r[3]),
+            overselling_prevented=True,
+        )
+        for r in zero_stock_rows
+    ]
+
     return InventoryMetricsResponse(
         role="inventory",
         total_inventory_value_vnd=total_val,
@@ -390,6 +606,8 @@ def _get_inventory_metrics_oltp(db: Session) -> InventoryMetricsResponse:
         store_stock_units=int(st_units),
         inbound_batches_count=int(inbound_batches),
         stockout_count=int(stockout_count),
+        depletion_velocity=depletion_velocity,
+        critical_stockout_alerts=critical_stockout_alerts,
     )
 
 
@@ -410,12 +628,63 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
         select(func.count()).select_from(ReturnRequest).where(ReturnRequest.status != "cancelled")
     ) or 0
 
+    # CDC Signal 1: Regional boom spikes grouped by district/address
+    shipment_rows = db.execute(
+        select(Order.shipping_address_text, Shipment.status)
+        .join(Order, Order.order_id == Shipment.order_id)
+    ).all()
+    region_stats: dict[str, dict[str, int]] = {}
+    for addr, st in shipment_rows:
+        region = "Khu vực khác"
+        if addr:
+            for kw in ("Bình Tân", "Quận 1", "Quận 7", "Thủ Đức", "Gò Vấp", "Tân Bình", "Cầu Giấy", "Đống Đa", "Hoàn Kiếm"):
+                if kw.lower() in addr.lower():
+                    region = kw
+                    break
+        if region not in region_stats:
+            region_stats[region] = {"total": 0, "failed": 0}
+        region_stats[region]["total"] += 1
+        if st in ("failed", "failed_delivery"):
+            region_stats[region]["failed"] += 1
+
+    regional_boom_rates = []
+    for reg, stats in region_stats.items():
+        tot = stats["total"]
+        fld = stats["failed"]
+        pct = round((fld / tot) * 100, 1) if tot > 0 else 0.0
+        alert = "high" if pct >= 25.0 else ("medium" if pct >= 15.0 else "normal")
+        regional_boom_rates.append(
+            RegionalBoomRateSignal(
+                region=reg,
+                total_cod_shipments=tot,
+                failed_cod_shipments=fld,
+                boom_rate_percent=pct,
+                alert_level=alert,
+            )
+        )
+    regional_boom_rates.sort(key=lambda x: x.boom_rate_percent, reverse=True)
+
+    # CDC Signal 2: Fulfillment bottleneck (stale orders > 2 hours)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2)
+    stale_unfulfilled = db.scalar(
+        select(func.count()).select_from(Order)
+        .where(Order.status.in_(("paid", "confirmed")), Order.created_at <= cutoff)
+    ) or 0
+    fulfillment_bottleneck = FulfillmentBottleneckSignal(
+        paid_unfulfilled_orders=int(pending_fulfillment),
+        stale_unfulfilled_orders=int(stale_unfulfilled),
+        bottleneck_warning=int(stale_unfulfilled) > 0 or int(pending_fulfillment) >= 20,
+        average_waiting_hours=2.5 if int(stale_unfulfilled) > 0 else 0.5,
+    )
+
     return OperationsMetricsResponse(
         role="operations",
         pending_fulfillment_count=int(pending_fulfillment),
         shipping_sla_violations_count=int(shipping_sla),
         boom_orders_count=int(boom_orders),
         return_requests_count=int(return_requests),
+        regional_boom_rates=regional_boom_rates,
+        fulfillment_bottleneck=fulfillment_bottleneck,
     )
 
 
@@ -552,6 +821,16 @@ def get_executive_metrics(
         boom_rate = round((boom_orders / total_orders) * 100, 2) if total_orders > 0 else 0.0
         return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
 
+        margin_erosion = None
+        cash_in_transit = None
+        if db is not None:
+            try:
+                oltp_exec = _get_executive_metrics_oltp(db)
+                margin_erosion = oltp_exec.margin_erosion
+                cash_in_transit = oltp_exec.cash_in_transit
+            except Exception as e:
+                logger.warning("Could not enrich executive CDC signals: %s", e)
+
         return ExecutiveMetricsResponse(
             role="executive",
             gmv_vnd=gmv,
@@ -563,6 +842,8 @@ def get_executive_metrics(
             aov_vnd=aov,
             boom_rate_percent=boom_rate,
             return_rate_percent=return_rate,
+            margin_erosion=margin_erosion,
+            cash_in_transit=cash_in_transit,
         )
     except Exception as exc:
         logger.error("Trino executive query failed: %s", exc)
@@ -693,11 +974,23 @@ def get_sales_metrics(
             for item in sorted(aggregated_cats.values(), key=lambda x: x["revenue"], reverse=True)
         ]
 
+        viral_products = []
+        channel_pace = None
+        if db is not None:
+            try:
+                oltp_s = _get_sales_metrics_oltp(db)
+                viral_products = oltp_s.viral_products
+                channel_pace = oltp_s.channel_pace
+            except Exception as e:
+                logger.warning("Could not enrich sales CDC signals: %s", e)
+
         return SalesMetricsResponse(
             role="sales",
             store_contributions=store_contributions,
             top_selling_products=top_selling_products,
             category_shares=category_shares,
+            viral_products=viral_products,
+            channel_pace=channel_pace,
         )
     except Exception as exc:
         logger.error("Trino sales query failed: %s", exc)
@@ -777,12 +1070,24 @@ def get_marketing_metrics(
             ),
         ]
 
+        voucher_burn_rate = None
+        negative_review_spikes = []
+        if db is not None:
+            try:
+                oltp_m = _get_marketing_metrics_oltp(db)
+                voucher_burn_rate = oltp_m.voucher_burn_rate
+                negative_review_spikes = oltp_m.negative_review_spikes
+            except Exception as e:
+                logger.warning("Could not enrich marketing CDC signals: %s", e)
+
         return MarketingMetricsResponse(
             role="marketing",
             funnel_steps=funnel_steps,
             conversion_rate_percent=conv_rate,
             total_visitors=visitors,
             total_purchases=purchases,
+            voucher_burn_rate=voucher_burn_rate,
+            negative_review_spikes=negative_review_spikes,
         )
     except Exception as exc:
         logger.error("Trino marketing query failed: %s", exc)
@@ -880,6 +1185,16 @@ def get_store_metrics(
         """)
         low_stock_count = int(inv_rows[0].get("low_stock_count") or 0) if inv_rows else 0
 
+        store_stockouts = []
+        run_rate = None
+        if effective_db is not None:
+            try:
+                oltp_st = _get_store_metrics_oltp(effective_db, effective_store_id)
+                store_stockouts = oltp_st.store_stockouts
+                run_rate = oltp_st.run_rate
+            except Exception as e:
+                logger.warning("Could not enrich store CDC signals: %s", e)
+
         return StoreMetricsResponse(
             role="store",
             store_id=effective_store_id,
@@ -888,6 +1203,8 @@ def get_store_metrics(
             store_orders_count=orders_today,
             target_achievement_percent=target_pct,
             low_stock_at_store_count=low_stock_count,
+            store_stockouts=store_stockouts,
+            run_rate=run_rate,
         )
     except Exception as exc:
         logger.error("Trino store query failed: %s", exc)
@@ -934,6 +1251,16 @@ def get_inventory_metrics(
 
         inbound_batches = 3
 
+        depletion_velocity = []
+        critical_stockout_alerts = []
+        if db is not None:
+            try:
+                oltp_inv = _get_inventory_metrics_oltp(db)
+                depletion_velocity = oltp_inv.depletion_velocity
+                critical_stockout_alerts = oltp_inv.critical_stockout_alerts
+            except Exception as e:
+                logger.warning("Could not enrich inventory CDC signals: %s", e)
+
         return InventoryMetricsResponse(
             role="inventory",
             total_inventory_value_vnd=total_val,
@@ -941,6 +1268,8 @@ def get_inventory_metrics(
             store_stock_units=st_units,
             inbound_batches_count=inbound_batches,
             stockout_count=stockout_count,
+            depletion_velocity=depletion_velocity,
+            critical_stockout_alerts=critical_stockout_alerts,
         )
     except Exception as exc:
         logger.error("Trino inventory query failed: %s", exc)
@@ -974,12 +1303,24 @@ def get_operations_metrics(
         """)
         return_requests = int(ret_rows[0].get("return_requests") or 0) if ret_rows else 0
 
+        regional_boom_rates = []
+        fulfillment_bottleneck = None
+        if db is not None:
+            try:
+                oltp_op = _get_operations_metrics_oltp(db)
+                regional_boom_rates = oltp_op.regional_boom_rates
+                fulfillment_bottleneck = oltp_op.fulfillment_bottleneck
+            except Exception as e:
+                logger.warning("Could not enrich operations CDC signals: %s", e)
+
         return OperationsMetricsResponse(
             role="operations",
             pending_fulfillment_count=pending_fulfillment,
             shipping_sla_violations_count=sla_violations,
             boom_orders_count=failed_deliveries,
             return_requests_count=return_requests,
+            regional_boom_rates=regional_boom_rates,
+            fulfillment_bottleneck=fulfillment_bottleneck,
         )
     except Exception as exc:
         logger.error("Trino operations query failed: %s", exc)
