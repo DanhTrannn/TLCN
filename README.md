@@ -280,6 +280,7 @@ Explore the detailed architecture and planning documents:
 | **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
 | **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
 | **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and analytical reporting |
+| **CDC Dashboard Spec** | [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Change Data Capture (CDC) requirements, mutability classification & field mapping for 7-Role Dashboards |
 | **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Kafka + Flink streaming pipeline, S3 layout |
 | **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
 | **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |
