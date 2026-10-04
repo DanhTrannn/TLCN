@@ -9,7 +9,6 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from argon2 import PasswordHasher
-
 from generator.config import DEFAULT_DISTRIBUTIONS, GeneratorConfig, PriceBand
 from generator.sql_export import (
     DEMO_PASSWORD,
@@ -510,7 +509,7 @@ class SqlExportTest(unittest.TestCase):
     def test_omnichannel_tables_and_columns(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             path = Path(temporary_directory) / "omnichannel.sql"
-            summary = export_sql(self.config, path)
+            export_sql(self.config, path)
             sql = path.read_text(encoding="utf-8")
 
             # Check new tables exist

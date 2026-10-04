@@ -5,8 +5,8 @@ Revises: 0014
 Create Date: 2026-09-23
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import mysql
 
 revision = "0015"

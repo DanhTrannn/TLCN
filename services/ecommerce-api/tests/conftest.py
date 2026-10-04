@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("API_SECRET_KEY", "test-secret-key-least-32-characters-long")
 os.environ.setdefault("API_INTERNAL_SECRET", "test-internal-secret")
 
+from app.db.deps import get_current_customer  # noqa: E402
 from app.main import app  # noqa: E402
-from app.db.deps import get_db, get_current_customer  # noqa: E402
 
 
 @pytest.fixture()

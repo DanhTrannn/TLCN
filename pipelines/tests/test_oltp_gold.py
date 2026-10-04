@@ -1,5 +1,5 @@
 import shutil
-from datetime import datetime, date
+from datetime import date, datetime
 
 import pytest
 
@@ -7,19 +7,6 @@ pyspark = pytest.importorskip("pyspark", reason="pyspark not installed")
 pytestmark = pytest.mark.skipif(
     shutil.which("java") is None,
     reason="Java not found -- Spark tests require a JDK",
-)
-
-from pyspark.sql import SparkSession
-from pyspark.sql.types import (
-    BooleanType,
-    DateType,
-    DoubleType,
-    IntegerType,
-    LongType,
-    StringType,
-    StructField,
-    StructType,
-    TimestampType,
 )
 
 from lakehouse.oltp.gold import (
@@ -40,6 +27,18 @@ from lakehouse.oltp.gold import (
     build_mart_sales_daily,
 )
 from lakehouse.oltp.gold_ddl import GOLD_TABLE_DDL
+from pyspark.sql import SparkSession
+from pyspark.sql.types import (
+    BooleanType,
+    DateType,
+    DoubleType,
+    IntegerType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+    TimestampType,
+)
 
 
 @pytest.fixture(scope="session")

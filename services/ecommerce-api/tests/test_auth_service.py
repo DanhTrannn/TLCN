@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-
 from app.core.errors import ACCOUNT_LOCKED, INVALID_CREDENTIALS, AppError
 from app.core.security import hash_password
 from app.modules.auth.service import _validate_credentials

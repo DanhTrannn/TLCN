@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from lakehouse.logs.bronze import (
     BRONZE_EVENTS_DDL,
     BRONZE_EVENTS_TABLE,

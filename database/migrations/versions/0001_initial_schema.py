@@ -9,8 +9,8 @@ BINARY(16) UUID keys, BIGINT UNSIGNED money, generated STORED column,
 CHECK constraints and the extraction/index catalogue from docs/architecture/oltp-schema.md.
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import mysql
 
 revision = "0001_initial_schema"

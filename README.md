@@ -36,7 +36,8 @@ The repository includes everything needed to run the data platform locally, incl
 
 - **Inbound Production & MWA Costing:** Internal workshop garment batches, Moving Weighted Average (MWA) inventory costing recalculation, and snapshot COGS at checkout for real-time gross margin tracking.
 - **Full Order & Logistics Lifecycle:** End-to-end shipper dispatch, boom COD handling (3-attempt threshold and automatic COD blocking), customer 7-day return/refund management, and customer-confirmed order completion (`delivered -> completed`).
-- **7-Role Interactive BI Analytics Hub (`/admin/analytics`):** Tailored operational views for Executive (CEO), Sales, Store Managers (with Row-Level Security), Inventory, Operations & Logistics, Marketing Funnel, and System Admin with reconciliation audits, integrated with Apache ECharts and Apache Trino distributed query engine.
+- **7-Role Interactive BI Analytics Hub (`/admin/analytics`):** Tailored operational views for Executive (CEO), Sales, Store Managers (with Application/API-level Row Filtering scoped by `store_id`), Inventory, Operations & Logistics, Marketing Funnel, and System Admin with reconciliation audits, integrated with Apache ECharts and Apache Trino distributed query engine.
+
 - **Hybrid Streaming & Batch Processing:** Real-time event streaming via Apache Kafka and Apache Flink alongside scheduled Apache Spark Medallion batch ETL.
 - **Operational Analytics:** Query historical order, product, inventory, and customer metrics without placing analytical load on the production MySQL database.
 - **Access Log Analysis:** Inspect traffic patterns, latency distributions, error rates, and search keywords aggregated into hourly and daily summary tables.
@@ -244,16 +245,25 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ## Testing and Verification
 
-Run the full test suite across all Python workspace packages and the frontend (361 Python tests total):
+Run the full test suite across all Python workspace packages and the frontend (397 Python tests total across workspace):
+
+| Package / Suite | Tests Count | Local (Host without Java) | CI Environment (with Java 17) |
+|---|---|---|---|
+| **ecommerce-api** | 207 | 206 passed, 1 skipped | 206 passed, 1 skipped |
+| **data-generator** | 55 | 55 passed | 55 passed |
+| **pipelines** | 135 | 98 passed, 37 skipped* | 135 passed |
+| **Total Python** | **397** | **359 passed, 38 skipped** | **396 passed, 1 skipped** |
+
+*\*Note: 37 Spark unit tests in `pipelines/tests/` require a Java JDK runtime. When running on local host without JDK, tests gracefully skip; in Docker containers or GitHub Actions CI (with `setup-java@v4`), all Spark tests execute and pass.*
 
 ```bash
-# Backend API tests (200 tests: auth, cart, checkout, pos, inbound, analytics RBAC, logistics, returns)
+# Backend API tests (206 passed: auth, cart, checkout, pos, inbound, analytics RBAC, logistics, returns, kafka DLQ)
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 
-# Data Generator tests (55 tests: distributions, synthetic seed, export validation)
+# Data Generator tests (55 passed: distributions, synthetic seed, export validation)
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 
-# Batch Pipeline tests (106 tests: Bronze, Silver, Gold Marts & Financial parity)
+# Batch Pipeline tests (98 passed locally, 135 in CI: Bronze, Silver, Gold Marts, reconciliation gate & Financial parity)
 uv run pytest pipelines/tests
 
 # Run all Python tests in workspace
@@ -266,6 +276,7 @@ npm --prefix apps/storefront run build
 # Lakehouse cluster smoke test
 ./scripts/lakehouse_smoke.sh
 ```
+
 
 ---
 

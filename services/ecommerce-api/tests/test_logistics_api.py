@@ -1,6 +1,10 @@
-from uuid import UUID
 
 import pytest
+from app.core.ids import uuid7
+from app.db.deps import get_db
+from app.main import app
+from app.models.logistics import DeliveryStaff, Shipment
+from app.models.order import Order
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.mysql import BIGINT
@@ -8,12 +12,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.sql.elements import TextClause
-
-from app.core.ids import uuid7
-from app.db.deps import get_db
-from app.main import app
-from app.models.logistics import DeliveryStaff, Shipment
-from app.models.order import Order
 
 
 @compiles(TextClause, "sqlite")

@@ -13,10 +13,6 @@ Populates realistic time-series data across 7 business domains:
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session
-
-from app.core.ids import uuid7
 from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.catalog import Category, Product, ProductVariant
@@ -30,6 +26,8 @@ from app.models.order import Order, OrderItem, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
 from app.models.returns import ReturnItem, ReturnRequest
 from app.models.review import ProductReview
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 _NS = uuid.uuid5(uuid.NAMESPACE_URL, "fashion:demo-seed")
 

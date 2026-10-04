@@ -22,7 +22,15 @@ class MergeResult:
 
 
 def _get_salt() -> str:
-    return os.environ.get("SILVER_PSEUDONYMIZE_SALT", "")
+    salt = os.environ.get("SILVER_PSEUDONYMIZE_SALT", "").strip()
+    if not salt:
+        raise ValueError(
+            "SILVER_PSEUDONYMIZE_SALT is required and must not be empty. "
+            "NĐ 13/2023/NĐ-CP on Personal Data Protection requires cryptographic salting "
+            "to prevent dictionary and rainbow-table attacks on PII."
+        )
+    return salt
+
 
 
 def _dedup_by_pk(df: DataFrame, pk: str, cursor: str) -> DataFrame:

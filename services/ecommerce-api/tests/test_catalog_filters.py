@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from app.core.errors import AppError
 from app.modules.catalog.service import (
     _decode_product_cursor,

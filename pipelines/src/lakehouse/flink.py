@@ -132,3 +132,24 @@ def ensure_merge_on_read(
             """)
         except Exception as exc:
             log.warning("Could not set merge-on-read on %s: %s", tbl, exc)
+
+
+def ensure_upsert_mode(
+    t_env: StreamTableEnvironment,
+    tables: list[str],
+) -> None:
+    """Configure upsert mode on target Iceberg v2 tables to ensure deduplication on primary key."""
+    for tbl in tables:
+        try:
+            t_env.execute_sql(f"""
+                ALTER TABLE {tbl} SET (
+                    'format-version' = '2',
+                    'write.upsert.enabled' = 'true',
+                    'write.delete.mode' = 'merge-on-read',
+                    'write.update.mode' = 'merge-on-read',
+                    'write.merge.mode'  = 'merge-on-read'
+                )
+            """)
+        except Exception as exc:
+            log.warning("Could not set upsert mode on %s: %s", tbl, exc)
+

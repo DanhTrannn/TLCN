@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, JSON, String, Text, text
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.mysql import BIGINT, DATETIME, INTEGER
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

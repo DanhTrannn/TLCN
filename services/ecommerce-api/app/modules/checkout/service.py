@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.common.money import compute_amounts
 from app.core.errors import (
-    auth_required,
     CART_NOT_ACTIVE,
     EMPTY_CART,
     IDEMPOTENCY_CONFLICT,
@@ -13,6 +12,7 @@ from app.core.errors import (
     VALIDATION_ERROR,
     VARIANT_NOT_SELLABLE,
     AppError,
+    auth_required,
 )
 from app.core.ids import new_order_number, new_payment_reference, uuid7
 from app.db.uow import run_in_transaction
@@ -22,8 +22,8 @@ from app.models.customer import Customer
 from app.models.inventory import Inventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment
 from app.models.promotion import CouponRedemption
-from app.modules.checkout.schemas import CheckoutRequest, CheckoutResultResponse
 from app.modules.checkout.allocation import deduct_inventory
+from app.modules.checkout.schemas import CheckoutRequest, CheckoutResultResponse
 from app.modules.coupons.schemas import CheckoutQuoteRequest, CheckoutQuoteResponse
 from app.modules.coupons.service import CouponUse, resolve_coupon
 

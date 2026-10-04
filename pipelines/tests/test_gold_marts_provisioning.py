@@ -1,5 +1,4 @@
 from pathlib import Path
-import yaml
 
 
 def test_gold_marts_ddl_and_seed_files_exist():

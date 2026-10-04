@@ -46,3 +46,24 @@ def test_committed_null_pk_defaults_to_zero():
     )
     assert "`order_id` > 0" in pred
     assert "`order_id` <= 0" in pred
+
+
+def test_incremental_window_with_lookback_overlap():
+    committed = CursorState("2026-08-15 09:00:00", 3, "2026-08-15T09:05:00Z")
+    pred = build_range_predicate(
+        "updated_at", "order_id", committed, "2026-08-15 10:00:00", 5, lookback_minutes=10
+    )
+    # 09:00:00 minus 10 minutes is 08:50:00
+    assert "`updated_at` >= '2026-08-15 08:50:00'" in pred
+    assert "`updated_at` < '2026-08-15 10:00:00'" in pred
+    assert "`order_id` <= 5" in pred
+
+
+def test_lookback_with_iso_timestamp():
+    committed = CursorState("2026-08-15T09:30:00Z", 10, "2026-08-15T09:35:00Z")
+    pred = build_range_predicate(
+        "updated_at", "order_id", committed, None, None, lookback_minutes=15
+    )
+    # 09:30:00 minus 15 minutes is 09:15:00
+    assert "`updated_at` >= '2026-08-15 09:15:00'" in pred
+

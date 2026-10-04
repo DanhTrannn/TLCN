@@ -1,10 +1,9 @@
 from pathlib import Path
 
 import pytest
-
 from lakehouse.config import (
-    APPEND_ONLY_TABLES,
     APPEND_ONLY_CURSOR,
+    APPEND_ONLY_TABLES,
     EXPECTED_CURSOR,
     KNOWN_TABLES,
     MUTABLE_CURSOR,

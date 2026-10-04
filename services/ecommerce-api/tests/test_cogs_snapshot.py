@@ -1,15 +1,8 @@
-import pytest
-from sqlalchemy import create_engine, event, select
-from sqlalchemy.dialects.mysql import BIGINT
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from sqlalchemy.sql.elements import TextClause
-
-from app.core.ids import uuid7
-from app.db.base import Base
 import app.db.uow
 import app.models  # noqa: F401
+import pytest
+from app.core.ids import uuid7
+from app.db.base import Base
 from app.models.cart import Cart, CartItem
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer
@@ -20,6 +13,12 @@ from app.modules.checkout.schemas import CheckoutRequest
 from app.modules.checkout.service import checkout
 from app.modules.pos.schemas import POSTItemRequest, POSTransactionRequest
 from app.modules.pos.service import create_pos_transaction
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.sql.elements import TextClause
 
 
 @compiles(TextClause, "sqlite")

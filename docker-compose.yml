@@ -23,7 +23,9 @@ x-airflow-common: &airflow-common
     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
     MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-password}
     MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
+    SILVER_PSEUDONYMIZE_SALT: ${SILVER_PSEUDONYMIZE_SALT:-ecommerce_lakehouse_pii_salt_2026_nd13_secure}
     POLARIS_CATALOG_URI: http://polaris:8181/api/catalog
+
     POLARIS_CATALOG_NAME: ${POLARIS_CATALOG_NAME:-lakehouse}
     POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
     SPARK_MASTER_URL: spark://spark-master:7077

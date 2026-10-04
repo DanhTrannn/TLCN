@@ -8,7 +8,6 @@ from starlette.requests import Request
 
 from app.core.config import get_settings
 
-
 ACCESS_LOG_SCHEMA_NAME = "ecommerce.access"
 ACCESS_LOG_SCHEMA_VERSION = "1.0.0"
 

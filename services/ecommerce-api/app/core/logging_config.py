@@ -4,7 +4,6 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-
 _SAFE_FIELDS = (
     "request_id",
     "method",

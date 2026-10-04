@@ -19,6 +19,14 @@ import os
 import uuid
 
 import pendulum
+from lakehouse.flink import (
+    create_stream_environment,
+    create_table_environment,
+    ensure_medallion_namespaces,
+    ensure_merge_on_read,
+    ensure_upsert_mode,
+    register_polaris_catalog,
+)
 from pyflink.common import Row
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.typeinfo import Types
@@ -27,14 +35,6 @@ from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaSo
 from pyflink.datastream.functions import MapFunction
 from pyflink.table import Schema
 from pyflink.table.types import DataTypes
-
-from lakehouse.flink import (
-    create_stream_environment,
-    create_table_environment,
-    ensure_medallion_namespaces,
-    ensure_merge_on_read,
-    register_polaris_catalog,
-)
 
 VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 
@@ -191,11 +191,14 @@ def main() -> None:
     ensure_merge_on_read(t_env, [
         "lakehouse.landing.access_logs",
         "lakehouse.bronze.web_events",
+    ])
+    ensure_upsert_mode(t_env, [
         "lakehouse.silver.silver_logs",
         "lakehouse.gold.fact_web_events",
     ])
 
     # 3. Kafka Source
+
     kafka_source = (
         KafkaSource.builder()
         .set_bootstrap_servers(KAFKA_BOOTSTRAP)

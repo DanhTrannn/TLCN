@@ -10,6 +10,7 @@ pytestmark = pytest.mark.skipif(
     reason="Java not found -- Spark tests require a JDK",
 )
 
+from lakehouse.oltp.silver import MergeResult, merge_oltp_table
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     IntegerType,
@@ -18,7 +19,6 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-from lakehouse.oltp.silver import MergeResult, merge_oltp_table
 
 
 @pytest.fixture(scope="session")
@@ -379,4 +379,24 @@ def test_quarantine_routes_violations(spark, tmp_path):
         assert df.count() == 1
         assert df.collect()[0]["variant_id"] == 2
     finally:
-        os.environ.pop("SILVER_PSEUDONYMIZE_SALT", None)
+        os.environ["SILVER_PSEUDONYMIZE_SALT"] = "test_secret_pii_salt_nd13_pytest_2026"
+
+
+def test_get_salt_raises_value_error_when_missing(monkeypatch):
+    from lakehouse.oltp.silver import _get_salt
+
+    monkeypatch.delenv("SILVER_PSEUDONYMIZE_SALT", raising=False)
+    with pytest.raises(ValueError, match="SILVER_PSEUDONYMIZE_SALT is required and must not be empty"):
+        _get_salt()
+
+    monkeypatch.setenv("SILVER_PSEUDONYMIZE_SALT", "   ")
+    with pytest.raises(ValueError, match="SILVER_PSEUDONYMIZE_SALT is required and must not be empty"):
+        _get_salt()
+
+
+def test_get_salt_returns_configured_value(monkeypatch):
+    from lakehouse.oltp.silver import _get_salt
+
+    monkeypatch.setenv("SILVER_PSEUDONYMIZE_SALT", "my_secure_salt_value")
+    assert _get_salt() == "my_secure_salt_value"
+

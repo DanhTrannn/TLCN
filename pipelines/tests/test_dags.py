@@ -10,14 +10,11 @@ Validates all DAGs in airflow/dags/:
 from __future__ import annotations
 
 import ast
-import glob
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 DAG_DIR = Path(__file__).resolve().parents[2] / "airflow" / "dags"
 
@@ -323,10 +320,12 @@ def test_oltp_pipeline_structural_integrity():
     assert "commit_cursors" in dag.tasks
     assert "ingest_oltp_to_bronze" in dag.tasks
     assert "spark_oltp_bronze_to_silver" in dag.tasks
+    assert "reconciliation_gate" in dag.tasks
     assert "spark_build_gold_dimensions" in dag.tasks
     assert "spark_build_gold_facts" in dag.tasks
     assert "spark_build_gold_marts" in dag.tasks
     assert "compact_oltp_tables" in dag.tasks
+
 
 
 def test_streaming_maintenance_structural_integrity():

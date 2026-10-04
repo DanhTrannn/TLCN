@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-from bisect import bisect_left, bisect_right
 import random
 import uuid
+from bisect import bisect_left, bisect_right
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -23,7 +23,6 @@ from generator.config import (
     SaleEvent,
     TetWindow,
 )
-
 
 DEMO_PASSWORD = "Demo@12345"
 PRODUCT_IMAGE_URL = "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp"

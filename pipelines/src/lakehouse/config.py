@@ -57,6 +57,7 @@ class RunSpec:
     retries: int
     quarantine_max_rows: int
     max_parallel_tables: int
+    lookback_minutes: int = 10
 
 
 @dataclass(frozen=True)

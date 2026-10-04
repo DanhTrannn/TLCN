@@ -12,10 +12,10 @@ from app.db.deps import (
     get_db,
     verify_csrf,
 )
+from app.models.catalog import ProductVariant
 from app.models.customer import Customer
 from app.models.inventory import Inventory
 from app.models.multicity import Store, StoreInventory
-from app.models.catalog import ProductVariant
 from app.modules.admin.branch_inventory_schemas import BranchInventoryItem, UpdateStockRequest
 from app.modules.admin.branch_inventory_service import check_store_inventory_permission
 from app.modules.admin.schemas import (

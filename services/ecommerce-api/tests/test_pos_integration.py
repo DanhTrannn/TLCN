@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
-from app.modules.checkout.allocation import parse_city_from_address, deduct_inventory
 from app.core.errors import AppError
+from app.modules.checkout.allocation import deduct_inventory, parse_city_from_address
 
 
 def test_parse_city_from_address():

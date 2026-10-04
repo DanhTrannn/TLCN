@@ -3,14 +3,11 @@ import logging
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from starlette.requests import Request
-
-from app.core.access_logging import action_for, build_access_event, normalize_search_query, should_emit_access_event
+from app.core.access_logging import build_access_event, normalize_search_query
 from app.core.logging_config import JsonLineFormatter
 from app.core.middleware import RequestContextMiddleware
+from fastapi import FastAPI
+from starlette.requests import Request
 
 
 def _build_test_app() -> FastAPI:

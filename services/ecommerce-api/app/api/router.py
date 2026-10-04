@@ -2,23 +2,23 @@ from fastapi import APIRouter
 
 from app.api.health import router as health_router
 from app.modules.admin.router import router as admin_router
+from app.modules.analytics.router import router as analytics_router
 from app.modules.auth.router import router as auth_router
 from app.modules.cart.router import router as cart_router
 from app.modules.catalog.router import router as catalog_router
-from app.modules.inbound.router import router as admin_inbound_router
-from app.modules.location.router import router as location_router
-from app.modules.logistics.router import admin_logistics_router
 from app.modules.checkout.router import router as checkout_router
 from app.modules.coupons.router import admin_router as admin_coupons_router
 from app.modules.coupons.router import router as coupons_router
+from app.modules.inbound.router import router as admin_inbound_router
+from app.modules.location.router import router as location_router
+from app.modules.logistics.router import admin_logistics_router
 from app.modules.orders.router import internal_router as internal_orders_router
 from app.modules.orders.router import router as orders_router
-from app.modules.reviews.router import admin_router as admin_reviews_router
-from app.modules.reviews.router import router as reviews_router
+from app.modules.pos.router import router as pos_router
 from app.modules.returns.router import admin_router as admin_returns_router
 from app.modules.returns.router import router as returns_router
-from app.modules.analytics.router import router as analytics_router
-from app.modules.pos.router import router as pos_router
+from app.modules.reviews.router import admin_router as admin_reviews_router
+from app.modules.reviews.router import router as reviews_router
 from app.modules.store.router import admin_store_router
 from app.modules.wishlist.router import router as wishlist_router
 

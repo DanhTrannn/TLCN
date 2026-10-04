@@ -2,7 +2,20 @@
 
 import uuid
 from datetime import UTC, datetime
+
+import app.db.deps
+import app.db.uow
+import app.models  # noqa: F401
 import pytest
+from app.core.ids import uuid7
+from app.db.base import Base
+from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
+from app.main import app as fastapi_app
+from app.models.catalog import Category, Product, ProductVariant
+from app.models.customer import Customer
+from app.models.inbound import InboundReceipt
+from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.dialects.mysql import BIGINT
@@ -10,19 +23,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.sql.elements import TextClause
-
-from app.core.ids import uuid7
-from app.db.base import Base
-from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
-import app.db.deps
-import app.db.uow
-from app.main import app as fastapi_app
-import app.models  # noqa: F401
-from app.models.catalog import Category, Product, ProductVariant
-from app.models.customer import Customer
-from app.models.inbound import InboundReceipt, InboundReceiptItem
-from app.models.inventory import Inventory
-from app.models.inventory_tx import InventoryTransaction
 
 
 @compiles(TextClause, "sqlite")
@@ -66,7 +66,7 @@ def setup_db(monkeypatch):
     fastapi_app.dependency_overrides[get_db] = _get_test_db
 
     db = testing_session()
-    now = datetime.now(UTC).replace(tzinfo=None)
+    datetime.now(UTC).replace(tzinfo=None)
 
     admin = Customer(
         customer_id=1,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, VALIDATION_ERROR
+from app.core.errors import VALIDATION_ERROR, AppError
 from app.db.deps import get_current_inventory_staff, get_db, verify_csrf
 from app.models.customer import Customer
 from app.modules.inbound.schemas import (

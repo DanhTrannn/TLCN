@@ -1,19 +1,20 @@
 # System Scope and Specifications
 
-This document defines the technical scope, boundaries, and acceptance criteria for the D&K E-Commerce Data Platform. The platform is a batch-oriented Data Lakehouse designed to process operational data and web access logs for Business Intelligence (BI) and machine learning (ML).
+This document defines the technical scope, boundaries, and acceptance criteria for the D&K E-Commerce Data Platform. The platform is a modern Hybrid (Batch & Streaming) Data Lakehouse designed to process operational transactional data and continuous web access logs for Business Intelligence (BI) and machine learning (ML).
 
 ## 1. System Goals
 
-The primary objective is to build a batch data lakehouse that extracts data from a MySQL OLTP database and structured access logs from an e-commerce API. This prevents analytical workloads from impacting operational performance. 
+The primary objective is to build a hybrid data lakehouse that extracts data from a MySQL OLTP database and streams structured access logs from an e-commerce API. This prevents analytical workloads from impacting operational performance while enabling low-latency operational reporting.
 
 Key capabilities include:
-- Incremental extraction using composite cursors `(cursor_field, pk)`.
-- Micro-batch ingestion of rotated access logs (15-minute intervals).
-- Medallion architecture (Bronze, Silver, Gold) using Apache Iceberg.
-- Strict data quality, quarantine, and reconciliation gates.
-- Idempotent pipelines supporting safe rerun, replay, and backfill.
+- Incremental extraction using composite cursors `(cursor_field, pk)` with lookback overlap window.
+- Real-time continuous streaming ingestion via Apache Kafka and Apache Flink with upsert deduplication into Apache Iceberg.
+- Medallion architecture (Bronze, Silver, Gold) using Apache Iceberg format v2.
+- Strict data quality, quarantine, and automated pipeline Reconciliation Gates before Gold publishing.
+- Idempotent pipelines supporting safe rerun, replay, and deterministic backfill via Airflow data intervals.
 - Dimensional modeling for multi-role analytical dashboards and BI via Trino & Apache ECharts.
 - Point-in-time feature engineering for customer repurchase prediction.
+
 
 ---
 
@@ -120,9 +121,11 @@ The platform generates features and labels for predicting whether a returning cu
 
 ### 7.1. Reconciliation Gates
 The pipeline enforces strict reconciliation checks at each layer transition:
+- **Pipeline Reconciliation Gate**: An automated quality gate task (`run_reconciliation_gate.py` / `reconciliation_gate` operator) executes in the Airflow OLTP pipeline immediately following the Silver layer. It audits row count and gross revenue parity between MySQL and Silver Iceberg tables. If variance exceeds 0.05%, the pipeline fails immediately, blocking Gold dimensional modeling and Mart publishing.
 - Source row counts must match Bronze accepted rows.
-- Source monetary totals must exactly match Gold revenue facts.
+- Source monetary totals must match Gold revenue facts within tolerance.
 - Bronze distinct `request_id` counts must match Silver log deduplicated counts.
+
 
 ### 7.2. Table Maintenance
 Airflow runs scheduled DAGs to maintain Iceberg table health:

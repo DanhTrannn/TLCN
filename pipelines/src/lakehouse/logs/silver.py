@@ -50,9 +50,11 @@ USING iceberg
 PARTITIONED BY (days(event_ts))
 TBLPROPERTIES (
     'format-version' = '2',
+    'write.upsert.enabled' = 'true',
     'write.parquet.compression-codec' = 'zstd'
 )
 """)
+
 
 
 SILVER_LOGS_COLUMNS = [

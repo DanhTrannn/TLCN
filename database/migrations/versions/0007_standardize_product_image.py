@@ -7,7 +7,6 @@ Create Date: 2026-08-03
 
 from alembic import op
 
-
 revision = "0007_standardize_product_image"
 down_revision = "0006_rebrand_product_master"
 branch_labels = None

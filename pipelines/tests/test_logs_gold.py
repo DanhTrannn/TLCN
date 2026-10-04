@@ -9,10 +9,14 @@ pytestmark = pytest.mark.skipif(
     reason="Java not found -- Spark tests require a JDK",
 )
 
+from lakehouse.logs.gold import (
+    build_fact_web_events,
+    build_mart_daily_product_demand,
+    build_mart_hourly_route_metrics,
+)
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     BooleanType,
-    DoubleType,
     IntegerType,
     LongType,
     MapType,
@@ -20,14 +24,6 @@ from pyspark.sql.types import (
     StructField,
     StructType,
     TimestampType,
-)
-from lakehouse.logs.gold import (
-    FACT_WEB_EVENTS_TABLE,
-    MART_DAILY_PRODUCT_DEMAND_TABLE,
-    MART_HOURLY_ROUTE_METRICS_TABLE,
-    build_fact_web_events,
-    build_mart_daily_product_demand,
-    build_mart_hourly_route_metrics,
 )
 
 

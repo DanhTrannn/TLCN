@@ -1,9 +1,8 @@
-from unittest.mock import MagicMock, patch
-
-from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
 from app.db.deps import get_db
 from app.main import app
+from fastapi.testclient import TestClient
 
 
 def _override_db(mock_db):

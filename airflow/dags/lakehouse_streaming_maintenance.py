@@ -11,14 +11,15 @@ Chuyên trách duy trì, tối ưu hóa và tổng hợp dữ liệu cho luồng
 import os
 import uuid
 from datetime import timedelta
+
 import pendulum
 import requests
-
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.task_group import TaskGroup
+
+from airflow import DAG
 
 VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 

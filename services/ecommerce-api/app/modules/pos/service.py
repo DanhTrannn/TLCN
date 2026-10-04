@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, OUT_OF_STOCK, RESOURCE_NOT_FOUND
+from app.core.errors import OUT_OF_STOCK, RESOURCE_NOT_FOUND, AppError
 from app.core.ids import new_order_number, new_payment_reference, uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Product, ProductVariant

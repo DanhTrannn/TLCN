@@ -15,7 +15,6 @@ from zoneinfo import ZoneInfo
 from generator import __version__
 from generator.config import CATEGORY_NAMES, DistributionConfig, GeneratorConfig, SaleEvent, TetWindow
 
-
 SCHEMA_NAME = "ecommerce.access"
 SCHEMA_VERSION = "1.0.0"
 WINDOW_MINUTES = 15

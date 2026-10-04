@@ -2,8 +2,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-
-from app.core.errors import AppError, INVALID_STATE_TRANSITION
+from app.core.errors import INVALID_STATE_TRANSITION, AppError
 from app.models.catalog import Product
 from app.models.promotion import Coupon
 from app.modules.admin import service as admin_service

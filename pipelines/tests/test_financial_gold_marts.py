@@ -5,7 +5,6 @@ from datetime import date, datetime
 from pathlib import Path
 
 import pytest
-
 from lakehouse.config import load_config
 from lakehouse.oltp.gold_ddl import GOLD_TABLE_DDL
 
@@ -19,7 +18,7 @@ CONFIG_FILE = Path(__file__).resolve().parents[1] / "config" / "default.yml"
 def test_inbound_tables_registered_in_config():
     """Verify that inbound_receipts and inbound_receipt_items are registered with valid specs."""
     config = load_config(CONFIG_FILE)
-    
+
     inbound_receipts = config.table("inbound_receipts")
     assert inbound_receipts is not None, "inbound_receipts must be registered in default.yml"
     assert inbound_receipts.cursor_field == "updated_at"
@@ -195,8 +194,8 @@ class TestSparkFinancialGoldMarts:
         )
 
     def test_spark_fact_order_financial_calculations(self, spark):
+        from lakehouse.oltp.gold import build_fact_order
         from pyspark.sql.types import (
-            BooleanType,
             IntegerType,
             LongType,
             StringType,
@@ -204,7 +203,6 @@ class TestSparkFinancialGoldMarts:
             StructType,
             TimestampType,
         )
-        from lakehouse.oltp.gold import build_fact_order
 
         o_schema = StructType([
             StructField("order_id", LongType(), False),
@@ -286,8 +284,8 @@ class TestSparkFinancialGoldMarts:
         assert ord3.is_boom is True
 
     def test_spark_fact_order_with_variant_cost_fallback(self, spark):
+        from lakehouse.oltp.gold import build_fact_order, build_fact_order_item
         from pyspark.sql.types import (
-            BooleanType,
             IntegerType,
             LongType,
             StringType,
@@ -295,7 +293,6 @@ class TestSparkFinancialGoldMarts:
             StructType,
             TimestampType,
         )
-        from lakehouse.oltp.gold import build_fact_order, build_fact_order_item
 
         o_schema = StructType([
             StructField("order_id", LongType(), False),
@@ -343,6 +340,7 @@ class TestSparkFinancialGoldMarts:
         assert foi_row.item_profit_vnd == 140000
 
     def test_spark_build_mart_sales_daily_parity(self, spark):
+        from lakehouse.oltp.gold import build_mart_sales_daily
         from pyspark.sql.types import (
             BooleanType,
             DateType,
@@ -352,7 +350,6 @@ class TestSparkFinancialGoldMarts:
             StructField,
             StructType,
         )
-        from lakehouse.oltp.gold import build_mart_sales_daily
 
         fo_schema = StructType([
             StructField("order_id", LongType(), False),

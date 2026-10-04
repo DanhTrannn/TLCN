@@ -3,10 +3,9 @@
 Idempotent: skips when cities already exist.
 """
 
-from sqlalchemy import insert, select
-
 from app.db.session import SessionLocal
 from app.models.multicity import City, Store
+from sqlalchemy import insert, select
 
 CITIES = [
     {"code": "HCM", "name": "Hồ Chí Minh"},

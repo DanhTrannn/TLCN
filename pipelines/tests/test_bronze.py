@@ -8,8 +8,8 @@ pytestmark = pytest.mark.skipif(
     reason="Java not found — Spark tests require a JDK",
 )
 
-from pyspark.sql import SparkSession  # noqa: E402
 from lakehouse.oltp.bronze import ingest_to_bronze  # noqa: E402
+from pyspark.sql import SparkSession  # noqa: E402
 
 
 @pytest.fixture(scope="session")

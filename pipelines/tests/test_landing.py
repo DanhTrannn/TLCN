@@ -1,5 +1,4 @@
 import pytest
-
 from lakehouse.landing import RunPaths, manifest_from_dict, validate_manifest
 
 RUN = RunPaths(bucket="lakehouse", table="orders",

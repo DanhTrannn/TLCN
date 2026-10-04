@@ -2,8 +2,6 @@ import pytest
 
 pyspark = pytest.importorskip("pyspark", reason="pyspark not installed")
 
-import os
-from unittest.mock import MagicMock, patch
 
 from pyspark.sql import SparkSession
 

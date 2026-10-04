@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import pytest
-from lakehouse.oltp.gold_ddl import GOLD_TABLE_DDL
-
 # Import the maintenance argument parser and resolver
 # (This will fail or be imported from jobs.maintenance.iceberg_table_maintenance)
 from jobs.maintenance.iceberg_table_maintenance import (
@@ -10,6 +7,7 @@ from jobs.maintenance.iceberg_table_maintenance import (
     parse_args,
     resolve_tables,
 )
+from lakehouse.oltp.gold_ddl import GOLD_TABLE_DDL
 
 
 def test_table_profiles_definitions():

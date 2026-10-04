@@ -1,7 +1,8 @@
 """Analytics service with RBAC security gating and hybrid Trino Lakehouse DWH with OLTP fallback."""
 
-from datetime import UTC, datetime, timedelta
 import logging
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -420,31 +421,36 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
 
 def _get_system_metrics_oltp(db: Session) -> SystemMetricsResponse:
     total_orders = db.scalar(select(func.count()).select_from(Order)) or 0
-    gross_rev = db.scalar(
-        select(func.coalesce(func.sum(Payment.amount_vnd), 0)).where(Payment.status == "succeeded")
-    ) or 0
+    gross_rev = (
+        db.scalar(
+            select(func.coalesce(func.sum(Payment.amount_vnd), 0)).where(Payment.status == "succeeded")
+        )
+        or 0
+    )
 
+    # Truthfully signal that Lakehouse is disconnected/down in OLTP-only fallback
     reconciliation = [
         ReconciliationVariance(
             metric_name="total_orders",
             oltp_value=float(total_orders),
-            lakehouse_value=float(total_orders),
-            variance_percent=0.0,
+            lakehouse_value=0.0,
+            variance_percent=100.0,
         ),
         ReconciliationVariance(
             metric_name="gross_revenue_vnd",
             oltp_value=float(gross_rev),
-            lakehouse_value=float(gross_rev),
-            variance_percent=0.0,
+            lakehouse_value=0.0,
+            variance_percent=100.0,
         ),
     ]
 
     return SystemMetricsResponse(
         role="system",
-        pipeline_status="healthy",
-        data_freshness_sla_minutes=15,
+        pipeline_status="degraded",
+        data_freshness_sla_minutes=999,
         reconciliation_variance=reconciliation,
     )
+
 
 
 def _get_sales_trend_oltp(db: Session, days: int = 30) -> SalesTrendResponse:
@@ -517,7 +523,7 @@ def get_executive_metrics(
 
     try:
         sales_rows = client.execute_query("""
-            SELECT 
+            SELECT
                 COALESCE(SUM(gross_revenue_vnd), 0) AS gmv_vnd,
                 COALESCE(SUM(gross_revenue_vnd), 0) AS net_revenue_vnd,
                 COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
@@ -573,12 +579,12 @@ def get_sales_metrics(
 
     try:
         store_rows = client.execute_query("""
-            SELECT 
-                CASE 
+            SELECT
+                CASE
                     WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
                     ELSE m.store_key
                 END AS effective_store_key,
-                CASE 
+                CASE
                     WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
                     ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
                 END AS channel_name,
@@ -586,12 +592,12 @@ def get_sales_metrics(
                 COALESCE(SUM(m.total_orders), 0) AS order_count
             FROM lakehouse.gold.mart_sales_daily m
             LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
-            GROUP BY 
-                CASE 
+            GROUP BY
+                CASE
                     WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
                     ELSE m.store_key
                 END,
-                CASE 
+                CASE
                     WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
                     ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
                 END
@@ -625,7 +631,7 @@ def get_sales_metrics(
         store_contributions = sorted(contributions_map.values(), key=lambda x: x.revenue_vnd, reverse=True)
 
         prod_rows = client.execute_query("""
-            SELECT 
+            SELECT
                 dp.product_id,
                 dp.product_name,
                 COALESCE(SUM(foi.quantity), 0) AS units_sold,
@@ -647,7 +653,7 @@ def get_sales_metrics(
         ]
 
         cat_rows = client.execute_query("""
-            SELECT 
+            SELECT
                 category_id,
                 category_name,
                 COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd
@@ -710,7 +716,7 @@ def get_marketing_metrics(
         funnel_rows = None
         try:
             funnel_rows = client.execute_query("""
-                SELECT 
+                SELECT
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('product_detail', 'catalog_search') OR http_route LIKE '/api/v1/products%' THEN 1 ELSE 0 END), 0) AS visitors_count,
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('cart_item_set', 'cart_add') OR http_route LIKE '/api/v1/cart%' THEN 1 ELSE 0 END), 0) AS add_to_cart_count,
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('checkout_quote', 'checkout_submit') OR http_route LIKE '/api/v1/checkout%' THEN 1 ELSE 0 END), 0) AS checkouts_count,
@@ -730,7 +736,7 @@ def get_marketing_metrics(
         if visitors == 0 and add_to_cart == 0 and checkouts == 0:
             try:
                 mart_rows = client.execute_query("""
-                    SELECT 
+                    SELECT
                         COALESCE(SUM(product_views), 0) AS visitors_count,
                         COALESCE(SUM(cart_additions), 0) AS add_to_cart_count,
                         COALESCE(SUM(checkout_initiations), 0) AS checkouts_count,
@@ -818,10 +824,10 @@ def get_store_metrics(
         store_name = None
         if effective_store_id is None:
             first_store_rows = client.execute_query("""
-                SELECT store_key, store_name 
-                FROM lakehouse.gold.dim_store 
-                WHERE store_key > 0 
-                ORDER BY store_key 
+                SELECT store_key, store_name
+                FROM lakehouse.gold.dim_store
+                WHERE store_key > 0
+                ORDER BY store_key
                 LIMIT 1
             """)
             if first_store_rows:
@@ -830,8 +836,8 @@ def get_store_metrics(
 
         if effective_store_id is not None and not store_name:
             dim_rows = client.execute_query(f"""
-                SELECT store_name 
-                FROM lakehouse.gold.dim_store 
+                SELECT store_name
+                FROM lakehouse.gold.dim_store
                 WHERE store_key = {effective_store_id}
             """)
             if dim_rows and dim_rows[0].get("store_name"):
@@ -848,7 +854,7 @@ def get_store_metrics(
         filter_clause = f"store_key = {effective_store_id}" if effective_store_id is not None else "1=1"
 
         rows = client.execute_query(f"""
-            SELECT 
+            SELECT
                 COALESCE(SUM(gross_revenue_vnd), 0) AS store_revenue_today_vnd,
                 COALESCE(SUM(total_orders), 0) AS store_orders_count
             FROM lakehouse.gold.mart_sales_daily
@@ -913,7 +919,7 @@ def get_inventory_metrics(
 
     try:
         inv_rows = client.execute_query("""
-            SELECT 
+            SELECT
                 COALESCE(SUM(total_inventory_value_vnd), 0) AS total_val,
                 COALESCE(SUM(CASE WHEN location_type = 'warehouse' THEN total_on_hand_units ELSE 0 END), 0) AS wh_units,
                 COALESCE(SUM(CASE WHEN location_type = 'store' THEN total_on_hand_units ELSE 0 END), 0) AS st_units,
@@ -951,7 +957,7 @@ def get_operations_metrics(
 
     try:
         log_rows = client.execute_query("""
-            SELECT 
+            SELECT
                 COALESCE(SUM(total_shipments - delivered_count), 0) AS pending_fulfillment,
                 COALESCE(SUM(total_shipments - on_time_count), 0) AS sla_violations,
                 COALESCE(SUM(boom_count), 0) AS failed_deliveries
@@ -989,16 +995,35 @@ def get_system_metrics(
         raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
     try:
-        status = "healthy"
         sales_rows = client.execute_query("""
-            SELECT 
+            SELECT
                 COALESCE(SUM(total_orders), 0) AS total_orders,
-                COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd
+                COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd,
+                MAX(order_date) AS latest_date
             FROM lakehouse.gold.mart_sales_daily
         """)
         s_row = sales_rows[0] if sales_rows else {}
         total_orders = float(s_row.get("total_orders") or 0)
         gross_rev = float(s_row.get("gross_revenue_vnd") or 0)
+
+        # Dynamic data freshness calculation from latest Gold Mart update
+        latest_date_raw = s_row.get("latest_date")
+        if latest_date_raw:
+            try:
+                from datetime import date as d_cls
+                if isinstance(latest_date_raw, str):
+                    d_obj = datetime.strptime(latest_date_raw[:10], "%Y-%m-%d").date()
+                elif isinstance(latest_date_raw, d_cls):
+                    d_obj = latest_date_raw
+                else:
+                    d_obj = d_cls.today()
+                today_date = d_cls.today()
+                days_lag = max(0, (today_date - d_obj).days)
+                freshness_sla = max(5, days_lag * 1440 if days_lag > 0 else 15)
+            except Exception:
+                freshness_sla = 15
+        else:
+            freshness_sla = 60
 
         # Variance vs OLTP if db is available
         oltp_orders = total_orders
@@ -1009,6 +1034,14 @@ def get_system_metrics(
 
         orders_var = round(abs(oltp_orders - total_orders) / oltp_orders * 100, 2) if oltp_orders > 0 else 0.0
         rev_var = round(abs(oltp_rev - gross_rev) / oltp_rev * 100, 2) if oltp_rev > 0 else 0.0
+
+        # Dynamic status based on variance thresholds
+        if orders_var > 20.0 or rev_var > 20.0:
+            status = "unhealthy"
+        elif orders_var > 5.0 or rev_var > 5.0:
+            status = "degraded"
+        else:
+            status = "healthy"
 
         reconciliation = [
             ReconciliationVariance(
@@ -1028,12 +1061,15 @@ def get_system_metrics(
         return SystemMetricsResponse(
             role="system",
             pipeline_status=status,
-            data_freshness_sla_minutes=15,
+            data_freshness_sla_minutes=freshness_sla,
             reconciliation_variance=reconciliation,
         )
+    except AppError:
+        raise
     except Exception as exc:
         logger.error("Trino system query failed: %s", exc)
         raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (System): {exc}") from exc
+
 
 
 def get_role_metrics_data(
@@ -1064,41 +1100,29 @@ def get_role_metrics_data(
 
 
 def get_sales_trend(
-    first: int | Session | None = 30,
-    second: int | Session | None = 30,
     days: int = 30,
     db: Session | None = None,
     trino_client: TrinoClient | None = None,
 ) -> SalesTrendResponse:
-    effective_days = days
-    effective_db = db
-    if isinstance(first, Session):
-        effective_db = first
-    elif isinstance(first, int):
-        effective_days = first
-
-    if isinstance(second, Session):
-        effective_db = second
-    elif isinstance(second, int):
-        effective_days = second
-
+    days_val = max(1, min(int(days), 365))
     client = trino_client or default_trino_client
     if not client.is_healthy():
         raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
 
     try:
-        rows = client.execute_query(f"""
-            SELECT 
+        sql = f"""
+            SELECT
                 CAST(order_date AS VARCHAR) AS date_str,
                 COALESCE(SUM(gross_revenue_vnd), 0) AS revenue_vnd,
                 COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
                 COALESCE(SUM(gross_profit_vnd), 0) AS profit_vnd,
                 COALESCE(SUM(total_orders), 0) AS orders_count
             FROM lakehouse.gold.mart_sales_daily
-            WHERE order_date >= current_date - INTERVAL '{effective_days}' DAY
+            WHERE order_date >= current_date - INTERVAL '{days_val}' DAY
             GROUP BY order_date
             ORDER BY order_date ASC
-        """)
+        """
+        rows = client.execute_query(sql)
         points = [
             DailySalesTrendPoint(
                 date=str(r.get("date_str") or ""),
@@ -1109,7 +1133,10 @@ def get_sales_trend(
             )
             for r in rows
         ]
-        return SalesTrendResponse(days=effective_days, points=points)
+        return SalesTrendResponse(days=days_val, points=points)
+    except AppError:
+        raise
     except Exception as exc:
         logger.error("Trino sales trend query failed: %s", exc)
         raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Sales Trend): {exc}") from exc
+

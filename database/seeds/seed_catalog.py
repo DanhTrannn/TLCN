@@ -8,16 +8,15 @@ manual catalog + opening balance; historical data is produced by the generator (
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select
-
 from app.core.config import get_settings
 from app.core.ids import uuid7
 from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.catalog import Category, Product, ProductVariant
+from app.models.customer import Customer, CustomerCredential
 from app.models.inventory import Inventory
 from app.models.promotion import Coupon
-from app.models.customer import Customer, CustomerCredential
+from sqlalchemy import select
 
 _NS = uuid.uuid5(uuid.NAMESPACE_URL, "web:catalog")
 PRODUCT_IMAGE_URL = "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp"

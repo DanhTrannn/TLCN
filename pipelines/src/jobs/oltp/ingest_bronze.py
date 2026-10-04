@@ -1,7 +1,9 @@
 import argparse
 import sys
-from lakehouse.spark import spark_session
+
 from lakehouse.oltp.bronze import ingest_to_bronze
+from lakehouse.spark import spark_session
+
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description="Ingest Landing data to Bronze")

@@ -5,10 +5,9 @@ Revises: 0007_standardize_product_image
 Create Date: 2026-08-12
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import mysql
-
 
 revision = "0008_archive_catalog_promotions"
 down_revision = "0007_standardize_product_image"

@@ -1,8 +1,7 @@
 import pytest
-
 from app.core.errors import AppError
-from app.modules.admin.branch_inventory_service import check_store_inventory_permission
 from app.models.customer import Customer
+from app.modules.admin.branch_inventory_service import check_store_inventory_permission
 
 
 def test_admin_has_full_access():

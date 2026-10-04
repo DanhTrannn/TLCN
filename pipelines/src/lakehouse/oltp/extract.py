@@ -85,8 +85,10 @@ def extract_one_table(
                      extract_date=extract_date, run_id=run_id)
     now_utc = _utc_now()
 
+    lookback_minutes = getattr(cfg.run, "lookback_minutes", 10)
     range_pred = build_range_predicate(
-        table.cursor_field, table.pk, committed, high_watermark_at, high_watermark_pk
+        table.cursor_field, table.pk, committed, high_watermark_at, high_watermark_pk,
+        lookback_minutes=lookback_minutes,
     )
 
     bounds = spark.read.format("jdbc").options(

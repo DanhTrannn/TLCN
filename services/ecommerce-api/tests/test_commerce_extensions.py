@@ -2,8 +2,6 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
-
 from app.common.money import compute_amounts
 from app.models.order import Order, OrderItem, OrderStatusHistory, Refund
 from app.models.promotion import Coupon, CouponRedemption
@@ -17,6 +15,7 @@ from app.modules.coupons.service import (
 )
 from app.modules.orders.schemas import CancelOrderRequest
 from app.modules.reviews.schemas import ModerateReviewRequest
+from pydantic import ValidationError
 
 
 def test_money_breakdown_applies_discount_before_shipping() -> None:

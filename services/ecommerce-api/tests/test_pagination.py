@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-
 from app.common.pagination import decode_cursor, encode_cursor
 from app.core.errors import AppError
 

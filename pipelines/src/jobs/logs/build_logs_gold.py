@@ -1,8 +1,6 @@
 import argparse
 import sys
 
-from pyspark.sql import functions as F
-
 from lakehouse.logs.gold import (
     FACT_WEB_EVENTS_TABLE,
     MART_DAILY_PRODUCT_DEMAND_TABLE,
@@ -14,6 +12,7 @@ from lakehouse.logs.gold import (
     ensure_logs_gold_tables,
 )
 from lakehouse.spark import spark_session
+from pyspark.sql import functions as F
 
 
 def parse_args(args: list[str]) -> argparse.Namespace:

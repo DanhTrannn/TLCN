@@ -1,7 +1,6 @@
 import json
 
 import pytest
-
 from lakehouse.oltp.cursor import (
     CURSOR_DIR,
     CursorState,

@@ -5,10 +5,9 @@ Revises: 0004_simplify_checkout_payment
 Create Date: 2026-08-02
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import mysql
-
 
 revision = "0005_order_lifecycle"
 down_revision = "0004_simplify_checkout_payment"

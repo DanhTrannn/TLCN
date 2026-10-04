@@ -1,7 +1,6 @@
-from sqlalchemy import CheckConstraint
-
 from app.models.catalog import Product
 from app.models.promotion import Coupon
+from sqlalchemy import CheckConstraint
 
 
 def _check_names(model: type[Product] | type[Coupon]) -> set[str]:

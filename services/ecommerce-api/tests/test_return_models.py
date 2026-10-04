@@ -3,19 +3,18 @@
 import uuid
 from datetime import datetime, timezone
 
+import app.models  # noqa: F401
 import pytest
+from app.core.ids import uuid7
+from app.db.base import Base
+from app.models.customer import Customer
+from app.models.order import Order, OrderStatusHistory
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.sql.elements import TextClause
-
-from app.core.ids import uuid7
-from app.db.base import Base
-import app.models  # noqa: F401
-from app.models.customer import Customer
-from app.models.order import Order, OrderStatusHistory
 
 
 @compiles(TextClause, "sqlite")

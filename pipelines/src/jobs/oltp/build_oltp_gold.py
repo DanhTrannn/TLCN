@@ -5,8 +5,6 @@ import sys
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from pyspark.sql import functions as F
-
 from lakehouse.oltp.gold import (
     build_dim_customer,
     build_dim_date,
@@ -26,6 +24,7 @@ from lakehouse.oltp.gold import (
 )
 from lakehouse.oltp.gold_ddl import ensure_oltp_gold_tables
 from lakehouse.spark import spark_session
+from pyspark.sql import functions as F
 
 if TYPE_CHECKING:
     from pyspark.sql import SparkSession

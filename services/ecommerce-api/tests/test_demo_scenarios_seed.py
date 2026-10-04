@@ -1,18 +1,12 @@
 """Integration tests for Comprehensive Seed & Demo Scenarios Script (Gói 4 - Task 4)."""
 
-import uuid
-from datetime import UTC, datetime, timedelta
-import pytest
-from sqlalchemy import create_engine, event, func, select
-from sqlalchemy.dialects.mysql import BIGINT
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from sqlalchemy.sql.elements import TextClause
+import sys
+from pathlib import Path
 
-from app.db.base import Base
 import app.db.uow
 import app.models  # noqa: F401
+import pytest
+from app.db.base import Base
 from app.models.catalog import ProductVariant
 from app.models.customer import Customer, CustomerCredential
 from app.models.inbound import InboundReceipt, InboundReceiptItem
@@ -33,9 +27,12 @@ from app.modules.analytics.service import (
     get_store_metrics,
     get_system_metrics,
 )
-
-import sys
-from pathlib import Path
+from sqlalchemy import create_engine, event, func, select
+from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.sql.elements import TextClause
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
@@ -275,6 +272,15 @@ def test_seed_demo_data_analytics_dashboards_queryable(test_db, monkeypatch):
                 "category_name": "Áo Nam",
                 "revenue_vnd": 10000000,
             }]
+        if "mart_sales_daily" in q and "latest_date" in q:
+            from app.models.order import Order
+            actual_orders = test_db.scalar(select(func.count(Order.order_id))) or 27
+            actual_rev = test_db.scalar(select(func.sum(Order.total_vnd)).where(Order.status != "cancelled")) or 35000000
+            return [{
+                "total_orders": actual_orders,
+                "gross_revenue_vnd": actual_rev,
+                "latest_date": "2026-10-04",
+            }]
         if "mart_sales_daily" in q:
             return [{
                 "gmv_vnd": 35000000,
@@ -287,6 +293,7 @@ def test_seed_demo_data_analytics_dashboards_queryable(test_db, monkeypatch):
                 "store_orders_count": 5,
                 "gross_revenue_vnd": 35000000,
             }]
+
         if "fact_order_item" in q:
             return [{
                 "product_id": 1,

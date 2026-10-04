@@ -1,10 +1,9 @@
 from types import SimpleNamespace
 
-from starlette.requests import Request
-
 from app.core.config import get_settings
 from app.core.security import create_access_token
 from app.db.deps import get_optional_customer
+from starlette.requests import Request
 
 
 class _ScalarResult:

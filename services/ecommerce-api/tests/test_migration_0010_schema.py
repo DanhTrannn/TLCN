@@ -1,10 +1,8 @@
 """Test that migration 0010 creates the expected multi-city schema."""
 
-from sqlalchemy import CheckConstraint, inspect
-from sqlalchemy.dialects.mysql import BIGINT, DATETIME
-
 from app.db.base import Base
 from app.models.customer import Customer
+from sqlalchemy import CheckConstraint
 
 
 def _table_names() -> set[str]:

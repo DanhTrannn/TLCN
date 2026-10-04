@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Header, Query
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import forbidden, not_found
-from app.db.deps import get_current_staff, get_db, verify_csrf
+from app.db.deps import get_current_staff, get_db
 from app.models.customer import Customer
 from app.models.multicity import Store
-from sqlalchemy import select
 from app.modules.orders.schemas import CancelOrderRequest, OrderDetailResponse, OrderTransitionResponse
 from app.modules.orders.service import cancel_order, confirm_order
 from app.modules.store.schemas import (

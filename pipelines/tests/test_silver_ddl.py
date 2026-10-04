@@ -1,9 +1,7 @@
 from lakehouse.oltp.silver_ddl import (
-    SILVER_TABLE_DDL,
     SILVER_QUARANTINE_DDL,
     SILVER_QUARANTINE_TABLE,
-    ensure_silver_namespaces,
-    ensure_silver_tables,
+    SILVER_TABLE_DDL,
 )
 
 

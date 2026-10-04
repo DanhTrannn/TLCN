@@ -1,20 +1,18 @@
 from unittest.mock import MagicMock
+
+import app.models  # noqa: F401
 import pytest
+from app.core.ids import uuid7
+from app.db.base import Base
+from app.models.customer import Customer
+from app.modules.analytics.service import _get_marketing_metrics_oltp, get_marketing_metrics
+from app.modules.analytics.trino_client import TrinoClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.sql.elements import TextClause
-
-from app.db.base import Base
-from app.core.ids import uuid7
-import app.models  # noqa: F401
-from app.models.customer import Customer
-from app.models.order import Order
-from app.models.cart import Cart, CartItem
-from app.modules.analytics.service import get_marketing_metrics, _get_marketing_metrics_oltp
-from app.modules.analytics.trino_client import TrinoClient
 
 
 @compiles(TextClause, "sqlite")

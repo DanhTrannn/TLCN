@@ -13,3 +13,21 @@ members = [
   "generator",
   "pipelines",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E",     # Error rules
+  "F",     # Pyflakes rules
+  "W",     # Warning rules
+]
+ignore = [
+  "E501",  # Line too long
+  "E712",  # Comparison to True (SQLAlchemy boolean column expressions)
+  "E402",  # Module level import not at top of file (sys.path injection)
+]
+
+

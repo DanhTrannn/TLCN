@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.db.deps import get_db, get_current_staff
-from app.modules.pos.schemas import POSTransactionRequest, POSTransactionResponse, POSProductSearchResponse
-from app.modules.pos.service import search_products, create_pos_transaction
+from app.db.deps import get_current_staff, get_db
+from app.modules.pos.schemas import POSProductSearchResponse, POSTransactionRequest, POSTransactionResponse
+from app.modules.pos.service import create_pos_transaction, search_products
 
 router = APIRouter(prefix="/pos", tags=["pos"])
 

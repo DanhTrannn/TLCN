@@ -8,18 +8,18 @@ from sqlalchemy.orm import Session
 from app.common.money import compute_amounts
 from app.core.config import get_settings
 from app.core.errors import (
-    auth_required,
     CART_NOT_ACTIVE,
     VARIANT_NOT_SELLABLE,
     AppError,
+    auth_required,
     not_found,
 )
 from app.core.ids import uuid7
 from app.db.uow import run_in_transaction
 from app.models.cart import Cart, CartItem
 from app.models.catalog import Category, Product, ProductVariant
-from app.models.inventory import Inventory
 from app.models.customer import Customer
+from app.models.inventory import Inventory
 from app.modules.cart.schemas import CartItemResponse, CartResponse
 
 

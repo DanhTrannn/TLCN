@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-
 from app.core.errors import INVALID_STATE_TRANSITION, RESOURCE_NOT_FOUND, AppError
 from app.main import app
 from app.modules.orders import service

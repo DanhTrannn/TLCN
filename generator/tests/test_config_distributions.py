@@ -4,7 +4,6 @@ from pathlib import Path
 from uuid import UUID
 
 import yaml
-
 from generator.config import DEFAULT_DISTRIBUTIONS, load_config
 
 

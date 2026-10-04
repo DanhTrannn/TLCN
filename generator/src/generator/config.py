@@ -11,7 +11,6 @@ import yaml
 
 from generator import __version__
 
-
 _LOGICAL_IDENTITY_NAMESPACE = uuid.uuid5(
     uuid.NAMESPACE_URL,
     "https://d-and-k.local/data-generator/logical-identity",

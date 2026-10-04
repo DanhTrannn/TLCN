@@ -2,7 +2,6 @@ import io
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-
 from lakehouse.landing import RunPaths
 from lakehouse.validate import parquet_row_count, validate_manifest_on_s3
 

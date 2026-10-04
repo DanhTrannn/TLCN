@@ -1,8 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from app.modules.checkout.schemas import CheckoutRequest
-
+from pydantic import ValidationError
 
 VALID_CHECKOUT = {
     "receiver_name": "Nguyen Van A",

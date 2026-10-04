@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, OUT_OF_STOCK
+from app.core.errors import OUT_OF_STOCK, AppError
 from app.models.inventory import Inventory
 
 CITY_PREFIXES = ["Thành phố", "TP.", "TP", "Tỉnh", "T."]

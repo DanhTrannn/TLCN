@@ -22,8 +22,11 @@ from app.models.logistics import DeliveryStaff, Shipment
 from app.models.multicity import StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
+from app.models.returns import ReturnRequest
 from app.models.review import ProductReview
+from app.modules.logistics.schemas import ShipmentResponse
 from app.modules.orders.schemas import (
+    OrderActiveReturnResponse,
     OrderDetailResponse,
     OrderItemResponse,
     OrderItemReviewResponse,
@@ -35,10 +38,6 @@ from app.modules.orders.schemas import (
     RefundResponse,
     StatusHistoryResponse,
 )
-from app.modules.logistics.schemas import ShipmentResponse
-from app.models.returns import ReturnItem, ReturnRequest
-from app.modules.orders.schemas import OrderActiveReturnResponse
-
 
 _ORDER_PREVIEW_LIMIT = 3
 

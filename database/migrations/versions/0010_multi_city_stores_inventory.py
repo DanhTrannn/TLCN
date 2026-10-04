@@ -5,10 +5,9 @@ Revises: 0009_reviews_publish_immediately
 Create Date: 2026-09-09
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import mysql
-
 
 revision = "0010_multi_city_stores_inventory"
 down_revision = "0009_reviews_publish_immediately"

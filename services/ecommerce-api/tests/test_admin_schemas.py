@@ -1,12 +1,11 @@
 import pytest
-from pydantic import ValidationError
-
 from app.modules.admin.schemas import (
     ArchiveRequest,
     CreateProductRequest,
     UpdateProductRequest,
     UpdateVariantRequest,
 )
+from pydantic import ValidationError
 
 
 def test_create_product_rejects_duplicate_variant_combination() -> None:

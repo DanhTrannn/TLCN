@@ -2,9 +2,9 @@ import json
 import logging
 import os
 import time
-from typing import Any
 import urllib.error
 import urllib.request
+from typing import Any
 
 try:
     import httpx

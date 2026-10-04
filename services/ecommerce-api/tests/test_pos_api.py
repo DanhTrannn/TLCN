@@ -1,8 +1,5 @@
 from unittest.mock import patch
 
-from app.main import app
-from app.db.deps import get_current_customer
-
 
 def test_search_products_requires_auth(client):
     response = client.get("/api/v1/pos/products?store_id=1&search=APN")

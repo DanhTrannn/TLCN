@@ -3,7 +3,20 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import app.db.deps
+import app.db.uow
+import app.models  # noqa: F401
 import pytest
+from app.core.ids import uuid7
+from app.db.base import Base
+from app.db.deps import get_current_customer, get_db, verify_csrf
+from app.main import app as fastapi_app
+from app.models.catalog import Category, Product, ProductVariant
+from app.models.customer import Customer
+from app.models.inventory import Inventory
+from app.models.order import Order, OrderItem, Payment
+from app.models.promotion import Coupon
+from app.models.returns import ReturnRequest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.dialects.mysql import BIGINT
@@ -11,20 +24,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.sql.elements import TextClause
-
-from app.core.ids import uuid7
-from app.db.base import Base
-from app.db.deps import get_current_customer, get_db, verify_csrf
-import app.db.deps
-import app.db.uow
-from app.main import app as fastapi_app
-import app.models  # noqa: F401
-from app.models.catalog import Category, Product, ProductVariant
-from app.models.customer import Customer
-from app.models.inventory import Inventory
-from app.models.order import Order, OrderItem, Payment
-from app.models.promotion import Coupon
-from app.models.returns import ReturnRequest
 
 
 @compiles(TextClause, "sqlite")

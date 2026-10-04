@@ -17,16 +17,16 @@ from datetime import timedelta
 
 import pendulum
 import pymysql
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils.task_group import TaskGroup
-from sqlalchemy.engine.url import make_url
-
 from lakehouse.config import load_config
 from lakehouse.oltp.cursor import build_cursor_advancements, write_committed_cursor
 from lakehouse.validate import s3_client, validate_run
+from sqlalchemy.engine.url import make_url
+
+from airflow import DAG
 
 VN_TZ = pendulum.timezone("Asia/Ho_Chi_Minh")
 CONFIG_PATH = os.environ.get("PIPELINE_CONFIG_PATH", "/opt/project/pipelines/config/default.yml")
@@ -34,6 +34,7 @@ CONFIG_PATH = os.environ.get("PIPELINE_CONFIG_PATH", "/opt/project/pipelines/con
 SPARK_APP_EXTRACT = "/opt/project/pipelines/src/jobs/oltp/extract_oltp.py"
 SPARK_APP_BRONZE = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_to_bronze.py"
 SPARK_APP_SILVER = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_silver.py"
+SPARK_APP_RECONCILE = "/opt/project/pipelines/src/jobs/oltp/run_reconciliation_gate.py"
 SPARK_APP_GOLD = "/opt/project/pipelines/src/jobs/oltp/build_oltp_gold.py"
 SPARK_APP_MAINTENANCE = "/opt/project/pipelines/src/jobs/maintenance/iceberg_table_maintenance.py"
 
@@ -45,6 +46,11 @@ DEFAULT_ARGS = {
 
 
 def _mysql_conn():
+    """Establish connection to MySQL OLTP database.
+
+    Default credentials ("ecommerce_app:password") are local development defaults.
+    In production, override via MYSQL_ECOMMERCE_READER_URL or Airflow Connections vault.
+    """
     reader_url = os.environ.get(
         "MYSQL_ECOMMERCE_READER_URL",
         "mysql+pymysql://ecommerce_app:password@mysql:3306/ecommerce",
@@ -58,6 +64,7 @@ def _mysql_conn():
         database=url.database,
         connect_timeout=10,
     )
+
 
 
 def check_mysql() -> str:
@@ -74,13 +81,19 @@ def check_mysql() -> str:
 
 def begin_run(**context) -> None:
     run_id = uuid.uuid4().hex
-    batch_date = pendulum.now(VN_TZ).strftime("%Y-%m-%d")
+    # Use Airflow execution interval for true idempotency and deterministic backfilling
+    logical_dt = context.get("data_interval_start") or context.get("logical_date")
+    if logical_dt:
+        batch_date = logical_dt.in_timezone(VN_TZ).strftime("%Y-%m-%d")
+    else:
+        batch_date = pendulum.now(VN_TZ).strftime("%Y-%m-%d")
+
     context["ti"].xcom_push(key="run_id", value=run_id)
     context["ti"].xcom_push(key="batch_date", value=batch_date)
     context["ti"].xcom_push(key="extract_date", value=batch_date)
     context["ti"].xcom_push(key="bronze_date", value=batch_date)
     context["ti"].xcom_push(key="snapshot_date", value=batch_date)
-    print(f"[begin_run] Initialized OLTP pipeline run {run_id} for date {batch_date} (Asia/Ho_Chi_Minh)")
+    print(f"[begin_run] Initialized OLTP pipeline run {run_id} for interval {batch_date} (Asia/Ho_Chi_Minh)")
 
 
 def capture_high_watermarks() -> dict:
@@ -107,15 +120,25 @@ def capture_high_watermarks() -> dict:
     return result
 
 
-def validate_landing_manifests(**context) -> None:
-    cfg = load_config(CONFIG_PATH)
-    run_id = context["ti"].xcom_pull(task_ids="begin_run", key="run_id")
-    extract_date = context["ti"].xcom_pull(task_ids="begin_run", key="batch_date")
-    s3 = s3_client(
+def _s3_conn():
+    """Construct S3/MinIO client using environment variables.
+
+    Credentials default to local development values ('minioadmin', 'password').
+    In production environments, configure via MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
+    or Airflow Connections / Secret backend.
+    """
+    return s3_client(
         os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
         os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
         os.environ.get("MINIO_SECRET_KEY", "password"),
     )
+
+
+def validate_landing_manifests(**context) -> None:
+    cfg = load_config(CONFIG_PATH)
+    run_id = context["ti"].xcom_pull(task_ids="begin_run", key="run_id")
+    extract_date = context["ti"].xcom_pull(task_ids="begin_run", key="batch_date")
+    s3 = _s3_conn()
     violations = validate_run(
         s3, cfg.bucket, [t.name for t in cfg.tables], extract_date, run_id
     )
@@ -128,11 +151,7 @@ def validate_landing_manifests(**context) -> None:
 def commit_cursors(**context) -> None:
     cfg = load_config(CONFIG_PATH)
     watermarks = context["ti"].xcom_pull(task_ids="landing_zone.capture_high_watermarks")
-    s3 = s3_client(
-        os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
-        os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
-        os.environ.get("MINIO_SECRET_KEY", "password"),
-    )
+    s3 = _s3_conn()
     now_utc = pendulum.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
     states = build_cursor_advancements(
         watermarks, [t.name for t in cfg.tables], now_utc
@@ -140,6 +159,7 @@ def commit_cursors(**context) -> None:
     for table, state in states.items():
         write_committed_cursor(s3, cfg.bucket, table, state)
     print(f"[commit_cursors] Successfully advanced cursors for {len(states)} tables.")
+
 
 
 with DAG(
@@ -190,12 +210,8 @@ with DAG(
             python_callable=validate_landing_manifests,
         )
 
-        commit = PythonOperator(
-            task_id="commit_cursors",
-            python_callable=commit_cursors,
-        )
+        check >> capture >> extract >> validate
 
-        check >> capture >> extract >> validate >> commit
 
     # 2. BRONZE LAYER INGESTION (APPEND-ONLY)
     with TaskGroup(
@@ -211,7 +227,13 @@ with DAG(
             ],
         )
 
-    # 3. SILVER LAYER MERGE & PII PSEUDONYMIZATION
+    # 3. HIGH WATERMARK COMMIT (Only advance cursors AFTER Bronze successfully ingests Landing data)
+    commit_cursors_op = PythonOperator(
+        task_id="commit_cursors",
+        python_callable=commit_cursors,
+    )
+
+    # 4. SILVER LAYER MERGE & PII PSEUDONYMIZATION
     with TaskGroup(
         group_id="silver_layer",
         tooltip="Deduplicate, hash PII, and MERGE/Upsert Bronze tables into Iceberg Silver tables",
@@ -226,7 +248,22 @@ with DAG(
             ],
         )
 
-    # 4. GOLD LAYER STAR SCHEMA & DATA MARTS
+    # 5. RECONCILIATION GATE (Pre-Gold Publishing Quality Gate)
+    # Audits row count and financial metric parity between Source MySQL and Silver Iceberg.
+    # Halts execution and blocks Gold publishing if variance exceeds 0.05%.
+    reconciliation_gate = SparkSubmitOperator(
+        task_id="reconciliation_gate",
+        application=SPARK_APP_RECONCILE,
+        application_args=[
+            "--config-path", CONFIG_PATH,
+            "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
+            "--batch-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+            "--tolerance-pct", "0.05",
+        ],
+    )
+
+    # 6. GOLD LAYER STAR SCHEMA & DATA MARTS
+
     with TaskGroup(
         group_id="gold_layer",
         tooltip="Build Star Schema Dimensions, Facts, and Data Marts with financial COGS and KPI rollups",
@@ -300,5 +337,7 @@ with DAG(
         compact_oltp >> expire_oltp >> remove_oltp_orphans
 
     # Sequential End-to-End Orchestration:
-    # 1. Begin Run -> 2. Landing Zone -> 3. Bronze Layer -> 4. Silver Layer -> 5. Gold Layer -> 6. Iceberg Maintenance
-    begin >> tg_landing >> tg_bronze >> tg_silver >> tg_gold >> tg_maintenance
+    # 1. Begin Run -> 2. Landing Zone -> 3. Bronze Layer -> 4. Commit Cursors ->
+    # 5. Silver Layer -> 6. Reconciliation Gate -> 7. Gold Layer -> 8. Iceberg Maintenance
+    begin >> tg_landing >> tg_bronze >> commit_cursors_op >> tg_silver >> reconciliation_gate >> tg_gold >> tg_maintenance
+

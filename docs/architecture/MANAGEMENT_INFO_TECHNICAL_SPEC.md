@@ -29,8 +29,9 @@
 5. [THIẾT KẾ PHI CHỨC NĂNG, BẢO MẬT & QUẢN TRỊ DỮ LIỆU](#5-thiết-kế-phi-chức-năng-bảo-mật--quản-trị-dữ-liệu)
    - 5.1. Cam kết Mức độ Dịch vụ Dữ liệu (Data Freshness & Processing SLAs)
    - 5.2. Tuân thủ Bảo vệ Dữ liệu Cá nhân (PII Protection & NĐ 13/2023/NĐ-CP)
-   - 5.3. Mô hình Phân quyền Dữ liệu & Row-Level Security (RLS)
+   - 5.3. Mô hình Phân quyền Dữ liệu & Application/API-level Row Filtering (FastAPI RBAC)
    - 5.4. Chuẩn hóa Không gian Thời gian (Timezone & Cutoff Logic)
+
    - 5.5. Cổng Kiểm soát Chất lượng & Đối soát Tự động (Reconciliation Gate)
 6. [KẾ HOẠCH TRIỂN KHAI THEO GIAI ĐOẠN & SIGN-OFF GOVERNANCE](#6-kế-hoạch-triển-khai-theo-giai-đoạn--sign-off-governance)
    - 6.1. Lộ trình Triển khai (Phase Breakdown)
@@ -49,8 +50,9 @@ Hệ thống Thông tin Quản lý D&K E-Commerce (D&K MIS) là nền tảng bá
 Áp dụng phương pháp luận **Phân tích và Thiết kế Hệ thống (Systems Analysis & Design - SAD)**, tài liệu này chuẩn hóa toàn bộ nhu cầu thông tin xoay quanh **7 vai trò quản trị nghiệp vụ cốt lõi**:
 1. **Ban Giám đốc (CEO / Executive):** Nắm giữ chiến lược tăng trưởng, doanh thu, lợi nhuận gộp, tỷ suất lợi nhuận và sức khỏe kinh doanh toàn diện.
 2. **Kinh doanh & Chiến lược (Sales & Strategy):** Theo dõi đóng góp doanh số giữa các chi nhánh, tỷ trọng danh mục và danh sách sản phẩm bán chạy nhất.
-3. **Quản lý Cửa hàng (Store Manager):** Giám sát doanh thu và số lượng đơn trong ngày, tiến độ hoàn thành chỉ tiêu doanh thu ngày, cảnh báo tồn kho quầy với cơ chế Row-Level Security (RLS) bảo vệ dữ liệu riêng biệt theo từng `store_id`.
+3. **Quản lý Cửa hàng (Store Manager):** Giám sát doanh thu và số lượng đơn trong ngày, tiến độ hoàn thành chỉ tiêu doanh thu ngày, cảnh báo tồn kho quầy với cơ chế Phân quyền dữ liệu tầng ứng dụng (Application/API-level Row Filtering theo `store_id` trong FastAPI RBAC).
 4. **Kho & Chuỗi cung ứng (Inventory & Supply Chain):** Quản lý định giá tổng tài sản tồn kho, tỷ lệ phân bổ kho tổng vs chi nhánh, quản lý các đợt nhập xưởng gia công (Inbound Batches) và cảnh báo sắp hết hàng/cháy hàng.
+
 5. **Vận hành Đơn & Logistics (Operations & Logistics):** Giám sát hàng đợi chờ đóng gói, đo lường tỷ lệ vi phạm cam kết giao vận (SLA), theo dõi đơn boom hàng COD và xử lý các yêu cầu đổi trả 7 ngày.
 6. **Marketing & Phễu chuyển đổi (Marketing & Funnel):** Đo lường hiệu quả phễu chuyển đổi (Xem -> Thêm giỏ -> Đặt hàng -> Mua hàng), tỷ lệ áp dụng mã giảm giá và điểm hài lòng đánh giá chất lượng sản phẩm.
 7. **Kỹ thuật & Đối soát dữ liệu (System Admin & Data Platform):** Giám sát trạng thái hoạt động của hạ tầng data pipeline, độ tươi của dữ liệu (Data Freshness SLA) và đối soát chênh lệch doanh thu giữa OLTP và Lakehouse.

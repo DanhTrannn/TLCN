@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
-import pytest
 
+import pytest
 from app.modules.analytics.trino_client import TrinoClient
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from jobs.oltp.build_oltp_gold import (
     VALID_STAGES,
     parse_args,

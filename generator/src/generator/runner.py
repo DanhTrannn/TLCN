@@ -5,7 +5,6 @@ from pathlib import Path
 from generator import __version__
 from generator.config import GeneratorConfig
 
-
 SUPPORTED_MODES = {
     "seed_master",
     "historical_transactions",

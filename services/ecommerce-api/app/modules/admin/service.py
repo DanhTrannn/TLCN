@@ -5,7 +5,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.errors import AppError, INVALID_STATE_TRANSITION, VALIDATION_ERROR, not_found
+from app.core.errors import INVALID_STATE_TRANSITION, VALIDATION_ERROR, AppError, not_found
 from app.core.ids import uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Category, Product, ProductVariant
@@ -14,8 +14,6 @@ from app.models.inventory import Inventory
 from app.models.order import Order, OrderItem, Payment, Refund
 from app.models.promotion import Coupon
 from app.models.review import ProductReview
-from app.modules.orders.schemas import OrderDetailResponse
-from app.modules.orders.service import get_order_detail
 from app.modules.admin.schemas import (
     AdminCustomerResponse,
     AdminOrderResponse,
@@ -26,6 +24,8 @@ from app.modules.admin.schemas import (
     UpdateProductRequest,
     UpdateVariantRequest,
 )
+from app.modules.orders.schemas import OrderDetailResponse
+from app.modules.orders.service import get_order_detail
 
 
 def _parse_public_id(value: str, label: str) -> UUID:

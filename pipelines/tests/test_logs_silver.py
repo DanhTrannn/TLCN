@@ -9,6 +9,7 @@ pytestmark = pytest.mark.skipif(
     reason="Java not found -- Spark tests require a JDK",
 )
 
+from lakehouse.logs.silver import ingest_logs_to_silver
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     BooleanType,
@@ -20,7 +21,6 @@ from pyspark.sql.types import (
     StructType,
     TimestampType,
 )
-from lakehouse.logs.silver import ingest_logs_to_silver, ensure_logs_silver_tables
 
 
 @pytest.fixture(scope="session")

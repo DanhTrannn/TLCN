@@ -169,7 +169,8 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - `ix_customers_role_status_id` — `(role, status, customer_id)`
 - `ix_customers_updated_at_customer_id` — extraction cursor
 
-**Invariant**: Anonymize không xóa PK/FK. `store_manager` có `store_id` liên kết cửa hàng quản lý (Row-Level Security). Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD. Hỗ trợ đầy đủ 7 role nhân viên quản trị chuyên biệt phục vụ phân quyền và báo cáo BI Lakehouse.
+**Invariant**: Anonymize không xóa PK/FK. `store_manager` có `store_id` liên kết cửa hàng quản lý (Application/API-level Row Filtering trong FastAPI RBAC). Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD. Hỗ trợ đầy đủ 7 role nhân viên quản trị chuyên biệt phục vụ phân quyền và báo cáo BI Lakehouse.
+
 
 
 ---

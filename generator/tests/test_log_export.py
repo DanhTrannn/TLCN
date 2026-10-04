@@ -1,5 +1,4 @@
 import gzip
-import hashlib
 import json
 import tempfile
 import unittest

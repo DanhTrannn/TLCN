@@ -51,8 +51,8 @@ jobs:
       - name: Verify Airflow DAG Python compilation
         run: python3 -m compileall -q airflow/dags/
 
-      - name: Check critical Python syntax errors
-        run: uvx ruff check --select E9,F63,F7,F82 .
+      - name: Lint Python codebase with ruff
+        run: uvx ruff check .
 
   python-tests:
     name: Python tests (${{ matrix.name }})
@@ -88,6 +88,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           enable-cache: true
           cache-dependency-glob: uv.lock
+
+      - name: Set up Java for Spark tests
+        if: matrix.package == 'batch-pipeline'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Run ${{ matrix.name }} tests
         run: ${{ matrix.command }}
@@ -154,3 +161,33 @@ jobs:
           tags: storefront:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  compose-smoke-test:
+    name: Docker Compose core services smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create .env from .env.example
+        run: cp .env.example .env
+
+      - name: Start Core Services
+        run: docker compose --profile core up -d postgres redis
+
+      - name: Wait for PostgreSQL and Redis readiness
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T postgres pg_isready -U postgres && docker compose exec -T redis redis-cli ping | grep PONG; then
+              echo "Core services are healthy"
+              break
+            fi
+            echo "Waiting for services..."
+            sleep 2
+          done
+
+      - name: Teardown
+        if: always()
+        run: docker compose --profile core down -v
+

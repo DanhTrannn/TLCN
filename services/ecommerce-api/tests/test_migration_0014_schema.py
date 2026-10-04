@@ -1,8 +1,7 @@
 """Test that migration 0014 and SQLAlchemy models define the expected schema."""
 
-from sqlalchemy import CheckConstraint
-
 from app.db.base import Base
+from sqlalchemy import CheckConstraint
 
 
 def _table_names() -> set[str]:

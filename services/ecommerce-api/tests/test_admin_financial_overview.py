@@ -1,8 +1,19 @@
 """Integration tests for Admin Financial & Operational Metrics Extension in Overview API (Gói 4 - Task 1)."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
+
+import app.db.deps
+import app.db.uow
+import app.models  # noqa: F401
 import pytest
+from app.core.ids import uuid7
+from app.db.base import Base
+from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
+from app.main import app as fastapi_app
+from app.models.catalog import Category, Product, ProductVariant
+from app.models.customer import Customer
+from app.models.order import Order, OrderItem, Payment, Refund
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.dialects.mysql import BIGINT
@@ -10,17 +21,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.sql.elements import TextClause
-
-from app.core.ids import uuid7
-from app.db.base import Base
-from app.db.deps import get_current_admin, get_current_customer, get_db, verify_csrf
-import app.db.deps
-import app.db.uow
-from app.main import app as fastapi_app
-import app.models  # noqa: F401
-from app.models.catalog import Category, Product, ProductVariant
-from app.models.customer import Customer
-from app.models.order import Order, OrderItem, Payment, Refund
 
 
 @compiles(TextClause, "sqlite")
@@ -248,7 +248,7 @@ def test_admin_overview_financial_metrics_calculation(admin_client, test_db):
     now = datetime.now(UTC).replace(tzinfo=None)
 
     # 1. Delivered order: 2 x var1 (unit: 300k, cost: 100k) -> Rev: 600k, COGS: 200k
-    o1 = _create_order_with_items(
+    _create_order_with_items(
         test_db,
         order_number="ORD-DELIVERED-1",
         status="delivered",

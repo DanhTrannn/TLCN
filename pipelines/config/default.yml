@@ -3,6 +3,7 @@ run:
   retries: 2
   quarantine_max_rows: 100000
   max_parallel_tables: 4
+  lookback_minutes: 10
 
 landing:
   oltp_prefix: landing/oltp
