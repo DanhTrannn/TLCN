@@ -790,6 +790,118 @@ export interface AdminOverview {
   return_orders_count?: number;
 }
 
+// --- CDC Real-Time Operational Signals ---
+export interface VoucherBurnRateSignal {
+  coupon_code: string;
+  used_count: number;
+  usage_limit: number;
+  burn_rate_per_minute: number;
+  budget_warning: boolean;
+  budget_burn_percent: number;
+}
+
+export interface NegativeReviewSpikeSignal {
+  product_id: number;
+  product_name: string;
+  negative_count: number;
+  window_minutes: number;
+  warning_alert: string;
+}
+
+export interface DepletionVelocitySignal {
+  variant_id: number;
+  sku: string;
+  product_name: string;
+  on_hand: number;
+  units_sold_last_hour: number;
+  depletion_rate_per_min: number;
+  estimated_minutes_to_stockout: number;
+  alert_level: string;
+}
+
+export interface CriticalStockoutSignal {
+  variant_id: number;
+  sku: string;
+  product_name: string;
+  on_hand: number;
+  overselling_prevented: boolean;
+}
+
+export interface RegionalBoomRateSignal {
+  region: string;
+  total_cod_shipments: number;
+  failed_cod_shipments: number;
+  boom_rate_percent: number;
+  alert_level: string;
+}
+
+export interface FulfillmentBottleneckSignal {
+  paid_unfulfilled_orders: number;
+  stale_unfulfilled_orders: number;
+  bottleneck_warning: boolean;
+  average_waiting_hours: number;
+}
+
+export interface StoreStockoutSignal {
+  variant_id: number;
+  sku: string;
+  product_name: string;
+  on_hand: number;
+}
+
+export interface HourlyRunRatePoint {
+  hour: string;
+  hourly_revenue_vnd: number;
+  cumulative_revenue_vnd: number;
+  target_vnd: number;
+}
+
+export interface StoreRunRateSignal {
+  daily_target_vnd: number;
+  current_revenue_vnd: number;
+  achievement_percent: number;
+  projected_revenue_vnd: number;
+  pace_status: string;
+  hourly_points: HourlyRunRatePoint[];
+}
+
+export interface ViralProductSignal {
+  product_id: number;
+  product_name: string;
+  units_sold_recent: number;
+  growth_velocity_multiple: number;
+  viral_badge: boolean;
+}
+
+export interface ChannelPaceComparisonSignal {
+  online_growth_percent: number;
+  store_growth_percent: number;
+  dominant_channel: string;
+  pace_divergence_warning: boolean;
+}
+
+export interface HourlyMarginPoint {
+  hour: string;
+  revenue_vnd: number;
+  cogs_vnd: number;
+  margin_percent: number;
+}
+
+export interface MarginErosionSignal {
+  baseline_margin_percent: number;
+  current_margin_percent: number;
+  erosion_drop_percent: number;
+  erosion_warning: boolean;
+  lowest_margin_hour: string;
+  hourly_margins: HourlyMarginPoint[];
+}
+
+export interface CashInTransitSignal {
+  total_cod_amount_vnd: number;
+  dispatched_shipments_count: number;
+  carrier_breakdown: Record<string, number>;
+}
+
 export interface ExecutiveMetricsResponse {
   role: "executive";
   gmv_vnd: number;
@@ -801,6 +913,8 @@ export interface ExecutiveMetricsResponse {
   aov_vnd: number;
   boom_rate_percent: number;
   return_rate_percent: number;
+  margin_erosion?: MarginErosionSignal | null;
+  cash_in_transit?: CashInTransitSignal | null;
 }
 
 export interface StoreContribution {
@@ -829,6 +943,8 @@ export interface SalesMetricsResponse {
   store_contributions: StoreContribution[];
   top_selling_products: TopProductMetric[];
   category_shares: CategoryShareMetric[];
+  viral_products?: ViralProductSignal[];
+  channel_pace?: ChannelPaceComparisonSignal | null;
 }
 
 export interface FunnelStep {
@@ -843,6 +959,8 @@ export interface MarketingMetricsResponse {
   conversion_rate_percent: number;
   total_visitors: number;
   total_purchases: number;
+  voucher_burn_rate?: VoucherBurnRateSignal | null;
+  negative_review_spikes?: NegativeReviewSpikeSignal[];
 }
 
 export interface StoreMetricsResponse {
@@ -853,6 +971,8 @@ export interface StoreMetricsResponse {
   store_orders_count: number;
   target_achievement_percent: number;
   low_stock_at_store_count: number;
+  store_stockouts?: StoreStockoutSignal[];
+  run_rate?: StoreRunRateSignal | null;
 }
 
 export interface InventoryMetricsResponse {
@@ -862,6 +982,8 @@ export interface InventoryMetricsResponse {
   store_stock_units: number;
   inbound_batches_count: number;
   stockout_count: number;
+  depletion_velocity?: DepletionVelocitySignal[];
+  critical_stockout_alerts?: CriticalStockoutSignal[];
 }
 
 export interface OperationsMetricsResponse {
@@ -870,6 +992,8 @@ export interface OperationsMetricsResponse {
   shipping_sla_violations_count: number;
   boom_orders_count: number;
   return_requests_count: number;
+  regional_boom_rates?: RegionalBoomRateSignal[];
+  fulfillment_bottleneck?: FulfillmentBottleneckSignal | null;
 }
 
 export interface ReconciliationVariance {
