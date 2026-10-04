@@ -1,230 +1,218 @@
-# TÀI LIỆU ĐẶC TẢ DỮ LIỆU CDC PHỤC VỤ HỆ THỐNG BI DASHBOARDS
-## (Change Data Capture Requirements & Entity Mapping for Role-Based Dashboards)
+# ĐẶC TẢ CÁC TÍN HIỆU NGHIỆP VỤ BIẾN ĐỘNG (CDC) CHO HỆ THỐNG DASHBOARD
+## (Change Data Capture Business Signals & Operational Use Cases by Role)
 
 > **Tài liệu thuộc đồ án:** D&K E-Commerce Hybrid Lakehouse Platform  
-> **Phiên bản:** 1.0.0  
+> **Phiên bản:** 2.0.0 (Cập nhật chuyên sâu cho 6 vai trò nghiệp vụ kinh doanh)  
 > **Trạng thái:** Chính thức (Approved Specification)
 
 ---
 
-## 1. Tổng quan & Mục tiêu Kiến trúc (Overview & Context)
+## 1. Tổng quan & Triết lý ứng dụng CDC trong Dashboard
 
-### 1.1. Vai trò của CDC trong hệ thống E-Commerce Lakehouse
-Trong hệ thống **D&K E-Commerce**, cơ sở dữ liệu giao dịch nghiệp vụ (**MySQL 8.4 OLTP**) vận hành với 27 bảng dữ liệu. Nhằm đảm bảo hệ thống bán hàng không bị gián đoạn và quá tải bởi các truy vấn báo cáo phân tích phức tạp, toàn bộ dữ liệu phân tích được chuyển tiếp sang kiến trúc **Data Lakehouse (Apache Iceberg + Apache Trino)**.
+Trong hệ thống bán lẻ và thương mại điện tử, **CDC (Change Data Capture)** không đơn thuần là một giải pháp kỹ thuật di chuyển dữ liệu, mà là công cụ trực tiếp phục vụ cho việc **ra quyết định tác nghiệp tức thì (Actionable Intelligence)**.
 
-**CDC (Change Data Capture)** là cơ chế kỹ thuật then chốt giúp bắt kịp thời mọi sự kiện biến động dữ liệu (`INSERT`, `UPDATE`, `DELETE`) từ MySQL Binary Log (Binlog) theo thời gian thực (Real-time / Near Real-time) và nạp vào tầng lưu trữ Iceberg.
+### Tại sao các Dashboard này bắt buộc phải sử dụng CDC?
+* **Không thể query trực tiếp MySQL OLTP:** Các truy vấn phân tích, gom nhóm (`GROUP BY`, `SUM`) theo thời gian thực trên các bảng lớn như `orders`, `order_items`, `inventory` sẽ gây khóa bảng (lock contention), làm tăng đột biến CPU và làm sập hoặc chậm trễ tiến trình thanh toán của khách trên Web/POS.
+* **Không thể chờ Batch ETL cuối ngày:** Nếu chỉ chạy Batch ban đêm, người quản lý chỉ biết được số liệu quá khứ khi mọi sự việc đã rồi (hết voucher, cháy hàng, giao trễ, sụt giảm lợi nhuận).
+* **CDC mang lại giá trị:** Bắt trọn các sự kiện `INSERT` và `UPDATE` từ MySQL Binlog với độ trễ tính bằng giây/phút ($< 1-5$ phút) nạp vào Lakehouse (Iceberg), giúp Dashboard cập nhật nóng các chỉ số mà không gây ảnh hưởng đến hệ thống bán hàng.
 
 ```text
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌───────────────────┐
 │ MySQL 8.4 OLTP  │ Binlog│  CDC Engine     │ Kafka │ Lakehouse       │ Trino │ BI Analytics Hub  │
 │ (27 Tables)     ├──────>│ (Debezium/Flink)├──────>│ (Iceberg Bronze ├──────>│ (/admin/analytics)│
-│                 │       │                 │       │  Silver -> Gold)│       │ (7 Roles ECharts) │
+│                 │       │                 │       │  Silver -> Gold)│       │ (6 Business Roles)│
 └─────────────────┘       └─────────────────┘       └─────────────────┘       └───────────────────┘
 ```
 
-### 1.2. Tại sao Dashboard bắt buộc cần dữ liệu CDC?
-1. **Tách biệt tải hoàn toàn (Workload Isolation):** Tránh hiện tượng các câu lệnh `GROUP BY`, `SUM`, `COUNT` trên hàng triệu dòng đơn hàng khóa bảng hoặc làm chậm giao dịch thanh toán của khách hàng trên Web/Storefront.
-2. **Nắm bắt toàn bộ vòng đời trạng thái (State-Machine Transitions):** Trong MySQL, khi đơn hàng đổi trạng thái từ `pending` sang `shipping` rồi `delivered`, bản ghi sẽ bị `UPDATE` đè lên. CDC cho phép lưu lại toàn bộ dòng lịch sử biến đổi (Audit Trail / Slowly Changing Dimension Type 2) để đo lường chính xác các SLA giao hàng và thời gian xử lý.
-3. **Truy vấn phân tích tốc độ cao:** Dữ liệu sau khi CDC nạp vào Iceberg sẽ được chuyển đổi sang định dạng cột nén tối ưu (Parquet / ZSTD) và các bảng tổng hợp (Gold Marts), giúp Apache Trino trả về kết quả cho Dashboard chỉ trong vài chục mili-giây.
+---
+
+## 2. Chi tiết các Tín hiệu CDC và Tình huống Thực tế theo 6 Vai trò
 
 ---
 
-## 2. Phân loại thực thể dữ liệu MySQL theo nhu cầu CDC
+### Vai trò 1: Marketing Manager (Tiếp thị & Tăng trưởng)
+> **Mối quan tâm cốt lõi:** Quản trị ngân sách khuyến mãi theo thời gian thực, tốc độ chuyển đổi và phản ứng chất lượng từ khách hàng.
 
-Toàn bộ 27 bảng nghiệp vụ trong MySQL được phân chia thành 5 nhóm:
+#### 1.1. Tốc độ đốt ngân sách Voucher trong Flash Sale (Voucher Burn Rate)
+* **Tình huống thực tế:** Trong khung giờ vàng Mega Sale (12h00 – 13h00), bộ phận Marketing kích hoạt mã giảm giá `SALE50K` với ngân sách tối đa 1,000 lượt (tương đương 50 triệu đồng).
+* **Thông tin CDC thu thập:**
+  * Bắt sự kiện `INSERT INTO coupon_redemptions`.
+  * Đo đếm tốc độ tiêu thụ theo từng phút: *Mã `SALE50K` đã tiêu thụ 850/1,000 lượt chỉ sau 15 phút (vận tốc ~56 lượt/phút)*.
+* **Bảng & Trường dữ liệu nguồn:**
+  * `coupon_redemptions`: `coupon_id`, `order_id`, `discount_amount_vnd`, `created_at`
+  * `coupons`: `code`, `usage_limit`, `is_active`
+* **Hành động can thiệp tức thì (Action):**
+  * Marketing Manager phát hiện ngân sách sắp cạn kiệt sớm hơn 40 phút so với dự kiến.
+  * *Quyết định:* Hoặc bấm nút hạ mức chiết khấu/đóng mã sớm để tránh vỡ quỹ ngân sách, hoặc kịp thời liên hệ Ban Giám đốc xin cấp bổ sung hạn mức ngay trong khung giờ vàng.
 
-```mermaid
-pie title Phân loại 27 bảng MySQL phục vụ CDC & Analytics
-    "1. Bắt buộc CDC (Mutable State Machine)" : 8
-    "2. CDC Danh mục & Giá vốn (Master/Costing)" : 4
-    "3. Append-Only (Stream/Batch Insert)" : 7
-    "4. Cấu hình tĩnh (Reference Batch)" : 3
-    "5. Bảo mật (Loại trừ tuyệt đối)" : 1
-    "6. Giỏ hàng & Tạm thời (Transient)" : 4
+#### 1.2. Cảnh báo bùng phát Review tiêu cực (Negative Review Spikes)
+* **Tình huống thực tế:** Một dòng sản phẩm thời trang mới vừa mở bán, nhưng có lỗi đường may hoặc chất vải sai lệch so với mô tả.
+* **Thông tin CDC thu thập:**
+  * Bắt sự kiện `INSERT INTO product_reviews` lọc các đánh giá `rating <= 2`.
+  * Dashboard phát hiện có 6 review 1 sao xuất hiện liên tiếp trong vòng 45 phút cho cùng một mã sản phẩm.
+* **Bảng & Trường dữ liệu nguồn:**
+  * `product_reviews`: `product_id`, `rating`, `review_text`, `created_at`
+* **Hành động can thiệp tức thì (Action):**
+  * Tạm dừng ngay chiến dịch quảng cáo (Facebook/TikTok Ads) đang đổ tiền kéo traffic vào sản phẩm đó để tránh lãng phí chi phí marketing.
+  * Báo cho bộ phận QA/Kho kiểm tra lại chất lượng lô hàng.
+
+---
+
+### Vai trò 2: Inventory Manager (Kho & Chuỗi cung ứng)
+> **Mối quan tâm cốt lõi:** Tốc độ tiêu thụ hàng tồn, nguy cơ đứt hàng (Stockout) và phòng ngừa bán vượt tồn.
+
+#### 2.1. Tốc độ rút hàng tồn kho (Depletion Velocity) & Cảnh báo cháy hàng
+* **Tình huống thực tế:** Mẫu áo *"Áo Polo Basic Cotton Đen Size L"* có số lượng tồn kho đầu ngày là 120 chiếc tại Kho tổng. Trong sự kiện khuyến mãi, khách đặt liên tục cả Online lẫn tại quầy POS.
+* **Thông tin CDC thu thập:**
+  * Bắt các sự kiện `UPDATE inventory SET on_hand = on_hand - X` liên tục.
+  * Thuật toán tính vận tốc bán: 8 sản phẩm/phút $\rightarrow$ Dashboard bật cảnh báo đỏ: **Dự kiến hết sạch tồn kho sau 15 phút nữa**.
+* **Bảng & Trường dữ liệu nguồn:**
+  * `inventory`: `variant_id`, `on_hand`, `safety_stock`, `updated_at`
+  * `product_variants`: `sku`, `size`, `color`, `cost_price_vnd`
+* **Hành động can thiệp tức thì (Action):**
+  * Phát lệnh khẩn cấp cho xưởng may nội bộ (`Inbound`) kích hoạt ngay chuyền cắt may lô thành phẩm bổ sung.
+  * Kịp thời ra lệnh điều chuyển nội bộ một phần hàng từ các cửa hàng vệ tinh vắng khách về kho trung tâm để bù đắp.
+
+#### 2.2. Chặn đứng nguy cơ bán vượt tồn (Overselling Prevention)
+* **Tình huống thực tế:** Khi số lượng tồn thực tế của một biến thể vừa chạm về 0 (`on_hand = 0`).
+* **Thông tin CDC thu thập:**
+  * Bắt ngay sự kiện `UPDATE inventory SET on_hand = 0`.
+* **Hành động can thiệp tức thì (Action):**
+  * Hệ thống đồng bộ tức thời trạng thái "Hết hàng" (Sold Out) lên Storefront, vô hiệu hóa nút "Thêm vào giỏ", loại bỏ rủi ro khách đã thanh toán tiền nhưng kho không còn hàng để giao.
+
+---
+
+### Vai trò 3: Operations & Logistics Manager (Vận hành & Giao hàng)
+> **Mối quan tâm cốt lõi:** Ùn tắc đóng gói tại kho, điểm nóng giao hàng thất bại (Boom COD) và các vi phạm cam kết thời gian giao (SLA).
+
+#### 3.1. Điểm nóng bùng phát Boom hàng COD theo khu vực (Regional Boom Rate Spike)
+* **Tình huống thực tế:** Shipper đi giao các đơn thanh toán tiền mặt khi nhận hàng (COD). Tại một khu vực (ví dụ Quận Bình Tân), tỷ lệ đơn bị khách từ chối nhận hoặc không liên lạc được tăng vọt.
+* **Thông tin CDC thu thập:**
+  * Bắt sự kiện `UPDATE shipments SET status = 'failed', failure_reason = ...`
+  * Dashboard thống kê theo cửa sổ trượt 2 giờ: *Tỷ lệ giao thất bại tại khu vực đạt tới 38% (bình thường < 5%)*.
+* **Bảng & Trường dữ liệu nguồn:**
+  * `shipments`: `shipment_id`, `order_id`, `status`, `delivery_attempts`, `failure_reason`, `updated_at`
+  * `orders`: `shipping_address`, `channel`
+* **Hành động can thiệp tức thì (Action):**
+  * Trưởng vận hành ra lệnh tạm dừng xuất tiếp các chuyến xe giao hàng đến khu vực đó trong buổi chiều (do mưa ngập đường hoặc nghi vấn có nhóm khách tạo đơn ảo).
+  * Chỉ đạo tổng đài CSKH gọi điện xác nhận lại 100% với người nhận trước khi tiếp tục cho shipper xuất kho.
+
+#### 3.2. Ùn tắc khâu đóng gói xuất kho (Fulfillment Bottleneck)
+* **Tình huống thực tế:** Số lượng đơn hàng khách đã thanh toán thành công (`orders.status = 'paid'`) tăng rất nhanh, nhưng tốc độ nhân viên kho in phiếu đóng gói và tạo đơn vận chuyển (`shipments`) bị chậm.
+* **Thông tin CDC thu thập:**
+  * Bắt chênh lệch giữa số lượng đơn `status = 'paid'` mới phát sinh và số bản ghi `shipments` mới tạo.
+  * Dashboard cảnh báo: *Đang tồn đọng 250 đơn chưa được xử lý quá 2 giờ*.
+* **Hành động can thiệp tức thì (Action):**
+  * Điều phối tức thì 3 nhân viên từ khu vực kiểm kê sang bàn đóng gói để kịp giờ lấy hàng của các đối tác bưu cục (Cut-off time 17h00).
+
+---
+
+### Vai trò 4: Store Manager (Quản lý Cửa hàng POS)
+> **Mối quan tâm cốt lõi:** Tình trạng sẵn có của hàng hóa tại quầy bán trực tiếp, tiến độ doanh số trong ngày và chăm sóc khách tại cửa hàng.
+
+#### 4.1. Cháy hàng cục bộ tại quầy lúc đông khách (Intra-day Counter Stockout)
+* **Tình huống thực tế:** Khách đến cửa hàng thử đồ đông vào buổi tối. Mẫu *"Quần Jean Regular Fit Size 32"* vừa được bán chiếc cuối cùng qua máy tính tiền POS.
+* **Thông tin CDC thu thập:**
+  * Bắt sự kiện `UPDATE store_inventory SET on_hand = 0 WHERE store_id = X AND variant_id = Y`.
+* **Bảng & Trường dữ liệu nguồn:**
+  * `store_inventory`: `store_id`, `variant_id`, `on_hand`, `updated_at`
+  * `product_variants`: `sku`, `size`, `color`
+* **Hành động can thiệp tức thì (Action):**
+  * Màn hình POS/Tablet của nhân viên bán hàng hiển thị ngay nhãn "Hết hàng tại sào".
+  * Nhân viên không mất thời gian vào kho tìm kiếm, đồng thời chủ động gợi ý khách: *"Mẫu này tại quầy vừa hết, em hỗ trợ anh/chị tạo đơn ship hỏa tốc từ kho tổng về nhà miễn phí"*.
+
+#### 4.2. Nhịp độ doanh số theo giờ so với mục tiêu ngày (Hourly Run-Rate)
+* **Tình huống thực tế:** Cửa hàng được giao chỉ tiêu 15,000,000 đ/ngày. Đến 16h00 chiều, tổng doanh thu các đơn POS mới đạt 4,200,000 đ (28%).
+* **Thông tin CDC thu thập:**
+  * Bắt các bản ghi `orders` hoàn tất tại quầy (`channel = 'pos'` và `store_id = X`).
+* **Hành động can thiệp tức thì (Action):**
+  * Quản lý cửa hàng họp nhanh 5 phút với nhân viên ca tối, triển khai ngay kịch bản up-sell phụ kiện (tất, ví, thắt lưng) ngay tại quầy thanh toán để kéo doanh số đạt chỉ tiêu.
+
+---
+
+### Vai trò 5: Sales Manager (Giám đốc Kinh doanh & Chiến lược)
+> **Mối quan tâm cốt lõi:** Phát hiện sớm sản phẩm bán chạy đột biến (Viral Items) và điều phối cơ cấu hàng bán giữa các kênh.
+
+#### 5.1. Phát hiện sản phẩm "ngựa ô" bán chạy bất ngờ (Unexpected Best-Seller Velocity)
+* **Tình huống thực tế:** Một mẫu *"Áo Sơ Mi Oxford Màu Be"* vốn có sức mua bình thường, nhưng bỗng nhiên CDC ghi nhận lượng bán tăng vọt gấp 8 lần chỉ trong vòng 2 tiếng (do một KOL thời trang vừa mặc xuất hiện trên mạng xã hội).
+* **Thông tin CDC thu thập:**
+  * CDC gom nhóm `order_items.quantity` theo từng khung 30 phút.
+  * Dashboard hiển thị sản phẩm này nhảy vọt từ vị trí số 15 lên Top 1 sản phẩm bán chạy nhất trong ngày.
+* **Bảng & Trường dữ liệu nguồn:**
+  * `order_items`: `variant_id`, `quantity`, `line_total_vnd`, `created_at`
+  * `products`: `product_id`, `product_name`
+* **Hành động can thiệp tức thì (Action):**
+  * Giám đốc kinh doanh lập tức chỉ đạo đẩy sản phẩm này lên Banner chính trang chủ Storefront.
+  * Tạo nhanh chương trình combo: Mua áo Sơ Mi tặng kèm voucher giảm giá quần tây để nhân đôi hiệu ứng doanh thu.
+
+#### 5.2. Lệch pha doanh số giữa kênh Online và chuỗi Cửa hàng
+* **Tình huống thực tế:** Doanh số kênh Online tăng trưởng 180% nhưng chuỗi cửa hàng vật lý giảm 40% do thời tiết mưa lớn toàn thành phố.
+* **Hành động can thiệp tức thì (Action):**
+  * Chuyển hướng tập trung nhân lực hỗ trợ tư vấn khách hàng Online (Chatbox, Direct Messages).
+  * Tạm hoãn các chương trình khuyến mãi riêng biệt chỉ áp dụng tại cửa hàng sang tích hợp áp dụng cả trên Web.
+
+---
+
+### Vai trò 6: Executive / CEO (Ban Giám Đốc)
+> **Mối quan tâm cốt lõi:** Bảo vệ biên lợi nhuận gộp trong ngày khuyến mãi và kiểm soát dòng tiền mặt thu hộ COD đang lưu thông.
+
+#### 6.1. Xói mòn biên lợi nhuận gộp theo giờ (Intra-day Gross Margin Erosion)
+* **Tình huống thực tế:** Trong ngày Black Friday, doanh số nhảy số liên tục đạt 800 triệu đồng rất ấn tượng. Tuy nhiên, do khách hàng áp dụng nhiều tầng khuyến mãi (giảm giá sản phẩm + voucher sàn + mã miễn phí vận chuyển) và các sản phẩm bán ra có giá vốn xưởng (`cost_price_vnd`) cao.
+* **Thông tin CDC thu thập:**
+  * CDC thu thập đồng thời `total_vnd` từ `orders` và giá vốn `cost_price_vnd` từ `order_items`.
+  * Dashboard tính toán liên tục: **Tỷ suất lãi gộp (Gross Margin %) bị tụt dốc không phanh từ 52% đầu ngày xuống chỉ còn 9.5% vào lúc 14h00**!
+* **Bảng & Trường dữ liệu nguồn:**
+  * `orders`: `order_id`, `total_vnd`, `status`
+  * `order_items`: `quantity`, `cost_price_vnd`, `unit_price_vnd`
+* **Hành động can thiệp tức thì (Action):**
+  * CEO nhận được tín hiệu báo động đỏ về xói mòn lợi nhuận ngay trong ngày.
+  * Chỉ đạo Giám đốc Marketing và Kinh doanh hạ ngay mức chiết khấu của các đợt mã giảm giá buổi tối, loại bỏ bớt các mã có thể cộng dồn để đảm bảo công ty có lãi ròng, không bị "bán càng nhiều càng lỗ".
+
+#### 6.2. Kiểm soát dòng tiền thu hộ COD đang trôi nổi (Cash-in-Transit Tracking)
+* **Tình huống thực tế:** Kênh bán hàng trực tuyến có tỷ lệ thanh toán COD chiếm trên 65%.
+* **Thông tin CDC thu thập:**
+  * CDC đếm tổng giá trị tiền mặt của các đơn hàng có trạng thái `shipments.status = 'dispatched'` hoặc `'in_transit'`.
+  * Dashboard hiển thị: *Hiện có 320 triệu đồng tiền hàng đang nằm trên các xe giao của đối tác vận chuyển*.
+* **Hành động can thiệp tức thì (Action):**
+  * Giúp Ban Giám đốc kiểm soát rủi ro thanh khoản tiền mặt, chủ động lên lịch đối soát công nợ với đơn vị bưu cục vào 17h00 hàng ngày.
+
+---
+
+## 3. Ma trận Tổng kết: Role – Tín hiệu CDC – Bảng Nguồn – Quyết định Can thiệp
+
+| Vai trò (Role) | Tín hiệu biến động cần CDC | Bảng MySQL nguồn | Quyết định can thiệp tức thì | Hậu quả nếu không dùng CDC (Chỉ chạy Batch) |
+|---|---|---|---|---|
+| **1. Marketing** | Tốc độ đốt voucher Flash Sale | `coupon_redemptions`<br>`coupons` | Đóng mã tránh vỡ quỹ ngân sách, hoặc xin duyệt bơm thêm mã | Vỡ quỹ ngân sách hàng chục triệu đồng trước khi hết giờ sale |
+| **1. Marketing** | Bùng phát review tiêu cực (1 sao) | `product_reviews` | Tạm dừng chạy quảng cáo cho mẫu sản phẩm lỗi | Tiếp tục "đốt tiền" quảng cáo cho sản phẩm đang bị chê bai |
+| **2. Inventory** | Tốc độ rút tồn kho, sắp cháy hàng | `inventory`<br>`product_variants` | Phát lệnh may gấp cho xưởng, điều chuyển kho giữa các chi nhánh | Khách đặt nhiều nhưng không có hàng giao, khách hủy đơn |
+| **2. Inventory** | Tồn kho chạm mức 0 | `inventory` | Tự động đổi trạng thái "Hết hàng" trên Web ngay lập tức | Bán vượt tồn (Overselling), khiếu nại bồi thường đơn |
+| **3. Operations** | Tỷ lệ boom hàng COD tăng vọt theo quận | `shipments`<br>`orders` | Dừng xuất tiếp đơn vùng ngập/ảo, tổng đài gọi xác nhận lại | Shipper tốn chi phí đi lại vô ích, hàng bị kẹt dài ngày |
+| **3. Operations** | Ùn tắc hàng trăm đơn chờ đóng gói | `orders`<br>`shipments` | Điều động nhân sự hỗ trợ đóng gói trước giờ xe gom hàng | Trễ cam kết giao hàng (SLA), khách hàng đánh giá xấu |
+| **4. Store Manager** | Hết hàng tại sào quầy POS | `store_inventory` | Hướng dẫn khách đặt ship online giao tận nhà | Khách thử đồ xong bỏ đi mua chỗ khác vì quầy hết size |
+| **4. Store Manager** | Doanh số chậm tiến độ so với chỉ tiêu | `orders` (pos) | Chỉ đạo nhân viên đẩy mạnh mời chào phụ kiện up-sell | Hết ngày mới biết không đạt chỉ tiêu thì không cứu vãn được |
+| **5. Sales** | Mẫu sản phẩm bán chạy đột biến (Viral) | `order_items`<br>`products` | Đẩy lên Banner chính trang chủ, tạo combo bán kèm | Bỏ lỡ thời điểm vàng khi xu hướng quan tâm của khách đang nóng |
+| **6. Executive (CEO)** | Xói mòn biên lợi nhuận gộp theo giờ | `orders`<br>`order_items` | Hãm bớt mã giảm giá sâu trước buổi tối tránh bị lỗ ròng | Doanh số trăm triệu nhưng kết sổ lỗ ròng vì voucher chồng mã |
+| **6. Executive (CEO)** | Dòng tiền COD trôi nổi ngoài đường | `shipments`<br>`orders` | Giám sát rủi ro thanh khoản, yêu cầu đối soát bưu cục | Đọng vốn lớn, phát sinh rủi ro thất thoát tiền mặt COD |
+
+---
+
+## 4. Phân định ranh giới: CDC từ MySQL Database vs Clickstream từ Web Logs
+
+Để bảo vệ đồ án một cách chuẩn mực trước Hội đồng phản biện, cần nhấn mạnh sự khác biệt giữa hai nguồn dữ liệu thời gian thực:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. CDC Stream từ MySQL (Transaction / State Changes):                       │
+│    • Bắt các thay đổi DỮ LIỆU CÓ CẤU TRÚC đã ghi nhận vào Database.          │
+│    • Phục vụ: Voucher đã áp, Tiền đã thanh toán, Tồn kho bị trừ,             │
+│      Đơn hàng chuyển trạng thái, Shipper báo giao thất bại.                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 2. Clickstream Event Stream từ Web/App Logs (Kafka + Flink):                 │
+│    • Bắt các HÀNH VI TƯƠNG TÁC CHƯA GHI VÀO DATABASE của người dùng.        │
+│    • Phục vụ: Lượt xem trang (Pageviews), Lượt bấm xem sản phẩm (Views),    │
+│      Lượt bấm thêm vào giỏ (Add to Cart), Lượt bắt đầu thanh toán (Checkout).│
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-| Phân nhóm | Danh sách bảng | Tần suất & Hành vi | Phương thức nạp dữ liệu |
-|---|---|---|---|
-| **Nhóm 1: Bắt buộc CDC (Mutable State Machine)** | `orders`, `shipments`, `inventory`, `store_inventory`, `return_requests`, `return_items`, `refunds`, `customers` | Biến đổi liên tục (`UPDATE status`, số lượng tồn kho) | **CDC Stream (Debezium / Binlog)** |
-| **Nhóm 2: CDC Danh mục & Giá vốn** | `product_variants`, `products`, `inbound_receipts`, `coupons` | Thay đổi giá bán, cập nhật giá vốn MWA, tạo lô may xưởng | **CDC Stream** |
-| **Nhóm 3: Append-Only (Bất biến)** | `order_items`, `payments`, `order_status_history`, `inventory_transactions`, `inbound_receipt_items`, `coupon_redemptions`, `product_reviews` | Chỉ `INSERT`, không bao giờ `UPDATE` hay `DELETE` | **CDC Insert Stream hoặc Micro-Batch** |
-| **Nhóm 4: Cấu hình tĩnh** | `cities`, `stores`, `categories` | Rất hiếm khi thay đổi (Metadata) | **Batch Ingestion / Cache** |
-| **Nhóm 5: Loại trừ bảo mật** | `customer_credentials` | Chứa mật khẩu băm (`password_hash`) | **Loại trừ 100% khỏi Data Platform** |
-| **Nhóm 6: Tạm thời (Transient)** | `carts`, `cart_items`, `wishlist_items` | Giỏ hàng tạm thời | **Batch Ingestion hoặc phân tích qua Clickstream** |
-
----
-
-## 3. Đặc tả dữ liệu CDC chi tiết phục vụ 7 Role Dashboards
-
-Dưới đây là đặc tả chi tiết từng chỉ số trên 7 màn hình Dashboard thuộc **BI Analytics Hub** (`/admin/analytics`), bảng dữ liệu MySQL nguồn và các trường (fields) bắt buộc CDC phải thu thập:
-
----
-
-### 3.1. Dashboard Ban Giám Đốc (Executive / CEO View)
-* **Mục tiêu quản trị:** Bức tranh toàn cảnh về sức khỏe tài chính, dòng tiền doanh thu, giá vốn, biên lợi nhuận và rủi ro vận hành toàn doanh nghiệp.
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_sales_daily`, `lakehouse.gold.mart_product_returns`.
-
-| Chỉ số KPI hiển thị | Công thức tính toán | Bảng MySQL nguồn | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Tổng giá trị giao dịch (GMV)** | `SUM(total_vnd)` của toàn bộ đơn đặt thành công | `orders` | `order_id`, `status`, `total_vnd`, `channel`, `created_at` |
-| **Doanh thu thuần (Net Revenue)** | `SUM(total_vnd)` của các đơn đã giao hoặc hoàn tất (`delivered`, `completed`) | `orders` | `order_id`, `status`, `total_vnd`, `completed_at` |
-| **Giá vốn hàng bán (COGS)** | $\sum (\text{quantity} \times \text{cost\_price\_vnd})$ của các đơn hoàn tất | `orders`<br>`order_items` | `orders.order_id`, `orders.status`<br>`order_items.quantity`, `order_items.cost_price_vnd` |
-| **Lợi nhuận gộp (Gross Profit)** | $\text{Gross Profit} = \text{Net Revenue} - \text{COGS}$ | `orders`<br>`order_items` | (Tính toán kết hợp từ 2 trường trên) |
-| **Tỷ suất lợi nhuận gộp (Gross Margin %)** | $\frac{\text{Gross Profit}}{\text{Net Revenue}} \times 100\%$ | `orders`<br>`order_items` | (Tính toán tỷ lệ) |
-| **Tổng số đơn hàng (Total Orders)** | `COUNT(DISTINCT order_id)` | `orders` | `order_id`, `status` |
-| **Giá trị trung bình đơn (AOV)** | $\frac{\text{Net Revenue}}{\text{Total Completed Orders}}$ | `orders` | `order_id`, `total_vnd`, `status` |
-| **Tỷ lệ boom hàng COD (Boom Rate %)** | $\frac{\text{Số đơn failed\_delivery}}{\text{Tổng đơn Online xuất kho}} \times 100\%$ | `orders`<br>`shipments` | `orders.channel = 'online'`, `orders.status`<br>`shipments.status = 'failed'` |
-| **Tỷ lệ trả hàng (Return Rate %)** | $\frac{\text{Số đơn có return\_requests}}{\text{Tổng đơn đã giao}} \times 100\%$ | `orders`<br>`return_requests` | `orders.status = 'delivered'`<br>`return_requests.return_id`, `return_requests.status` |
-| **Biểu đồ xu hướng Doanh thu & Lãi ngày** | Doanh thu, COGS, Lãi gộp nhóm theo `DATE(created_at)` trong 30 ngày | `orders`<br>`order_items` | `orders.created_at`, `orders.total_vnd`, `order_items.cost_price_vnd` |
-
----
-
-### 3.2. Dashboard Kinh Doanh & Chiến Lược (Sales & Strategy View)
-* **Mục tiêu quản trị:** Theo dõi tỷ trọng đóng góp doanh thu giữa kênh Online và các cửa hàng vật lý (POS), bảng xếp hạng sản phẩm bán chạy và cơ cấu danh mục.
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_sales_daily`, `lakehouse.gold.fact_order_item`, `lakehouse.gold.dim_product`, `lakehouse.gold.dim_store`.
-
-| Chỉ số KPI hiển thị | Công thức tính toán | Bảng MySQL nguồn | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Đóng góp doanh thu theo kênh (Store Contributions)** | `SUM(total_vnd)` nhóm theo `channel` ('online' vs 'pos') và `store_id` | `orders`<br>`stores` | `orders.order_id`, `orders.store_id`, `orders.channel`, `orders.total_vnd`, `orders.status`<br>`stores.store_id`, `stores.store_name` |
-| **Top 5 sản phẩm bán chạy nhất** | `SUM(quantity)` và `SUM(line_total_vnd)` nhóm theo `product_id` (đơn hợp lệ) | `orders`<br>`order_items`<br>`product_variants`<br>`products` | `orders.status IN ('paid','delivered','completed')`<br>`order_items.variant_id`, `order_items.quantity`, `order_items.line_total_vnd`<br>`product_variants.product_id`<br>`products.product_id`, `products.product_name` |
-| **Cơ cấu doanh thu theo Danh mục (Category Share %)** | Tỷ trọng % doanh thu của từng ngành hàng (Áo, Quần, Phụ kiện...) | `orders`<br>`order_items`<br>`products`<br>`categories` | `products.category_id`<br>`categories.category_id`, `categories.category_name`<br>`order_items.line_total_vnd` |
-
----
-
-### 3.3. Dashboard Quản Lý Cửa Hàng (Store Manager View - Row-Level Security)
-* **Mục tiêu quản trị:** Giám sát doanh thu tại quầy POS, tiến độ bán hàng trong ngày và cảnh báo sản phẩm sắp hết hàng tại điểm bán cụ thể do quản lý phụ trách.
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_sales_daily`, `lakehouse.gold.dim_store`.
-
-| Chỉ số KPI hiển thị | Công thức tính toán | Bảng MySQL nguồn | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Doanh thu cửa hàng hôm nay** | `SUM(total_vnd)` của cửa hàng với `DATE(created_at) = CURRENT_DATE` | `orders` | `orders.store_id`, `orders.channel = 'pos'`, `orders.total_vnd`, `orders.created_at`, `orders.status` |
-| **Số đơn chốt tại quầy hôm nay** | `COUNT(order_id)` tại quầy hôm nay | `orders` | `orders.store_id`, `orders.channel = 'pos'`, `orders.created_at`, `orders.status` |
-| **% Đạt chỉ tiêu doanh số ngày** | $\frac{\text{Doanh thu hôm nay}}{\text{Chỉ tiêu ngày (ví dụ 10,000,000đ)}} \times 100\%$ | `orders` | `orders.store_id`, `orders.total_vnd` |
-| **Cảnh báo hàng sắp hết tại quầy** | Danh sách biến thể có `on_hand <= reorder_threshold` tại `store_id` | `store_inventory`<br>`product_variants`<br>`products` | `store_inventory.store_id`, `store_inventory.variant_id`, `store_inventory.on_hand`, `store_inventory.reorder_threshold`<br>`products.product_name`, `product_variants.sku`, `product_variants.size`, `product_variants.color` |
-
----
-
-### 3.4. Dashboard Kho & Chuỗi Cung Ứng (Inventory & Supply Chain View)
-* **Mục tiêu quản trị:** Định giá tài sản hàng tồn kho toàn chuỗi, phân bổ giữa Kho tổng và các cửa hàng, kiểm soát các đợt nhập xưởng may nội bộ và giám sát đứt hàng (Stockout).
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_inventory_health`.
-
-| Chỉ số KPI hiển thị | Công thức tính toán | Bảng MySQL nguồn | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Tổng giá trị hàng tồn kho (VND)** | $\sum (\text{on\_hand} \times \text{cost\_price\_vnd})$ trên toàn bộ hệ thống | `inventory`<br>`store_inventory`<br>`product_variants` | `inventory.variant_id`, `inventory.on_hand`<br>`store_inventory.variant_id`, `store_inventory.on_hand`<br>`product_variants.variant_id`, `product_variants.cost_price_vnd` *(Giá vốn MWA)* |
-| **Phân bổ tồn kho (Kho tổng vs Cửa hàng)** | Tổng số lượng sản phẩm tại Kho tổng so với tổng sản phẩm tại các chi nhánh | `inventory`<br>`store_inventory` | `inventory.on_hand` (Kho tổng)<br>`store_inventory.on_hand` (Cửa hàng) |
-| **Số đợt nhập xưởng may nội bộ** | `COUNT(receipt_id)` phiếu nhập xưởng hoàn tất | `inbound_receipts` | `inbound_receipts.receipt_id`, `inbound_receipts.status = 'completed'`, `inbound_receipts.total_cost_vnd`, `inbound_receipts.created_at` |
-| **Số lượng biến thể sắp hết hàng** | `COUNT(variant_id)` có `on_hand <= safety_stock` | `inventory` | `inventory.variant_id`, `inventory.on_hand`, `inventory.safety_stock` |
-| **Số lượng biến thể hết hàng (Stockout)** | `COUNT(variant_id)` có `on_hand = 0` | `inventory` | `inventory.variant_id`, `inventory.on_hand` |
-
----
-
-### 3.5. Dashboard Vận Hành Đơn & Giao Hàng (Operations & Logistics View)
-* **Mục tiêu quản trị:** Giám sát tốc độ đóng gói đơn hàng, hiệu quả tài xế (Shipper), các vi phạm cam kết giao hàng (SLA) và xử lý sự cố hàng hoàn.
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_logistics_performance`, `lakehouse.gold.mart_product_returns`.
-
-| Chỉ số KPI hiển thị | Công thức tính toán | Bảng MySQL nguồn | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Đơn chờ đóng gói & xuất kho** | `COUNT(order_id)` có trạng thái `paid` chưa xuất `shipment` | `orders`<br>`shipments` | `orders.order_id`, `orders.status = 'paid'`<br>`shipments.shipment_id` |
-| **Vi phạm thời gian giao hàng (SLA Violations)** | `COUNT(shipment_id)` có `delivered_at - dispatched_at > SLA` (ví dụ > 48h) | `shipments` | `shipments.shipment_id`, `shipments.dispatched_at`, `shipments.delivered_at`, `shipments.status` |
-| **Số vụ boom hàng COD (Failed Deliveries)** | `COUNT(shipment_id)` có `status = 'failed'` (giao thất bại $\ge 3$ lần) | `shipments` | `shipments.shipment_id`, `shipments.order_id`, `shipments.status`, `shipments.delivery_attempts`, `shipments.failure_reason` |
-| **Yêu cầu đổi trả chờ thẩm định (Pending Returns)** | `COUNT(return_id)` có trạng thái `pending` | `return_requests` | `return_requests.return_id`, `return_requests.order_id`, `return_requests.status = 'pending'`, `return_requests.created_at` |
-| **Chi phí hoàn tiền khách hàng** | `SUM(amount_vnd)` các khoản hoàn tiền thành công | `refunds` | `refunds.refund_id`, `refunds.amount_vnd`, `refunds.status = 'succeeded'` |
-
----
-
-### 3.6. Dashboard Marketing & Phễu Chuyển Đổi (Marketing View)
-* **Mục tiêu quản trị:** Đánh giá hiệu quả chiến dịch bán hàng, tỷ lệ chuyển đổi qua từng chặng mua sắm, hiệu quả mã giảm giá và mức độ hài lòng khách hàng.
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_marketing_funnel_daily`, `lakehouse.gold.fact_web_events`.
-
-> [!IMPORTANT]
-> **Phân định ranh giới giữa Clickstream Streaming và CDC MySQL trên Phễu Marketing:**
-> - **Tầng 1 (Product Views), Tầng 2 (Add to Cart), Tầng 3 (Initiate Checkout):** Do **Clickstream Event Streaming** (FastAPI $\rightarrow$ Kafka topic `ecommerce.access_logs` $\rightarrow$ Apache Flink) cung cấp theo thời gian thực từ hành vi lướt web của người dùng.
-> - **Tầng 4 (Purchases - Đặt hàng thành công):** Do **CDC từ bảng `orders` của MySQL** cung cấp khi đơn hàng được ghi nhận và thanh toán.
-
-| Chỉ số KPI hiển thị | Nguồn dữ liệu | Bảng MySQL cần CDC | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Chốt đơn thành công (Purchases)** | MySQL CDC | `orders` | `orders.order_id`, `orders.status IN ('paid','delivered','completed')`, `orders.created_at` |
-| **Lượt sử dụng Voucher giảm giá** | MySQL CDC | `coupon_redemptions`<br>`coupons` | `coupon_redemptions.redemption_id`, `coupon_redemptions.coupon_id`, `coupon_redemptions.order_id`, `coupon_redemptions.discount_amount_vnd`<br>`coupons.code`, `coupons.discount_type` |
-| **Điểm hài lòng khách hàng (CSAT Rating)** | MySQL CDC | `product_reviews` | `product_reviews.review_id`, `product_reviews.product_id`, `product_reviews.rating` (1-5 sao), `product_reviews.status = 'approved'` |
-
----
-
-### 3.7. Dashboard Kỹ Thuật & Đối Soát Dữ Liệu (System & Data Admin View)
-* **Mục tiêu quản trị:** Giám sát tính toàn vẹn của Data Pipeline, độ trễ làm tươi dữ liệu (Data Freshness SLA) và đối soát độ lệch số liệu (Reconciliation Variance) giữa cơ sở dữ liệu tác nghiệp (MySQL) và hồ dữ liệu (Lakehouse).
-* **Tầng Data Mart tiêu thụ:** `lakehouse.gold.mart_sales_daily`, `lakehouse.system.stack_smoke`.
-
-| Chỉ số KPI hiển thị | Cơ chế so khớp | Bảng MySQL cần CDC | Các trường dữ liệu (Fields) CDC bắt buộc |
-|---|---|---|---|
-| **Độ lệch doanh thu (Revenue Variance %)** | $\frac{\lvert \text{OLTP Revenue} - \text{Lakehouse Revenue} \rvert}{\text{OLTP Revenue}} \times 100\%$ | `orders` | `orders.total_vnd`, `orders.status != 'cancelled'` |
-| **Độ lệch tổng số đơn (Orders Variance %)** | $\frac{\lvert \text{OLTP Orders} - \text{Lakehouse Orders} \rvert}{\text{OLTP Orders}} \times 100\%$ | `orders` | `orders.order_id` |
-| **Cam kết độ tươi dữ liệu (Data Freshness SLA)** | Thời gian chênh lệch giữa bản ghi mới nhất ở MySQL và Lakehouse ($\le 15$ phút) | Toàn bộ các bảng | Trường timestamp `updated_at`, `created_at` của từng bảng |
-
----
-
-## 4. Chuẩn hóa định dạng CDC Event Payload (Debezium / Kafka Format)
-
-Khi CDC Engine (như Debezium hoặc Flink CDC Connector) bắt sự kiện từ MySQL Binlog, mỗi event đẩy lên Kafka topic cần tuân thủ cấu trúc chuẩn (gồm giá trị trước `before` và giá trị sau `after`):
-
-```json
-{
-  "schema": { ... },
-  "payload": {
-    "before": {
-      "order_id": 10582,
-      "status": "shipping",
-      "updated_at": "2026-10-04T10:15:00Z"
-    },
-    "after": {
-      "order_id": 10582,
-      "status": "delivered",
-      "updated_at": "2026-10-04T11:42:30Z"
-    },
-    "source": {
-      "version": "2.5.0.Final",
-      "connector": "mysql",
-      "name": "ecommerce_cdc",
-      "ts_ms": 1791114150000,
-      "db": "ecommerce",
-      "table": "orders",
-      "server_id": 1,
-      "file": "binlog.000042",
-      "pos": 154820
-    },
-    "op": "u",
-    "ts_ms": 1791114150500
-  }
-}
-```
-
-### Quy tắc xử lý các thao tác (`op`):
-- `c` (Create / Insert): Nạp bản ghi mới vào Iceberg Bronze/Silver.
-- `u` (Update): Thực hiện lệnh `MERGE INTO` trong Iceberg Silver dựa trên khóa chính (`PRIMARY KEY`) và so khớp `updated_at` để ghi nhận phiên bản mới nhất.
-- `d` (Delete): Gắn cờ xóa mềm (`is_deleted = true`) hoặc xóa trong bảng Silver theo chính sách GDPR / Data Retention.
-
----
-
-## 5. Ma trận tổng kết: Bảng MySQL $\rightarrow$ Tầng Iceberg $\rightarrow$ Dashboard Phục Vụ
-
-| STT | Bảng MySQL Nguồn | Khóa chính (PK) | Trường con trỏ (Cursor) | Bảng đích Iceberg Silver | Dashboard tiêu thụ |
-|:---:|---|---|---|---|---|
-| 1 | `orders` | `order_id` | `updated_at` | `silver_orders` | Executive, Sales, Store, Operations, Marketing, System |
-| 2 | `order_items` | `order_item_id` | `created_at` | `silver_order_items` | Executive, Sales, System |
-| 3 | `inventory` | `variant_id` | `updated_at` | `silver_inventory` | Inventory |
-| 4 | `store_inventory` | `store_inventory_id` | `updated_at` | `silver_store_inventory` | Store Manager, Inventory |
-| 5 | `product_variants` | `variant_id` | `updated_at` | `silver_product_variants` | Executive, Sales, Inventory, Store |
-| 6 | `products` | `product_id` | `updated_at` | `silver_products` | Sales, Inventory, Store |
-| 7 | `categories` | `category_id` | `updated_at` | `silver_categories` | Sales, Inventory |
-| 8 | `stores` | `store_id` | `updated_at` | `silver_stores` | Sales, Store Manager |
-| 9 | `inbound_receipts` | `receipt_id` | `updated_at` | `silver_inbound_receipts` | Inventory, Executive |
-| 10 | `inbound_receipt_items` | `item_id` | `created_at` | `silver_inbound_receipt_items` | Inventory |
-| 11 | `shipments` | `shipment_id` | `updated_at` | `silver_shipments` | Operations, Executive |
-| 12 | `return_requests` | `return_id` | `updated_at` | `silver_return_requests` | Operations, Executive |
-| 13 | `return_items` | `return_item_id` | `updated_at` | `silver_return_items` | Operations, Executive |
-| 14 | `refunds` | `refund_id` | `updated_at` | `silver_refunds` | Operations, Executive |
-| 15 | `coupons` | `coupon_id` | `updated_at` | `silver_coupons` | Marketing |
-| 16 | `coupon_redemptions` | `coupon_redemption_id` | `created_at` | `silver_coupon_redemptions` | Marketing |
-| 17 | `product_reviews` | `review_id` | `updated_at` | `silver_product_reviews` | Marketing |
-| 18 | `customers` | `customer_id` | `updated_at` | `silver_customers` | Operations (Chặn COD), Executive |
-
----
-*Tài liệu được lưu trữ trực tiếp tại: [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](CDC_DASHBOARD_DATA_SPEC.md)*
+> **Kết luận:**  
+> Hệ thống Dashboard đạt được tính hiệu quả cao nhất nhờ mô hình **Hybrid**: Dữ liệu hành vi người dùng ngoài Web đi qua **Kafka + Flink**, kết hợp cùng các biến động giao dịch tác nghiệp trong Database đi qua **CDC Engine**, cùng hội tụ tại hồ dữ liệu **Apache Iceberg** để các cấp quản trị đưa ra quyết định kinh doanh chuẩn xác và kịp thời.
