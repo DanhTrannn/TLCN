@@ -400,3 +400,44 @@ def test_seed_demo_data_default_session_context_manager(monkeypatch):
     assert counts["orders"] >= 25
     assert counts["inbound_receipts"] >= 3
     assert counts["customers"] >= 8
+
+
+def test_seed_demo_scenarios_creates_cdc_signals_data(test_db):
+    """Seed demo data creates realistic CDC scenario data for flash sale, review spikes, and logistics."""
+    seed_demo_data(test_db)
+
+    # 1. Flash sale coupon redemptions exist
+    coupon = test_db.execute(
+        select(Coupon).where(Coupon.code_normalized == "SALE50K")
+    ).scalar_one_or_none()
+    assert coupon is not None
+    assert coupon.used_count >= 800
+    redemptions = test_db.scalar(
+        select(func.count()).select_from(CouponRedemption).where(CouponRedemption.coupon_id == coupon.coupon_id)
+    )
+    assert redemptions > 0
+
+    # 2. Clustered negative reviews exist
+    bad_reviews = test_db.scalar(
+        select(func.count()).select_from(ProductReview).where(ProductReview.rating <= 2)
+    )
+    assert bad_reviews >= 3
+
+    # 3. Dispatched / in-transit COD shipments exist
+    in_transit_cod = test_db.scalar(
+        select(func.count()).select_from(Shipment).where(Shipment.status.in_(("dispatched", "in_transit")))
+    )
+    assert in_transit_cod > 0
+
+    # 4. Regional failed shipments exist in Bình Tân
+    failed_cod = test_db.scalar(
+        select(func.count()).select_from(Shipment).where(Shipment.status == "failed")
+    )
+    assert failed_cod >= 3
+
+    # 5. Stale unfulfilled orders exist
+    stale_orders = test_db.scalar(
+        select(func.count()).select_from(Order).where(Order.status == "paid")
+    )
+    assert stale_orders >= 1
+

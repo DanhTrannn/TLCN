@@ -400,7 +400,7 @@ def _seed_store_inventory(session: Session, store: Store, variants: list[Product
 
 
 # --- 6. Marketing (Coupons) ---
-def _seed_coupons(session: Session) -> Coupon:
+def _seed_coupons(session: Session) -> tuple[Coupon, Coupon]:
     coupon = session.execute(
         select(Coupon).where(Coupon.code_normalized == "SUMMER20")
     ).scalar_one_or_none()
@@ -419,8 +419,28 @@ def _seed_coupons(session: Session) -> Coupon:
             used_count=0,
         )
         session.add(coupon)
-        session.flush()
-    return coupon
+
+    sale50k = session.execute(
+        select(Coupon).where(Coupon.code_normalized == "SALE50K")
+    ).scalar_one_or_none()
+    if sale50k is None:
+        sale50k = Coupon(
+            public_id=_pid("coupon", "SALE50K"),
+            code_normalized="SALE50K",
+            discount_type="fixed_amount",
+            discount_value=50000,
+            minimum_subtotal_vnd=200000,
+            starts_at=datetime(2025, 1, 1),
+            ends_at=datetime(2030, 1, 1),
+            is_active=True,
+            total_usage_limit=1000,
+            per_customer_usage_limit=5,
+            used_count=850,
+        )
+        session.add(sale50k)
+
+    session.flush()
+    return coupon, sale50k
 
 
 # --- 7. Orders across 7 Domains ---
@@ -432,13 +452,16 @@ def _seed_orders_and_related(
     variants: list[ProductVariant],
     store: Store,
     coupon: Coupon,
+    sale50k: Coupon,
     now: datetime,
 ) -> tuple[int, int, int, int, int, int]:
-    """Populates 27 orders:
-    - 16 delivered online orders
+    """Populates 33 orders across all standard and CDC real-time operational scenarios:
+    - 16 delivered online orders (with SALE50K redemptions)
     - 6 completed POS store orders
-    - 3 failed delivery (boom) orders
+    - 3 failed delivery (boom) orders (Quận Bình Tân hotspot)
     - 2 customer return requests (1 completed with refund, 1 approved)
+    - 2 stale unfulfilled paid orders (> 2 hours waiting fulfillment)
+    - 4 in-transit COD shipments (~340M VND floating cash)
     Returns counts: (orders, payments, shipments, returns, refunds, reviews)
     """
     store_mgr = staff_map["store_manager"]
@@ -457,8 +480,11 @@ def _seed_orders_and_related(
         days_ago: float,
         is_cod: bool = False,
         use_coupon: bool = False,
+        custom_coupon: Coupon | None = None,
         assigned_store_id: int | None = None,
         staff_id: int | None = None,
+        shipping_address: str | None = None,
+        custom_items: list[tuple[ProductVariant, int, int, int]] | None = None,
     ) -> tuple[Order, list[OrderItem], Payment]:
         nonlocal order_counter
         order_counter += 1
@@ -474,36 +500,50 @@ def _seed_orders_and_related(
         else:
             order_time = now - timedelta(days=days_ago, hours=(idx * 2) % 24)
 
-        # 1-2 items
-        selected_var_1 = variants[(idx * 2) % num_variants]
-        selected_var_2 = variants[(idx * 2 + 1) % num_variants]
-        chosen_vars = [selected_var_1]
-        if idx % 2 == 1:
-            chosen_vars.append(selected_var_2)
+        if custom_items:
+            items_to_create = custom_items
+            subtotal = sum(line_tot for _, _, _, line_tot in custom_items)
+        else:
+            # 1-2 items
+            selected_var_1 = variants[(idx * 2) % num_variants]
+            selected_var_2 = variants[(idx * 2 + 1) % num_variants]
+            chosen_vars = [selected_var_1]
+            if idx % 2 == 1:
+                chosen_vars.append(selected_var_2)
 
-        items_to_create = []
-        subtotal = 0
-        for v in chosen_vars:
-            qty = 1 + (idx % 2)
-            unit_price = v.price_vnd
-            line_tot = unit_price * qty
-            subtotal += line_tot
-            items_to_create.append((v, qty, unit_price, line_tot))
+            items_to_create = []
+            subtotal = 0
+            for v in chosen_vars:
+                qty = 1 + (idx % 2)
+                unit_price = v.price_vnd
+                line_tot = unit_price * qty
+                subtotal += line_tot
+                items_to_create.append((v, qty, unit_price, line_tot))
 
         discount = 0
         coupon_id = None
         coupon_code = None
         coupon_type = None
         coupon_val = None
-        if use_coupon:
-            coupon_id = coupon.coupon_id
-            coupon_code = coupon.code_normalized
-            coupon_type = coupon.discount_type
-            coupon_val = coupon.discount_value
-            discount = int(subtotal * coupon_val // 100)
+        target_cp = custom_coupon if custom_coupon is not None else coupon
+        if use_coupon and target_cp is not None:
+            coupon_id = target_cp.coupon_id
+            coupon_code = target_cp.code_normalized
+            coupon_type = target_cp.discount_type
+            coupon_val = target_cp.discount_value
+            if coupon_type == "percentage":
+                discount = int(subtotal * coupon_val // 100)
+            else:
+                discount = min(subtotal, coupon_val)
 
         shipping_fee = 0 if channel == "pos" else 30000
         total_vnd = subtotal - discount + shipping_fee
+
+        addr_text = (
+            shipping_address
+            if shipping_address
+            else "Số 88 đường Hai Bà Trưng, Phường Bến Nghé, Quận 1, TP Hồ Chí Minh"
+        )
 
         order = Order(
             order_number=order_num,
@@ -522,11 +562,11 @@ def _seed_orders_and_related(
             total_vnd=total_vnd,
             receiver_name=cust.display_name,
             receiver_phone="0901122334",
-            shipping_address_text="Số 88 đường Hai Bà Trưng, Phường Bến Nghé, Quận 1, TP Hồ Chí Minh",
+            shipping_address_text=addr_text,
             data_origin="manual",
             created_at=order_time,
             updated_at=order_time,
-            paid_at=order_time if status in ("paid", "shipping", "delivered", "completed", "returned") else None,
+            paid_at=order_time if status in ("paid", "delivered", "completed", "returned") else None,
             confirmed_at=order_time if status in ("confirmed", "shipping", "delivered", "completed", "returned") else None,
             completed_at=order_time if status == "completed" else None,
             store_id=assigned_store_id,
@@ -564,8 +604,16 @@ def _seed_orders_and_related(
             order_items.append(item)
 
         # Payment
-        pay_status = "failed" if status == "failed_delivery" and is_cod else "succeeded"
-        fail_code = "DELIVERY_FAILED" if pay_status == "failed" else None
+        if status == "failed_delivery" and is_cod:
+            pay_status = "failed"
+            fail_code = "DELIVERY_FAILED"
+        elif status == "shipping" and is_cod:
+            pay_status = "pending"
+            fail_code = None
+        else:
+            pay_status = "succeeded"
+            fail_code = None
+
         payment = Payment(
             order_id=order.order_id,
             payment_reference=f"PAY-{order_num}",
@@ -580,9 +628,9 @@ def _seed_orders_and_related(
         session.add(payment)
 
         # Coupon redemption if used
-        if use_coupon:
+        if use_coupon and target_cp is not None:
             redemption = CouponRedemption(
-                coupon_id=coupon.coupon_id,
+                coupon_id=target_cp.coupon_id,
                 order_id=order.order_id,
                 customer_id=cust.customer_id,
                 status="redeemed",
@@ -591,7 +639,7 @@ def _seed_orders_and_related(
                 updated_at=order_time,
             )
             session.add(redemption)
-            coupon.used_count += 1
+            target_cp.used_count += 1
 
         session.flush()
         return order, order_items, payment
@@ -600,7 +648,7 @@ def _seed_orders_and_related(
     existing_orders_count = session.scalar(
         select(func.count()).select_from(Order).where(Order.order_number.like("ORD-DEMO-%"))
     ) or 0
-    if existing_orders_count >= 25:
+    if existing_orders_count >= 33:
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today_pos_count = session.scalar(
             select(func.count()).select_from(Order).where(
@@ -639,7 +687,11 @@ def _seed_orders_and_related(
     for i in range(16):
         cust = customers[i % len(customers)]
         days_ago = 13.0 - (i * 0.8)
-        use_cp = (i == 0)  # Use coupon on order 1
+        # Use SUMMER20 for order 0, and SALE50K for orders 13, 14, 15 (recent within today)
+        use_cp = (i == 0) or (i in (13, 14, 15))
+        custom_cp = sale50k if i in (13, 14, 15) else None
+        if i in (13, 14, 15):
+            days_ago = 0.02 * (16 - i)  # 15 to 45 minutes ago today
         order, items, _ = _create_base_order(
             idx=i,
             channel="online",
@@ -648,6 +700,7 @@ def _seed_orders_and_related(
             days_ago=days_ago,
             is_cod=(i % 3 == 0),
             use_coupon=use_cp,
+            custom_coupon=custom_cp,
         )
 
         # Warehouse Inventory deduction & tx
@@ -725,7 +778,7 @@ def _seed_orders_and_related(
             )
             session.add(inv_tx)
 
-    # 3. 3 Failed Delivery (Boom) Orders
+    # 3. 3 Failed Delivery (Boom) Orders (Regional Hotspot: Bình Tân)
     for i in range(3):
         cust = customers[i]
         days_ago = 8.0 - (i * 2.0)
@@ -736,6 +789,7 @@ def _seed_orders_and_related(
             cust=cust,
             days_ago=days_ago,
             is_cod=True,
+            shipping_address="Số 123 đường Tên Lửa, Phường An Lạc, Quận Bình Tân, TP Hồ Chí Minh",
         )
 
         shipment = Shipment(
@@ -750,7 +804,7 @@ def _seed_orders_and_related(
             dispatched_at=order.created_at + timedelta(hours=2),
             failed_at=order.created_at + timedelta(days=2),
             failure_reason="Khách không nghe máy sau 3 cuộc gọi, từ chối nhận hàng.",
-            notes="Đơn hàng giao thất bại (boom hàng).",
+            notes="Đơn hàng giao thất bại (boom hàng khu vực Bình Tân).",
             created_at=order.created_at,
             updated_at=order.created_at + timedelta(days=2),
         )
@@ -878,14 +932,67 @@ def _seed_orders_and_related(
     )
     session.add(ret_item_2)
 
-    # 5. Seed Reviews on Delivered Items
+    # 5. 2 Stale Unfulfilled Paid Orders (> 2 hours waiting fulfillment)
+    for i in range(2):
+        cust = customers[(i + 3) % len(customers)]
+        days_ago = 0.12 + (i * 0.04)  # ~3 to ~4 hours ago today
+        _create_base_order(
+            idx=27 + i,
+            channel="online",
+            status="paid",
+            cust=cust,
+            days_ago=days_ago,
+            is_cod=False,
+            use_coupon=True,
+            custom_coupon=sale50k,  # Adds recent SALE50K redemption
+        )
+
+    # 6. 4 In-Transit COD Shipments (~340M VND floating cash for Executive signal)
+    cod_targets = [95000000, 85000000, 80000000, 80000000]
+    for i, target_val in enumerate(cod_targets):
+        cust = customers[i % len(customers)]
+        days_ago = 0.06 + (i * 0.02)  # within today
+        v = variants[i % num_variants]
+        qty = 200
+        unit_p = target_val // qty
+        line_tot = qty * unit_p
+        custom_items = [(v, qty, unit_p, line_tot)]
+
+        order, items, pay = _create_base_order(
+            idx=29 + i,
+            channel="online",
+            status="shipping",
+            cust=cust,
+            days_ago=days_ago,
+            is_cod=True,
+            custom_items=custom_items,
+        )
+        shipment = Shipment(
+            public_id=_pid("shipment", order.order_number),
+            shipment_code=f"SHP-{order.order_number}",
+            order_id=order.order_id,
+            delivery_staff_id=delivery_staff.staff_id,
+            status="in_transit",
+            attempt_count=1,
+            cod_amount_vnd=order.total_vnd,
+            cod_collected_vnd=0,
+            dispatched_at=order.created_at + timedelta(minutes=30),
+            notes="Đang vận chuyển giao hàng COD đường xa.",
+            created_at=order.created_at,
+            updated_at=order.created_at + timedelta(minutes=30),
+        )
+        session.add(shipment)
+
+    # 7. Seed Reviews on Delivered Items
     review_templates = [
         (5, "Chất lượng vải rất tốt, mặc ôm dáng và thoáng mát! Giao hàng cực nhanh."),
         (4, "Áo đẹp, đường chỉ may kỹ càng, màu sắc nhã nhặn đúng mô tả."),
         (5, "Rất ưng ý với sản phẩm này, sẽ tiếp tục ủng hộ shop trong các đơn hàng tới!"),
     ]
+    used_order_item_ids: set[int] = set()
     for r_idx, (rating, text_content) in enumerate(review_templates):
         target_item = all_delivered_items[r_idx]
+        used_order_item_ids.add(target_item.order_item_id)
         existing_rev = session.execute(
             select(ProductReview).where(ProductReview.order_item_id == target_item.order_item_id)
         ).scalar_one_or_none()
@@ -907,8 +1014,44 @@ def _seed_orders_and_related(
             )
             session.add(rev)
 
+    # 5 clustered 1-2 star reviews on Product #1 (Negative Review Spike CDC signal)
+    negative_reviews = [
+        (1, "Áo bị rách chỉ ở nách áo ngay lần giặt đầu tiên, chất vải mỏng tang."),
+        (1, "Giao sai màu, đặt đen giao navy, chất lượng hoàn thiện rất kém."),
+        (2, "Form áo không đúng bảng size, bị co rút mạnh sau khi giặt."),
+        (1, "Đường may bị lỗi cộm ngứa, vải xơ xước, quá thất vọng!"),
+        (1, "Vải dỏm, phai màu lem hết ra các quần áo khác khi giặt chung."),
+    ]
+    prod1_id = variants[0].product_id
+    available_prod1_items = [
+        itm for itm in all_delivered_items
+        if itm.order_item_id not in used_order_item_ids and prod_map[itm.variant_id].product_id == prod1_id
+    ]
+    for n_idx, (rating, text_content) in enumerate(negative_reviews):
+        if n_idx < len(available_prod1_items):
+            target_item = available_prod1_items[n_idx]
+            existing_rev = session.execute(
+                select(ProductReview).where(ProductReview.order_item_id == target_item.order_item_id)
+            ).scalar_one_or_none()
+            if existing_rev is None:
+                rev = ProductReview(
+                    public_id=_pid("review", f"neg-rev-{target_item.order_item_id}"),
+                    order_item_id=target_item.order_item_id,
+                    customer_id=customers[n_idx % len(customers)].customer_id,
+                    product_id=prod1_id,
+                    rating=rating,
+                    content=text_content,
+                    status="approved",
+                    moderation_reason=None,
+                    moderated_by_customer_id=None,
+                    moderated_at=None,
+                    created_at=now - timedelta(minutes=20 * (n_idx + 1)),
+                    updated_at=now - timedelta(minutes=20 * (n_idx + 1)),
+                )
+                session.add(rev)
+
     session.flush()
-    return 27, 27, 21, 2, 1, 3
+    return 33, 33, 25, 2, 1, 8
 
 
 def seed_demo_data(session: Session | None = None) -> dict[str, int]:
@@ -934,7 +1077,7 @@ def seed_demo_data(session: Session | None = None) -> dict[str, int]:
         _seed_store_inventory(s, primary_store, variants)
 
         # 6. Coupons
-        coupon = _seed_coupons(s)
+        coupon, sale50k = _seed_coupons(s)
 
         # 7. Orders & Related Entities
         _seed_orders_and_related(
@@ -945,6 +1088,7 @@ def seed_demo_data(session: Session | None = None) -> dict[str, int]:
             variants=variants,
             store=primary_store,
             coupon=coupon,
+            sale50k=sale50k,
             now=now,
         )
 
