@@ -105,6 +105,7 @@ def extract_one_table(
         "committed_pk": committed.cursor_pk if committed else None,
         "high_watermark_at": high_watermark_at,
         "high_watermark_pk": high_watermark_pk,
+        "lookback_minutes": lookback_minutes,
         "min_at": None,
         "max_at": None,
     }

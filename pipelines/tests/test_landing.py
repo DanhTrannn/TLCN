@@ -117,3 +117,54 @@ def test_validate_manifest_cursor_range_ok_skipped_when_committed_null():
     }
     manifest = manifest_from_dict(raw)
     assert validate_manifest(manifest, lambda p: (100, 2)) == []
+
+
+def test_validate_manifest_min_at_within_lookback_ok():
+    raw = {
+        "manifest_version": "1.0.0", "run_id": "run123", "table": "orders",
+        "source": {"system": "mysql_ecommerce", "schema": "ecommerce"},
+        "cursor": {"field": "updated_at", "committed_at": "2026-08-15 09:00:00",
+                   "committed_pk": 1, "high_watermark_at": "2026-08-15 10:00:00",
+                   "high_watermark_pk": 5, "min_at": "2026-08-15 08:52:00",
+                   "max_at": "2026-08-15 09:50:00", "lookback_minutes": 10},
+        "rows": 2, "empty": False,
+        "files": [{"path": "p1", "rows": 2, "md5": "a"}],
+        "generated_at_utc": "2026-08-15T10:05:00Z",
+    }
+    manifest = manifest_from_dict(raw)
+    assert validate_manifest(manifest, lambda p: (100, 2)) == []
+
+
+def test_validate_manifest_min_at_before_lookback_reported():
+    raw = {
+        "manifest_version": "1.0.0", "run_id": "run123", "table": "orders",
+        "source": {"system": "mysql_ecommerce", "schema": "ecommerce"},
+        "cursor": {"field": "updated_at", "committed_at": "2026-08-15 09:00:00",
+                   "committed_pk": 1, "high_watermark_at": "2026-08-15 10:00:00",
+                   "high_watermark_pk": 5, "min_at": "2026-08-15 08:45:00",
+                   "max_at": "2026-08-15 09:50:00", "lookback_minutes": 10},
+        "rows": 2, "empty": False,
+        "files": [{"path": "p1", "rows": 2, "md5": "a"}],
+        "generated_at_utc": "2026-08-15T10:05:00Z",
+    }
+    manifest = manifest_from_dict(raw)
+    violations = validate_manifest(manifest, lambda p: (100, 2))
+    assert any("lookback_at" in v for v in violations)
+
+
+def test_validate_manifest_min_at_before_committed_without_lookback_reported():
+    raw = {
+        "manifest_version": "1.0.0", "run_id": "run123", "table": "orders",
+        "source": {"system": "mysql_ecommerce", "schema": "ecommerce"},
+        "cursor": {"field": "updated_at", "committed_at": "2026-08-15 09:00:00",
+                   "committed_pk": 1, "high_watermark_at": "2026-08-15 10:00:00",
+                   "high_watermark_pk": 5, "min_at": "2026-08-15 08:55:00",
+                   "max_at": "2026-08-15 09:50:00", "lookback_minutes": 0},
+        "rows": 2, "empty": False,
+        "files": [{"path": "p1", "rows": 2, "md5": "a"}],
+        "generated_at_utc": "2026-08-15T10:05:00Z",
+    }
+    manifest = manifest_from_dict(raw)
+    violations = validate_manifest(manifest, lambda p: (100, 2))
+    assert any("committed_at" in v for v in violations)
+
