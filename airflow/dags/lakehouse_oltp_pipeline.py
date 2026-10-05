@@ -135,8 +135,8 @@ def _s3_conn():
 
 def validate_landing_manifests(**context) -> None:
     cfg = load_config(CONFIG_PATH)
-    run_id = context["ti"].xcom_pull(task_ids="begin_run", key="run_id")
-    extract_date = context["ti"].xcom_pull(task_ids="begin_run", key="batch_date")
+    run_id = context["ti"].xcom_pull(task_ids="check_pipeline_context", key="run_id")
+    extract_date = context["ti"].xcom_pull(task_ids="check_pipeline_context", key="batch_date")
     s3 = _s3_conn()
     violations = validate_run(
         s3, cfg.bucket, [t.name for t in cfg.tables], extract_date, run_id
@@ -149,7 +149,7 @@ def validate_landing_manifests(**context) -> None:
 
 def commit_cursors(**context) -> None:
     cfg = load_config(CONFIG_PATH)
-    watermarks = context["ti"].xcom_pull(task_ids="landing_zone.capture_high_watermarks")
+    watermarks = context["ti"].xcom_pull(task_ids="landing_zone.extract_high_watermarks")
     s3 = _s3_conn()
     now_utc = pendulum.now("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
     states = build_cursor_advancements(
@@ -157,7 +157,7 @@ def commit_cursors(**context) -> None:
     )
     for table, state in states.items():
         write_committed_cursor(s3, cfg.bucket, table, state)
-    print(f"[commit_cursors] Successfully advanced cursors for {len(states)} tables.")
+    print(f"[load_committed_cursors] Successfully advanced cursors for {len(states)} tables.")
 
 
 
@@ -172,8 +172,8 @@ with DAG(
     tags=["lakehouse", "oltp", "batch", "medallion", "gold"],
 ) as dag:
 
-    begin = PythonOperator(
-        task_id="begin_run",
+    check_context = PythonOperator(
+        task_id="check_pipeline_context",
         python_callable=begin_run,
     )
 
@@ -183,24 +183,24 @@ with DAG(
         tooltip="Extract MySQL tables to MinIO landing with composite cursors and MD5 manifests",
     ) as tg_landing:
         check = PythonOperator(
-            task_id="check_mysql",
+            task_id="check_mysql_connection",
             python_callable=check_mysql,
         )
 
         capture = PythonOperator(
-            task_id="capture_high_watermarks",
+            task_id="extract_high_watermarks",
             python_callable=capture_high_watermarks,
         )
 
         extract = SparkSubmitOperator(
-            task_id="extract_tables_to_landing",
+            task_id="extract_mysql_tables",
             application=SPARK_APP_EXTRACT,
             application_args=[
                 "--config-path", CONFIG_PATH,
-                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-                "--extract-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+                "--extract-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
                 "--high-watermarks",
-                "{{ ti.xcom_pull(task_ids='landing_zone.capture_high_watermarks') | tojson }}",
+                "{{ ti.xcom_pull(task_ids='landing_zone.extract_high_watermarks') | tojson }}",
             ],
         )
 
@@ -217,18 +217,18 @@ with DAG(
         group_id="bronze_layer",
         tooltip="Ingest Landing Parquet files into Iceberg Bronze tables",
     ) as tg_bronze:
-        ingest_bronze = SparkSubmitOperator(
-            task_id="ingest_oltp_to_bronze",
+        load_bronze = SparkSubmitOperator(
+            task_id="load_to_bronze",
             application=SPARK_APP_BRONZE,
             application_args=[
-                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-                "--extract-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+                "--extract-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
             ],
         )
 
     # 3. HIGH WATERMARK COMMIT (Only advance cursors AFTER Bronze successfully ingests Landing data)
-    commit_cursors_op = PythonOperator(
-        task_id="commit_cursors",
+    load_cursors = PythonOperator(
+        task_id="load_committed_cursors",
         python_callable=commit_cursors,
     )
 
@@ -237,71 +237,70 @@ with DAG(
         group_id="silver_layer",
         tooltip="Deduplicate, hash PII, and MERGE/Upsert Bronze tables into Iceberg Silver tables",
     ) as tg_silver:
-        merge_silver = SparkSubmitOperator(
-            task_id="spark_oltp_bronze_to_silver",
+        transform_silver = SparkSubmitOperator(
+            task_id="transform_bronze_to_silver",
             application=SPARK_APP_SILVER,
             application_args=[
                 "--config-path", CONFIG_PATH,
-                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-                "--bronze-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+                "--bronze-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
             ],
         )
 
     # 5. RECONCILIATION GATE (Pre-Gold Publishing Quality Gate)
     # Audits row count and financial metric parity between Source MySQL and Silver Iceberg.
     # Halts execution and blocks Gold publishing if variance exceeds 0.05%.
-    reconciliation_gate = SparkSubmitOperator(
-        task_id="reconciliation_gate",
+    validate_reconciliation = SparkSubmitOperator(
+        task_id="validate_data_reconciliation",
         application=SPARK_APP_RECONCILE,
         application_args=[
             "--config-path", CONFIG_PATH,
-            "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-            "--batch-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+            "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+            "--batch-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
             "--tolerance-pct", "0.05",
         ],
     )
 
     # 6. GOLD LAYER STAR SCHEMA & DATA MARTS
-
     with TaskGroup(
         group_id="gold_layer",
         tooltip="Build Star Schema Dimensions, Facts, and Data Marts with financial COGS and KPI rollups",
     ) as tg_gold:
         build_dimensions = SparkSubmitOperator(
-            task_id="spark_build_gold_dimensions",
+            task_id="build_gold_dimensions",
             application=SPARK_APP_GOLD,
             application_args=[
-                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-                "--snapshot-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+                "--snapshot-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
                 "--stage", "dimensions",
             ],
         )
 
         build_facts = SparkSubmitOperator(
-            task_id="spark_build_gold_facts",
+            task_id="build_gold_facts",
             application=SPARK_APP_GOLD,
             application_args=[
-                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-                "--snapshot-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+                "--snapshot-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
                 "--stage", "facts",
             ],
         )
 
-        build_marts = SparkSubmitOperator(
-            task_id="spark_build_gold_marts",
+        aggregate_marts = SparkSubmitOperator(
+            task_id="aggregate_gold_marts",
             application=SPARK_APP_GOLD,
             application_args=[
-                "--run-id", "{{ ti.xcom_pull(task_ids='begin_run', key='run_id') }}",
-                "--snapshot-date", "{{ ti.xcom_pull(task_ids='begin_run', key='batch_date') }}",
+                "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+                "--snapshot-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
                 "--stage", "marts",
             ],
         )
 
-        [build_dimensions, build_facts] >> build_marts
+        [build_dimensions, build_facts] >> aggregate_marts
 
     # Sequential End-to-End Orchestration:
-    # 1. Begin Run -> 2. Landing Zone -> 3. Bronze Layer -> 4. Commit Cursors ->
+    # 1. Check Context -> 2. Landing Zone -> 3. Bronze Layer -> 4. Load Cursors ->
     # 5. Silver Layer -> 6. Reconciliation Gate -> 7. Gold Layer (Dimensions, Facts, Marts)
     # (Iceberg Table Maintenance is decoupled into dedicated off-peak DAG: lakehouse_oltp_maintenance)
-    begin >> tg_landing >> tg_bronze >> commit_cursors_op >> tg_silver >> reconciliation_gate >> tg_gold
+    check_context >> tg_landing >> tg_bronze >> load_cursors >> tg_silver >> validate_reconciliation >> tg_gold
 

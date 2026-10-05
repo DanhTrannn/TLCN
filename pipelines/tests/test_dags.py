@@ -313,18 +313,18 @@ def test_oltp_pipeline_structural_integrity():
         assert group in dag.task_groups, f"Expected task group '{group}' missing from {dag.dag_id}"
 
     # Verify key tasks exist
-    assert "begin_run" in dag.tasks
-    assert "check_mysql" in dag.tasks
-    assert "capture_high_watermarks" in dag.tasks
-    assert "extract_tables_to_landing" in dag.tasks
+    assert "check_pipeline_context" in dag.tasks
+    assert "check_mysql_connection" in dag.tasks
+    assert "extract_high_watermarks" in dag.tasks
+    assert "extract_mysql_tables" in dag.tasks
     assert "validate_landing_manifests" in dag.tasks
-    assert "commit_cursors" in dag.tasks
-    assert "ingest_oltp_to_bronze" in dag.tasks
-    assert "spark_oltp_bronze_to_silver" in dag.tasks
-    assert "reconciliation_gate" in dag.tasks
-    assert "spark_build_gold_dimensions" in dag.tasks
-    assert "spark_build_gold_facts" in dag.tasks
-    assert "spark_build_gold_marts" in dag.tasks
+    assert "load_to_bronze" in dag.tasks
+    assert "load_committed_cursors" in dag.tasks
+    assert "transform_bronze_to_silver" in dag.tasks
+    assert "validate_data_reconciliation" in dag.tasks
+    assert "build_gold_dimensions" in dag.tasks
+    assert "build_gold_facts" in dag.tasks
+    assert "aggregate_gold_marts" in dag.tasks
 
 
 def test_oltp_maintenance_structural_integrity():
@@ -343,10 +343,10 @@ def test_oltp_maintenance_structural_integrity():
     assert "iceberg_maintenance" in dag.task_groups
 
     # Verify key maintenance tasks exist
-    assert "begin_run" in dag.tasks
-    assert "compact_oltp_tables" in dag.tasks
-    assert "expire_oltp_snapshots" in dag.tasks
-    assert "remove_oltp_orphan_files" in dag.tasks
+    assert "check_maintenance_context" in dag.tasks
+    assert "transform_compact_tables" in dag.tasks
+    assert "cleanup_expired_snapshots" in dag.tasks
+    assert "cleanup_orphan_files" in dag.tasks
 
 
 

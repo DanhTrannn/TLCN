@@ -57,8 +57,8 @@ with DAG(
     tags=["lakehouse", "oltp", "maintenance", "iceberg", "compaction"],
 ) as dag:
 
-    begin = PythonOperator(
-        task_id="begin_run",
+    check_context = PythonOperator(
+        task_id="check_maintenance_context",
         python_callable=begin_run,
     )
 
@@ -67,7 +67,7 @@ with DAG(
         tooltip="Compact small Parquet files, rewrite manifests, expire old snapshots & remove orphans for OLTP tables",
     ) as tg_maintenance:
         compact_oltp = SparkSubmitOperator(
-            task_id="compact_oltp_tables",
+            task_id="transform_compact_tables",
             application=SPARK_APP_MAINTENANCE,
             application_args=[
                 "--action", "compact",
@@ -77,7 +77,7 @@ with DAG(
         )
 
         expire_oltp = SparkSubmitOperator(
-            task_id="expire_oltp_snapshots",
+            task_id="cleanup_expired_snapshots",
             application=SPARK_APP_MAINTENANCE,
             application_args=[
                 "--action", "expire",
@@ -87,7 +87,7 @@ with DAG(
         )
 
         remove_oltp_orphans = SparkSubmitOperator(
-            task_id="remove_oltp_orphan_files",
+            task_id="cleanup_orphan_files",
             application=SPARK_APP_MAINTENANCE,
             application_args=[
                 "--action", "orphan",
@@ -98,5 +98,5 @@ with DAG(
         compact_oltp >> expire_oltp >> remove_oltp_orphans
 
     # Orchestration Flow:
-    # 1. Begin Run -> 2. Iceberg Maintenance (Compaction -> Expire Snapshots -> Remove Orphans)
-    begin >> tg_maintenance
+    # 1. Check Context -> 2. Iceberg Maintenance (Compaction -> Expire Snapshots -> Remove Orphans)
+    check_context >> tg_maintenance
