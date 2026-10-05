@@ -25,14 +25,23 @@ def _polaris_credentials() -> tuple[str, str]:
 
 
 def configure_s3a(builder):
+    endpoint = os.environ["MINIO_ENDPOINT"]
+    access_key = os.environ["MINIO_ACCESS_KEY"]
+    secret_key = os.environ["MINIO_SECRET_KEY"]
     return (
         builder
-        .config("spark.hadoop.fs.s3a.endpoint", os.environ["MINIO_ENDPOINT"])
-        .config("spark.hadoop.fs.s3a.access.key", os.environ["MINIO_ACCESS_KEY"])
-        .config("spark.hadoop.fs.s3a.secret.key", os.environ["MINIO_SECRET_KEY"])
+        .config("spark.hadoop.fs.s3a.endpoint", endpoint)
+        .config("spark.hadoop.fs.s3a.access.key", access_key)
+        .config("spark.hadoop.fs.s3a.secret.key", secret_key)
         .config("spark.hadoop.fs.s3a.path.style.access", "true")
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.s3.endpoint", endpoint)
+        .config("spark.hadoop.fs.s3.access.key", access_key)
+        .config("spark.hadoop.fs.s3.secret.key", secret_key)
+        .config("spark.hadoop.fs.s3.path.style.access", "true")
+        .config("spark.hadoop.fs.s3.connection.ssl.enabled", "false")
     )
 
 

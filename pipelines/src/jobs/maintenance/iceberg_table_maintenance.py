@@ -180,6 +180,8 @@ def main() -> None:
             success_count += 1
 
         print(f"\nIceberg maintenance completed. Processed: {success_count} tables, Errors encountered: {error_count}.")
+        if error_count > 0:
+            raise RuntimeError(f"Iceberg maintenance encountered {error_count} errors across {len(tables)} tables.")
     finally:
         spark.stop()
 
