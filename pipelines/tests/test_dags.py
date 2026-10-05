@@ -32,6 +32,7 @@ def test_dag_files_exist():
     dag_files = [f.name for f in get_dag_files()]
     assert "lakehouse_oltp_pipeline.py" in dag_files
     assert "lakehouse_streaming_maintenance.py" in dag_files
+    assert "lakehouse_oltp_maintenance.py" in dag_files
 
 
 @pytest.mark.parametrize("dag_path", get_dag_files(), ids=lambda p: p.name)
@@ -307,7 +308,7 @@ def test_oltp_pipeline_structural_integrity():
     dag.validate_no_cycles()
 
     # Verify essential task groups exist
-    expected_groups = {"landing_zone", "bronze_layer", "silver_layer", "gold_layer", "iceberg_maintenance"}
+    expected_groups = {"landing_zone", "bronze_layer", "silver_layer", "gold_layer"}
     for group in expected_groups:
         assert group in dag.task_groups, f"Expected task group '{group}' missing from {dag.dag_id}"
 
@@ -324,7 +325,28 @@ def test_oltp_pipeline_structural_integrity():
     assert "spark_build_gold_dimensions" in dag.tasks
     assert "spark_build_gold_facts" in dag.tasks
     assert "spark_build_gold_marts" in dag.tasks
+
+
+def test_oltp_maintenance_structural_integrity():
+    """Verify lakehouse_oltp_maintenance DAG structure, task groups, and cycle prevention."""
+    dag_path = DAG_DIR / "lakehouse_oltp_maintenance.py"
+    dag = _load_dag_with_mocks(dag_path)
+
+    assert dag.dag_id == "lakehouse_oltp_maintenance"
+    assert dag.schedule == "0 3 * * *"  # Daily at 3 AM
+    assert dag.default_args.get("owner") == "lakehouse"
+
+    # Verify no cyclic dependencies exist
+    dag.validate_no_cycles()
+
+    # Verify essential task groups exist
+    assert "iceberg_maintenance" in dag.task_groups
+
+    # Verify key maintenance tasks exist
+    assert "begin_run" in dag.tasks
     assert "compact_oltp_tables" in dag.tasks
+    assert "expire_oltp_snapshots" in dag.tasks
+    assert "remove_oltp_orphan_files" in dag.tasks
 
 
 

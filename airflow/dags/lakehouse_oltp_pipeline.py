@@ -36,7 +36,6 @@ SPARK_APP_BRONZE = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_to_bronze.p
 SPARK_APP_SILVER = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_silver.py"
 SPARK_APP_RECONCILE = "/opt/project/pipelines/src/jobs/oltp/run_reconciliation_gate.py"
 SPARK_APP_GOLD = "/opt/project/pipelines/src/jobs/oltp/build_oltp_gold.py"
-SPARK_APP_MAINTENANCE = "/opt/project/pipelines/src/jobs/maintenance/iceberg_table_maintenance.py"
 
 DEFAULT_ARGS = {
     "owner": "lakehouse",
@@ -300,44 +299,9 @@ with DAG(
 
         [build_dimensions, build_facts] >> build_marts
 
-    # 5. ICEBERG OPTIMIZATION & TABLE MAINTENANCE
-    with TaskGroup(
-        group_id="iceberg_maintenance",
-        tooltip="Compact small Parquet files, rewrite manifests, expire old snapshots & remove orphans for OLTP tables",
-    ) as tg_maintenance:
-        compact_oltp = SparkSubmitOperator(
-            task_id="compact_oltp_tables",
-            application=SPARK_APP_MAINTENANCE,
-            application_args=[
-                "--action", "compact",
-                "--profile", "oltp",
-                "--target-file-size-bytes", "134217728",
-            ],
-        )
-
-        expire_oltp = SparkSubmitOperator(
-            task_id="expire_oltp_snapshots",
-            application=SPARK_APP_MAINTENANCE,
-            application_args=[
-                "--action", "expire",
-                "--profile", "oltp",
-                "--retain-snapshots", "10",
-            ],
-        )
-
-        remove_oltp_orphans = SparkSubmitOperator(
-            task_id="remove_oltp_orphan_files",
-            application=SPARK_APP_MAINTENANCE,
-            application_args=[
-                "--action", "orphan",
-                "--profile", "oltp",
-            ],
-        )
-
-        compact_oltp >> expire_oltp >> remove_oltp_orphans
-
     # Sequential End-to-End Orchestration:
     # 1. Begin Run -> 2. Landing Zone -> 3. Bronze Layer -> 4. Commit Cursors ->
-    # 5. Silver Layer -> 6. Reconciliation Gate -> 7. Gold Layer -> 8. Iceberg Maintenance
-    begin >> tg_landing >> tg_bronze >> commit_cursors_op >> tg_silver >> reconciliation_gate >> tg_gold >> tg_maintenance
+    # 5. Silver Layer -> 6. Reconciliation Gate -> 7. Gold Layer (Dimensions, Facts, Marts)
+    # (Iceberg Table Maintenance is decoupled into dedicated off-peak DAG: lakehouse_oltp_maintenance)
+    begin >> tg_landing >> tg_bronze >> commit_cursors_op >> tg_silver >> reconciliation_gate >> tg_gold
 
