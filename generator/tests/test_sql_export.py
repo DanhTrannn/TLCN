@@ -516,9 +516,13 @@ class SqlExportTest(unittest.TestCase):
             for table in ("delivery_staff", "shipments", "inventory_transactions"):
                 self.assertIn(f"INSERT INTO `{table}`", sql)
 
-            # Check delivery staff count
+            # Check delivery staff count and unique valid phones
             staff_count = _count_rows(sql, "delivery_staff")
             self.assertEqual(staff_count, 10)
+            staff_block = _table_blocks(sql, "delivery_staff")[0]
+            staff_phones = re.findall(r"'09\d{8}'", staff_block)
+            self.assertEqual(len(staff_phones), 10)
+            self.assertEqual(len(set(staff_phones)), 10)
 
             # Check shipments
             shipments_block = _table_blocks(sql, "shipments")[0]

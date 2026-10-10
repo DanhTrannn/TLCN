@@ -1166,13 +1166,15 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             variant_rows,
         )
         staff_rows: list[Sequence[SqlValue]] = []
-        for staff_index, (_, full_name, phone, plate) in enumerate(DELIVERY_STAFF_SEEDS):
+        identity_hash = int(config.logical_identity[:6], 16) % 1_000_000
+        for staff_index, (_, full_name, _, plate) in enumerate(DELIVERY_STAFF_SEEDS):
+            staff_phone = f"09{identity_hash:06d}{staff_index + 1:02d}"
             staff_rows.append(
                 (
                     staff_base + staff_index + 1,
                     _binary_uuid(_entity_uuid(namespace, "delivery-staff", staff_index)),
                     full_name,
-                    phone,
+                    staff_phone,
                     plate,
                     True,
                     master_created_at,
