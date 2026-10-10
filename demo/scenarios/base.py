@@ -1,11 +1,7 @@
 """Helper base module for CDC simulation scenarios."""
 
-import sys
-import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
-from app.db.session import SessionLocal
-from sqlalchemy.orm import Session
 
 # ANSI terminal colors
 C_RESET = "\033[0m"

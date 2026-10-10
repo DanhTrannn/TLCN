@@ -6,10 +6,9 @@ Mô phỏng:
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
 
 from app.db.session import SessionLocal
-from app.models.catalog import Product, ProductVariant
+from app.models.catalog import Product
 from app.models.customer import Customer
 from app.models.order import Order, OrderItem
 from app.models.promotion import Coupon, CouponRedemption
@@ -22,7 +21,7 @@ from demo.scenarios.base import (
     print_success,
     utc_now,
 )
-from sqlalchemy import desc, select
+from sqlalchemy import select
 
 
 def run() -> None:

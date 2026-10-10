@@ -15,7 +15,7 @@ from demo.scenarios.base import (
     print_step,
     print_success,
 )
-from sqlalchemy import desc, func, select
+from sqlalchemy import select
 
 
 def run() -> None:

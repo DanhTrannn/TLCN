@@ -6,7 +6,6 @@ Mô phỏng:
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
 
 from app.db.session import SessionLocal
 from app.models.customer import Customer

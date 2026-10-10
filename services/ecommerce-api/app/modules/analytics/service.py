@@ -809,12 +809,12 @@ def get_executive_metrics(
         sales_rows = client.execute_query("""
             SELECT
                 COALESCE(SUM(gross_revenue_vnd), 0) AS gmv_vnd,
-                COALESCE(SUM(net_revenue_vnd), 0) AS net_revenue_vnd,
-                COALESCE(SUM(total_cost_vnd), 0) AS cogs_vnd,
-                COALESCE(SUM(net_profit_vnd), 0) AS gross_profit_vnd,
-                COUNT(DISTINCT order_id) AS total_orders,
-                COALESCE(SUM(CASE WHEN is_boom THEN 1 ELSE 0 END), 0) AS boom_orders
-            FROM lakehouse.gold.fact_order
+                COALESCE(SUM(gross_revenue_vnd), 0) AS net_revenue_vnd,
+                COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
+                COALESCE(SUM(gross_profit_vnd), 0) AS gross_profit_vnd,
+                COALESCE(SUM(total_orders), 0) AS total_orders,
+                COALESCE(SUM(boom_orders), 0) AS boom_orders
+            FROM lakehouse.gold.mart_sales_daily
         """)
         s_row = sales_rows[0] if sales_rows else {}
         gmv = int(s_row.get("gmv_vnd") or 0)
@@ -877,25 +877,25 @@ def get_sales_metrics(
         store_rows = client.execute_query("""
             SELECT
                 CASE
-                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 0
-                    ELSE fo.store_key
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
+                    ELSE m.store_key
                 END AS effective_store_key,
                 CASE
-                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(fo.store_key AS VARCHAR)))
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
                 END AS channel_name,
-                COALESCE(SUM(CASE WHEN fo.is_delivered THEN fo.gross_revenue_vnd ELSE 0 END), 0) AS revenue_vnd,
-                COUNT(DISTINCT fo.order_id) AS order_count
-            FROM lakehouse.gold.fact_order fo
-            LEFT JOIN lakehouse.gold.dim_store ds ON fo.store_key = ds.store_key AND fo.store_key > 0
+                COALESCE(SUM(m.gross_revenue_vnd), 0) AS revenue_vnd,
+                COALESCE(SUM(m.total_orders), 0) AS order_count
+            FROM lakehouse.gold.mart_sales_daily m
+            LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
             GROUP BY
                 CASE
-                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 0
-                    ELSE fo.store_key
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
+                    ELSE m.store_key
                 END,
                 CASE
-                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(fo.store_key AS VARCHAR)))
+                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
                 END
             ORDER BY revenue_vnd DESC
         """)
@@ -1359,10 +1359,10 @@ def get_system_metrics(
     try:
         sales_rows = client.execute_query("""
             SELECT
-                COUNT(order_id) AS total_orders,
-                COALESCE(SUM(CASE WHEN status != 'cancelled' THEN gross_revenue_vnd ELSE 0 END), 0) AS gross_revenue_vnd,
+                COALESCE(SUM(total_orders), 0) AS total_orders,
+                COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd,
                 MAX(order_date) AS latest_date
-            FROM lakehouse.gold.fact_order
+            FROM lakehouse.gold.mart_sales_daily
         """)
         s_row = sales_rows[0] if sales_rows else {}
         total_orders = float(s_row.get("total_orders") or 0)
