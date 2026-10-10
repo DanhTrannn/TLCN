@@ -123,6 +123,8 @@ def get_overview(db: Session) -> AdminOverviewResponse:
         gross_margin_percent=gross_margin,
         boom_orders_count=boom_count,
         return_orders_count=return_count,
+        shipping_orders=order_counts.get("shipping", 0),
+        delivered_orders=order_counts.get("delivered", 0),
     )
 
 

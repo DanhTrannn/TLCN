@@ -153,14 +153,27 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
     boom_rate = round((boom_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
     return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
 
-    # CDC Signal 1: Margin Erosion Signal
-    base_margin = max(52.0, gross_margin) if gross_margin > 0 else 52.0
-    cur_margin = gross_margin
+    # CDC Signal 1: Margin Erosion Signal (Intra-day hourly pacing)
+    rev_09 = round(net_rev * 0.25)
+    cogs_09 = round(int(cogs_vnd) * 0.20)
+    margin_09 = round(((rev_09 - cogs_09) / rev_09) * 100, 1) if rev_09 > 0 else 52.0
+
+    rev_12 = round(net_rev * 0.55)
+    cogs_12 = round(int(cogs_vnd) * 0.50)
+    margin_12 = round(((rev_12 - cogs_12) / rev_12) * 100, 1) if rev_12 > 0 else gross_margin
+
+    rev_15 = net_rev
+    cogs_15 = int(cogs_vnd)
+    margin_15 = round(gross_margin, 1)
+
+    base_margin = max(margin_09, gross_margin) if gross_margin > 0 else 52.0
+    cur_margin = margin_15
     drop_pct = max(0.0, round(base_margin - cur_margin, 1))
+
     hourly_margins = [
-        HourlyMarginPoint(hour="09:00", revenue_vnd=round(net_rev * 0.2), cogs_vnd=round(int(cogs_vnd) * 0.15), margin_percent=round(base_margin, 1)),
-        HourlyMarginPoint(hour="12:00", revenue_vnd=round(net_rev * 0.4), cogs_vnd=round(int(cogs_vnd) * 0.35), margin_percent=round((base_margin + cur_margin) / 2, 1)),
-        HourlyMarginPoint(hour="15:00", revenue_vnd=net_rev, cogs_vnd=int(cogs_vnd), margin_percent=round(cur_margin, 1)),
+        HourlyMarginPoint(hour="09:00", revenue_vnd=rev_09, cogs_vnd=cogs_09, margin_percent=margin_09),
+        HourlyMarginPoint(hour="12:00", revenue_vnd=rev_12, cogs_vnd=cogs_12, margin_percent=margin_12),
+        HourlyMarginPoint(hour="15:00", revenue_vnd=rev_15, cogs_vnd=cogs_15, margin_percent=margin_15),
     ]
     margin_erosion = MarginErosionSignal(
         baseline_margin_percent=round(base_margin, 1),
@@ -617,7 +630,9 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
     ) or 0
 
     shipping_sla = db.scalar(
-        select(func.count()).select_from(Shipment).where(Shipment.status.in_(("delayed", "failed_attempt")))
+        select(func.count()).select_from(Shipment).where(
+            or_(Shipment.attempt_count > 1, Shipment.status == "failed")
+        )
     ) or 0
 
     boom_orders = db.scalar(
@@ -794,12 +809,12 @@ def get_executive_metrics(
         sales_rows = client.execute_query("""
             SELECT
                 COALESCE(SUM(gross_revenue_vnd), 0) AS gmv_vnd,
-                COALESCE(SUM(gross_revenue_vnd), 0) AS net_revenue_vnd,
-                COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
-                COALESCE(SUM(gross_profit_vnd), 0) AS gross_profit_vnd,
-                COALESCE(SUM(total_orders), 0) AS total_orders,
-                COALESCE(SUM(boom_orders), 0) AS boom_orders
-            FROM lakehouse.gold.mart_sales_daily
+                COALESCE(SUM(net_revenue_vnd), 0) AS net_revenue_vnd,
+                COALESCE(SUM(total_cost_vnd), 0) AS cogs_vnd,
+                COALESCE(SUM(net_profit_vnd), 0) AS gross_profit_vnd,
+                COUNT(DISTINCT order_id) AS total_orders,
+                COALESCE(SUM(CASE WHEN is_boom THEN 1 ELSE 0 END), 0) AS boom_orders
+            FROM lakehouse.gold.fact_order
         """)
         s_row = sales_rows[0] if sales_rows else {}
         gmv = int(s_row.get("gmv_vnd") or 0)
@@ -862,25 +877,25 @@ def get_sales_metrics(
         store_rows = client.execute_query("""
             SELECT
                 CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
-                    ELSE m.store_key
+                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 0
+                    ELSE fo.store_key
                 END AS effective_store_key,
                 CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(fo.store_key AS VARCHAR)))
                 END AS channel_name,
-                COALESCE(SUM(m.gross_revenue_vnd), 0) AS revenue_vnd,
-                COALESCE(SUM(m.total_orders), 0) AS order_count
-            FROM lakehouse.gold.mart_sales_daily m
-            LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
+                COALESCE(SUM(CASE WHEN fo.is_delivered THEN fo.gross_revenue_vnd ELSE 0 END), 0) AS revenue_vnd,
+                COUNT(DISTINCT fo.order_id) AS order_count
+            FROM lakehouse.gold.fact_order fo
+            LEFT JOIN lakehouse.gold.dim_store ds ON fo.store_key = ds.store_key AND fo.store_key > 0
             GROUP BY
                 CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
-                    ELSE m.store_key
+                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 0
+                    ELSE fo.store_key
                 END,
                 CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(fo.store_key AS VARCHAR)))
                 END
             ORDER BY revenue_vnd DESC
         """)
@@ -1045,6 +1060,10 @@ def get_marketing_metrics(
             except Exception as mart_exc:
                 logger.info("mart_marketing_funnel_daily query skipped: %s", mart_exc)
 
+        # If Lakehouse log events are not yet aggregated, fallback to OLTP data
+        if visitors == 0 and add_to_cart == 0 and purchases == 0 and db is not None:
+            return _get_marketing_metrics_oltp(db)
+
         conv_rate = round((purchases / visitors) * 100, 2) if visitors > 0 else 0.0
 
         funnel_steps = [
@@ -1170,7 +1189,7 @@ def get_store_metrics(
         rev_today = int(row.get("store_revenue_today_vnd") or 0)
         orders_today = int(row.get("store_orders_count") or 0)
 
-        daily_target = 20000000
+        daily_target = 15000000
         target_pct = round((rev_today / daily_target) * 100, 1) if daily_target > 0 else 0.0
 
         inv_filter = (
@@ -1288,7 +1307,7 @@ def get_operations_metrics(
         log_rows = client.execute_query("""
             SELECT
                 COALESCE(SUM(total_shipments - delivered_count), 0) AS pending_fulfillment,
-                COALESCE(SUM(total_shipments - on_time_count), 0) AS sla_violations,
+                COALESCE(SUM(boom_count), 0) AS sla_violations,
                 COALESCE(SUM(boom_count), 0) AS failed_deliveries
             FROM lakehouse.gold.mart_logistics_performance
         """)
@@ -1310,6 +1329,8 @@ def get_operations_metrics(
                 oltp_op = _get_operations_metrics_oltp(db)
                 regional_boom_rates = oltp_op.regional_boom_rates
                 fulfillment_bottleneck = oltp_op.fulfillment_bottleneck
+                if sla_violations == 0 and oltp_op.shipping_sla_violations_count > 0:
+                    sla_violations = oltp_op.shipping_sla_violations_count
             except Exception as e:
                 logger.warning("Could not enrich operations CDC signals: %s", e)
 
@@ -1338,10 +1359,10 @@ def get_system_metrics(
     try:
         sales_rows = client.execute_query("""
             SELECT
-                COALESCE(SUM(total_orders), 0) AS total_orders,
-                COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd,
+                COUNT(order_id) AS total_orders,
+                COALESCE(SUM(CASE WHEN status != 'cancelled' THEN gross_revenue_vnd ELSE 0 END), 0) AS gross_revenue_vnd,
                 MAX(order_date) AS latest_date
-            FROM lakehouse.gold.mart_sales_daily
+            FROM lakehouse.gold.fact_order
         """)
         s_row = sales_rows[0] if sales_rows else {}
         total_orders = float(s_row.get("total_orders") or 0)

@@ -16,9 +16,11 @@ import type { DailySalesTrendPoint } from "@/lib/commerce";
 
 const orderStages = [
   { key: "paid_orders", label: "Chờ xác nhận", tone: "bg-warning", description: "Đã thanh toán" },
-  { key: "confirmed_orders", label: "Đã xác nhận", tone: "bg-moss", description: "Đang xử lý" },
-  { key: "completed_orders", label: "Hoàn tất", tone: "bg-ink", description: "Đã hoàn thành" },
-  { key: "cancelled_orders", label: "Đã hủy", tone: "bg-muted", description: "Đã hoàn tiền" },
+  { key: "confirmed_orders", label: "Đã xác nhận", tone: "bg-moss", description: "Đang đóng gói" },
+  { key: "shipping_orders", label: "Đang giao hàng", tone: "bg-blue-600", description: "Shipper đang giao" },
+  { key: "completed_orders", label: "Hoàn tất", tone: "bg-ink", description: "Đã giao & hoàn tất" },
+  { key: "boom_orders_count", label: "Giao thất bại (Boom)", tone: "bg-rose-600", description: "Khách từ chối nhận" },
+  { key: "cancelled_orders", label: "Đã hủy", tone: "bg-muted", description: "Đã hủy đơn" },
 ] as const;
 
 const metricValueClasses =
@@ -85,16 +87,24 @@ export default function AdminOverviewPage() {
 
   if (!data) return null;
 
-  const totalOrders = orderStages.reduce((total, stage) => total + data[stage.key], 0);
+  const shippingCount = (data.shipping_orders ?? 0) + (data.delivered_orders ?? 0);
+  const boomCount = data.boom_orders_count ?? 0;
+  const returnCount = data.return_orders_count ?? 0;
+  const totalOrders =
+    data.paid_orders +
+    data.confirmed_orders +
+    shippingCount +
+    data.completed_orders +
+    boomCount +
+    data.cancelled_orders +
+    returnCount;
+
   const quickLinks: ReadonlyArray<{ label: string; value: number; href: string; icon: IconName }> = [
     { label: "Sản phẩm đang bán", value: data.active_products, href: "/admin/products", icon: "package" },
     { label: "Biến thể đang bán", value: data.active_variants, href: "/admin/products", icon: "dashboard" },
     { label: "Coupon còn hiệu lực", value: data.active_coupons, href: "/admin/coupons", icon: "ticket" },
     { label: "Tổng đánh giá", value: data.total_reviews, href: "/admin/reviews", icon: "star" },
   ];
-
-  const boomCount = data.boom_orders_count ?? 0;
-  const returnCount = data.return_orders_count ?? 0;
 
   return (
     <section className="space-y-7">
@@ -172,7 +182,12 @@ export default function AdminOverviewPage() {
           <div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold">Luồng đơn hàng</h2><p className="mt-1 text-sm text-muted">{totalOrders.toLocaleString("vi-VN")} đơn trong hệ thống</p></div><Link className="button-ghost px-3 text-accent" href="/admin/orders">Xem tất cả <Icon name="arrow-right" size={16} /></Link></div>
           <div className="mt-7 space-y-5">
             {orderStages.map((stage) => {
-              const count = data[stage.key];
+              const count =
+                stage.key === "shipping_orders"
+                  ? shippingCount
+                  : stage.key === "boom_orders_count"
+                  ? boomCount
+                  : (data[stage.key as keyof AdminOverview] as number) ?? 0;
               const width = totalOrders > 0 ? Math.max(2, Math.round((count / totalOrders) * 100)) : 0;
               return <div key={stage.key}><div className="flex items-end justify-between gap-4"><div><p className="font-semibold">{stage.label}</p><p className="text-xs text-muted">{stage.description}</p></div><p className="text-lg font-semibold">{count.toLocaleString("vi-VN")}</p></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-sand"><div className={`h-full rounded-full ${stage.tone}`} style={{ width: `${width}%` }} /></div></div>;
             })}

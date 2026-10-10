@@ -226,6 +226,8 @@ export interface AdminOverview {
   gross_margin_percent?: number;
   boom_orders_count?: number;
   return_orders_count?: number;
+  shipping_orders?: number;
+  delivered_orders?: number;
 }
 
 export interface AdminVariant {

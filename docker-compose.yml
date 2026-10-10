@@ -83,6 +83,7 @@ x-polaris-database-environment: &polaris-database-environment
 services:
   mysql:
     image: mysql:8.4.5
+    profiles: ["core", "batch", "streaming"]
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
       MYSQL_USER: ${MYSQL_USER:-ecommerce_app}
@@ -127,6 +128,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    volumes:
+      - ./demo:/app/demo:ro
     networks: ["lakehouse-network"]
 
   storefront:
@@ -150,8 +153,9 @@ services:
     networks: ["lakehouse-network"]
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: cgr.dev/chainguard/minio:latest-dev
     command: server /data --console-address ":9001"
+    profiles: ["core", "batch", "streaming"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
@@ -161,14 +165,15 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://127.0.0.1:9000/minio/health/live"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 20
     networks: ["lakehouse-network"]
 
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: cgr.dev/chainguard/minio-client:latest-dev
+    profiles: ["core", "batch", "streaming"]
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
@@ -188,6 +193,7 @@ services:
 
   postgres:
     image: postgres:16.8-alpine
+    profiles: ["batch", "streaming"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
@@ -208,6 +214,7 @@ services:
 
   polaris-bootstrap:
     image: apache/polaris-admin-tool:1.6.0
+    profiles: ["batch", "streaming"]
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -238,6 +245,7 @@ services:
 
   polaris:
     image: apache/polaris:1.6.0
+    profiles: ["batch", "streaming"]
     environment:
       <<: *polaris-database-environment
       POLARIS_PERSISTENCE_RELATIONAL_JDBC_MAX_RETRIES: 5
@@ -270,6 +278,7 @@ services:
 
   polaris-init:
     image: alpine/curl:8.21.0
+    profiles: ["batch", "streaming"]
     environment:
       POLARIS_URL: http://polaris:8181
       POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
@@ -297,6 +306,7 @@ services:
       context: https://github.com/apache/polaris-tools.git#e5fea020aedcb1834f306d9a13de7fccbfff1943:console
       dockerfile: docker/Dockerfile
     image: polaris-console:1.4.0-e5fea020
+    profiles: ["batch", "streaming"]
     environment:
       VITE_POLARIS_API_URL: ${POLARIS_PUBLIC_API_URL:-http://localhost:8181}
       VITE_OAUTH_TOKEN_URL: ${POLARIS_PUBLIC_API_URL:-http://localhost:8181}/api/catalog/v1/oauth/tokens
@@ -411,6 +421,7 @@ services:
 
   trino:
     image: trinodb/trino:483
+    profiles: ["batch", "streaming"]
     entrypoint: ["/bin/sh", "/opt/trino/start.sh"]
     environment:
       POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
@@ -436,6 +447,7 @@ services:
 
   libredb-studio:
     image: ghcr.io/libredb/libredb-studio:latest
+    profiles: ["batch", "streaming"]
     ports:
       - "${LIBREDB_PORT:-3001}:3000"
     environment:

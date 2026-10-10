@@ -22,6 +22,8 @@ class AdminOverviewResponse(BaseModel):
     gross_margin_percent: float = 0.0
     boom_orders_count: int = 0
     return_orders_count: int = 0
+    shipping_orders: int = 0
+    delivered_orders: int = 0
 
 
 class AdminVariantResponse(BaseModel):

@@ -69,7 +69,7 @@ def _validate_rows(df: DataFrame, table_name: str) -> tuple[DataFrame, DataFrame
     if table_name in ("cart_items", "order_items"):
         violations.append(F.when(F.col("quantity") <= 0, F.lit("invalid_quantity")))
     if table_name == "payments":
-        valid_payment_statuses = {"succeeded", "failed"}
+        valid_payment_statuses = {"succeeded", "failed", "pending"}
         violations.append(F.when(~F.col("status").isin(*valid_payment_statuses), F.lit("invalid_payment_status")))
     if table_name == "refunds":
         violations.append(F.when(F.col("amount_vnd") < 0, F.lit("negative_refund")))
