@@ -109,11 +109,7 @@ export default function AdminReturnsPage() {
     <section>
       <header className="flex flex-col gap-4">
         <div>
-          <p className="eyebrow">Return &amp; refund operations</p>
-          <h1 className="admin-heading mt-2">Đổi trả &amp; Hoàn tiền</h1>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Quản lý tiếp nhận yêu cầu, kiểm định hàng hóa thu hồi và giải ngân hoàn tiền cho khách hàng.
-          </p>
+          <h1 className="admin-heading">Đổi trả &amp; Hoàn tiền</h1>
         </div>
 
         {/* Filters and Search Bar */}

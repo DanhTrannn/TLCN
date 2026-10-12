@@ -106,11 +106,9 @@ export default function AdminCouponsPage() {
 
   return (
     <section>
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="eyebrow">Promotions</p>
-          <h1 className="admin-heading mt-2">Quản lý mã giảm giá</h1>
-          <p className="mt-2 text-sm leading-6 text-muted">Mỗi đơn tối đa một coupon; giá trị giảm được snapshot tại checkout.</p>
+          <h1 className="admin-heading">Quản lý mã giảm giá</h1>
         </div>
         <button
           className="button-primary shrink-0"

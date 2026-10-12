@@ -2310,11 +2310,21 @@ function AnalyticsHubContent() {
   return (
     <section className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="eyebrow">Phân tích kinh doanh đa chiều</p>
-          <h1 className="admin-heading mt-1">Báo cáo BI Lakehouse</h1>
+          <h1 className="admin-heading">Báo cáo BI Lakehouse</h1>
         </div>
+        {!isUnauthorizedRole && (
+          <button
+            className="button-secondary inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold disabled:opacity-50"
+            disabled={loading}
+            onClick={() => void fetchData()}
+            type="button"
+          >
+            <Icon className={loading ? "animate-spin text-accent" : ""} name="rotate-ccw" size={13} />
+            <span>{loading ? "Đang tải…" : "Làm mới"}</span>
+          </button>
+        )}
       </header>
 
       {/* Role Tabs Bar */}
@@ -2348,24 +2358,6 @@ function AnalyticsHubContent() {
           })}
         </nav>
       </div>
-
-      {/* Role Description Bar */}
-      {!isUnauthorizedRole && (
-        <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-2.5 text-xs text-muted">
-          <div className="flex items-center gap-2">
-            <Icon className="text-accent" name={currentTabInfo.icon} size={16} />
-            <span>{currentTabInfo.description}</span>
-          </div>
-          <button
-            className="font-medium text-accent hover:underline disabled:opacity-50"
-            disabled={loading}
-            onClick={() => void fetchData()}
-            type="button"
-          >
-            {loading ? "Đang tải…" : "Làm mới"}
-          </button>
-        </div>
-      )}
 
       {/* RBAC Access Denied Warning */}
       {isUnauthorizedRole && (

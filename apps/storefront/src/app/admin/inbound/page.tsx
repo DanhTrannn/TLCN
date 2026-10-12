@@ -93,13 +93,9 @@ export default function AdminInboundReceiptsPage() {
   return (
     <section className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="eyebrow">Production &amp; Inbound Operations</p>
-          <h1 className="admin-heading mt-2">Nhập kho sản xuất</h1>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Quản lý các đợt nhập thành phẩm từ xưởng sản xuất nội bộ và cập nhật giá vốn hàng bán (COGS).
-          </p>
+          <h1 className="admin-heading">Nhập kho sản xuất</h1>
         </div>
 
         <div>

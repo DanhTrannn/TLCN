@@ -426,11 +426,9 @@ export default function AdminProductsPage() {
 
   return (
     <section>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="eyebrow">Catalog operations</p>
-          <h1 className="admin-heading mt-2">Quản lý sản phẩm</h1>
-          <p className="mt-2 text-sm text-muted">Tìm theo tên, slug hoặc SKU rồi mở đúng sản phẩm cần chỉnh sửa.</p>
+          <h1 className="admin-heading">Quản lý sản phẩm</h1>
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           <button

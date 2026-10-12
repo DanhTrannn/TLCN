@@ -197,13 +197,8 @@ export default function AdminLogisticsPage() {
   return (
     <div className="space-y-10">
       {/* Page Header */}
-      <header className="flex flex-col gap-3">
-        <p className="eyebrow">Logistics & Đội ngũ vận chuyển</p>
+      <header>
         <h1 className="admin-heading">Quản lý Vận chuyển & Giao hàng</h1>
-        <p className="max-w-3xl text-sm leading-6 text-muted">
-          Quản lý danh sách nhân viên giao hàng nội bộ D&K và giám sát toàn bộ hành trình
-          vận đơn, đối soát tiền thu hộ COD.
-        </p>
       </header>
 
       {/* Phần 1: Quản lý Đội ngũ Shipper D&K */}
@@ -211,9 +206,6 @@ export default function AdminLogisticsPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-ink">Đội ngũ giao hàng</h2>
-            <p className="text-sm text-muted">
-              Quản lý danh sách nhân viên giao hàng và trạng thái sẵn sàng nhận đơn.
-            </p>
           </div>
           <button
             type="button"
@@ -343,9 +335,6 @@ export default function AdminLogisticsPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-ink">Giám sát vận đơn</h2>
-            <p className="text-sm text-muted">
-              Theo dõi chi tiết các chuyến giao hàng, tiền thu hộ COD và thời gian xuất kho.
-            </p>
           </div>
 
           {/* Filter Tabs */}

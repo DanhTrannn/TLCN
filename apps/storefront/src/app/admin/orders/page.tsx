@@ -335,13 +335,9 @@ export default function AdminOrdersPage() {
   return (
     <section className="space-y-6">
       {/* Top Header */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="eyebrow">Order operations</p>
-          <h1 className="admin-heading mt-2">Quản lý Đơn hàng</h1>
-          <p className="mt-2 text-sm leading-6 text-muted">
-            Theo dõi vòng đời đơn hàng: xác nhận thanh toán, điều phối shipper, xử lý boom và đối soát xuất kho.
-          </p>
+          <h1 className="admin-heading">Quản lý Đơn hàng</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button

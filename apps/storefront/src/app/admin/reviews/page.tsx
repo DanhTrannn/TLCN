@@ -83,13 +83,9 @@ export default function AdminReviewsPage() {
 
   return (
     <section>
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="eyebrow">Hậu kiểm nội dung</p>
-          <h1 className="admin-heading mt-2">Đánh giá</h1>
-          <p className="mt-2 text-sm text-muted">
-            Đánh giá được hiển thị ngay sau khi khách gửi. Admin chỉ ẩn nội dung vi phạm.
-          </p>
+          <h1 className="admin-heading">Đánh giá</h1>
         </div>
         <label className="field-label min-w-48" htmlFor="review-status">
           Trạng thái

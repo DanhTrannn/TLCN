@@ -209,9 +209,8 @@ export default function AdminOrderDetailPage() {
 
       <header className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="eyebrow">Order detail</p>
-          <h1 className="admin-heading mt-2 break-all">{order.order_number}</h1>
-          <p className="mt-2 text-sm text-muted">
+          <h1 className="admin-heading break-all">{order.order_number}</h1>
+          <p className="mt-1 text-sm text-muted">
             Tạo lúc {formatVietnamDateTime(order.created_at)}
           </p>
         </div>

@@ -43,9 +43,7 @@ export default function AdminCustomersPage() {
   return (
     <section>
       <header>
-        <p className="eyebrow">Customer accounts</p>
-        <h1 className="admin-heading mt-2">Khách hàng</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">Vô hiệu hóa quyền đăng nhập mà không xóa lịch sử giao dịch.</p>
+        <h1 className="admin-heading">Khách hàng</h1>
       </header>
       {error ? <div className="feedback-error mt-5">{error}</div> : null}
       {loading ? (
