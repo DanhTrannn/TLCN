@@ -1,6 +1,6 @@
 # System Scope and Specifications
 
-This document defines the technical scope, boundaries, and acceptance criteria for the D&K E-Commerce Data Platform. The platform is a modern Hybrid (Batch & Streaming) Data Lakehouse designed to process operational transactional data and continuous web access logs for Business Intelligence (BI) and machine learning (ML).
+This document defines the technical scope, boundaries, and acceptance criteria for the D&K E-Commerce Data Platform. The platform is a modern Hybrid (Batch & Streaming) Data Lakehouse for operational transactions, continuous web access logs, and Business Intelligence (BI). Machine learning is deferred to a later phase.
 
 ## 1. System Goals
 
@@ -13,7 +13,7 @@ Key capabilities include:
 - Strict data quality, quarantine, and automated pipeline Reconciliation Gates before Gold publishing.
 - Idempotent pipelines supporting safe rerun, replay, and deterministic backfill via Airflow data intervals.
 - Dimensional modeling for multi-role analytical dashboards and BI via Trino & Apache ECharts.
-- Point-in-time feature engineering for customer repurchase prediction.
+- A documented roadmap for point-in-time customer repurchase prediction; no ML implementation is in the current scope.
 
 
 ---
@@ -21,7 +21,7 @@ Key capabilities include:
 ## 2. Data Sources and Boundaries
 
 The platform ingests data across a **Hybrid Batch & Streaming Architecture**:
-1. **Transactional Data (Batch Extraction & CDC)**: MySQL 8.4 transactional database with 27 tables (26 analytical tables extracted).
+1. **Transactional Data (Batch Extraction)**: MySQL 8.4 transactional database with 27 tables (26 analytical tables extracted). No MySQL binlog/Debezium CDC pipeline is deployed.
 2. **Access & Clickstream Logs (Batch & Streaming)**: Real-time streaming events via Apache Kafka and Apache Flink into Apache Iceberg, with deterministic historical batch logs backfill.
 
 ### 2.1. MySQL OLTP Database
@@ -38,8 +38,8 @@ The system extracts data from **26 operational tables** (out of 27 tables total 
 **Omnichannel & Logistics tables (5) — added in migration 0014:**
 - `delivery_staff` — In-house shipper registry (D&K internal logistics team)
 - `shipments` — Shipment lifecycle tracking per order
-- `return_requests` — Customer return/exchange request headers
-- `return_items` — Line-item detail for each return request
+- `return_requests` — Customer return/refund headers (`exchange` remains schema-reserved for a future phase)
+- `return_items` — Line-item detail for each return/refund request
 - `inventory_transactions` — Full inbound/outbound ledger for the central warehouse
 
 **Inbound Production & Inventory Costing tables (2) — added in migration 0015:**
@@ -107,9 +107,9 @@ The BI dashboards report the following core metrics directly from the Gold layer
 
 ---
 
-## 6. Machine Learning (Repurchase Prediction)
+## 6. Machine Learning (Repurchase Prediction) — Deferred
 
-The platform generates features and labels for predicting whether a returning customer will make at least one successful purchase within the next 30 days.
+The current repository does not generate ML features, train a model, or serve predictions. The bullets below record the agreed design for a later phase only.
 
 - **Data Boundaries:** The model only uses features derived from the OLTP Gold layer. Access logs are excluded from the primary model to avoid identity resolution bias.
 - **Features:** RFM (Recency, Frequency, Monetary), average basket value, category diversity, customer tenure, and wishlist/cart engagement.

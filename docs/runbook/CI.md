@@ -27,14 +27,14 @@ flowchart TD
         end
 
         subgraph ParallelTests["2. Matrix Tests (Chạy song song)"]
-            API_Test["Ecommerce API (204 tests)"]
+            API_Test["Ecommerce API test suite"]
             Gen_Test["Data Generator (55 tests)"]
-            Pipe_Test["Batch Pipeline & DAGs (90 tests)"]
+            Pipe_Test["Batch Pipeline & DAG tests"]
         end
 
         subgraph FrontChecks["3. Storefront Checks"]
             TypeCheck["TypeScript typecheck (0 errors)"]
-            NextBuild["Next.js Production Build (27 routes)"]
+            NextBuild["Next.js Production Build"]
         end
 
         subgraph DockerSmoke["4. Docker Build Smoke Test"]
@@ -64,12 +64,12 @@ flowchart TD
 
 ### 2.3. Kiểm thử song song theo Matrix (`python-tests`)
 Để tối ưu hóa thời gian thực thi, các bộ test Python được phân tách thành ma trận chạy đồng thời trên 3 runner riêng biệt:
-- **`Ecommerce API`:** 204 bài test kiểm thử toàn diện nghiệp vụ OLTP, RBAC 7 vai trò, COGS snapshot, vòng đời đơn hàng, và đổi trả hàng.
+- **`Ecommerce API`:** Bộ test toàn diện nghiệp vụ OLTP, RBAC 7 vai trò, COGS snapshot, vòng đời đơn hàng và trả hàng/hoàn tiền.
 - **`Data Generator`:** 55 bài test kiểm thử trình sinh dữ liệu giao dịch giả lập theo phân phối thị trường Việt Nam.
-- **`Batch Pipeline & DAGs`:** 90 bài test kiểm thử các tầng Medallion (Landing, Bronze, Silver, Gold), bảo trì Iceberg, và bộ test tính toàn vẹn DAG (`pipelines/tests/test_dags.py`).
+- **`Batch Pipeline & DAGs`:** Kiểm thử các tầng Medallion (Landing, Bronze, Silver, Gold), bảo trì Iceberg và tính toàn vẹn DAG (`pipelines/tests/test_dags.py`).
 
 ### 2.4. Kiểm tra mã nguồn giao diện (`storefront`)
-- **TypeScript Typecheck:** `npm run typecheck` (`tsc --noEmit`) đảm bảo 100% strict type safety cho 27 trang giao diện.
+- **TypeScript Typecheck:** `npm run typecheck` (`tsc --noEmit`) kiểm tra strict type safety cho toàn bộ giao diện.
 - **Next.js Production Build:** `npm run build` kiểm tra khả năng đóng gói Next.js standalone server phục vụ triển khai.
 
 ### 2.5. Kiểm tra sức sống của Dockerfile (`docker-smoke-build`)

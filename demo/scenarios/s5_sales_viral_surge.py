@@ -1,4 +1,4 @@
-"""Kịch bản CDC 5: Sales Manager - Sản phẩm Viral bán chạy bất ngờ & Lệch pha kênh bán hàng.
+"""Kịch bản tác nghiệp 5: Sales - Sản phẩm viral và lệch pha kênh.
 
 Mô phỏng:
 1. Mẫu sản phẩm bỗng nhiên bán chạy gấp nhiều lần (Viral Best-Seller Velocity Surge).
@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 def run() -> None:
     print_banner(
-        title="KỊCH BẢN CDC 5: SALES - SẢN PHẨM VIRAL & ĐIỀU PHỐI KÊNH",
+        title="KỊCH BẢN 5: SALES - SẢN PHẨM VIRAL & ĐIỀU PHỐI KÊNH",
         role="Sales Manager (sales@fashion.local)",
         url="http://localhost:3000/admin/analytics?role=sales",
     )

@@ -1,4 +1,4 @@
-"""Helper base module for CDC simulation scenarios."""
+"""Helper base module for operational-signal scenarios."""
 
 from datetime import UTC, datetime
 
@@ -32,8 +32,9 @@ def print_step(step_num: int, title: str) -> None:
 
 
 def print_cdc_event(table: str, op: str, details: str) -> None:
+    """Print a committed OLTP mutation (legacy function name kept for compatibility)."""
     op_color = C_GREEN if op.upper() in ("INSERT", "CREATE") else (C_YELLOW if op.upper() == "UPDATE" else C_RED)
-    print(f"  {C_BOLD}{C_MAGENTA}⚡ [CDC BINLOG]{C_RESET} Bảng {C_CYAN}`{table}`{C_RESET} | Thao tác {op_color}{op.upper()}{C_RESET}: {details}")
+    print(f"  {C_BOLD}{C_MAGENTA}⚡ [OLTP COMMIT]{C_RESET} Bảng {C_CYAN}`{table}`{C_RESET} | Thao tác {op_color}{op.upper()}{C_RESET}: {details}")
 
 
 def print_dashboard_impact(metric: str, before: str, after: str, alert: str | None = None) -> None:

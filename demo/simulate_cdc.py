@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Interactive CLI Controller for Real-Time CDC Business Signals Simulation."""
+"""Interactive CLI for operational business-signal scenarios.
+
+The filename is retained for backward compatibility; this is not a binlog CDC client.
+"""
 
 import argparse
 import os
@@ -41,8 +44,8 @@ SCENARIOS = {
 
 def print_menu() -> None:
     print(f"\n{C_BOLD}{C_BLUE}{'═' * 76}{C_RESET}")
-    print(f"{C_BOLD}{C_CYAN}  D&K E-COMMERCE LAKEHOUSE – TRÌNH MÔ PHỎNG TÍN HIỆU BIẾN ĐỘNG CDC{C_RESET}")
-    print(f"{C_WHITE}  Change Data Capture Real-Time Business Signals Interactive Simulator{C_RESET}")
+    print(f"{C_BOLD}{C_CYAN}  D&K E-COMMERCE – TRÌNH MÔ PHỎNG TÍN HIỆU TÁC NGHIỆP{C_RESET}")
+    print(f"{C_WHITE}  MySQL OLTP Operational Signals Interactive Simulator{C_RESET}")
     print(f"{C_BLUE}{'═' * 76}{C_RESET}")
     for key, (desc, _) in SCENARIOS.items():
         print(f"  {C_BOLD}{C_YELLOW}[{key}]{C_RESET} {desc}")
@@ -54,16 +57,16 @@ def print_menu() -> None:
 
 
 def run_all() -> None:
-    print(f"\n{C_BOLD}{C_GREEN}🚀 BẮT ĐẦU CHẠY TOÀN BỘ 6 KỊCH BẢN CDC...{C_RESET}\n")
+    print(f"\n{C_BOLD}{C_GREEN}🚀 BẮT ĐẦU CHẠY TOÀN BỘ 6 KỊCH BẢN TÁC NGHIỆP...{C_RESET}\n")
     for key in sorted(SCENARIOS.keys()):
         desc, func = SCENARIOS[key]
         func()
         time.sleep(1)
-    print(f"\n{C_BOLD}{C_GREEN}🎉 ĐÃ KÍCH HOẠT THÀNH CÔNG TẤT CẢ 6 TÍN HIỆU CDC TRÊN DASHBOARD!{C_RESET}\n")
+    print(f"\n{C_BOLD}{C_GREEN}🎉 ĐÃ TẠO THÀNH CÔNG TẤT CẢ 6 TÍN HIỆU TÁC NGHIỆP!{C_RESET}\n")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="D&K CDC Signals Simulator")
+    parser = argparse.ArgumentParser(description="D&K Operational Signals Simulator")
     parser.add_argument(
         "positional_scenario",
         nargs="?",

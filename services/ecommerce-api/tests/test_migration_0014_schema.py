@@ -49,6 +49,9 @@ def test_shipments_table_exists() -> None:
     assert "delivered_at" in cols
     assert "failed_at" in cols
     assert "failure_reason" in cols
+    assert "failed_attempt_1_key" in cols
+    assert "failed_attempt_2_key" in cols
+    assert "failed_attempt_3_key" in cols
 
 
 def test_return_requests_table_exists() -> None:

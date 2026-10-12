@@ -1,4 +1,4 @@
-"""Kịch bản CDC 3: Operations Manager - Điểm nóng Boom COD & Ùn tắc khâu đóng gói.
+"""Kịch bản tác nghiệp 3: Operations - Boom COD và ùn tắc đóng gói.
 
 Mô phỏng:
 1. Bùng phát shipper báo giao thất bại (Boom hàng COD) tại khu vực Bình Tân đạt tỷ lệ bất thường (>30%).
@@ -25,7 +25,7 @@ from sqlalchemy import select
 
 def run() -> None:
     print_banner(
-        title="KỊCH BẢN CDC 3: OPERATIONS - BOOM HÀNG COD & ÙN TẮC ĐÓNG GÓI",
+        title="KỊCH BẢN 3: OPERATIONS - BOOM HÀNG COD & ÙN TẮC ĐÓNG GÓI",
         role="Operations Manager (operations@fashion.local)",
         url="http://localhost:3000/admin/analytics?role=operations",
     )
@@ -129,7 +129,7 @@ def run() -> None:
             )
 
     print_success(
-        "Kịch bản 3 hoàn tất! Mở trình duyệt tại tab Vận hành để quan sát tín hiệu CDC bùng phát ngay tức khắc."
+        "Kịch bản 3 hoàn tất! Làm mới tab Vận hành để quan sát tín hiệu tác nghiệp."
     )
 
 

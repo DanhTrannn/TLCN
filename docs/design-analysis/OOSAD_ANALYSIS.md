@@ -5,6 +5,8 @@
 > **Mục tiêu:** Phân tích và thiết kế hệ thống cho báo cáo Khóa luận tốt nghiệp  
 > **Cấu trúc:** 2 Phần chính (Web OLTP + Data Lakehouse) + Kiểm tra tính nhất quán
 
+> **Ghi chú phạm vi:** Các use case/diagram về ML feature extraction, training hoặc scoring là thiết kế tương lai, chưa được triển khai trong repository hiện tại.
+
 ---
 
 ## MỤC LỤC
@@ -662,9 +664,9 @@ graph LR
 | **Tác nhân (Actors)** | Quản trị viên (Admin), Quản lý cửa hàng (Store Manager) |
 | **Mô tả tóm tắt** | Nhân viên thực hiện bán hàng và thanh toán trực tiếp cho khách tại quầy cửa hàng thông qua giao diện POS |
 | **Tiền điều kiện** | Nhân viên đã xác thực quyền hợp lệ và được gán cửa hàng cụ thể |
-| **Hậu điều kiện** | Đơn hàng được tạo với trạng thái hoàn tất, trừ đồng thời cả tồn kho chi nhánh và tồn kho chung |
+| **Hậu điều kiện** | Đơn hàng được tạo với trạng thái hoàn tất, trừ tồn kho của chi nhánh và ghi ledger `outbound_pos` |
 | **Mức độ ưu tiên** | Cao (High) |
-| **Quy tắc kinh doanh** | Giao dịch POS tạo đơn hàng hoàn tất ngay lập tức, trừ tồn kho kép (dual inventory decrement) trong cùng một transaction |
+| **Quy tắc kinh doanh** | Giao dịch POS tạo đơn hàng hoàn tất ngay lập tức và chỉ trừ `store_inventory` của cửa hàng được chọn trong cùng transaction |
 
 #### Luồng sự kiện chính (SVDPI)
 
@@ -2457,7 +2459,7 @@ sequenceDiagram
     ECH->>ECH: Lưu trữ cấu hình biểu đồ vào hệ thống
 ```
 
-### 2.6.5 UC20: Sơ đồ tuần tự Trích xuất đặc trưng ML (Generate ML Features Sequence)
+### 2.6.5 UC20: Sơ đồ tuần tự Trích xuất đặc trưng ML — Future/Deferred
 
 ```mermaid
 sequenceDiagram

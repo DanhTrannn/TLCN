@@ -133,3 +133,5 @@ class OrderTransitionResponse(BaseModel):
     order_number: str
     status: str
     refunded_amount_vnd: int | None = None
+    delivery_attempt_count: int | None = None
+    remaining_delivery_attempts: int | None = None

@@ -43,6 +43,25 @@ const timelineDateFormatter = createVietnamDateTimeFormatter({
   year: "numeric",
 });
 
+function paymentMethodLabel(method?: string | null): string {
+  const labels: Record<string, string> = {
+    cod: "Thanh toán khi nhận hàng (COD)",
+    vietqr: "Chuyển khoản VietQR",
+    cash: "Tiền mặt tại quầy",
+    card: "Thẻ tại quầy",
+  };
+  return labels[method ?? ""] ?? "Không xác định";
+}
+
+function paymentStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    succeeded: "Thành công",
+    pending: "Đang chờ",
+    failed: "Thất bại",
+  };
+  return labels[status] ?? status;
+}
+
 function timelineMarkerClasses(status: string): string {
   if (status === "cancelled" || status === "payment_failed") {
     return "border-danger bg-danger text-white ring-danger/10";
@@ -490,7 +509,7 @@ export default function OrderDetailPage() {
             <p className="mt-4 flex items-center justify-between gap-4 border-t border-paper/15 pt-4 text-sm">
               <span className="text-paper/60">Thanh toán</span>
               <span className="font-medium">
-                {order.payment.status === "succeeded" ? "Thành công" : "Thất bại"}
+                {paymentStatusLabel(order.payment.status)}
               </span>
             </p>
           ) : null}
@@ -498,9 +517,7 @@ export default function OrderDetailPage() {
             <p className="mt-4 flex items-center justify-between gap-4 border-t border-paper/15 pt-4 text-sm">
               <span className="text-paper/60">Hình thức</span>
               <span className="font-medium">
-                {order.payment_method === "cod"
-                  ? "Thanh toán khi nhận hàng (COD)"
-                  : "Chuyển khoản VietQR"}
+                {paymentMethodLabel(order.payment_method)}
               </span>
             </p>
           ) : null}

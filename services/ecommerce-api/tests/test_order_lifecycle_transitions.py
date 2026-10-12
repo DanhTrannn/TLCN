@@ -10,8 +10,11 @@ from app.models.cart import Cart, CartItem
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer
 from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
 from app.models.logistics import DeliveryStaff, Shipment
 from app.models.order import Order, OrderStatusHistory, Payment
+from app.models.order import OrderItem
+from app.modules.orders.service import fail_delivery_order
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.dialects.mysql import BIGINT
@@ -150,6 +153,84 @@ def create_active_cart(session, customer_id: int, variant_id: int = 1, quantity:
     return cart
 
 
+def test_failed_delivery_requires_three_idempotent_attempts(test_db):
+    inventory = test_db.execute(select(Inventory).where(Inventory.variant_id == 1)).scalar_one()
+    inventory.on_hand = 98
+    order = Order(
+        order_number="ORD-DIRECT-FAIL-001",
+        customer_id=1,
+        checkout_idempotency_key="direct-fail-checkout",
+        status="shipping",
+        payment_method="cod",
+        currency_code="VND",
+        subtotal_vnd=600000,
+        discount_amount_vnd=0,
+        shipping_fee_vnd=0,
+        total_vnd=600000,
+        receiver_name="Khách thử nghiệm",
+        receiver_phone="0912345678",
+        shipping_address_text="TP HCM",
+        data_origin="manual",
+    )
+    test_db.add(order)
+    test_db.flush()
+    test_db.add_all(
+        [
+            OrderItem(
+                public_id=uuid7(),
+                order_id=order.order_id,
+                variant_id=1,
+                product_public_id_snapshot=uuid7(),
+                category_code_snapshot="AO-NAM",
+                category_name_snapshot="Áo Nam",
+                product_name_snapshot="Áo Polo Nam",
+                sku_snapshot="APN-001",
+                size_code_snapshot="L",
+                color_code_snapshot="DEN",
+                unit_price_vnd=300000,
+                cost_price_vnd=150000,
+                quantity=2,
+                line_total_vnd=600000,
+            ),
+            Shipment(
+                public_id=uuid7(),
+                shipment_code="SHP-DIRECT-FAIL-001",
+                order_id=order.order_id,
+                delivery_staff_id=1,
+                status="in_transit",
+                attempt_count=1,
+                cod_amount_vnd=600000,
+                cod_collected_vnd=0,
+            ),
+        ]
+    )
+    test_db.commit()
+
+    first = fail_delivery_order(test_db, order.order_number, "Không liên lạc được", "attempt-1")
+    test_db.commit()
+    assert first.status == "shipping"
+    assert first.delivery_attempt_count == 1
+    assert inventory.on_hand == 98
+
+    replay = fail_delivery_order(test_db, order.order_number, "Không liên lạc được", "attempt-1")
+    test_db.commit()
+    assert replay.delivery_attempt_count == 1
+    shipment = test_db.execute(select(Shipment).where(Shipment.order_id == order.order_id)).scalar_one()
+    assert shipment.attempt_count == 2
+
+    second = fail_delivery_order(test_db, order.order_number, "Không liên lạc được", "attempt-2")
+    test_db.commit()
+    assert second.status == "shipping"
+    assert second.delivery_attempt_count == 2
+
+    third = fail_delivery_order(test_db, order.order_number, "Từ chối nhận", "attempt-3")
+    test_db.commit()
+    assert third.status == "failed_delivery"
+    assert third.delivery_attempt_count == 3
+    test_db.refresh(inventory)
+    assert inventory.on_hand == 100
+
+
 @pytest.fixture()
 def admin_headers(test_db):
     admin = test_db.execute(select(Customer).where(Customer.customer_id == 10)).scalar_one()
@@ -246,7 +327,7 @@ def test_full_cod_order_lifecycle(
     assert history_disp.transition_source == "admin_dispatch"
     assert len(history_disp.transition_idempotency_key) <= 64
 
-    # 3. Deliver -> status='delivered', payment='succeeded', order.paid_at set
+    # 3. Deliver -> COD is collected physically, but accounting stays pending
     deliver_headers = {**admin_headers, "Idempotency-Key": "idemp-deliver-1"}
     res_deliver = client.post(
         f"/api/v1/admin/orders/{order_number}/deliver",
@@ -258,7 +339,7 @@ def test_full_cod_order_lifecycle(
 
     test_db.refresh(order)
     assert order.status == "delivered"
-    assert order.paid_at is not None
+    assert order.paid_at is None
 
     test_db.refresh(shipment)
     assert shipment.status == "delivered"
@@ -266,7 +347,7 @@ def test_full_cod_order_lifecycle(
     assert shipment.cod_collected_vnd == shipment.cod_amount_vnd
 
     payment = test_db.execute(select(Payment).where(Payment.order_id == order.order_id)).scalar_one()
-    assert payment.status == "succeeded"
+    assert payment.status == "pending"
 
     history_deliv = (
         test_db.execute(
@@ -280,9 +361,9 @@ def test_full_cod_order_lifecycle(
     assert len(history_deliv.transition_idempotency_key) <= 64
 
     # 4. Complete -> status='completed', completed_at set
-    complete_headers = {**admin_headers, "Idempotency-Key": "idemp-complete-1"}
+    complete_headers = {**customer_headers, "Idempotency-Key": "idemp-complete-1"}
     res_complete = client.post(
-        f"/api/v1/admin/orders/{order_number}/complete",
+        f"/api/v1/orders/{order_number}/complete",
         headers=complete_headers,
     )
     assert res_complete.status_code == 200, res_complete.text
@@ -292,6 +373,9 @@ def test_full_cod_order_lifecycle(
     test_db.refresh(order)
     assert order.status == "completed"
     assert order.completed_at is not None
+    assert order.paid_at is not None
+    test_db.refresh(payment)
+    assert payment.status == "succeeded"
 
     history_comp = (
         test_db.execute(
@@ -301,7 +385,7 @@ def test_full_cod_order_lifecycle(
         .scalar_one()
     )
     assert history_comp.from_status == "delivered"
-    assert history_comp.transition_source == "admin_complete"
+    assert history_comp.transition_source == "customer"
     assert len(history_comp.transition_idempotency_key) <= 64
 
 
@@ -336,17 +420,30 @@ def test_cod_order_boom_handling(
     )
     assert res_dispatch.status_code == 200, res_dispatch.text
 
-    # 3. Failed delivery with reason
+    # 3. Three failed attempts are required before the order is closed as failed.
     failed_payload = {"reason": "Khách không nghe máy sau 3 cuộc gọi, từ chối nhận"}
-    failed_headers = {**admin_headers, "Idempotency-Key": "idemp-failed-1"}
+    for attempt in (1, 2):
+        res_retry = client.post(
+            f"/api/v1/admin/orders/{order_number}/failed-delivery",
+            json=failed_payload,
+            headers={**admin_headers, "Idempotency-Key": f"idemp-failed-{attempt}"},
+        )
+        assert res_retry.status_code == 200, res_retry.text
+        assert res_retry.json()["status"] == "shipping"
+        assert res_retry.json()["delivery_attempt_count"] == attempt
+        test_db.refresh(inv_before)
+        assert inv_before.on_hand == 98
+
     res_failed = client.post(
         f"/api/v1/admin/orders/{order_number}/failed-delivery",
         json=failed_payload,
-        headers=failed_headers,
+        headers={**admin_headers, "Idempotency-Key": "idemp-failed-3"},
     )
     assert res_failed.status_code == 200, res_failed.text
     failed_data = res_failed.json()
     assert failed_data["status"] == "failed_delivery"
+    assert failed_data["delivery_attempt_count"] == 3
+    assert failed_data["remaining_delivery_attempts"] == 0
 
     # Verify DB: Order status='failed_delivery'
     order = test_db.execute(select(Order).where(Order.order_number == order_number)).scalar_one()
@@ -356,12 +453,21 @@ def test_cod_order_boom_handling(
     shipment = test_db.execute(select(Shipment).where(Shipment.order_id == order.order_id)).scalar_one()
     assert shipment.status == "failed"
     assert shipment.failure_reason == failed_payload["reason"]
-    assert shipment.attempt_count == 2
+    assert shipment.attempt_count == 3
     assert shipment.failed_at is not None
 
     # Verify Inventory restored
     test_db.refresh(inv_before)
     assert inv_before.on_hand == 100
+
+    tx = test_db.execute(
+        select(InventoryTransaction).where(
+            InventoryTransaction.reference_code == order_number,
+            InventoryTransaction.movement_type == "return_boom",
+        )
+    ).scalar_one()
+    assert tx.quantity_delta == 2
+    assert tx.location_type == "central_warehouse"
 
     # Verify Customer boom_count incremented
     customer = test_db.execute(select(Customer).where(Customer.customer_id == 1)).scalar_one()
@@ -412,13 +518,14 @@ def test_boom_handling_blocks_customer_on_third_boom(
     )
     assert res_disp.status_code == 200
 
-    # 3. Failed delivery -> 3rd boom
-    res_fail = client.post(
-        f"/api/v1/admin/orders/{order_number}/failed-delivery",
-        json={"reason": "Bom hàng lần 3"},
-        headers=admin_headers,
-    )
-    assert res_fail.status_code == 200
+    # 3. The third failed attempt closes the shipment and records one boom.
+    for attempt in (1, 2, 3):
+        res_fail = client.post(
+            f"/api/v1/admin/orders/{order_number}/failed-delivery",
+            json={"reason": f"Giao thất bại lần {attempt}"},
+            headers={**admin_headers, "Idempotency-Key": f"idemp-c2-fail-{attempt}"},
+        )
+        assert res_fail.status_code == 200
 
     test_db.refresh(customer)
     assert customer.boom_count == 3
@@ -482,8 +589,8 @@ def test_full_vietqr_order_lifecycle(
 
     # 4. Complete -> status='completed'
     res_comp = client.post(
-        f"/api/v1/admin/orders/{order_number}/complete",
-        headers={**admin_headers, "Idempotency-Key": "idemp-vqr-comp-1"},
+        f"/api/v1/orders/{order_number}/complete",
+        headers={**customer_headers, "Idempotency-Key": "idemp-vqr-comp-1"},
     )
     assert res_comp.status_code == 200, res_comp.text
 
@@ -520,10 +627,10 @@ def test_invalid_transitions_rejected(
     )
     assert res_early_fail.status_code == 409
 
-    # 3. Attempt complete before deliver -> 409
+    # 3. Customer cannot complete before delivery -> 409
     res_early_comp = client.post(
-        f"/api/v1/admin/orders/{order_number}/complete",
-        headers={**admin_headers, "Idempotency-Key": "idemp-inv-3"},
+        f"/api/v1/orders/{order_number}/complete",
+        headers={**customer_headers, "Idempotency-Key": "idemp-inv-3"},
     )
     assert res_early_comp.status_code == 409
 

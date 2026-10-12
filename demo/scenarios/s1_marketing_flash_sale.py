@@ -1,4 +1,4 @@
-"""Kịch bản CDC 1: Marketing Manager - Flash Sale Voucher Burn Rate & Negative Review Spike.
+"""Kịch bản tác nghiệp 1: Marketing - Flash Sale và review tiêu cực.
 
 Mô phỏng:
 1. Tốc độ đốt ngân sách Voucher Flash Sale vượt ngưỡng 90% (Voucher Burn Rate Alarm).
@@ -26,7 +26,7 @@ from sqlalchemy import select
 
 def run() -> None:
     print_banner(
-        title="KỊCH BẢN CDC 1: MARKETING - FLASH SALE & REVIEW SPIKE",
+        title="KỊCH BẢN 1: MARKETING - FLASH SALE & REVIEW SPIKE",
         role="Marketing Manager (marketing@fashion.local)",
         url="http://localhost:3000/admin/analytics?role=marketing",
     )
@@ -126,14 +126,14 @@ def run() -> None:
                 details=f"Ghi nhận thêm {len(unreviewed_items)} đánh giá 1 sao cho sản phẩm `{product.name}` (ID: {product.product_id})",
             )
             print_dashboard_impact(
-                metric="Tín hiệu CDC: Điểm nóng Review tiêu cực",
+                metric="Tín hiệu tác nghiệp: Điểm nóng Review tiêu cực",
                 before="Bình thường",
                 after=f"Bùng phát review xấu cho `{product.name}`",
                 alert="🚨 [BẬT CẢNH BÁO ĐỎ] Đề xuất tạm dừng chiến dịch Quảng cáo (Ads) cho sản phẩm này để kiểm tra chất lượng lô hàng!",
             )
 
     print_success(
-        "Kịch bản 1 hoàn tất! Mở trình duyệt tại tab Marketing để xem cảnh báo CDC xuất hiện trực tiếp."
+        "Kịch bản 1 hoàn tất! Làm mới tab Marketing để xem tín hiệu tác nghiệp."
     )
 
 

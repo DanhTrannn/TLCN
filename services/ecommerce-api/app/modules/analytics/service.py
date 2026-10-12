@@ -153,7 +153,7 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
     boom_rate = round((boom_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
     return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
 
-    # CDC Signal 1: Margin Erosion Signal (Intra-day hourly pacing)
+    # OLTP signal 1: Margin erosion (intra-day hourly pacing)
     rev_09 = round(net_rev * 0.25)
     cogs_09 = round(int(cogs_vnd) * 0.20)
     margin_09 = round(((rev_09 - cogs_09) / rev_09) * 100, 1) if rev_09 > 0 else 52.0
@@ -184,7 +184,7 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
         hourly_margins=hourly_margins,
     )
 
-    # CDC Signal 2: Cash in Transit (COD shipments on delivery)
+    # OLTP signal 2: Cash in transit (COD shipments on delivery)
     cod_rows = db.execute(
         select(Order.total_vnd, Shipment.status)
         .join(Shipment, Shipment.order_id == Order.order_id)
@@ -321,7 +321,7 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
         for row in cat_rows
     ]
 
-    # CDC Signal 1: Viral products (sudden sales velocity surge)
+    # OLTP signal 1: Viral products (sudden sales velocity surge)
     viral_products = []
     if top_selling_products:
         avg_units = sum(p.units_sold for p in top_selling_products) / len(top_selling_products) if top_selling_products else 1.0
@@ -338,7 +338,7 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
                 )
             )
 
-    # CDC Signal 2: Channel pace comparison (Online vs Physical Retail)
+    # OLTP signal 2: Channel pace comparison (online vs physical retail)
     store_rev_total = sum(st.revenue_vnd for st in store_contributions if st.store_id is not None)
     tot_rev = int(online_rev) + store_rev_total
     onl_pct = round((int(online_rev) / tot_rev) * 100, 1) if tot_rev > 0 else 50.0
@@ -395,7 +395,7 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
         ),
     ]
 
-    # CDC Signal 1: Flash sale coupon burn rate
+    # OLTP signal 1: Flash-sale coupon burn rate
     active_coupon = db.scalars(
         select(Coupon).where(Coupon.is_active == True).order_by(Coupon.used_count.desc())
     ).first()
@@ -417,7 +417,7 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
             budget_burn_percent=burn_pct,
         )
 
-    # CDC Signal 2: Negative review spikes
+    # OLTP signal 2: Negative review spikes
     bad_review_rows = db.execute(
         select(ProductReview.product_id, Product.name, func.count().label("cnt"))
         .join(Product, Product.product_id == ProductReview.product_id)
@@ -512,7 +512,7 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
             for r in stockout_items
         ]
 
-    # CDC Signal 2: Hourly Run-Rate vs Daily Target
+    # OLTP signal 2: Hourly run-rate vs daily target
     cur_rev = int(store_rev_today)
     h_points = [
         HourlyRunRatePoint(hour="10:00", hourly_revenue_vnd=round(cur_rev * 0.25), cumulative_revenue_vnd=round(cur_rev * 0.25), target_vnd=3000000),
@@ -559,7 +559,7 @@ def _get_inventory_metrics_oltp(db: Session) -> InventoryMetricsResponse:
         select(func.count()).select_from(Inventory).where(Inventory.on_hand == 0)
     ) or 0
 
-    # CDC Signal 1: Fast inventory depletion velocity
+    # OLTP signal 1: Fast inventory depletion velocity
     fast_moving = db.execute(
         select(
             ProductVariant.variant_id,
@@ -593,7 +593,7 @@ def _get_inventory_metrics_oltp(db: Session) -> InventoryMetricsResponse:
             )
         )
 
-    # CDC Signal 2: Critical stockout alerts (overselling prevention)
+    # OLTP signal 2: Critical stockout alerts (overselling prevention)
     zero_stock_rows = db.execute(
         select(ProductVariant.variant_id, ProductVariant.sku, Product.name, Inventory.on_hand)
         .join(Product, Product.product_id == ProductVariant.product_id)
@@ -643,7 +643,7 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
         select(func.count()).select_from(ReturnRequest).where(ReturnRequest.status != "cancelled")
     ) or 0
 
-    # CDC Signal 1: Regional boom spikes grouped by district/address
+    # OLTP signal 1: Regional boom spikes grouped by district/address
     shipment_rows = db.execute(
         select(Order.shipping_address_text, Shipment.status)
         .join(Order, Order.order_id == Shipment.order_id)
@@ -679,7 +679,7 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
         )
     regional_boom_rates.sort(key=lambda x: x.boom_rate_percent, reverse=True)
 
-    # CDC Signal 2: Fulfillment bottleneck (stale orders > 2 hours)
+    # OLTP signal 2: Fulfillment bottleneck (stale orders > 2 hours)
     cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2)
     stale_unfulfilled = db.scalar(
         select(func.count()).select_from(Order)
@@ -844,7 +844,7 @@ def get_executive_metrics(
                 margin_erosion = oltp_exec.margin_erosion
                 cash_in_transit = oltp_exec.cash_in_transit
             except Exception as e:
-                logger.warning("Could not enrich executive CDC signals: %s", e)
+                logger.warning("Could not enrich executive operational signals: %s", e)
 
         return ExecutiveMetricsResponse(
             role="executive",
@@ -997,7 +997,7 @@ def get_sales_metrics(
                 viral_products = oltp_s.viral_products
                 channel_pace = oltp_s.channel_pace
             except Exception as e:
-                logger.warning("Could not enrich sales CDC signals: %s", e)
+                logger.warning("Could not enrich sales operational signals: %s", e)
 
         return SalesMetricsResponse(
             role="sales",
@@ -1097,7 +1097,7 @@ def get_marketing_metrics(
                 voucher_burn_rate = oltp_m.voucher_burn_rate
                 negative_review_spikes = oltp_m.negative_review_spikes
             except Exception as e:
-                logger.warning("Could not enrich marketing CDC signals: %s", e)
+                logger.warning("Could not enrich marketing operational signals: %s", e)
 
         return MarketingMetricsResponse(
             role="marketing",
@@ -1212,7 +1212,7 @@ def get_store_metrics(
                 store_stockouts = oltp_st.store_stockouts
                 run_rate = oltp_st.run_rate
             except Exception as e:
-                logger.warning("Could not enrich store CDC signals: %s", e)
+                logger.warning("Could not enrich store operational signals: %s", e)
 
         return StoreMetricsResponse(
             role="store",
@@ -1278,7 +1278,7 @@ def get_inventory_metrics(
                 depletion_velocity = oltp_inv.depletion_velocity
                 critical_stockout_alerts = oltp_inv.critical_stockout_alerts
             except Exception as e:
-                logger.warning("Could not enrich inventory CDC signals: %s", e)
+                logger.warning("Could not enrich inventory operational signals: %s", e)
 
         return InventoryMetricsResponse(
             role="inventory",
@@ -1332,7 +1332,7 @@ def get_operations_metrics(
                 if sla_violations == 0 and oltp_op.shipping_sla_violations_count > 0:
                     sla_violations = oltp_op.shipping_sla_violations_count
             except Exception as e:
-                logger.warning("Could not enrich operations CDC signals: %s", e)
+                logger.warning("Could not enrich operations operational signals: %s", e)
 
         return OperationsMetricsResponse(
             role="operations",

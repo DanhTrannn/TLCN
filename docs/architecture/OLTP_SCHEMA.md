@@ -9,7 +9,7 @@ Kết hợp thiết kế logic, column-level reference, transaction catalog và 
 
 Schema tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
-Hệ thống có **27 bảng nghiệp vụ** (sau Migration `0015_inbound_production_and_refund_updated_at.py` và `0017_allow_pending_payment_status.py`). Pipeline Lakehouse DE trích xuất **26 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
+Hệ thống có **27 bảng nghiệp vụ** (schema hiện hành đến migration `0018_align_pos_and_order_lifecycle.py`). Pipeline Lakehouse DE trích xuất **26 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
 
 ### Quy tắc thiết kế cốt lõi
 
@@ -36,9 +36,7 @@ Hệ thống có **27 bảng nghiệp vụ** (sau Migration `0015_inbound_produc
 
 - **Quy trình Hoàn tất Đơn hàng**: Sau khi shipper giao hàng thành công, đơn hàng chuyển sang trạng thái `delivered` (Giao thành công). Admin/Shipper không tự ý hoàn tất đơn. Trên giao diện người dùng, khách hàng kiểm tra hàng thực tế và bấm nút **"Đã nhận được hàng"** để chuyển trạng thái sang `completed`. Tại thời điểm này, tiền thu hộ COD (nếu có) được quyết toán chính thức và khách hàng có quyền đánh giá sản phẩm hoặc yêu cầu đổi trả trong 7 ngày.
 - **Xử lý Boom hàng COD**: Khi đơn hàng bị boom (`failed_delivery`), hệ thống ghi nhận lý do thất bại trong `shipments`, hoàn trả tồn kho (`movement_type = 'return_boom'`), tự động tăng `customers.boom_count`. Nếu `boom_count >= 3`, khách hàng tự động bị gắn cờ `is_cod_blocked = TRUE` (chặn thanh toán COD ở các lần mua sau).
-- **Chính sách Đổi/Trả hàng 7 ngày**: Sau khi đơn hàng `delivered`/`completed`, khách hàng có quyền tạo `return_requests` với 2 nhánh nghiệp vụ:
-  - `exchange`: Đổi size/màu (tạo yêu cầu kiểm hàng `return_items`, khi duyệt thì xuất hàng đổi `exchange_out`).
-  - `refund`: Trả hàng hoàn tiền (khi duyệt và nhận lại hàng thì hoàn tiền `refund_amount_vnd` và nhập kho `return_customer`, trạng thái đơn chuyển sang `returned`).
+- **Chính sách Trả hàng/Hoàn tiền 7 ngày**: Sau khi đơn hàng `delivered`/`completed`, khách hàng có thể tạo yêu cầu `refund`. Các giá trị `exchange`, `exchange_variant_id` và `exchange_out` được dành sẵn cho pha mở rộng, chưa có API/UI thực thi đổi size/màu.
 - **Mô hình Kho tập trung & Nhập kho sản xuất**: 1 Kho trung tâm duy nhất nhập hàng từ xưởng sản xuất thông qua phiếu nhập kho `inbound_receipts` và `inbound_receipt_items`, tự động tính toán lại giá vốn bình quân gia quyền di động (Moving Weighted Average Costing) cho từng biến thể, đồng thời điều phối hàng cho các chi nhánh cửa hàng (`transfer_to_store` / `transfer_received`). Mọi biến động được lưu vết bất biến trong `inventory_transactions`.
 - **Giá vốn hàng bán (COGS)**: Ghi nhận giá vốn tại từng biến thể `product_variants.cost_price_vnd` và snapshot cố định bất biến vào từng dòng `order_items.cost_price_vnd` tại thời điểm phát sinh giao dịch (checkout online & POS).
 
@@ -551,7 +549,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 ### 5.15. `orders`
 
-**Mục đích**: Kết quả checkout (online) hoặc POS transaction. State machine: `paid → confirmed → completed`, `paid → cancelled`.
+**Mục đích**: Kết quả checkout online hoặc POS. Online đi qua `paid/confirmed → shipping → delivered → completed`; POS được tạo trực tiếp ở `completed`.
 
 | Cột | Kiểu | Constraint | Mô tả |
 |-----|------|-----------|-------|
@@ -562,7 +560,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `checkout_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key cho checkout (NULL cho POS) |
 | `coupon_id` | `BIGINT UNSIGNED` | FK → `coupons.coupon_id`, NULLABLE, ON DELETE RESTRICT | Coupon đã áp dụng |
 | `status` | `VARCHAR(24)` | NOT NULL | Trạng thái hiện tại |
-| `payment_method` | `VARCHAR(16)` | NOT NULL, DEFAULT `'vietqr'` | Phương thức thanh toán (`vietqr` hoặc `cod`) |
+| `payment_method` | `VARCHAR(16)` | NOT NULL, DEFAULT `'vietqr'` | Online: `vietqr`/`cod`; POS: `cash`/`card` |
 | `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
 | `subtotal_vnd` | `BIGINT UNSIGNED` | NOT NULL | Tổng tiền hàng (trước giảm giá) |
 | `coupon_code_snapshot` | `VARCHAR(64)` | NULLABLE | Snapshot mã coupon |
@@ -588,7 +586,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 **Check constraints**:
 - `status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'failed_delivery', 'returned')`
-- `payment_method IN ('vietqr', 'cod')`
+- `payment_method IN ('vietqr', 'cod', 'cash', 'card')`
 - `currency_code = 'VND'`
 - `subtotal_vnd >= 0`
 - `shipping_fee_vnd >= 0`
@@ -629,7 +627,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 **Channel invariants**:
 - `channel='online'`: `cart_id` NOT NULL, `checkout_idempotency_key` NOT NULL, `staff_id` NULL (hoặc allocation store)
-- `channel='pos'`: `store_id` NOT NULL, `staff_id` NOT NULL, `cart_id=NULL`, `checkout_idempotency_key=NULL`, status mặc định `completed`
+- `channel='pos'`: `store_id` NOT NULL, `staff_id` NOT NULL, `cart_id=NULL`, idempotency key nội bộ, status `completed`
 
 ---
 
@@ -674,7 +672,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 ### 5.17. `payments`
 
-**Mục đích**: Ghi nhận thanh toán cho order. Với `vietqr` là `succeeded` ngay tại checkout; với `cod` là `pending` tại checkout và chuyển thành `succeeded` khi giao thành công / hoàn tất đơn.
+**Mục đích**: Ghi nhận thanh toán cho order. Với `vietqr` là `succeeded` ngay tại checkout; với `cod` là `pending` tại checkout và chỉ chuyển thành `succeeded` khi khách xác nhận hoàn tất đơn.
 
 | Cột | Kiểu | Constraint | Mô tả |
 |-----|------|-----------|-------|
@@ -758,7 +756,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
 
 **Check constraints** — Valid transitions:
-- `from_status IS NULL AND to_status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed')` — tạo mới
+- `from_status IS NULL AND to_status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed', 'completed')` — tạo mới (gồm POS hoàn tất tức thời)
 - `from_status = 'pending_payment' AND to_status IN ('paid', 'payment_failed', 'cancelled')`
 - `from_status = 'paid' AND to_status IN ('confirmed', 'cancelled')`
 - `from_status = 'confirmed' AND to_status IN ('shipping', 'completed', 'cancelled', 'failed_delivery')`
@@ -861,21 +859,25 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `cod_collected_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tiền COD thực tế shipper đã thu |
 | `dispatched_at` | `DATETIME(6)` | NULLABLE | Thời điểm xuất kho giao hàng |
 | `delivered_at` | `DATETIME(6)` | NULLABLE | Thời điểm giao hàng thành công |
-| `failed_at` | `DATETIME(6)` | NULLABLE | Thời điểm giao thất bại (boom hàng) |
+| `failed_at` | `DATETIME(6)` | NULLABLE | Thời điểm lần giao thứ ba thất bại (boom hàng) |
 | `failure_reason` | `VARCHAR(255)` | NULLABLE | Lý do không giao được (khách không nghe máy, đổi ý,...) |
+| `failed_attempt_1_key` | `VARCHAR(64)` | UNIQUE, NULLABLE | Idempotency key của lần giao thất bại thứ nhất |
+| `failed_attempt_2_key` | `VARCHAR(64)` | UNIQUE, NULLABLE | Idempotency key của lần giao thất bại thứ hai |
+| `failed_attempt_3_key` | `VARCHAR(64)` | UNIQUE, NULLABLE | Idempotency key của lần giao thất bại thứ ba |
 | `notes` | `TEXT` | NULLABLE | Ghi chú vận hành giao hàng |
 | `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
 | `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
 
 **Check constraints**:
 - `status IN ('assigned', 'picked_up', 'in_transit', 'delivered', 'failed', 'returned_to_warehouse')`
-- `attempt_count >= 1`
+- `attempt_count BETWEEN 1 AND 3`
 - `cod_amount_vnd >= 0`
 - `cod_collected_vnd >= 0`
 
 **Indexes**:
 - `uq_shipments_public_id` — UK trên `public_id`
 - `uq_shipments_code` — UK trên `shipment_code`
+- `uq_shipments_failed_attempt_{1,2,3}_key` — chống ghi nhận lặp từng lần giao thất bại
 - `ix_shipments_order_id` — `(order_id)`
 - `ix_shipments_delivery_staff_id` — `(delivery_staff_id)`
 - `ix_shipments_status` — `(status)`
@@ -1062,7 +1064,7 @@ Isolation: `READ COMMITTED`.
 4. Kiểm tra catalog active và quantity; nếu có coupon, khóa coupon và kiểm tra window/subtotal/limit.
 5. Khóa inventory theo variant ID tăng dần rồi kiểm tra `on_hand`.
 6. Tính server-side snapshot subtotal, discount, shipping và total.
-7. Insert order `paid`, order items, payment `succeeded`, initial history và redemption.
+7. Insert order/items/history/redemption. VietQR tạo `paid` + payment `succeeded`; COD tạo `confirmed` + payment `pending`.
 8. Conditional decrement inventory, tăng `version`, đóng cart.
 9. Commit; mọi lỗi rollback toàn bộ.
 
@@ -1076,9 +1078,9 @@ Không có external call và không random payment.
 4. Insert immutable history `paid -> confirmed`.
 5. Commit.
 
-### TX-03 — Admin hoàn tất order
+### TX-03 — Khách hàng xác nhận đã nhận hàng
 
-Giống TX-02 nhưng chỉ `confirmed -> completed`, set `completed_at` và insert history.
+Khóa đơn thuộc khách hàng; chỉ cho phép `delivered -> completed`, set `completed_at`, ghi history nguồn `customer`. Với COD, đồng thời chuyển payment sang `succeeded` và set `orders.paid_at`. Admin/shipper không có endpoint hoàn tất thay khách.
 
 ### TX-04 — Customer/admin hủy order
 
@@ -1128,9 +1130,9 @@ Isolation: `READ COMMITTED`.
 1. Validate store active và staff có quyền truy cập store.
 2. Với mỗi variant: kiểm tra tồn kho cửa hàng (`store_inventory.on_hand >= quantity`).
 3. Tính server-side subtotal, total (không shipping fee, không coupon).
-4. Insert order `completed` với `channel='pos'`, `store_id`, `staff_id`, `paid_at=now`, `completed_at=now`, `cart_id=null`, `checkout_idempotency_key=null`.
-5. Insert order items, payment `succeeded`, status history `paid -> completed` với `transition_source='admin'` (giới hạn DB constraint).
-6. Giảm `store_inventory.on_hand`, tăng `version`.
+4. Insert order `completed` với `channel='pos'`, `store_id`, `staff_id`, `payment_method` (`cash`/`card`), `paid_at=now`, `completed_at=now`, `cart_id=null` và idempotency key nội bộ.
+5. Insert order items với snapshot sản phẩm/danh mục, payment `succeeded`, status history `NULL -> completed` với `transition_source='admin'`.
+6. Giảm `store_inventory.on_hand`, tăng `version` và ghi ledger `outbound_pos`.
 7. Commit; mọi lỗi rollback toàn bộ.
 
 ### TX-10 — Điều phối giao vận nội bộ & Ghi nhận kết quả giao (Delivered hoặc Boom COD)
@@ -1145,7 +1147,7 @@ Isolation: `READ COMMITTED`. Lock order và shipment là điểm tuần tự hó
    - Khóa order và shipment; cập nhật `shipments.status = 'delivered'`, `delivered_at = now`.
    - Nếu đơn hàng thanh toán COD: cập nhật `shipments.cod_collected_vnd = shipments.cod_amount_vnd`.
    - Cập nhật order `status = 'delivered'`, ghi nhận lịch sử `shipping -> delivered`.
-   - **Xác nhận hoàn tất đơn**: Khách hàng nhấn "Đã nhận được hàng" trên trang chi tiết đơn hàng để chuyển đơn sang `completed` (Admin không được tự ý hoàn tất đơn nhằm đảm bảo tính minh bạch và sự hài lòng của khách). Đối với đơn COD, khi đơn chuyển sang `completed`, hệ thống tự động đối soát cập nhật `payments.status = 'succeeded'` và `payments.paid_at = now`.
+   - **Xác nhận hoàn tất đơn**: Khách hàng nhấn "Đã nhận được hàng" trên trang chi tiết đơn hàng để chuyển đơn sang `completed` (Admin không được tự ý hoàn tất đơn). Đối với COD, lúc này hệ thống cập nhật `payments.status = 'succeeded'` và `orders.paid_at = now`.
 3. **Kịch bản B — Giao hàng thất bại / Boom hàng (`failed_delivery`)**:
    - Shipper ghi nhận giao thất bại qua 3 lần không thành công (`attempt_count >= 3`).
    - Cập nhật `shipments.status = 'failed'`, `failed_at = now`, `failure_reason`, `cod_collected_vnd = 0`.
@@ -1153,26 +1155,23 @@ Isolation: `READ COMMITTED`. Lock order và shipment là điểm tuần tự hó
    - **Hoàn tồn kho**: Ghi 1 bản ghi vào `inventory_transactions` với `movement_type = 'return_boom'`, `quantity_delta = +quantity`, đồng thời hoàn lại `inventory.on_hand`.
    - **Cảnh báo rủi ro**: Tăng `customers.boom_count = boom_count + 1`. Nếu `boom_count >= 3`, bật cờ `customers.is_cod_blocked = TRUE` để chặn thanh toán COD ở các đơn sau.
 
-### TX-11 — Quy trình Đổi / Trả hàng sau 7 ngày
+### TX-11 — Quy trình Trả hàng / Hoàn tiền trong 7 ngày
 
 Isolation: `READ COMMITTED`.
 
 1. **Khách hàng tạo yêu cầu**:
    - Kiểm tra đơn hàng thuộc khách hàng, trạng thái `delivered` hoặc `completed` và thời gian trong vòng 7 ngày kể từ `delivered_at`.
-   - Insert `return_requests` với `status = 'pending_review'`, `action_type IN ('exchange', 'refund')`, lý do và ảnh đính kèm.
+   - Insert `return_requests` với `status = 'pending_review'`, `action_type = 'refund'`, lý do và ảnh đính kèm.
    - Insert chi tiết các dòng món hàng trong `return_items`.
 2. **CSKH & Kho thẩm định (`inspection`)**:
    - Khi nhận hàng về kho, kiểm định tình trạng sản phẩm (`return_items.inspection_status = 'passed'`).
-3. **Kịch bản A — Đổi size (`exchange`)**:
-   - Khóa variant mới muốn đổi, kiểm tra tồn kho.
-   - Trừ kho sản phẩm mới xuất đi (`inventory_transactions` với `movement_type = 'exchange_out'`).
-   - Nhập lại sản phẩm cũ về kho (`inventory_transactions` với `movement_type = 'return_customer'`).
-   - Đánh dấu `return_requests.status = 'completed'`.
-4. **Kịch bản B — Trả hàng hoàn tiền (`refund`)**:
+3. **Trả hàng hoàn tiền (`refund`)**:
    - Nhập sản phẩm đã kiểm định lại vào kho (`inventory_transactions` với `movement_type = 'return_customer'`).
    - Thực hiện hoàn tiền cho khách (`refund_amount_vnd`), ghi nhận refund.
    - Cập nhật order `status = 'returned'`, ghi nhận lịch sử sang `returned`.
    - Đánh dấu `return_requests.status = 'completed'`.
+
+> Nhánh `exchange` và ledger `exchange_out` mới chỉ được dành chỗ ở schema; chưa thuộc transaction catalogue hiện hành.
 
 ### TX-12 — Nhập hàng từ xưởng may & Cập nhật giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing)
 
@@ -1248,7 +1247,7 @@ Hệ thống trích xuất **26 bảng** sang hồ dữ liệu Lakehouse (toàn 
 
 - `orders.total_vnd = subtotal_vnd - discount_amount_vnd + shipping_fee_vnd`
 - Succeeded payment amount = order total (cho đơn VietQR khi đặt hàng thành công)
-- Đơn COD: Tạo đơn với `orders.status = 'confirmed'`, `payments.status = 'pending'`. Khi giao thành công `orders.status = 'delivered'`, `shipments.cod_collected_vnd = shipments.cod_amount_vnd`. Khi khách hàng nhấn "Đã nhận được hàng", `orders.status = 'completed'`, hệ thống kích hoạt chốt COD thành công `payments.status = 'succeeded'` và `payments.paid_at = now`.
+- Đơn COD: Tạo đơn với `orders.status = 'confirmed'`, `payments.status = 'pending'`. Khi giao thành công `orders.status = 'delivered'`, `shipments.cod_collected_vnd = shipments.cod_amount_vnd`. Khi khách hàng nhấn "Đã nhận được hàng", `orders.status = 'completed'`, hệ thống chốt `payments.status = 'succeeded'` và `orders.paid_at = now`.
 - Đơn boom COD: `orders.status = 'failed_delivery'`, `shipments.status = 'failed'`, `shipments.cod_collected_vnd = 0`, doanh thu thuần trên Lakehouse = 0
 - Hoàn tất đơn: Nút hoàn tất đơn chỉ dành cho Khách hàng xác nhận sau khi nhận hàng (`delivered -> completed`), quản trị viên chỉ theo dõi trạng thái giao hàng.
 - Succeeded refund amount = payment amount và order cancelled
@@ -1275,7 +1274,7 @@ Hệ thống đồ án tốt nghiệp hiện tại đã triển khai thành côn
 1. **Kiến trúc Hybrid Lakehouse hoàn chỉnh**: Tích hợp 26 bảng OLTP, luồng Batch qua PySpark và luồng Streaming qua Apache Kafka + Apache Flink Ingestion.
 2. **Công cụ truy vấn phân tán & Trực quan hóa**: Tích hợp Apache Trino Distributed SQL Engine truy vấn trực tiếp bảng Gold Marts trên Apache Iceberg, liên kết giao diện đồ họa quản trị native Apache ECharts đa vai trò (7 chức năng quản trị nghiệp vụ) trực tiếp trên Storefront Admin BI Hub.
 3. **Mô hình kế toán kho & tài chính hiện đại**: Quản lý chi phí xưởng, tính giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing), snapshot COGS tức thời khi tạo đơn, theo dõi biên lợi nhuận gộp theo thời gian thực.
-4. **Luồng vận hành chuẩn thương mại điện tử**: Tích hợp kiểm soát giao vận nội bộ, xử lý boom hàng COD 3 lần kèm chặn COD tự động, hoàn tồn kho tự động, quy trình đổi trả hàng 7 ngày và xác nhận hoàn tất đơn từ phía khách hàng.
+4. **Luồng vận hành chuẩn thương mại điện tử**: Tích hợp kiểm soát giao vận nội bộ, xử lý boom hàng COD 3 lần kèm chặn COD tự động, hoàn tồn kho tự động, quy trình trả hàng/hoàn tiền 7 ngày và xác nhận hoàn tất đơn từ phía khách hàng.
 
 Các hạng mục có thể nghiên cứu mở rộng trong tương lai:
 1. **Machine Learning Feature Store & AI Agent**: Khai thác dữ liệu từ tầng Gold (RFM customer, hành vi clickstream logs) để huấn luyện mô hình dự đoán khách hàng có nguy cơ boom hàng và mô hình gợi ý sản phẩm cá nhân hóa.

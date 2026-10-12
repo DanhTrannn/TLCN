@@ -1,4 +1,4 @@
-"""Kịch bản CDC 4: Store Manager - Cháy hàng tại sào quầy & Giờ cao điểm bán lẻ POS.
+"""Kịch bản tác nghiệp 4: Store - Cháy hàng tại quầy và cao điểm POS.
 
 Mô phỏng:
 1. Cháy hàng cục bộ tại quầy POS (Store Stockout Alert) giúp nhân viên chủ động gợi ý khách đặt ship về nhà.
@@ -25,7 +25,7 @@ from sqlalchemy import select
 
 def run() -> None:
     print_banner(
-        title="KỊCH BẢN CDC 4: STORE MANAGER - CHÁY HÀNG TẠI QUẦY & GIỜ CAO ĐIỂM POS",
+        title="KỊCH BẢN 4: STORE MANAGER - CHÁY HÀNG TẠI QUẦY & GIỜ CAO ĐIỂM POS",
         role="Store Manager (store_mgr@fashion.local)",
         url="http://localhost:3000/admin/analytics?role=store",
     )

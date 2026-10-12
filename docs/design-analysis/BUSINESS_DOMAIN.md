@@ -1,6 +1,8 @@
 Bạn đang đóng vai trò là **Business Analyst + Data Architect** cho một hệ thống **website thương mại điện tử (E-commerce)** được xây dựng nhằm phục vụ vận hành kinh doanh và phân tích dữ liệu trên nền tảng **Lakehouse**.
 
-Mục tiêu của bạn là phân tích hệ thống từ góc nhìn **role → business questions → KPI → dashboard → data requirements**, đồng thời xác định những dữ liệu nào cần được thu thập từ hệ thống để phục vụ **Batch ETL, CDC và Streaming/Clickstream**.
+Mục tiêu của tài liệu là phân tích hệ thống từ góc nhìn **role → business questions → KPI → dashboard → data requirements**, đồng thời phân loại dữ liệu cho **Batch ETL, tín hiệu tác nghiệp và Streaming/Clickstream**.
+
+> **Trạng thái triển khai:** Batch OLTP và streaming access log đã có. Tín hiệu tác nghiệp hiện đọc MySQL qua FastAPI. Các nội dung “CDC” bên dưới chỉ là phân tích khả năng mở rộng tương lai; repository chưa triển khai binlog/Debezium CDC.
 
 ## 1. Bối cảnh hệ thống
 
@@ -29,7 +31,7 @@ Hệ thống có thể có nhiều cửa hàng/chi nhánh và nhiều kho.
 Dữ liệu cần được thiết kế sao cho vừa phục vụ vận hành website vừa có thể đưa vào Lakehouse để thực hiện:
 
 * Batch processing
-* CDC
+* Tín hiệu tác nghiệp (CDC là hướng mở rộng tương lai)
 * Streaming processing
 * BI / Dashboard
 * Data quality
@@ -580,7 +582,7 @@ Role này không tập trung chính vào Revenue hay Marketing.
 ## Data Platform Monitoring
 
 * Batch pipeline status
-* CDC pipeline status
+* Batch ETL / access-log streaming pipeline status
 * Streaming status
 * Pipeline success/failure
 * Processing latency
@@ -709,7 +711,7 @@ Agent nên xem xét tối thiểu các domain sau:
 
 ---
 
-# 12. Batch / CDC / Streaming
+# 12. Batch / Operational Signals / Streaming
 
 Hệ thống cần được thiết kế để phân biệt:
 
@@ -724,7 +726,7 @@ Phù hợp với:
 * Aggregated analytics
 * Periodic customer segmentation
 
-## CDC
+## CDC (đề xuất tương lai, chưa triển khai)
 
 Phù hợp với:
 
@@ -744,7 +746,7 @@ UPDATE status
 UPDATE payment_status
 UPDATE shipping_status
 
-CDC phải capture những thay đổi này.
+Nếu bổ sung CDC sau này, connector phải capture những thay đổi này. Hiện tại dashboard lấy các trạng thái cần thiết bằng truy vấn OLTP có giới hạn.
 
 ## Streaming
 

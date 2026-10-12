@@ -37,6 +37,16 @@ const STATUS_TABS = [
   { key: "cancelled", label: "Đã hủy" },
 ] as const;
 
+function paymentMethodLabel(method?: string | null): string {
+  const labels: Record<string, string> = {
+    cod: "COD",
+    vietqr: "VietQR",
+    cash: "Tiền mặt",
+    card: "Thẻ",
+  };
+  return labels[method ?? ""] ?? "—";
+}
+
 export default function AdminOrdersPage() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get("status") ?? "";
@@ -313,7 +323,7 @@ export default function AdminOrdersPage() {
         o.customer_name,
         o.customer_email,
         o.channel === "pos" ? "Tại quầy (POS)" : "Online",
-        o.payment_method === "cod" ? "COD" : "VietQR",
+        paymentMethodLabel(o.payment_method),
         orderStatusShortLabel(o.status),
         o.item_count,
         o.total_vnd,
@@ -680,10 +690,15 @@ export default function AdminOrdersPage() {
                               <Icon name="cash" size={12} />
                               COD Thu hộ
                             </span>
-                          ) : (
+                          ) : order.payment_method === "vietqr" ? (
                             <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                               <Icon name="check" size={12} />
                               VietQR
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/25 bg-purple-500/10 px-2.5 py-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300">
+                              <Icon name="cash" size={12} />
+                              {paymentMethodLabel(order.payment_method)}
                             </span>
                           )}
                         </div>
@@ -695,7 +710,11 @@ export default function AdminOrdersPage() {
                           {formatVnd(order.total_vnd)}
                         </p>
                         <p className="mt-0.5 text-[11px] text-muted">
-                          {order.payment_method === "cod" ? "Thu tiền mặt khi giao" : "Đã thanh toán QR"}
+                          {order.payment_method === "cod"
+                            ? "Thu tiền khi giao"
+                            : order.payment_method === "vietqr"
+                              ? "Chuyển khoản QR"
+                              : `Thanh toán ${paymentMethodLabel(order.payment_method).toLowerCase()}`}
                         </p>
                       </td>
 
@@ -761,7 +780,7 @@ export default function AdminOrdersPage() {
                                   type="button"
                                 >
                                   <Icon name="alert" size={13} />
-                                  Báo Boom
+                                  Ghi nhận giao thất bại
                                 </button>
                                 <button
                                   className="button-primary px-3 py-1 text-xs inline-flex items-center gap-1"
@@ -984,10 +1003,10 @@ export default function AdminOrdersPage() {
       {/* Boom / Failed Delivery Modal */}
       <AdminModal
         busy={busyOrder === boomingOrder}
-        description={`Ghi nhận giao thất bại cho đơn ${boomingOrder}. Hệ thống sẽ cập nhật trạng thái đơn sang "Giao thất bại", hoàn tồn kho và tăng bộ đếm boom nếu thanh toán COD.`}
+        description={`Ghi nhận một lần giao thất bại cho đơn ${boomingOrder}. Chỉ sau lần thứ ba hệ thống mới chốt "Giao thất bại", hoàn tồn kho và tăng bộ đếm boom.`}
         onClose={() => setBoomingOrder(null)}
         open={Boolean(boomingOrder)}
-        title={`Báo Boom hàng: ${boomingOrder}`}
+        title={`Ghi nhận giao thất bại: ${boomingOrder}`}
       >
         <label className="field-label" htmlFor="boom-reason">
           Lý do giao hàng thất bại <span className="text-danger">*</span>
@@ -1017,7 +1036,7 @@ export default function AdminOrdersPage() {
             type="button"
           >
             <Icon name="alert" size={16} />
-            {busyOrder === boomingOrder ? "Đang cập nhật…" : "Xác nhận Boom hàng"}
+            {busyOrder === boomingOrder ? "Đang cập nhật…" : "Xác nhận lần giao thất bại"}
           </button>
         </div>
       </AdminModal>

@@ -18,6 +18,7 @@ from app.db.uow import run_in_transaction
 from app.models.catalog import Product, ProductVariant
 from app.models.customer import Customer
 from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
 from app.models.logistics import DeliveryStaff, Shipment
 from app.models.multicity import StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
@@ -770,14 +771,6 @@ def deliver_order(
         if order.payment_method == "cod":
             shipment.cod_collected_vnd = shipment.cod_amount_vnd
 
-    if order.payment_method == "cod":
-        order.paid_at = now
-        payment = db.execute(
-            select(Payment).where(Payment.order_id == order.order_id).with_for_update()
-        ).scalar_one_or_none()
-        if payment:
-            payment.status = "succeeded"
-
     order.status = "delivered"
     order.updated_at = now
 
@@ -847,12 +840,48 @@ def fail_delivery_order(
         .scalars()
         .first()
     )
-    if shipment:
-        shipment.status = "failed"
-        shipment.failed_at = now
-        shipment.failure_reason = cleaned_reason[:255]
-        shipment.attempt_count += 1
-        shipment.updated_at = now
+    if shipment is None:
+        raise AppError(
+            INVALID_STATE_TRANSITION,
+            "Đơn hàng chưa có vận đơn để ghi nhận lần giao thất bại.",
+            status_code=409,
+        )
+
+    recorded_attempt_keys = (
+        shipment.failed_attempt_1_key,
+        shipment.failed_attempt_2_key,
+        shipment.failed_attempt_3_key,
+    )
+    if transition_key in recorded_attempt_keys:
+        recorded_attempt = recorded_attempt_keys.index(transition_key) + 1
+        return OrderTransitionResponse(
+            order_number=order.order_number,
+            status=order.status,
+            delivery_attempt_count=recorded_attempt,
+            remaining_delivery_attempts=max(3 - recorded_attempt, 0),
+        )
+
+    current_attempt = min(max(shipment.attempt_count, 1), 3)
+    setattr(shipment, f"failed_attempt_{current_attempt}_key", transition_key)
+    shipment.failure_reason = cleaned_reason[:255]
+    shipment.updated_at = now
+
+    # Hai lần đầu chỉ ghi nhận thất bại và chuyển sang lần thử kế tiếp.
+    # Chỉ lần thứ ba mới kết thúc vận đơn, hoàn kho và tính một lần bom hàng.
+    if current_attempt < 3:
+        shipment.attempt_count = current_attempt + 1
+        shipment.status = "in_transit"
+        db.flush()
+        return OrderTransitionResponse(
+            order_number=order.order_number,
+            status=order.status,
+            delivery_attempt_count=current_attempt,
+            remaining_delivery_attempts=3 - current_attempt,
+        )
+
+    shipment.attempt_count = 3
+    shipment.status = "failed"
+    shipment.failed_at = now
 
     item_rows = db.execute(
         select(OrderItem).where(OrderItem.order_id == order.order_id).order_by(OrderItem.variant_id)
@@ -876,6 +905,19 @@ def fail_delivery_order(
                 inv.on_hand += item.quantity
                 inv.version += 1
                 inv.updated_at = now
+                db.add(
+                    InventoryTransaction(
+                        public_id=uuid7(),
+                        variant_id=item.variant_id,
+                        location_type="central_warehouse",
+                        store_id=None,
+                        movement_type="return_boom",
+                        quantity_delta=item.quantity,
+                        reference_code=order.order_number,
+                        notes="Hoàn kho sau 3 lần giao thất bại",
+                        created_at=now,
+                    )
+                )
 
         if order.store_id is not None:
             store_inv_rows = (
@@ -896,6 +938,19 @@ def fail_delivery_order(
                 si = si_map.get(item.variant_id)
                 if si:
                     si.on_hand += item.quantity
+                    db.add(
+                        InventoryTransaction(
+                            public_id=uuid7(),
+                            variant_id=item.variant_id,
+                            location_type="store",
+                            store_id=order.store_id,
+                            movement_type="return_boom",
+                            quantity_delta=item.quantity,
+                            reference_code=order.order_number,
+                            notes="Hoàn kho cửa hàng sau 3 lần giao thất bại",
+                            created_at=now,
+                        )
+                    )
 
     customer = db.execute(
         select(Customer).where(Customer.customer_id == order.customer_id).with_for_update()
@@ -920,60 +975,10 @@ def fail_delivery_order(
         )
     )
     db.flush()
-    return OrderTransitionResponse(order_number=order.order_number, status=order.status)
-
-
-def complete_admin_order(
-    db: Session,
-    order_number: str,
-    idempotency_key: str | None = None,
-) -> OrderTransitionResponse:
-    order = db.execute(
-        select(Order).where(Order.order_number == order_number).with_for_update()
-    ).scalar_one_or_none()
-    if order is None:
-        raise not_found("Không tìm thấy đơn hàng.")
-
-    transition_key = _make_transition_key(order_number, "comp", idempotency_key)
-    if idempotency_key:
-        existing_history = db.execute(
-            select(OrderStatusHistory).where(
-                OrderStatusHistory.transition_idempotency_key == transition_key
-            )
-        ).scalar_one_or_none()
-        if existing_history is not None:
-            if existing_history.order_id != order.order_id or existing_history.to_status != "completed":
-                raise AppError(
-                    IDEMPOTENCY_CONFLICT,
-                    "Idempotency key đã được dùng cho request khác.",
-                    status_code=409,
-                )
-            return OrderTransitionResponse(order_number=order.order_number, status=order.status)
-
-    if order.status == "completed":
-        return OrderTransitionResponse(order_number=order.order_number, status=order.status)
-    if order.status != "delivered":
-        raise AppError(
-            INVALID_STATE_TRANSITION,
-            f"Không thể hoàn tất đơn hàng ở trạng thái {order.status}.",
-            status_code=409,
-        )
-
-    now = _utc_now()
-    order.status = "completed"
-    order.completed_at = now
-    order.updated_at = now
-
-    db.add(
-        OrderStatusHistory(
-            order_id=order.order_id,
-            from_status="delivered",
-            to_status="completed",
-            transition_source="admin_complete",
-            transition_idempotency_key=transition_key,
-            transitioned_at=now,
-        )
+    return OrderTransitionResponse(
+        order_number=order.order_number,
+        status=order.status,
+        delivery_attempt_count=shipment.attempt_count,
+        remaining_delivery_attempts=0,
     )
-    db.flush()
-    return OrderTransitionResponse(order_number=order.order_number, status=order.status)
 

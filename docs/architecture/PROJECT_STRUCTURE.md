@@ -41,19 +41,19 @@ flowchart LR
     Trino[Trino Query Engine] --> Polaris
     Trino --> Gold
     Trino --> ECharts[Admin BI Hub /admin/analytics]
-    Gold --> Features[Repurchase Features & Labels]
-    Features --> Model[Train & Score ML]
+    Gold -. Future phase .-> Features[Repurchase Features & Labels]
+    Features -. Future phase .-> Model[Train & Score ML]
 ```
 
 ### 1.1. Dependency Rules
 
 1. **Presentation Boundary:** The Storefront communicates exclusively with the Ecommerce API via HTTP/JSON.
-2. **Short Transactions:** The Ecommerce API writes to the MySQL OLTP database via short transactions and emits structured JSON access logs to stdout and domain events to Apache Kafka.
+2. **Short Transactions:** The Ecommerce API writes to MySQL via short transactions and emits structured JSON access logs to stdout/Kafka. It does not publish a general domain-event or MySQL CDC stream.
 3. **Read-Only Ingestion:** The Data Engineering (DE) extractor uses a read-only account scoped strictly to the 26 allowed analytical tables (excluding `customer_credentials`).
 4. **Single Writer Principal:** Apache Airflow orchestrates workflows; Apache Spark executes the batch ingestion, transformations, and Iceberg commits. Spark is the primary Iceberg batch writer, working alongside Apache Flink for streaming ingestion.
 5. **Catalog Decoupling:** Apache Polaris manages table metadata, namespaces, and RBAC privileges. It does not perform compute or store data files.
 6. **Read-Only Query Engine:** Trino is the distributed SQL engine reading Iceberg tables via Polaris. The Storefront Admin BI Hub connects to Trino for analytical dashboards and native Apache ECharts visualizations.
-7. **Isolation of Operational DB:** Analytical dashboards, feature engineering, and ML pipelines never read directly from the primary OLTP database.
+7. **Read Boundaries:** Historical Lakehouse dashboards query Trino; explicitly marked operational-signal endpoints query MySQL for fresh intra-day state. ML remains a future phase.
 
 ---
 
@@ -64,10 +64,10 @@ flowchart LR
 ├── apps/
 │   └── storefront/                       # Next.js 15 customer storefront, POS, and 7-Role BI Hub (/admin/analytics)
 ├── services/
-│   └── ecommerce-api/                    # FastAPI backend (27 tables, 15 modules, 200 pytest tests)
+│   └── ecommerce-api/                    # FastAPI backend (27 tables, 16 domain modules)
 ├── database/
 │   ├── alembic.ini                       # Alembic migration configuration
-│   ├── migrations/                       # Alembic schema versions (0001 to 0017)
+│   ├── migrations/                       # Alembic schema versions (0001 to 0018)
 │   └── seeds/                            # Master catalog and multi-role demo scenarios seeds
 ├── generator/
 │   ├── configs/                          # Dataset scale scenarios (small, medium, large)
@@ -77,7 +77,7 @@ flowchart LR
 │   ├── config/                           # Lakehouse table configurations (default.yml - 26 tables)
 │   ├── src/jobs/                         # Spark batch jobs organized by domain (jobs/logs/, jobs/oltp/)
 │   ├── src/lakehouse/                    # Core library and domain logic (lakehouse/logs/, lakehouse/oltp/, common)
-│   └── tests/                            # Pipeline, bronze, silver & gold financial tests (106 tests)
+│   └── tests/                            # Pipeline, Bronze, Silver & Gold tests
 ├── airflow/
 │   ├── dags/                             # Airflow DAGs (lakehouse_logs_pipeline.py, ingest_oltp_batch.py, ingest_oltp_landing_to_bronze.py, ingest_oltp_silver.py)
 │   └── logs/                             # Airflow operational logs
@@ -107,9 +107,9 @@ flowchart LR
 
 The monorepo uses [`uv`](https://docs.astral.sh/uv/) as the package manager and workspace orchestrator. The workspace consists of three packages sharing a single `uv.lock` file:
 
-- **`ecommerce-api`** (`services/ecommerce-api`): FastAPI, SQLAlchemy 2.0, Alembic, PyMySQL, Argon2, PyJWT (200 tests).
+- **`ecommerce-api`** (`services/ecommerce-api`): FastAPI, SQLAlchemy 2.0, Alembic, PyMySQL, Argon2, PyJWT.
 - **`data-generator`** (`generator`): Faker, PyYAML, Argon2, HTTPX (55 tests).
-- **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3, PyArrow (106 tests).
+- **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3, PyArrow and PySpark.
 
 Infrastructure components (Trino, LibreDB Studio, Polaris, MinIO, Spark, Kafka, Flink) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
 
@@ -161,14 +161,14 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | MinIO (S3 storage) | RELEASE.2025-09-07 | Done |
 | Polaris (Iceberg catalog) | 1.6.0 | Done |
 | Spark (compute) | 3.5.9 + Iceberg 1.10.1 | Done |
-| Apache Kafka | 3.7 | Done |
+| Apache Kafka | 3.8 | Done |
 | Apache Flink | 1.19 | Done |
 | Trino (query engine) | v483 | Done |
 | Airflow (orchestration) | 2.10.5 | Done |
 | MySQL (OLTP source) | 8.4.5 (27 tables) | Done |
 | LibreDB Studio (SQL IDE) | latest | Done |
-| Apache ECharts (Native BI) | 5.5 | Done |
-| E-Commerce API + Storefront | 0.1.0 (200 tests) | Done |
+| Apache ECharts (Native BI) | 6.1 | Done |
+| E-Commerce API + Storefront | 0.1.0 | Done |
 
 ### Lakehouse Pipelines
 
@@ -176,7 +176,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 |---|---|---|
 | Landing → Bronze | Done (26/26 analytical tables) | Done (`web_events`) |
 | Bronze → Silver | Done (26/26 analytical tables) | Done (`silver_logs`) |
-| Silver → Gold | Done (`dim_*`, `fact_*`, `mart_sales_daily`, `mart_inventory_daily` with COGS & margin) | Done (`fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand`) |
+| Silver → Gold | Done (6 dimensions, 5 facts, 4 OLTP marts with COGS & margin) | Done (`fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand`) |
 
 ### Airflow DAGs
 

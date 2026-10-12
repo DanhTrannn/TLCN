@@ -1,6 +1,8 @@
 # TÀI LIỆU ĐẶC TẢ PHÂN TÍCH & THIẾT KẾ KỸ THUẬT: HỆ THỐNG THÔNG TIN QUẢN LÝ (MANAGEMENT INFORMATION SYSTEM - MIS)
 ## Nền Tảng D&K E-Commerce Lakehouse & Analytics Platform
 
+> **Baseline triển khai:** Gold OLTP hiện có đúng 6 dimensions (`dim_date`, `dim_customer`, `dim_product`, `dim_variant`, `dim_store`, `dim_delivery_staff`), 5 facts (`fact_order`, `fact_order_item`, `fact_shipment`, `fact_return_exchange`, `fact_inventory_daily_snapshot`) và 4 marts (`mart_sales_daily`, `mart_logistics_performance`, `mart_product_returns`, `mart_inventory_health`). Các tên khác trong metric catalog như `dim_coupon`, `dim_category`, `dim_order_status`, `fact_payment`, `fact_refund`, `fact_order_status_transition`, `mart_coupon_performance`, `mart_order_sla` và `mart_web_funnel_daily` là mô hình logic/roadmap, không phải bảng Gold đang được tạo. Gold access-log được triển khai riêng với `fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand`.
+
 **Mã tài liệu:** SPEC-ARCH-MIS-01  
 **Phiên bản:** 2.0 (Kiến trúc Hybrid 7 Vai trò Quản trị Doanh nghiệp & Tích hợp Trino / Apache ECharts)  
 **Ngày cập nhật:** 2026-09-28  
@@ -111,7 +113,7 @@ flowchart TB
 | **2. Kinh doanh & Chiến lược (Sales & Strategy)** | - Đánh giá sức khỏe danh mục và chi nhánh.<br>- Thúc đẩy doanh thu các kênh phân phối. | - **Đóng góp chi nhánh:** Doanh thu phân bổ theo từng cửa hàng vật lý và kênh online.<br>- **Top sản phẩm:** Xếp hạng các mặt hàng bán chạy nhất (Top Selling Products).<br>- **Tỷ trọng danh mục:** Đóng góp cơ cấu doanh số giữa các nhóm sản phẩm thời trang. | **Admin BI Hub**<br>(`/admin/analytics?role=sales`) |
 | **3. Quản lý Cửa hàng (Store Manager)** | - Điều phối bán hàng và thu ngân tại chi nhánh.<br>- Quản lý tồn kho quầy trưng bày. | - **Doanh thu chi nhánh trong ngày:** Doanh thu tại quầy hôm nay.<br>- **Đơn hàng trong ngày:** Số lượng đơn thanh toán tại quầy.<br>- **Mục tiêu ngày:** Tỷ lệ hoàn thành doanh số cam kết hàng ngày.<br>- **Cảnh báo tồn quầy:** Danh sách sản phẩm có tồn kho thấp tại quầy cần bổ sung. | **Store Dashboard & BI Hub**<br>(`/store` & `/admin/analytics?role=store`, RLS Gate) |
 | **4. Kho & Chuỗi cung ứng (Inventory Manager)** | - Quản lý tồn kho trung tâm và chi phí xưởng.<br>- Đảm bảo nguồn cung ứng ổn định. | - **Định giá tài sản kho:** Tổng giá trị hàng tồn kho (VND).<br>- **Phân bổ hàng hóa:** Tỷ lệ số lượng hàng tại Kho tổng vs Các cửa hàng chi nhánh.<br>- **Nhập xưởng may (Inbound):** Số đợt sản xuất hoàn tất, kiểm soát giá vốn MWA.<br>- **Cảnh báo hàng:** Số mặt hàng sắp hết và số mặt hàng đã cháy hàng. | **Admin Inbound & BI Hub**<br>(`/admin/inbound` & `/admin/analytics?role=inventory`) |
-| **5. Vận hành & Logistics (Operations Manager)** | - Giám sát giao vận shipper nội bộ và chất lượng đơn.<br>- Xử lý đơn boom và đổi trả. | - **Hàng đợi xuất kho:** Số đơn hàng đang chờ xử lý đóng gói.<br>- **Cam kết vận chuyển (SLA):** Tỷ lệ giao hàng đúng hẹn, đơn vi phạm thời gian cam kết.<br>- **Xử lý rủi ro:** Số lượng đơn shipper giao thất bại (Boom COD) cần hoàn kho.<br>- **Đổi trả:** Số lượng yêu cầu đổi size/trả hàng 7 ngày đang chờ thẩm định. | **Admin Orders & BI Hub**<br>(`/admin/orders` & `/admin/analytics?role=operations`) |
+| **5. Vận hành & Logistics (Operations Manager)** | - Giám sát giao vận shipper nội bộ và chất lượng đơn.<br>- Xử lý đơn boom và trả hàng. | - **Hàng đợi xuất kho:** Số đơn hàng đang chờ xử lý đóng gói.<br>- **Cam kết vận chuyển (SLA):** Tỷ lệ giao hàng đúng hẹn, đơn vi phạm thời gian cam kết.<br>- **Xử lý rủi ro:** Số lượng đơn shipper giao thất bại (Boom COD) cần hoàn kho.<br>- **Trả hàng:** Số lượng yêu cầu hoàn tiền 7 ngày đang chờ thẩm định. | **Admin Orders & BI Hub**<br>(`/admin/orders` & `/admin/analytics?role=operations`) |
 | **6. Marketing & Phễu chuyển đổi (Marketing Manager)** | - Tối ưu hóa chuyển đổi khách hàng trên website.<br>- Đo lường hiệu quả khuyến mãi và sự hài lòng. | - **Phễu chuyển đổi:** Lượt xem -> Thêm vào giỏ -> Đặt hàng -> Mua hàng (kèm tỷ lệ rơi rụng %).<br>- **Khuyến mãi:** Số lượt áp dụng thành công mã Coupon ưu đãi.<br>- **Đánh giá:** Điểm đánh giá sao trung bình và phản hồi từ khách hàng sau khi nhận hàng. | **Admin BI Hub**<br>(`/admin/analytics?role=marketing`) |
 | **7. Kỹ thuật & Đối soát (System Admin / Data Lead)** | - Đảm bảo tính liên tục của hệ thống và toàn vẹn dữ liệu.<br>- Đối soát tự động giữa OLTP và Lakehouse. | - **Sức khỏe đường ống:** Trạng thái hoạt động của Lakehouse Streaming & Batch ETL.<br>- **Độ tươi dữ liệu (Data Freshness SLA):** Thời gian cập nhật mẻ dữ liệu gần nhất.<br>- **Cổng đối soát (Reconciliation Gate):** Chênh lệch doanh thu thuần và số dòng đơn hàng giữa MySQL OLTP và Lakehouse ($= 0$). | **Admin BI Hub & Alert**<br>(`/admin/analytics?role=system`) |
 
@@ -119,11 +121,11 @@ flowchart TB
 
 > [!NOTE]
 > Trong các phiên bản ban đầu, hạng mục D-3 (Kiểm toán Dòng chuyển Kho) và D-5 (Giá vốn hàng bán COGS & Lãi gộp) từng thuộc diện hoãn (deferred). Đến nay, **cả hai hạng mục này đã được thiết kế và triển khai hoàn chỉnh 100%** trong kiến trúc hệ thống:
-> - **Sổ cái biến động kho (`inventory_transactions`)**: Ghi nhận toàn bộ biến động `inbound`, `outbound_sale`, `outbound_transfer`, `return_boom`, `return_customer`.
+> - **Sổ cái biến động kho (`inventory_transactions`)**: Ghi nhận các loại đã triển khai như `inbound`, `outbound_order`, `outbound_pos`, `transfer_to_store`, `transfer_received`, `return_boom`, `return_customer`.
 > - **Nhập kho xưởng may & MWA Costing (`inbound_receipts`, `inbound_receipt_items`)**: Tự động tính giá vốn bình quân gia quyền di động và chép snapshot vào `order_items.cost_price_vnd`.
 > - **Chỉ số tài chính hoàn chỉnh**: Hệ thống đã cung cấp trực tiếp COGS, Gross Profit và Gross Margin % trên cả OLTP và Lakehouse Gold Marts!
 
-### 2.3. Ma trận Truy xuất Nguồn gốc (Traceability Matrix: 3 Nhóm Quản trị → Data Objects)
+### 2.3. Ma trận Truy xuất Nguồn gốc Logic (một số Data Objects là roadmap)
 
 | Cấp Quản trị | Chỉ số Nghiệp vụ Trọng yếu | Bảng Nguồn OLTP / Log | Bảng Silver / Gold DWH | Data Mart Đích | Bảng điều khiển / Kênh Cảnh báo |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -297,9 +299,9 @@ Chỉ số kiểm soát tự động chạy mỗi ngày lúc 02:30 ICT sau khi h
 
 ---
 
-## 4. THIẾT KẾ MÔ HÌNH DỮ LIỆU CHI TIẾT (DETAILED DATA MODELING)
+## 4. MÔ HÌNH LOGIC MỞ RỘNG (KHÔNG PHẢI TOÀN BỘ PHYSICAL GOLD HIỆN TẠI)
 
-Mô hình dữ liệu Gold Layer được thiết kế theo cấu trúc Ngôi sao (Kimball Star Schema) với Bus Matrix rõ ràng, phục vụ tối ưu cho công cụ truy vấn phân tán Trino và trực quan hóa native Apache ECharts.
+Phần này ghi lại mô hình logic mở rộng theo Kimball. Physical baseline đang chạy là bộ 6 dimensions, 5 facts và 4 marts liệt kê ở đầu tài liệu; chỉ các bảng có trong `pipelines/src/lakehouse/oltp/gold_ddl.py` mới được coi là đã triển khai.
 
 ### 4.1. Sơ đồ Quan hệ Thực thể Chiều (Dimensional Bus Matrix & Architecture)
 

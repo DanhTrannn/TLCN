@@ -1,10 +1,10 @@
-"""Pydantic schemas for RBAC analytics, role-based metrics and CDC real-time operational signals."""
+"""Pydantic schemas for RBAC analytics and OLTP-backed operational signals."""
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 # -----------------------------------------------------------------------------
-# CDC Real-time Operational Signal Schemas
+# Operational signal schemas (queried from OLTP, not a binlog CDC stream)
 # -----------------------------------------------------------------------------
 
 class VoucherBurnRateSignal(BaseModel):

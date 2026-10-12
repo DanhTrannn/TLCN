@@ -99,7 +99,7 @@ const ALL_ROLES: TabItem[] = [
     label: "Kỹ thuật & Đối soát",
     badge: "Data Governance",
     icon: "shield",
-    description: "Trạng thái đường ống dữ liệu CDC/ETL, SLA độ trễ Lakehouse và đối soát sai lệch OLTP",
+    description: "Trạng thái batch ETL và streaming access log, SLA độ trễ Lakehouse và đối soát OLTP",
   },
 ];
 
@@ -456,7 +456,7 @@ function ExecutiveDashboard({
         </article>
       </div>
 
-      {/* Tín hiệu Biến động Thời Gian Thực (CDC) */}
+      {/* Tín hiệu tác nghiệp đọc từ OLTP */}
       {(metrics.margin_erosion || metrics.cash_in_transit) && (
         <section className="space-y-4 rounded-3xl border border-rose-500/20 bg-rose-500/5 p-6 dark:bg-rose-950/20">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -466,7 +466,7 @@ function ExecutiveDashboard({
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500"></span>
               </span>
               <h3 className="text-base font-bold text-ink sm:text-lg">
-                Tín hiệu Biến động Thời Gian Thực (CDC Signals)
+                Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
             <span className="w-fit rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">
@@ -796,7 +796,7 @@ function SalesDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Tín hiệu Biến động Thời Gian Thực (CDC) */}
+      {/* Tín hiệu tác nghiệp đọc từ OLTP */}
       {((metrics.viral_products && metrics.viral_products.length > 0) || metrics.channel_pace) && (
         <section className="space-y-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 dark:bg-amber-950/20">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -806,7 +806,7 @@ function SalesDashboard({
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
               </span>
               <h3 className="text-base font-bold text-ink sm:text-lg">
-                Tín hiệu Biến động Thời Gian Thực (CDC Signals)
+                Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
             <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1127,7 +1127,7 @@ function StoreDashboard({
         )}
       </div>
 
-      {/* Tín hiệu Biến động Thời Gian Thực (CDC) */}
+      {/* Tín hiệu tác nghiệp đọc từ OLTP */}
       {((metrics.store_stockouts && metrics.store_stockouts.length > 0) || metrics.run_rate) && (
         <section className="space-y-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 dark:bg-amber-950/20">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1137,7 +1137,7 @@ function StoreDashboard({
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
               </span>
               <h3 className="text-base font-bold text-ink sm:text-lg">
-                Tín hiệu Biến động Thời Gian Thực (CDC Signals)
+                Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
             <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1393,7 +1393,7 @@ function InventoryDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Tín hiệu Biến động Thời Gian Thực (CDC) */}
+      {/* Tín hiệu tác nghiệp đọc từ OLTP */}
       {((metrics.depletion_velocity && metrics.depletion_velocity.length > 0) ||
         (metrics.critical_stockout_alerts && metrics.critical_stockout_alerts.length > 0)) && (
         <section className="space-y-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 dark:bg-amber-950/20">
@@ -1404,7 +1404,7 @@ function InventoryDashboard({
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
               </span>
               <h3 className="text-base font-bold text-ink sm:text-lg">
-                Tín hiệu Biến động Thời Gian Thực (CDC Signals)
+                Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
             <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1612,7 +1612,7 @@ function OperationsDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Tín hiệu Biến động Thời Gian Thực (CDC) */}
+      {/* Tín hiệu tác nghiệp đọc từ OLTP */}
       {((metrics.regional_boom_rates && metrics.regional_boom_rates.length > 0) ||
         metrics.fulfillment_bottleneck) && (
         <section className="space-y-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 dark:bg-amber-950/20">
@@ -1623,7 +1623,7 @@ function OperationsDashboard({
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
               </span>
               <h3 className="text-base font-bold text-ink sm:text-lg">
-                Tín hiệu Biến động Thời Gian Thực (CDC Signals)
+                Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
             <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1877,7 +1877,7 @@ function MarketingDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Tín hiệu Biến động Thời Gian Thực (CDC) */}
+      {/* Tín hiệu tác nghiệp đọc từ OLTP */}
       {(metrics.voucher_burn_rate ||
         (metrics.negative_review_spikes && metrics.negative_review_spikes.length > 0)) && (
         <section className="space-y-4 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6 dark:bg-amber-950/20">
@@ -1888,7 +1888,7 @@ function MarketingDashboard({
                 <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
               </span>
               <h3 className="text-base font-bold text-ink sm:text-lg">
-                Tín hiệu Biến động Thời Gian Thực (CDC Signals)
+                Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
             <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -2128,13 +2128,13 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Trạng thái đường ống dữ liệu CDC</p>
+            <p className="text-xs text-muted">Trạng thái Batch ETL / Access-log Stream</p>
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="mt-3 text-xl font-bold capitalize text-emerald-700 dark:text-emerald-400">
             {metrics.pipeline_status === "healthy" ? "Hoạt động ổn định (Healthy)" : metrics.pipeline_status}
           </p>
-          <p className="mt-2 text-xs text-muted">Đồng bộ liên tục từ MySQL sang Lakehouse</p>
+          <p className="mt-2 text-xs text-muted">Batch OLTP và streaming access log sang Lakehouse</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
@@ -2483,7 +2483,7 @@ function AnalyticsHubContent() {
             </span>
             <div className="flex-1">
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                Thao tác CDC tức thì thành công
+                Thao tác tác nghiệp thành công
               </p>
               <p className="mt-1 text-xs text-ink">{actionToast}</p>
             </div>

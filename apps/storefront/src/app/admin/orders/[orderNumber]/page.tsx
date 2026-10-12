@@ -30,6 +30,16 @@ import {
 } from "@/lib/commerce";
 import { formatVietnamDateTime } from "@/lib/datetime";
 
+function paymentMethodLabel(method?: string | null): string {
+  const labels: Record<string, string> = {
+    cod: "Thanh toán khi nhận hàng (COD)",
+    vietqr: "Chuyển khoản VietQR",
+    cash: "Tiền mặt tại quầy",
+    card: "Thẻ tại quầy",
+  };
+  return labels[method ?? ""] ?? "Không xác định";
+}
+
 export default function AdminOrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
   const [order, setOrder] = useState<CommerceOrderDetail | null>(null);
@@ -258,7 +268,7 @@ export default function AdminOrderDetailPage() {
                 type="button"
               >
                 <Icon name="alert" size={16} />
-                Báo Boom hàng
+                Ghi nhận giao thất bại
               </button>
               <button
                 className="button-primary px-4"
@@ -427,8 +437,8 @@ export default function AdminOrderDetailPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted">Số lần giao hàng</p>
-                  <p className="font-medium">{shipment.attempt_count} lần</p>
+                  <p className="text-xs text-muted">Lần giao hiện tại</p>
+                  <p className="font-medium">Lần {shipment.attempt_count}/3</p>
                 </div>
                 {shipment.dispatched_at ? (
                   <div>
@@ -506,9 +516,7 @@ export default function AdminOrderDetailPage() {
               {order.payment_method ? (
                 <p className="mt-1 text-xs text-muted">
                   Hình thức:{" "}
-                  {order.payment_method === "cod"
-                    ? "Thanh toán khi nhận hàng (COD)"
-                    : "Chuyển khoản VietQR"}
+                  {paymentMethodLabel(order.payment_method)}
                 </p>
               ) : null}
               {order.refund ? (
@@ -705,10 +713,10 @@ export default function AdminOrderDetailPage() {
       {/* Boom / Failed Delivery Modal */}
       <AdminModal
         busy={busy}
-        description={`Ghi nhận giao thất bại cho đơn ${order.order_number}. Hệ thống sẽ cập nhật trạng thái đơn sang "Giao thất bại" và tăng bộ đếm boom nếu thanh toán COD.`}
+        description={`Ghi nhận một lần giao thất bại cho đơn ${order.order_number}. Chỉ lần thứ ba mới chốt "Giao thất bại", hoàn kho và tăng bộ đếm boom.`}
         onClose={() => setIsBoomOpen(false)}
         open={isBoomOpen}
-        title={`Báo Boom hàng: ${order.order_number}`}
+        title={`Ghi nhận giao thất bại: ${order.order_number}`}
       >
         <label className="field-label" htmlFor="admin-detail-boom-reason">
           Lý do giao hàng thất bại <span className="text-danger">*</span>
@@ -738,7 +746,7 @@ export default function AdminOrderDetailPage() {
             type="button"
           >
             <Icon name="alert" size={16} />
-            {busy ? "Đang cập nhật…" : "Xác nhận Boom hàng"}
+            {busy ? "Đang cập nhật…" : "Xác nhận lần giao thất bại"}
           </button>
         </div>
       </AdminModal>

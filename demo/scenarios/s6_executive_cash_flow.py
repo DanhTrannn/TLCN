@@ -1,4 +1,4 @@
-"""Kịch bản CDC 6: Executive / CEO - Dòng tiền COD trôi nổi & Xói mòn biên lợi nhuận.
+"""Kịch bản tác nghiệp 6: Executive - Dòng tiền COD và biên lợi nhuận.
 
 Mô phỏng:
 1. Dòng tiền mặt thu hộ COD đang trôi nổi trên các chuyến xe giao hàng tăng vọt (Cash-in-Transit Tracking).
@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 def run() -> None:
     print_banner(
-        title="KỊCH BẢN CDC 6: EXECUTIVE - DÒNG TIỀN COD & XÓI MÒN LỢI NHUẬN",
+        title="KỊCH BẢN 6: EXECUTIVE - DÒNG TIỀN COD & XÓI MÒN LỢI NHUẬN",
         role="Ban Giám Đốc / CEO (admin@fashion.local)",
         url="http://localhost:3000/admin/analytics?role=executive",
     )

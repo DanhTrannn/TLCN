@@ -6,13 +6,13 @@
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Node.js](https://img.shields.io/badge/Node.js->=22-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 [![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://mysql.com)
-[![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-3.7-231F20?style=flat-square&logo=apachekafka&logoColor=white)](https://kafka.apache.org)
+[![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-3.8-231F20?style=flat-square&logo=apachekafka&logoColor=white)](https://kafka.apache.org)
 [![Apache Flink](https://img.shields.io/badge/Apache_Flink-1.19-E6526F?style=flat-square&logo=apacheflink&logoColor=white)](https://flink.apache.org)
 [![Apache Spark](https://img.shields.io/badge/Apache_Spark-3.5.9-E25A1C?style=flat-square&logo=apachespark&logoColor=white)](https://spark.apache.org)
 [![Apache Iceberg](https://img.shields.io/badge/Apache_Iceberg-1.10.1-blue?style=flat-square&logo=apache&logoColor=white)](https://iceberg.apache.org)
 [![Apache Polaris](https://img.shields.io/badge/Apache_Polaris-1.6.0-teal?style=flat-square&logo=apache&logoColor=white)](https://polaris.apache.org)
 [![Trino](https://img.shields.io/badge/Trino-483-DD00A1?style=flat-square&logo=trino&logoColor=white)](https://trino.io)
-[![Apache ECharts](https://img.shields.io/badge/Apache_ECharts-5.5-AA344D?style=flat-square&logo=apacheecharts&logoColor=white)](https://echarts.apache.org)
+[![Apache ECharts](https://img.shields.io/badge/Apache_ECharts-6.1-AA344D?style=flat-square&logo=apacheecharts&logoColor=white)](https://echarts.apache.org)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 
 :star: If you find this project useful, consider giving it a star!
@@ -28,7 +28,7 @@ The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse mon
 
 ## Overview
 
-Building an analytical environment for an operational e-commerce database can place a high load on production systems. This platform provides a robust data lakehouse pattern to offload analytical queries, track historical access patterns, and train machine learning models without impacting operational performance.
+Building an analytical environment for an operational e-commerce database can place a high load on production systems. This platform provides a robust data lakehouse pattern to offload historical analytical queries and track access patterns without impacting operational processing. Machine learning is intentionally reserved for a later phase.
 
 The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 27 relational business tables (26 analytical tables), a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
 
@@ -41,7 +41,7 @@ The repository includes everything needed to run the data platform locally, incl
 - **Hybrid Streaming & Batch Processing:** Real-time event streaming via Apache Kafka and Apache Flink alongside scheduled Apache Spark Medallion batch ETL.
 - **Operational Analytics:** Query historical order, product, inventory, and customer metrics without placing analytical load on the production MySQL database.
 - **Access Log Analysis:** Inspect traffic patterns, latency distributions, error rates, and search keywords aggregated into hourly and daily summary tables.
-- **Repurchase Modeling:** Generate point-in-time training features and 30-day repurchase labels from validated Gold transaction snapshots.
+- **ML Roadmap (not implemented):** Point-in-time repurchase features, training, and scoring are deferred to a later phase.
 - **Deterministic Data Generator:** Generate 12 months of realistic Vietnamese e-commerce transactions and matching 30-day access logs using calibrated market distributions.
 - **Idempotent Ingestion:** Multi-threaded Spark extractor with composite cursor tracking `(cursor_field, pk)` and cryptographic manifest validation.
 - **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions with store inventory deduction.
@@ -180,10 +180,10 @@ The system processes data from two operational pipelines: transactional business
 | Layer | Component | Version | Responsibility |
 |---|---|---|---|
 | **Presentation** | Next.js / React | 15.5 / 19.1 | Customer storefront, POS, and 7-Role BI Hub |
-| **Visual Analytics** | Apache ECharts | 5.5 | Interactive role-based charts and Trino live telemetry |
-| **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic (27 tables, 15 modules) |
+| **Visual Analytics** | Apache ECharts | 6.1 | Interactive role-based charts and Trino live telemetry |
+| **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic (27 tables, 16 modules) |
 | **Operational DB** | MySQL | 8.4 LTS | Primary relational database (27 tables, 26 analytical) |
-| **Event Streaming** | Apache Kafka | 3.7 | Distributed event streaming backbone |
+| **Event Streaming** | Apache Kafka | 3.8 | Distributed access-log streaming backbone |
 | **Stream Processing** | Apache Flink | 1.19 | Real-time event consumption and Iceberg streaming ingest |
 | **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`lakehouse` bucket) |
 | **Table Catalog** | Apache Polaris | 1.6.0 | REST catalog managing Iceberg namespaces and RBAC |
@@ -243,11 +243,11 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ---
 
-### Real-Time CDC Operational Signals & Instant Action Controls
+### Real-Time Operational Signals & Instant Action Controls
 
-While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts across days and months, operational managers need **sub-minute Change Data Capture (CDC)** alerts to stop revenue loss and stockouts during high-velocity campaigns (e.g., Flash Sales). The BI Hub integrates real-time transactional signals directly from MySQL 8.4 OLTP and stream events with instant operational actions:
+While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts, operational managers also need fresh intra-day indicators. The current BI Hub obtains these operational signals through FastAPI queries against MySQL OLTP; Kafka and Flink are used for structured access logs. The repository does **not** deploy MySQL binlog/Debezium CDC.
 
-| Role | CDC Real-Time Signal | Threshold / Detection Logic | Instant Action Control |
+| Role | Operational Signal | Threshold / Detection Logic | Instant Action Control |
 |---|---|---|---|
 | **Executive (CEO)** | **Margin Erosion Alert** | Intra-day gross margin drops < 20% due to aggressive coupon stacking | *"Hạ mức chiết khấu tối nay"* (Throttles voucher discounts) |
 | | **Floating Cash in Transit** | Sum of unpaid COD orders held by couriers (GHN/GHTK) | *"Lên lịch đối soát 17h00"* (Triggers courier reconciliation) |
@@ -266,31 +266,22 @@ While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts a
 
 ## Testing and Verification
 
-Run the full test suite across all Python workspace packages and the frontend (411 Python tests total across workspace):
-
-| Package / Suite | Tests Count | Local (Host without Java) | CI Environment (with Java 17) |
-|---|---|---|---|
-| **ecommerce-api** | 221 | 220 passed, 1 skipped | 220 passed, 1 skipped |
-| **data-generator** | 55 | 55 passed | 55 passed |
-| **pipelines** | 135 | 98 passed, 37 skipped* | 135 passed |
-| **Total Python** | **411** | **373 passed, 38 skipped** | **410 passed, 1 skipped** |
-
-*\*Note: 37 Spark unit tests in `pipelines/tests/` require a Java JDK runtime. When running on local host without JDK, tests gracefully skip; in Docker containers or GitHub Actions CI (with `setup-java@v4`), all Spark tests execute and pass.*
+Run each suite in its declared environment. Test counts are intentionally not hard-coded because collection changes with features and optional Spark dependencies.
 
 ```bash
-# Backend API tests (220 passed: auth, cart, checkout, pos, inbound, analytics RBAC, CDC signals, logistics, returns, kafka DLQ)
+# Backend API tests
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 
 # Data Generator tests (55 passed: distributions, synthetic seed, export validation)
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 
-# Batch Pipeline tests (98 passed locally, 135 in CI: Bronze, Silver, Gold Marts, reconciliation gate & Financial parity)
+# Batch Pipeline tests (Java/PySpark required for Spark cases)
 uv run pytest pipelines/tests
 
 # Run all Python tests in workspace
 PYTHONPATH=pipelines/src:generator/src:services/ecommerce-api uv run pytest
 
-# Frontend type check and production build (27 static & dynamic routes)
+# Frontend type check and production build
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build
 
@@ -312,7 +303,7 @@ Explore the detailed architecture and planning documents:
 | **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
 | **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
 | **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and analytical reporting |
-| **CDC Dashboard Spec** | [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Change Data Capture (CDC) requirements, mutability classification & field mapping for 7-Role Dashboards |
+| **Operational Signals Spec** | [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Current OLTP signal queries, action controls, and future CDC boundary |
 | **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Kafka + Flink streaming pipeline, S3 layout |
 | **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
 | **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |

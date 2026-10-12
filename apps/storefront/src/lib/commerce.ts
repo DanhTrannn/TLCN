@@ -326,16 +326,6 @@ export function failDeliveryAdminOrder(orderNumber: string, reason: string) {
   );
 }
 
-export function completeAdminOrder(orderNumber: string) {
-  return apiFetch<OrderTransition>(
-    `/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/complete`,
-    {
-      method: "POST",
-      headers: mutationHeaders(crypto.randomUUID()),
-    }
-  );
-}
-
 export function getDeliveryStaffList() {
   return apiFetch<DeliveryStaff[]>("/api/v1/admin/delivery-staff");
 }
@@ -790,7 +780,7 @@ export interface AdminOverview {
   return_orders_count?: number;
 }
 
-// --- CDC Real-Time Operational Signals ---
+// --- Operational signals queried from OLTP through FastAPI ---
 export interface VoucherBurnRateSignal {
   coupon_code: string;
   used_count: number;

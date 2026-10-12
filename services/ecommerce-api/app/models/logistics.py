@@ -63,6 +63,9 @@ class Shipment(Base):
     delivered_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
     failed_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    failed_attempt_1_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failed_attempt_2_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failed_attempt_3_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DATETIME(fsp=6), nullable=False, server_default=text("CURRENT_TIMESTAMP(6)")
@@ -81,8 +84,12 @@ class Shipment(Base):
             "status in ('assigned','picked_up','in_transit','delivered','failed','returned_to_warehouse')",
             name="ck_shipments_status",
         ),
+        CheckConstraint("attempt_count between 1 and 3", name="attempt_count"),
         Index("uq_shipments_public_id", "public_id", unique=True),
         Index("uq_shipments_code", "shipment_code", unique=True),
+        Index("uq_shipments_failed_attempt_1_key", "failed_attempt_1_key", unique=True),
+        Index("uq_shipments_failed_attempt_2_key", "failed_attempt_2_key", unique=True),
+        Index("uq_shipments_failed_attempt_3_key", "failed_attempt_3_key", unique=True),
         Index("ix_shipments_order_id", "order_id"),
         Index("ix_shipments_delivery_staff_id", "delivery_staff_id"),
         Index("ix_shipments_status", "status"),

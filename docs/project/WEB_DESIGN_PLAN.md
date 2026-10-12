@@ -9,7 +9,7 @@ The source application serves as the system of record for e-commerce transaction
 ### 1.1. Core Capabilities
 - **Customer:** Account registration, login, profile management, catalog browsing, faceted filtering, search, multi-item wishlist, and active shopping cart.
 - **Checkout:** Atomic checkout flow with structured address (province/ward/street), stock deduction, coupon validation, and simulated payment success.
-- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions, deduct both global and store inventory atomically.
+- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions, and deduct the selected store's inventory atomically with an `outbound_pos` ledger entry.
 - **Admin Operations:** Product catalog management, archive controls, inventory oversight, promotion lifecycle, customer accounts, post-publication review moderation, and POS order management.
 - **Multi-City Inventory:** Store-level inventory tracking, city-based product availability, and store assignment for staff.
 - **Data Engineering Integration:** Strict surrogate PKs, UTC `updated_at` timestamps for composite cursor extraction, and exclusion of authentication credentials from analytical access.
@@ -31,7 +31,7 @@ FastAPI Backend (Port 8000)
 Short Transactions         Real-Time Event Streaming
       /                          \
      ▼                            ▼
-MySQL 8.4 (OLTP)             Apache Kafka (Event Bus)
+MySQL 8.4 (OLTP)             Apache Kafka (Access Logs)
   (27 tables)                     │
      │                            ▼
      │                       Apache Flink (Streaming Ingestion)
@@ -62,22 +62,23 @@ MySQL 8.4 (OLTP)             Apache Kafka (Event Bus)
 ### 3.3. Checkout and Orders
 - Requires authentication and client-generated `Idempotency-Key` headers.
 - Re-validates catalog pricing, coupon criteria, and inventory availability at checkout time.
-- Valid checkouts atomically create a `paid` order, decrement inventory, insert payment (`succeeded`), and record order status history.
+- VietQR checkouts atomically create a `paid` order and succeeded payment; COD checkouts create a `confirmed` order with payment pending until the customer confirms receipt.
 - Checkout address uses structured fields: province (34 provinces post-1/7/2025 merger), ward, and street.
-- Online orders are allocated to a single store in customer's city if all items available; otherwise fallback to global inventory.
+- Online orders deduct central `inventory`; branch stock is managed separately for POS and transfers.
 - Order State Machine:
   ```text
-  paid ──(admin confirm)──▶ confirmed ──(admin complete)──▶ completed
+  paid ──(admin confirm)──▶ confirmed ──(dispatch)──▶ shipping ──(deliver)──▶ delivered
+  delivered ──(customer confirms receipt)──▶ completed
   paid ──(cancel)─────────▶ cancelled (restores stock, full refund, releases coupon)
   ```
 
 ### 3.4. POS (Point of Sale)
-- Staff sell at store counter using dedicated POS page (`/admin/pos`).
+- Staff sell at store counter using page `/store/pos` and API `POST /api/v1/pos/transactions`.
 - Search products by SKU prefix or product name, showing up to 8 results with store stock.
 - Create completed transactions immediately (no confirmation flow).
-- Deducts both `inventory` (global) and `store_inventory` (per-store) atomically.
+- Deducts `store_inventory` only; central stock changes through explicit transfer/inbound flows.
 - Order marked with `channel='pos'`, `store_id`, and `staff_id`.
-- POS orders bypass coupon, shipping fee, and idempotency key.
+- POS orders bypass coupons and shipping fees; the service generates an internal idempotency key for persistence.
 
 ### 3.4. Product Reviews
 - Customers can review items from `completed` orders only (verified purchase).

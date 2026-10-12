@@ -33,13 +33,13 @@ This directory contains the architecture specifications, data schemas, operation
 | MinIO (S3 storage) | Done | `lakehouse` bucket, Landing + Warehouse paths |
 | Polaris (Iceberg REST catalog) | Done | RBAC: `spark_writer`, `trino_reader`, `trino_admin` |
 | Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
-| Apache Kafka | Done | Distributed event bus for streaming logs and domain events |
+| Apache Kafka | Done | Distributed event bus for structured access logs |
 | Apache Flink | Done | 1.19 Streaming engine ingesting Kafka events into Iceberg |
 | Trino (query engine) | Done | v483, distributed queries via Polaris and direct telemetry for BI Hub |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
 | MySQL (OLTP source) | Done | 27 tables, synthetic data via generator & demo scenarios seed |
 | LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
-| E-Commerce API + Storefront | Done | FastAPI (200 tests) + Next.js (27 routes) |
+| E-Commerce API + Storefront | Done | FastAPI + Next.js (32 page routes at this revision) |
 
 ### Lakehouse Pipelines
 

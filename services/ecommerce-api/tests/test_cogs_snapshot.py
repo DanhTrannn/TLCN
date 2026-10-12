@@ -7,8 +7,9 @@ from app.models.cart import Cart, CartItem
 from app.models.catalog import Category, Product, ProductVariant
 from app.models.customer import Customer
 from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
 from app.models.multicity import City, Store, StoreInventory
-from app.models.order import Order, OrderItem
+from app.models.order import Order, OrderItem, OrderStatusHistory
 from app.modules.checkout.schemas import CheckoutRequest
 from app.modules.checkout.service import checkout
 from app.modules.pos.schemas import POSTItemRequest, POSTransactionRequest
@@ -218,6 +219,39 @@ def test_pos_checkout_snapshots_cost_price_vnd(test_db):
     assert items[1].unit_price_vnd == 250000
     assert items[1].quantity == 1
     assert items[1].line_total_vnd == 250000
+
+    # POS metadata and stock ledger must be persisted, not only returned by the API.
+    product = test_db.execute(select(Product).where(Product.product_id == 1)).scalar_one()
+    assert order.payment_method == "cash"
+    assert items[0].product_public_id_snapshot == product.public_id
+    assert items[0].category_code_snapshot == "AO-NAM"
+    assert items[0].category_name_snapshot == "Áo Nam"
+
+    transactions = (
+        test_db.execute(
+            select(InventoryTransaction)
+            .where(InventoryTransaction.reference_code == order.order_number)
+            .order_by(InventoryTransaction.variant_id)
+        )
+        .scalars()
+        .all()
+    )
+    assert [(tx.variant_id, tx.quantity_delta) for tx in transactions] == [(1, -3), (2, -1)]
+    assert all(tx.location_type == "store" for tx in transactions)
+    assert all(tx.movement_type == "outbound_pos" for tx in transactions)
+
+    central_inventory = test_db.execute(select(Inventory).where(Inventory.variant_id == 1)).scalar_one()
+    store_inventory = test_db.execute(
+        select(StoreInventory).where(StoreInventory.store_id == 1, StoreInventory.variant_id == 1)
+    ).scalar_one()
+    assert central_inventory.on_hand == 100
+    assert store_inventory.on_hand == 47
+
+    initial_history = test_db.execute(
+        select(OrderStatusHistory).where(OrderStatusHistory.order_id == order.order_id)
+    ).scalar_one()
+    assert initial_history.from_status is None
+    assert initial_history.to_status == "completed"
 
 
 def test_cost_price_mutation_does_not_alter_existing_order_items(test_db):

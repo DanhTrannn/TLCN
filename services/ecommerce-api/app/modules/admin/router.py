@@ -51,7 +51,6 @@ from app.modules.orders.schemas import (
 )
 from app.modules.orders.service import (
     cancel_order,
-    complete_admin_order,
     confirm_order,
     deliver_order,
     dispatch_order,
@@ -238,24 +237,6 @@ def fail_delivery_admin_order(
     )
     db.commit()
     return res
-
-
-@router.post("/orders/{order_number}/complete", response_model=OrderTransitionResponse)
-def complete_admin_order_route(
-    order_number: str,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    _: Customer = Depends(get_current_admin),
-    __: None = Depends(verify_csrf),
-    db: Session = Depends(get_db),
-) -> OrderTransitionResponse:
-    res = complete_admin_order(
-        db=db,
-        order_number=order_number,
-        idempotency_key=idempotency_key,
-    )
-    db.commit()
-    return res
-
 
 
 @router.get("/customers", response_model=list[AdminCustomerResponse])

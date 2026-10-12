@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 from app.core.errors import OUT_OF_STOCK, RESOURCE_NOT_FOUND, AppError
 from app.core.ids import new_order_number, new_payment_reference, uuid7
 from app.db.uow import run_in_transaction
-from app.models.catalog import Product, ProductVariant
+from app.models.catalog import Category, Product, ProductVariant
 from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
 from app.models.multicity import Store, StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment
 from app.modules.pos.schemas import POSTransactionRequest
@@ -73,18 +74,24 @@ def create_pos_transaction(
 
         for item in request.items:
             # Check variant exists
-            variant = db.execute(
-                select(ProductVariant).where(
+            catalog_row = db.execute(
+                select(ProductVariant, Product, Category)
+                .join(Product, Product.product_id == ProductVariant.product_id)
+                .join(Category, Category.category_id == Product.category_id)
+                .where(
                     ProductVariant.variant_id == item.variant_id,
                     ProductVariant.is_active == True,  # noqa: E712
+                    Product.is_active == True,  # noqa: E712
+                    Category.is_active == True,  # noqa: E712
                 )
-            ).scalar_one_or_none()
-            if not variant:
+            ).one_or_none()
+            if not catalog_row:
                 raise AppError(
                     OUT_OF_STOCK,
                     f"Variant {item.variant_id} không tồn tại",
                     status_code=409,
                 )
+            variant, product, category = catalog_row
 
             # Check store inventory
             store_inv = db.execute(
@@ -106,7 +113,7 @@ def create_pos_transaction(
 
             order_items.append({
                 "variant_id": variant.variant_id,
-                "product_name": variant.product.name if hasattr(variant, "product") and variant.product else "",
+                "product_name": product.name,
                 "sku": variant.sku,
                 "size_code": variant.size_code,
                 "color_code": variant.color_code,
@@ -114,7 +121,9 @@ def create_pos_transaction(
                 "cost_price_vnd": variant.cost_price_vnd if hasattr(variant, "cost_price_vnd") and variant.cost_price_vnd else 0,
                 "quantity": item.quantity,
                 "line_total_vnd": line_total,
-                "product_public_id": str(variant.product.public_id) if hasattr(variant, "product") and variant.product else "",
+                "product_public_id": product.public_id,
+                "category_code": category.code,
+                "category_name": category.name,
             })
 
             # Deduct store inventory
@@ -122,6 +131,19 @@ def create_pos_transaction(
             store_inv.version += 1
             store_inv.updated_at = now
 
+            db.add(
+                InventoryTransaction(
+                    public_id=uuid7(),
+                    variant_id=variant.variant_id,
+                    location_type="store",
+                    store_id=request.store_id,
+                    movement_type="outbound_pos",
+                    quantity_delta=-item.quantity,
+                    reference_code=order_number,
+                    notes=f"Bán tại quầy {store.code}",
+                    created_at=now,
+                )
+            )
 
         total = subtotal  # POS: no shipping fee
 
@@ -134,6 +156,7 @@ def create_pos_transaction(
             staff_id=staff_id,
             checkout_idempotency_key=f"pos:{order_number}",
             status="completed",
+            payment_method=request.payment_method,
             currency_code="VND",
             subtotal_vnd=subtotal,
             discount_amount_vnd=0,
@@ -156,9 +179,9 @@ def create_pos_transaction(
                 public_id=uuid7(),
                 order_id=order.order_id,
                 variant_id=item_data["variant_id"],
-                product_public_id_snapshot=uuid7(),
-                category_code_snapshot="",
-                category_name_snapshot="",
+                product_public_id_snapshot=item_data["product_public_id"],
+                category_code_snapshot=item_data["category_code"],
+                category_name_snapshot=item_data["category_name"],
                 product_name_snapshot=item_data["product_name"],
                 sku_snapshot=item_data["sku"],
                 size_code_snapshot=item_data["size_code"],

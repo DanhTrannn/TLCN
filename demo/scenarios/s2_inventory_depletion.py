@@ -1,4 +1,4 @@
-"""Kịch bản CDC 2: Inventory Manager - Tốc độ rút kho khẩn cấp & Cảnh báo Cháy hàng.
+"""Kịch bản tác nghiệp 2: Inventory - Tốc độ rút kho và cảnh báo cháy hàng.
 
 Mô phỏng:
 1. Tồn kho một biến thể bán chạy bị rút cực nhanh, thời gian tồn còn dưới 5 phút (Depletion Velocity - Critical Alert).
@@ -20,7 +20,7 @@ from sqlalchemy import select
 
 def run() -> None:
     print_banner(
-        title="KỊCH BẢN CDC 2: INVENTORY - TỐC ĐỘ RÚT KHO & CHÁY HÀNG",
+        title="KỊCH BẢN 2: INVENTORY - TỐC ĐỘ RÚT KHO & CHÁY HÀNG",
         role="Inventory Manager (inventory@fashion.local)",
         url="http://localhost:3000/admin/analytics?role=inventory",
     )

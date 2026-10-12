@@ -204,27 +204,26 @@ Tại thị trường Việt Nam, **Thanh toán tiền mặt khi nhận hàng (C
 
 ---
 
-## 3. Nghiệp vụ Đổi / Trả hàng Sau khi Mua (Chính sách 7 Ngày)
+## 3. Nghiệp vụ Trả hàng / Hoàn tiền Sau khi Mua (Chính sách 7 Ngày)
 
-### 3.1. Chính sách Đổi trả D&K
+### 3.1. Chính sách hiện hành
 - **Thời hạn**: 7 ngày kể từ ngày giao hàng thành công (`delivered_at`).
 - **Điều kiện**: Sản phẩm chưa qua giặt ủi, còn nguyên tem mác thương hiệu.
-- **Hình thức**: Đổi size/màu khác (khách chịu phí vận chuyển chiều về) hoặc trả hàng hoàn tiền.
+- **Hình thức đã triển khai**: Trả hàng và hoàn tiền. Đổi size/màu được giữ trong schema như khả năng mở rộng, chưa có API/UI xử lý.
 
 ### 3.2. Dòng chảy Nghiệp vụ
 - Khách gửi yêu cầu qua hệ thống (chọn đơn hàng → chọn sản phẩm → nêu lý do + upload ảnh).
 - Quản trị viên duyệt và hướng dẫn khách gửi hàng về kho trung tâm.
 - Nhân viên kho kiểm định hàng:
   - Đạt chuẩn + trả hàng → `status='returned'` trong `return_requests`; nhập lại vào `inventory_transactions`; `net_revenue = 0`.
-  - Đạt chuẩn + đổi size → xuất hàng mới, tạo `return_items` với lý do `exchanged`.
   - Không đạt chuẩn → từ chối, ghi nhận `status='rejected'`.
-- Dữ liệu đổi trả được lưu trong bảng `return_requests` và `return_items`.
+- Dữ liệu trả hàng được lưu trong `return_requests` và `return_items`; luồng hiện tại luôn tạo `action_type='refund'`.
 
 ### 3.3. Ý nghĩa Phân tích Dữ liệu
 - **Tỷ lệ hàng bị trả theo từng mẫu mã và size**: Phát hiện lỗi bảng thông số size.
 - **Doanh thu thuần thực tế**:
   $$\text{Net Revenue} = \text{Gross Revenue} - \text{Discount} - \text{Boom Orders} - \text{Returned Orders}$$
-- Gold mart `mart_product_returns` tổng hợp số liệu đổi trả theo sản phẩm và lý do.
+- Gold mart `mart_product_returns` tổng hợp số liệu trả hàng theo sản phẩm và lý do.
 
 ---
 
@@ -290,7 +289,7 @@ paid ──(hủy sớm)──→ cancelled
 | Chọn hình thức thanh toán (VietQR / COD) | Thực hiện | - | - | - | - |
 | Hủy đơn hàng sớm khi chưa được duyệt | Thực hiện | - | - | Giám sát | - |
 | Gửi đánh giá, chấm điểm sau khi nhận đồ | Thực hiện | - | - | Hậu kiểm ẩn/hiện | - |
-| Gửi yêu cầu đổi size hoặc trả hàng trong 7 ngày | Thực hiện | - | - | Tiếp nhận & Duyệt | - |
+| Gửi yêu cầu trả hàng/hoàn tiền trong 7 ngày | Thực hiện | - | - | Tiếp nhận & Duyệt | - |
 | Bán hàng và in hóa đơn trực tiếp tại quầy | - | Thực hiện | Giám sát | - | - |
 | Kiểm kê hàng trên kệ và nhân sự tại cửa hàng | - | Báo cáo | Thực hiện | Giám sát | - |
 | Duyệt đơn hàng online và in phiếu đóng gói | - | - | - | Thực hiện | - |

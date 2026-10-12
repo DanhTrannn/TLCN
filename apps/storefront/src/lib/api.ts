@@ -628,7 +628,6 @@ export {
   dispatchAdminOrder,
   deliverAdminOrder,
   failDeliveryAdminOrder,
-  completeAdminOrder,
   createCustomerReturnRequest,
   getCustomerReturnsList,
   getCustomerReturnDetail,

@@ -66,7 +66,10 @@ class Order(Base):
             "status in ('pending_payment','paid','payment_failed','confirmed','shipping','delivered','completed','cancelled','failed_delivery','returned')",
             name="status",
         ),
-        CheckConstraint("payment_method in ('vietqr','cod')", name="payment_method"),
+        CheckConstraint(
+            "payment_method in ('vietqr','cod','cash','card')",
+            name="payment_method",
+        ),
         CheckConstraint("currency_code = 'VND'", name="currency_code"),
         CheckConstraint("subtotal_vnd >= 0", name="subtotal_non_negative"),
         CheckConstraint("discount_amount_vnd <= subtotal_vnd", name="discount_within_subtotal"),
@@ -243,10 +246,11 @@ class OrderStatusHistory(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "(from_status is null and to_status in ('paid','payment_failed','confirmed')) "
+            "(from_status is null and to_status in ('pending_payment','paid','payment_failed','confirmed','completed')) "
+            "or (from_status = 'pending_payment' and to_status in ('paid','payment_failed','cancelled')) "
             "or (from_status = 'paid' and to_status in ('confirmed','cancelled')) "
             "or (from_status = 'paid' and to_status = 'shipping') "
-            "or (from_status = 'confirmed' and to_status in ('completed','cancelled','shipping')) "
+            "or (from_status = 'confirmed' and to_status in ('completed','cancelled','shipping','failed_delivery')) "
             "or (from_status = 'shipping' and to_status in ('delivered','failed_delivery','returned')) "
             "or (from_status = 'delivered' and to_status in ('completed','returned')) "
             "or (from_status = 'completed' and to_status = 'returned')",

@@ -1,1 +1,1 @@
-"""CDC Demo Scenarios Package."""
+"""Operational-signal demo scenarios package."""
