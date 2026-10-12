@@ -17,8 +17,8 @@ class Order(Base):
     cart_id: Mapped[int | None] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("carts.cart_id", ondelete="RESTRICT"), nullable=True
     )
-    customer_id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True), ForeignKey("customers.customer_id", ondelete="RESTRICT"), nullable=False
+    customer_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("customers.customer_id", ondelete="RESTRICT"), nullable=True
     )
     checkout_idempotency_key: Mapped[str] = mapped_column(String(64), nullable=False)
     coupon_id: Mapped[int | None] = mapped_column(
@@ -90,6 +90,19 @@ class Order(Base):
             "(coupon_type_snapshot = 'percentage' and coupon_value_snapshot between 1 and 100) or "
             "(coupon_type_snapshot = 'fixed_amount' and coupon_value_snapshot > 0)",
             name="coupon_snapshot_value",
+        ),
+        CheckConstraint(
+            "(channel != 'pos') or (store_id is not null and staff_id is not null)",
+            name="pos_channel",
+        ),
+        CheckConstraint(
+            "((channel = 'pos' and payment_method in ('cash','card','vietqr')) or "
+            "(channel = 'online' and payment_method in ('vietqr','cod')))",
+            name="channel_payment",
+        ),
+        CheckConstraint(
+            "not (payment_method = 'cod' and status in ('pending_payment', 'confirmed', 'shipping') and paid_at is not null)",
+            name="cod_pending_no_paid_at",
         ),
         CheckConstraint("data_origin in ('manual','synthetic')", name="data_origin"),
         Index("uq_orders_order_number", "order_number", unique=True),

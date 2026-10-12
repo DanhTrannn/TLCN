@@ -381,7 +381,7 @@ def build_fact_order(
         joined.select(
             F.col("o.order_id"),
             F.col("o.order_number"),
-            F.col("o.customer_id").alias("customer_key"),
+            F.coalesce(F.col("o.customer_id"), F.lit(-1)).alias("customer_key"),
             F.coalesce(F.col("o.store_id"), F.lit(0)).alias("store_key"),
             F.date_format(F.col("o.created_at"), "yyyyMMdd").cast("int").alias("order_date_key"),
             F.to_date(F.col("o.created_at")).alias("order_date"),
@@ -458,7 +458,7 @@ def build_fact_order_item(
             F.col("oi.order_id"),
             F.date_format(F.col("o.created_at"), "yyyyMMdd").cast("int").alias("order_date_key"),
             F.to_date(F.col("o.created_at")).alias("order_date"),
-            F.col("o.customer_id").alias("customer_key"),
+            F.coalesce(F.col("o.customer_id"), F.lit(-1)).alias("customer_key"),
             product_key_col.alias("product_key"),
             F.col("oi.variant_id").alias("variant_key"),
             F.coalesce(F.col("o.store_id"), F.lit(0)).alias("store_key"),

@@ -38,6 +38,7 @@ APPEND_ONLY_TABLES = frozenset({
     "order_status_history",
     "inventory_transactions",
     "inbound_receipt_items",
+    "shipment_attempts",
 })
 
 KNOWN_TABLES = MUTABLE_TABLES | APPEND_ONLY_TABLES

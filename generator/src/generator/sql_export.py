@@ -837,6 +837,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     review_base = block
     staff_base = block
     shipment_base = block
+    shipment_attempt_base = block
     return_base = block
     return_item_base = block
     inv_tx_base = block
@@ -1267,6 +1268,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         history_index = 0
         review_index = 0
         shipment_index = 0
+        shipment_attempt_index = 0
         return_index = 0
         demo_order_target = min(24, order_count)
 
@@ -1280,6 +1282,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         refund_rows: list[Sequence[SqlValue]] = []
         review_rows: list[Sequence[SqlValue]] = []
         shipment_rows: list[Sequence[SqlValue]] = []
+        shipment_attempt_rows: list[Sequence[SqlValue]] = []
         return_request_rows: list[Sequence[SqlValue]] = []
         return_item_rows: list[Sequence[SqlValue]] = []
         order_inv_tx_rows: list[Sequence[SqlValue]] = []
@@ -1364,6 +1367,17 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                     ),
                     shipment_rows,
                 )
+            if shipment_attempt_rows:
+                _write_insert(
+                    stream,
+                    "shipment_attempts",
+                    (
+                        "attempt_id", "public_id", "shipment_id", "attempt_number", "delivery_staff_id",
+                        "status", "failure_reason", "is_buyer_fault", "idempotency_key",
+                        "attempted_at", "created_at", "updated_at",
+                    ),
+                    shipment_attempt_rows,
+                )
             if return_request_rows:
                 _write_insert(
                     stream,
@@ -1406,6 +1420,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             refund_rows.clear()
             review_rows.clear()
             shipment_rows.clear()
+            shipment_attempt_rows.clear()
             return_request_rows.clear()
             return_item_rows.clear()
             order_inv_tx_rows.clear()
@@ -1966,6 +1981,52 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
                             deliv_at or failed_at or disp_at,
                         )
                     )
+
+                    cur_shipment_id = shipment_base + shipment_index
+                    if not is_failed_shipment:
+                        shipment_attempt_index += 1
+                        shipment_attempt_rows.append(
+                            (
+                                shipment_attempt_base + shipment_attempt_index,
+                                _binary_uuid(_entity_uuid(namespace, "shipment_attempt", shipment_attempt_index)),
+                                cur_shipment_id,
+                                1,
+                                staff_id,
+                                "attempted_success",
+                                None,
+                                0,
+                                f"idemp:shp-att:{cur_shipment_id}:1",
+                                deliv_at or disp_at,
+                                disp_at,
+                                deliv_at or disp_at,
+                            )
+                        )
+                    else:
+                        for att_num, reason in (
+                            (1, "Không liên lạc được khách hàng lần 1"),
+                            (2, "Khách hàng hẹn giao lại sau"),
+                            (3, fail_reason or "Khách từ chối nhận hàng (boom hàng)"),
+                        ):
+                            shipment_attempt_index += 1
+                            att_time = disp_at + timedelta(hours=att_num * 6)
+                            if failed_at and att_time > failed_at:
+                                att_time = failed_at
+                            shipment_attempt_rows.append(
+                                (
+                                    shipment_attempt_base + shipment_attempt_index,
+                                    _binary_uuid(_entity_uuid(namespace, "shipment_attempt", shipment_attempt_index)),
+                                    cur_shipment_id,
+                                    att_num,
+                                    staff_id,
+                                    "attempted_failed",
+                                    reason,
+                                    1,
+                                    f"idemp:shp-att:{cur_shipment_id}:{att_num}",
+                                    att_time,
+                                    att_time,
+                                    att_time,
+                                )
+                            )
 
                 if completed and (order_age >= timedelta(days=7)) and ((order_index % 25) == 7) and completed_at is not None:
                     return_index += 1

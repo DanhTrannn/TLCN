@@ -382,6 +382,7 @@ def cdc_session():
         customer_id=1,
         checkout_idempotency_key=f"chk-{uuid.uuid4().hex[:30]}",
         store_id=1,
+        staff_id=1,
         channel="pos",
         status="completed",
         subtotal_vnd=250000,

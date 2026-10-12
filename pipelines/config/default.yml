@@ -143,4 +143,10 @@ tables:
     pk: item_id
     mutability: append_only
     silver_table: silver_inbound_receipt_items
+  - name: shipment_attempts
+    cursor_field: created_at
+    pk: attempt_id
+    mutability: append_only
+    silver_table: silver_shipment_attempts
+
 

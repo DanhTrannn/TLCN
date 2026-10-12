@@ -256,7 +256,7 @@ def checkout(customer_id: int, idempotency_key: str, payload: CheckoutRequest) -
         db.flush()
 
         allocation_items = [{"variant_id": vid, "quantity": quantities[vid]} for vid in variant_ids]
-        deduct_inventory(db, allocation_items)
+        deduct_inventory(db, allocation_items, reference_code=order.order_number)
         order.channel = "online"
         db.flush()
 

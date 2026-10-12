@@ -21,6 +21,7 @@ from app.modules.admin.schemas import (
     AdminProductResponse,
     AdminVariantResponse,
     CreateProductRequest,
+    ReinstateCodResponse,
     UpdateProductRequest,
     UpdateVariantRequest,
 )
@@ -342,8 +343,8 @@ def list_orders(db: Session, status: str | None) -> list[AdminOrderResponse]:
             CustomerCredential.email_normalized,
             func.coalesce(item_count.c.item_count, 0),
         )
-        .join(Customer, Customer.customer_id == Order.customer_id)
-        .join(CustomerCredential, CustomerCredential.customer_id == Customer.customer_id)
+        .outerjoin(Customer, Customer.customer_id == Order.customer_id)
+        .outerjoin(CustomerCredential, CustomerCredential.customer_id == Customer.customer_id)
         .outerjoin(item_count, item_count.c.order_id == Order.order_id)
     )
     if status:
@@ -352,8 +353,8 @@ def list_orders(db: Session, status: str | None) -> list[AdminOrderResponse]:
     return [
         AdminOrderResponse(
             order_number=order.order_number,
-            customer_name=customer_name,
-            customer_email=email,
+            customer_name=customer_name or order.receiver_name or "Khách tại quầy",
+            customer_email=email or "",
             status=order.status,
             total_vnd=order.total_vnd,
             item_count=int(item_count_value),
@@ -372,7 +373,7 @@ def get_admin_order_detail(db: Session, order_number: str) -> OrderDetailRespons
     ).scalar_one_or_none()
     if order is None:
         raise not_found("Không tìm thấy đơn hàng.")
-    return get_order_detail(db, order.customer_id, order_number)
+    return get_order_detail(db, None, order_number)
 
 
 def list_customers(db: Session) -> list[AdminCustomerResponse]:
@@ -389,6 +390,11 @@ def list_customers(db: Session) -> list[AdminCustomerResponse]:
             email=email,
             status=customer.status,
             role=customer.role,
+            is_cod_blocked=customer.is_cod_blocked,
+            boom_count=customer.boom_count,
+            cod_reinstated_at=customer.cod_reinstated_at,
+            cod_reinstated_by=customer.cod_reinstated_by,
+            cod_reinstatement_reason=customer.cod_reinstatement_reason,
             created_at=customer.created_at,
         )
         for customer, email in rows
@@ -413,3 +419,48 @@ def update_customer_status(admin_customer_id: int, public_id: str, status: str) 
         db.flush()
 
     run_in_transaction(_work)
+
+
+def reinstate_customer_cod(
+    admin_customer_id: int,
+    customer_id_or_public_id: int | str,
+    reason: str,
+    probation_failed_count: int = 2,
+) -> ReinstateCodResponse:
+    def _work(db: Session) -> ReinstateCodResponse:
+        now = datetime.now(UTC)
+        query = select(Customer).with_for_update()
+        if isinstance(customer_id_or_public_id, int) or (
+            isinstance(customer_id_or_public_id, str) and customer_id_or_public_id.isdigit()
+        ):
+            query = query.where(Customer.customer_id == int(customer_id_or_public_id))
+        else:
+            try:
+                parsed_uuid = UUID(str(customer_id_or_public_id))
+                query = query.where(Customer.public_id == parsed_uuid)
+            except (ValueError, TypeError):
+                raise not_found("Không tìm thấy khách hàng.")
+
+        customer = db.execute(query).scalar_one_or_none()
+        if customer is None:
+            raise not_found("Không tìm thấy khách hàng.")
+
+        customer.is_cod_blocked = False
+        customer.boom_count = min(customer.boom_count, probation_failed_count)
+        customer.cod_reinstated_at = now
+        customer.cod_reinstated_by = admin_customer_id
+        customer.cod_reinstatement_reason = reason.strip()
+        customer.updated_at = now
+        db.flush()
+
+        return ReinstateCodResponse(
+            customer_id=customer.customer_id,
+            public_id=str(customer.public_id),
+            is_cod_blocked=customer.is_cod_blocked,
+            boom_count=customer.boom_count,
+            cod_reinstated_at=customer.cod_reinstated_at,
+            cod_reinstated_by=customer.cod_reinstated_by,
+            cod_reinstatement_reason=customer.cod_reinstatement_reason,
+        )
+
+    return run_in_transaction(_work)

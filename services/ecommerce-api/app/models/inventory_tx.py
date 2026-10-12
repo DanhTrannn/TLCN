@@ -32,7 +32,7 @@ class InventoryTransaction(Base):
     __table_args__ = (
         CheckConstraint("location_type in ('central_warehouse','store')", name="ck_inv_tx_location_type"),
         CheckConstraint(
-            "movement_type in ('inbound','outbound_order','outbound_pos','transfer_to_store','transfer_received','return_boom','return_customer','exchange_out','adjustment')",
+            "movement_type in ('inbound','outbound_order','outbound_pos','transfer_to_store','transfer_received','return_boom','return_customer','exchange_out','adjustment','order_cancellation')",
             name="ck_inv_tx_movement_type",
         ),
         Index("uq_inventory_tx_public_id", "public_id", unique=True),

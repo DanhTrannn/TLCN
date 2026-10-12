@@ -19,7 +19,7 @@ from app.models.catalog import Product, ProductVariant
 from app.models.customer import Customer
 from app.models.inventory import Inventory
 from app.models.inventory_tx import InventoryTransaction
-from app.models.logistics import DeliveryStaff, Shipment
+from app.models.logistics import DeliveryStaff, Shipment, ShipmentAttempt
 from app.models.multicity import StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
@@ -134,11 +134,11 @@ def list_orders(db: Session, customer_id: int, cursor: str | None) -> OrderListR
     return OrderListResponse(items=items, next_cursor=next_cursor)
 
 
-def get_order_detail(db: Session, customer_id: int, order_number: str) -> OrderDetailResponse:
+def get_order_detail(db: Session, customer_id: int | None, order_number: str) -> OrderDetailResponse:
     order = db.execute(
         select(Order).where(Order.order_number == order_number)
     ).scalar_one_or_none()
-    if order is None or order.customer_id != customer_id:
+    if order is None or (customer_id is not None and order.customer_id != customer_id):
         raise not_found("Không tìm thấy đơn hàng.")
 
     item_rows = db.execute(
@@ -555,6 +555,19 @@ def cancel_order(
             inventory_row.on_hand = restored_on_hand
             inventory_row.version += 1
             inventory_row.updated_at = now
+            db.add(
+                InventoryTransaction(
+                    public_id=uuid7(),
+                    variant_id=item.variant_id,
+                    location_type="central_warehouse",
+                    store_id=None,
+                    movement_type="order_cancellation",
+                    quantity_delta=item.quantity,
+                    reference_code=order.order_number,
+                    notes="Hoàn kho do hủy đơn",
+                    created_at=now,
+                )
+            )
 
         if order.store_id is not None:
             store_inv_rows = (
@@ -575,6 +588,21 @@ def cancel_order(
                 si = store_inv_map.get(item.variant_id)
                 if si is not None:
                     si.on_hand = si.on_hand + item.quantity
+                    si.version += 1
+                    si.updated_at = now
+                    db.add(
+                        InventoryTransaction(
+                            public_id=uuid7(),
+                            variant_id=item.variant_id,
+                            location_type="store",
+                            store_id=order.store_id,
+                            movement_type="order_cancellation",
+                            quantity_delta=item.quantity,
+                            reference_code=order.order_number,
+                            notes="Hoàn kho cửa hàng do hủy đơn",
+                            created_at=now,
+                        )
+                    )
 
         if redemption is not None and coupon is not None and redemption.status == "redeemed":
             if coupon.used_count <= 0:
@@ -717,6 +745,14 @@ def dispatch_order(
     return OrderTransitionResponse(order_number=order.order_number, status=order.status)
 
 
+NON_BUYER_FAULT_REASONS = {
+    "damaged_in_transit",
+    "wrong_item_shipped",
+    "logistics_delayed",
+    "reschedule_requested",
+}
+
+
 def deliver_order(
     db: Session,
     order_number: str,
@@ -728,7 +764,7 @@ def deliver_order(
     if order is None:
         raise not_found("Không tìm thấy đơn hàng.")
 
-    transition_key = _make_transition_key(order_number, "deliv", idempotency_key)
+    transition_key = _make_transition_key(order_number, "deliver", idempotency_key)
     if idempotency_key:
         existing_history = db.execute(
             select(OrderStatusHistory).where(
@@ -770,6 +806,34 @@ def deliver_order(
         shipment.updated_at = now
         if order.payment_method == "cod":
             shipment.cod_collected_vnd = shipment.cod_amount_vnd
+
+        attempt_key = _make_transition_key(order_number, "deliver_attempt", idempotency_key)
+        existing_attempt = db.execute(
+            select(ShipmentAttempt).where(ShipmentAttempt.idempotency_key == attempt_key)
+        ).scalar_one_or_none()
+        if existing_attempt is None:
+            attempt_count_now = min(max(shipment.attempt_count, 1), 3)
+            dup_attempt = db.execute(
+                select(ShipmentAttempt).where(
+                    ShipmentAttempt.shipment_id == shipment.shipment_id,
+                    ShipmentAttempt.attempt_number == attempt_count_now,
+                )
+            ).scalar_one_or_none()
+            if dup_attempt is None:
+                db.add(
+                    ShipmentAttempt(
+                        public_id=uuid7(),
+                        shipment_id=shipment.shipment_id,
+                        attempt_number=attempt_count_now,
+                        delivery_staff_id=shipment.delivery_staff_id,
+                        status="attempted_success",
+                        failure_reason=None,
+                        is_buyer_fault=False,
+                        idempotency_key=attempt_key,
+                        attempted_at=now,
+                        created_at=now,
+                    )
+                )
 
     order.status = "delivered"
     order.updated_at = now
@@ -847,13 +911,11 @@ def fail_delivery_order(
             status_code=409,
         )
 
-    recorded_attempt_keys = (
-        shipment.failed_attempt_1_key,
-        shipment.failed_attempt_2_key,
-        shipment.failed_attempt_3_key,
-    )
-    if transition_key in recorded_attempt_keys:
-        recorded_attempt = recorded_attempt_keys.index(transition_key) + 1
+    existing_attempt = db.execute(
+        select(ShipmentAttempt).where(ShipmentAttempt.idempotency_key == transition_key)
+    ).scalar_one_or_none()
+    if existing_attempt is not None:
+        recorded_attempt = existing_attempt.attempt_number
         return OrderTransitionResponse(
             order_number=order.order_number,
             status=order.status,
@@ -861,13 +923,40 @@ def fail_delivery_order(
             remaining_delivery_attempts=max(3 - recorded_attempt, 0),
         )
 
-    current_attempt = min(max(shipment.attempt_count, 1), 3)
-    setattr(shipment, f"failed_attempt_{current_attempt}_key", transition_key)
+    existing_attempts = db.execute(
+        select(ShipmentAttempt)
+        .where(ShipmentAttempt.shipment_id == shipment.shipment_id)
+        .order_by(ShipmentAttempt.attempt_number)
+    ).scalars().all()
+
+    current_attempt = len(existing_attempts) + 1
+    if current_attempt > 3:
+        return OrderTransitionResponse(
+            order_number=order.order_number,
+            status=order.status,
+            delivery_attempt_count=3,
+            remaining_delivery_attempts=0,
+        )
+
+    is_buyer_fault = cleaned_reason.strip().lower() not in NON_BUYER_FAULT_REASONS
+
+    new_attempt = ShipmentAttempt(
+        public_id=uuid7(),
+        shipment_id=shipment.shipment_id,
+        attempt_number=current_attempt,
+        delivery_staff_id=shipment.delivery_staff_id,
+        status="attempted_failed",
+        failure_reason=cleaned_reason[:255],
+        is_buyer_fault=is_buyer_fault,
+        idempotency_key=transition_key,
+        attempted_at=now,
+        created_at=now,
+    )
+    db.add(new_attempt)
+
     shipment.failure_reason = cleaned_reason[:255]
     shipment.updated_at = now
 
-    # Hai lần đầu chỉ ghi nhận thất bại và chuyển sang lần thử kế tiếp.
-    # Chỉ lần thứ ba mới kết thúc vận đơn, hoàn kho và tính một lần bom hàng.
     if current_attempt < 3:
         shipment.attempt_count = current_attempt + 1
         shipment.status = "in_transit"
@@ -938,6 +1027,8 @@ def fail_delivery_order(
                 si = si_map.get(item.variant_id)
                 if si:
                     si.on_hand += item.quantity
+                    si.version += 1
+                    si.updated_at = now
                     db.add(
                         InventoryTransaction(
                             public_id=uuid7(),
@@ -952,13 +1043,16 @@ def fail_delivery_order(
                         )
                     )
 
-    customer = db.execute(
-        select(Customer).where(Customer.customer_id == order.customer_id).with_for_update()
-    ).scalar_one()
-    customer.boom_count += 1
-    if customer.boom_count >= 3:
-        customer.is_cod_blocked = True
-    customer.updated_at = now
+    if order.customer_id is not None:
+        customer = db.execute(
+            select(Customer).where(Customer.customer_id == order.customer_id).with_for_update()
+        ).scalar_one_or_none()
+        if customer is not None:
+            if is_buyer_fault:
+                customer.boom_count += 1
+                if customer.boom_count >= 3:
+                    customer.is_cod_blocked = True
+            customer.updated_at = now
 
     order.status = "failed_delivery"
     order.updated_at = now

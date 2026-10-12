@@ -13,8 +13,9 @@ class POSTransactionRequest(BaseModel):
 
     store_id: int = Field(gt=0)
     items: list[POSTItemRequest] = Field(min_length=1)
-    payment_method: str = Field(pattern=r"^(cash|card)$")
+    payment_method: str = Field(pattern=r"^(cash|card|vietqr)$")
     amount_received_vnd: int | None = Field(default=None, ge=0)
+    customer_id: int | None = Field(default=None, gt=0)
 
 
 class POSTItemResponse(BaseModel):
@@ -37,6 +38,8 @@ class POSTransactionResponse(BaseModel):
     status: str
     channel: str
     store_id: int
+    staff_id: int | None = None
+    customer_id: int | None = None
     payment_method: str
     items: list[POSTItemResponse]
     subtotal_vnd: int

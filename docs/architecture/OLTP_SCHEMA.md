@@ -9,33 +9,35 @@ Kết hợp thiết kế logic, column-level reference, transaction catalog và 
 
 Schema tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
-Hệ thống có **27 bảng nghiệp vụ** (schema hiện hành đến migration `0018_align_pos_and_order_lifecycle.py`). Pipeline Lakehouse DE trích xuất **26 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
+Hệ thống có **28 bảng nghiệp vụ** (schema hiện hành đến migration `0019_pos_customer_shipment_attempts_and_invariants.py`). Pipeline Lakehouse DE trích xuất **27 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
 
 ### Quy tắc thiết kế cốt lõi
 
 - Checkout yêu cầu đăng nhập và active cart có hàng hợp lệ. Hỗ trợ phương thức thanh toán `vietqr` (trả trước) và `cod` (tiền mặt khi nhận hàng, `payments.status = 'pending'`).
-- Add-to-cart không giữ hàng; checkout kiểm tra và trừ `inventory.on_hand` atomically, đồng thời ghi nhận 1 transaction `movement_type = 'outbound_order'` trong `inventory_transactions`.
+- Add-to-cart không giữ hàng; checkout kiểm tra và trừ `inventory.on_hand` atomically, đồng thời ghi nhận 1 transaction `movement_type = 'outbound_order'` trong `inventory_transactions`. Khi hủy đơn hàng, hệ thống hoàn kho và ghi nhận transaction đối ứng `movement_type = 'order_cancellation'`.
 - Với đơn `vietqr`, thanh toán thành công ngay khi checkout hợp lệ; với đơn `cod`, đơn được tạo với trạng thái ban đầu `confirmed` chờ điều phối giao vận.
-- POS (Point of Sale): nhân viên bán hàng tại quầy, tạo đơn `completed` ngay, trừ `store_inventory` (kho cửa hàng), ghi nhận transaction `outbound_pos`.
-- Giao vận nội bộ D&K: Mỗi đơn hàng online đi qua đội ngũ shipper nội bộ (`delivery_staff`) thông qua phiếu giao hàng (`shipments`).
+- POS (Point of Sale): nhân viên bán hàng tại quầy (`orders.staff_id`), tạo đơn `completed` ngay, cho phép khách vãng lai không tài khoản (`orders.customer_id = NULL`), trừ `store_inventory` (kho cửa hàng), ghi nhận transaction `outbound_pos`. Hỗ trợ phương thức thanh toán quầy: `cash`, `card`, `vietqr`.
+- Giao vận nội bộ D&K: Mỗi đơn hàng online đi qua đội ngũ shipper nội bộ (`delivery_staff`) thông qua phiếu giao hàng (`shipments`) và bảng chi tiết các lần giao `shipment_attempts` (1-N).
 - State machine chuẩn hóa của đơn hàng:
 
 ```text
 [Online VietQR] paid ────> confirmed ────> shipping ────> delivered ──(khách nhận hàng)──> completed
                          │               │             │                               │
                          │               │             └──> returned <─────────────────┘
-                         │               └──> failed_delivery (boom COD)
+                         │               └──> failed_delivery (giao thất bại / COD risk)
                          └──> cancelled
 
 [Online COD]    confirmed ──> shipping ──> delivered (thu tiền COD) ──(khách nhận hàng)──> completed
                             │           │                                                │
                             │           └──> returned <──────────────────────────────────┘
-                            │           └──> failed_delivery (boom COD / bom hàng)
+                            │           └──> failed_delivery (giao thất bại / COD risk)
                             └──> cancelled
 ```
 
 - **Quy trình Hoàn tất Đơn hàng**: Sau khi shipper giao hàng thành công, đơn hàng chuyển sang trạng thái `delivered` (Giao thành công). Admin/Shipper không tự ý hoàn tất đơn. Trên giao diện người dùng, khách hàng kiểm tra hàng thực tế và bấm nút **"Đã nhận được hàng"** để chuyển trạng thái sang `completed`. Tại thời điểm này, tiền thu hộ COD (nếu có) được quyết toán chính thức và khách hàng có quyền đánh giá sản phẩm hoặc yêu cầu đổi trả trong 7 ngày.
-- **Xử lý Boom hàng COD**: Khi đơn hàng bị boom (`failed_delivery`), hệ thống ghi nhận lý do thất bại trong `shipments`, hoàn trả tồn kho (`movement_type = 'return_boom'`), tự động tăng `customers.boom_count`. Nếu `boom_count >= 3`, khách hàng tự động bị gắn cờ `is_cod_blocked = TRUE` (chặn thanh toán COD ở các lần mua sau).
+- **Quản trị rủi ro thanh toán COD (COD Payment Risk Management)**:
+  - Khi giao hàng thất bại, shipper ghi nhận lý do cụ thể qua `shipment_attempts`. Hệ thống phân loại nguyên nhân lỗi: chỉ tính vào điểm rủi ro `customers.boom_count` khi lỗi xuất phát từ phía người mua (`is_buyer_fault = TRUE`, e.g. từ chối nhận không lý do, không liên lạc được 3 lần). Các sự cố do logistics (giao nhầm hàng, hàng hư hỏng trong quá trình vận chuyển, shipper trễ hẹn khách xin dời lịch) hoàn toàn không ảnh hưởng điểm rủi ro của khách hàng.
+  - Khi `boom_count >= 3`, khách hàng tự động bị tạm khóa phương thức COD (`is_cod_blocked = TRUE`), vẫn được mua hàng qua chuyển khoản VietQR. Quản trị viên (Admin) có thẩm quyền xem xét khiếu nại và mở lại quyền COD với lưu vết audit trail (`cod_reinstated_at`, `cod_reinstated_by`, `cod_reinstatement_reason`) và thời gian thử thách (`boom_count = 2`).
 - **Chính sách Trả hàng/Hoàn tiền 7 ngày**: Sau khi đơn hàng `delivered`/`completed`, khách hàng có thể tạo yêu cầu `refund`. Các giá trị `exchange`, `exchange_variant_id` và `exchange_out` được dành sẵn cho pha mở rộng, chưa có API/UI thực thi đổi size/màu.
 - **Mô hình Kho tập trung & Nhập kho sản xuất**: 1 Kho trung tâm duy nhất nhập hàng từ xưởng sản xuất thông qua phiếu nhập kho `inbound_receipts` và `inbound_receipt_items`, tự động tính toán lại giá vốn bình quân gia quyền di động (Moving Weighted Average Costing) cho từng biến thể, đồng thời điều phối hàng cho các chi nhánh cửa hàng (`transfer_to_store` / `transfer_received`). Mọi biến động được lưu vết bất biến trong `inventory_transactions`.
 - **Giá vốn hàng bán (COGS)**: Ghi nhận giá vốn tại từng biến thể `product_variants.cost_price_vnd` và snapshot cố định bất biến vào từng dòng `order_items.cost_price_vnd` tại thời điểm phát sinh giao dịch (checkout online & POS).
@@ -57,7 +59,7 @@ Hệ thống có **27 bảng nghiệp vụ** (schema hiện hành đến migrati
 
 ---
 
-## 3. Tổng quan 27 bảng
+## 3. Tổng quan 28 bảng
 
 | # | Bảng | Nhóm | Grain | Mutability | Extract cursor |
 |---|------|------|-------|------------|----------------|
@@ -83,11 +85,12 @@ Hệ thống có **27 bảng nghiệp vụ** (schema hiện hành đến migrati
 | 20 | `product_reviews` | Review | Một review/order_item | Mutable visibility | `(updated_at, review_id)` |
 | 21 | `delivery_staff` | Logistics | Một nhân viên giao vận shipper D&K | Mutable/anonymizable | `(updated_at, staff_id)` |
 | 22 | `shipments` | Logistics | Một phiếu giao hàng nội bộ | Mutable lifecycle & COD | `(updated_at, shipment_id)` |
-| 23 | `return_requests` | Returns | Một yêu cầu đổi trả sau mua 7 ngày | Mutable workflow | `(updated_at, return_id)` |
-| 24 | `return_items` | Returns | Một món hàng trong yêu cầu đổi trả | Append-only / inspection | `(created_at, return_item_id)` |
-| 25 | `inventory_transactions` | Inventory | Một biến động kho (inbound/outbound/...) | Append-only ledger | `(created_at, transaction_id)` |
-| 26 | `inbound_receipts` | Inbound | Một đợt nhập thành phẩm xưởng sản xuất | Mutable | `(updated_at, receipt_id)` |
-| 27 | `inbound_receipt_items` | Inbound | Chi tiết biến thể & đơn giá nhập xưởng | Append-only | `(created_at, item_id)` |
+| 23 | `shipment_attempts` | Logistics | Chi tiết một lần thử giao hàng | Append-only audit | `(created_at, attempt_id)` |
+| 24 | `return_requests` | Returns | Một yêu cầu đổi trả sau mua 7 ngày | Mutable workflow | `(updated_at, return_id)` |
+| 25 | `return_items` | Returns | Một món hàng trong yêu cầu đổi trả | Append-only / inspection | `(created_at, return_item_id)` |
+| 26 | `inventory_transactions` | Inventory | Một biến động kho (inbound/outbound/...) | Append-only ledger | `(created_at, transaction_id)` |
+| 27 | `inbound_receipts` | Inbound | Một đợt nhập thành phẩm xưởng sản xuất | Mutable | `(updated_at, receipt_id)` |
+| 28 | `inbound_receipt_items` | Inbound | Chi tiết biến thể & đơn giá nhập xưởng | Append-only | `(created_at, item_id)` |
 
 ### Chiến lược định danh
 
@@ -154,6 +157,9 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `anonymized_at` | `DATETIME(6)` | NULLABLE | Thời điểm PII bị ẩn danh hóa |
 | `is_cod_blocked` | `BOOLEAN` | NOT NULL, DEFAULT `FALSE` | Cờ chặn thanh toán COD khi boom hàng nhiều lần |
 | `boom_count` | `INT UNSIGNED` | NOT NULL, DEFAULT `0` | Số lần đặt hàng COD nhưng từ chối nhận (boom hàng) |
+| `cod_reinstated_at` | `DATETIME(6)` | NULLABLE | Thời điểm admin mở lại quyền thanh toán COD |
+| `cod_reinstated_by` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE SET NULL | Admin thực hiện mở lại COD |
+| `cod_reinstatement_reason` | `VARCHAR(255)` | NULLABLE | Lý do admin mở lại quyền COD (khiếu nại hợp lệ, v.v.) |
 | `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời gian tạo |
 | `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | Thời gian cập nhật cuối |
 
@@ -166,8 +172,9 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - `uq_customers_public_id` — UK trên `public_id`
 - `ix_customers_role_status_id` — `(role, status, customer_id)`
 - `ix_customers_updated_at_customer_id` — extraction cursor
+- `ix_customers_cod_reinstated_by` — `(cod_reinstated_by)`
 
-**Invariant**: Anonymize không xóa PK/FK. `store_manager` có `store_id` liên kết cửa hàng quản lý (Application/API-level Row Filtering trong FastAPI RBAC). Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD. Hỗ trợ đầy đủ 7 role nhân viên quản trị chuyên biệt phục vụ phân quyền và báo cáo BI Lakehouse.
+**Invariant**: Anonymize không xóa PK/FK. `store_manager` có `store_id` liên kết cửa hàng quản lý (Application/API-level Row Filtering trong FastAPI RBAC). Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD. Khi Admin mở lại quyền COD (`POST /admin/customers/{id}/reinstate-cod`), hệ thống cập nhật `boom_count = 2`, `is_cod_blocked = FALSE`, và lưu vết audit trail (`cod_reinstated_at`, `cod_reinstated_by`, `cod_reinstatement_reason`). Hỗ trợ đầy đủ 7 role nhân viên quản trị chuyên biệt phục vụ phân quyền và báo cáo BI Lakehouse.
 
 
 
@@ -555,19 +562,19 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 |-----|------|-----------|-------|
 | `order_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
 | `order_number` | `VARCHAR(32)` | UK, NOT NULL | Mã đơn hàng hiển thị |
-| `cart_id` | `BIGINT UNSIGNED` | FK → `carts.cart_id`, UK, NOT NULL | Cart đã checkout (1:1 online) |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Chủ đơn |
-| `checkout_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key cho checkout (NULL cho POS) |
+| `cart_id` | `BIGINT UNSIGNED` | FK → `carts.cart_id`, UK, NULLABLE | Cart đã checkout (1:1 online, NULL cho POS) |
+| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE RESTRICT | Chủ đơn (NULL cho khách vãng lai tại quầy POS) |
+| `checkout_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key cho checkout (idemp:pos-... cho POS) |
 | `coupon_id` | `BIGINT UNSIGNED` | FK → `coupons.coupon_id`, NULLABLE, ON DELETE RESTRICT | Coupon đã áp dụng |
 | `status` | `VARCHAR(24)` | NOT NULL | Trạng thái hiện tại |
-| `payment_method` | `VARCHAR(16)` | NOT NULL, DEFAULT `'vietqr'` | Online: `vietqr`/`cod`; POS: `cash`/`card` |
+| `payment_method` | `VARCHAR(16)` | NOT NULL, DEFAULT `'vietqr'` | Online: `vietqr`/`cod`; POS: `cash`/`card`/`vietqr` |
 | `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
 | `subtotal_vnd` | `BIGINT UNSIGNED` | NOT NULL | Tổng tiền hàng (trước giảm giá) |
 | `coupon_code_snapshot` | `VARCHAR(64)` | NULLABLE | Snapshot mã coupon |
 | `coupon_type_snapshot` | `VARCHAR(24)` | NULLABLE | Snapshot loại giảm giá |
 | `coupon_value_snapshot` | `BIGINT UNSIGNED` | NULLABLE | Snapshot giá trị giảm |
 | `discount_amount_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Số tiền giảm giá |
-| `shipping_fee_vnd` | `BIGINT UNSIGNED` | NOT NULL | Phí vận chuyển |
+| `shipping_fee_vnd` | `BIGINT UNSIGNED` | NOT NULL | Phí vận chuyển (0 cho POS) |
 | `total_vnd` | `BIGINT UNSIGNED` | NOT NULL | Tổng thanh toán |
 | `receiver_name` | `VARCHAR(160)` | NOT NULL | Tên người nhận |
 | `receiver_phone` | `VARCHAR(32)` | NOT NULL | SĐT người nhận |
@@ -576,13 +583,13 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `generation_run_id` | `VARCHAR(64)` | NULLABLE | ID lần generate |
 | `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
 | `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-| `paid_at` | `DATETIME(6)` | NULLABLE | Thời điểm thanh toán (online VietQR hoặc khi COD thu tiền) |
+| `paid_at` | `DATETIME(6)` | NULLABLE | Thời điểm thanh toán (online VietQR, POS, hoặc khi COD thu tiền) |
 | `confirmed_at` | `DATETIME(6)` | NULLABLE | Thời điểm admin xác nhận |
 | `completed_at` | `DATETIME(6)` | NULLABLE | Thời điểm hoàn tất |
 | `cancelled_at` | `DATETIME(6)` | NULLABLE | Thời điểm hủy |
 | `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE | Cửa hàng liên kết (allocation hoặc POS) |
 | `channel` | `VARCHAR(16)` | NOT NULL, DEFAULT `'online'` | Kênh bán: `online` hoặc `pos` |
-| `staff_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE | Nhân viên xử lý (POS) |
+| `staff_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE | Nhân viên thu ngân/bán hàng (POS) |
 
 **Check constraints**:
 - `status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'failed_delivery', 'returned')`
@@ -595,6 +602,9 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - Coupon snapshot consistency: Toàn bộ coupon fields NULL + discount=0, HOẶC tất cả NOT NULL + discount>0
 - `coupon_type_snapshot` value: `percentage` (1–100) hoặc `fixed_amount` (>0)
 - `data_origin IN ('manual', 'synthetic')`
+- `ck_orders_pos_channel`: `(channel != 'pos') OR (store_id IS NOT NULL AND staff_id IS NOT NULL)`
+- `ck_orders_channel_payment`: `(channel = 'pos' AND payment_method IN ('cash', 'card', 'vietqr')) OR (channel = 'online' AND payment_method IN ('vietqr', 'cod'))`
+- `ck_orders_cod_pending_no_paid_at`: `NOT (payment_method = 'cod' AND status IN ('pending_payment', 'confirmed', 'shipping') AND paid_at IS NOT NULL)`
 
 **Indexes**:
 - `uq_orders_order_number` — UK trên `order_number`
@@ -859,11 +869,8 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `cod_collected_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tiền COD thực tế shipper đã thu |
 | `dispatched_at` | `DATETIME(6)` | NULLABLE | Thời điểm xuất kho giao hàng |
 | `delivered_at` | `DATETIME(6)` | NULLABLE | Thời điểm giao hàng thành công |
-| `failed_at` | `DATETIME(6)` | NULLABLE | Thời điểm lần giao thứ ba thất bại (boom hàng) |
-| `failure_reason` | `VARCHAR(255)` | NULLABLE | Lý do không giao được (khách không nghe máy, đổi ý,...) |
-| `failed_attempt_1_key` | `VARCHAR(64)` | UNIQUE, NULLABLE | Idempotency key của lần giao thất bại thứ nhất |
-| `failed_attempt_2_key` | `VARCHAR(64)` | UNIQUE, NULLABLE | Idempotency key của lần giao thất bại thứ hai |
-| `failed_attempt_3_key` | `VARCHAR(64)` | UNIQUE, NULLABLE | Idempotency key của lần giao thất bại thứ ba |
+| `failed_at` | `DATETIME(6)` | NULLABLE | Thời điểm lần giao thứ ba thất bại (kết thúc giao hàng) |
+| `failure_reason` | `VARCHAR(255)` | NULLABLE | Lý do không giao được cuối cùng |
 | `notes` | `TEXT` | NULLABLE | Ghi chú vận hành giao hàng |
 | `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
 | `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
@@ -873,11 +880,11 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - `attempt_count BETWEEN 1 AND 3`
 - `cod_amount_vnd >= 0`
 - `cod_collected_vnd >= 0`
+- `ck_shipments_cod_collected_limit`: `cod_collected_vnd <= cod_amount_vnd`
 
 **Indexes**:
 - `uq_shipments_public_id` — UK trên `public_id`
 - `uq_shipments_code` — UK trên `shipment_code`
-- `uq_shipments_failed_attempt_{1,2,3}_key` — chống ghi nhận lặp từng lần giao thất bại
 - `ix_shipments_order_id` — `(order_id)`
 - `ix_shipments_delivery_staff_id` — `(delivery_staff_id)`
 - `ix_shipments_status` — `(status)`
@@ -885,11 +892,50 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 **Invariant**: 
 - Nếu đơn thanh toán `cod`: `cod_amount_vnd = orders.total_vnd`. Khi giao thành công (`delivered`), `cod_collected_vnd = cod_amount_vnd`.
-- Nếu giao thất bại (`failed`), `cod_collected_vnd = 0`, đơn hàng chuyển sang `failed_delivery`, tăng `boom_count` của khách hàng và hoàn trả hàng về kho tổng qua `inventory_transactions`.
+- Nếu giao thất bại (`failed`), `cod_collected_vnd = 0`, đơn hàng chuyển sang `failed_delivery`, tăng `boom_count` của khách hàng (nếu lỗi do người mua) và hoàn trả hàng về kho tổng qua `inventory_transactions`.
+- Lịch sử từng lần thử giao hàng được lưu vết chuẩn hóa 1-N trong bảng `shipment_attempts`.
 
 ---
 
-### 5.23. `return_requests`
+### 5.23. `shipment_attempts`
+
+**Mục đích**: Ghi nhận chi tiết từng lần thử giao hàng thực tế của shipper đối với phiếu vận đơn (`shipments`), phục vụ quản trị rủi ro thanh toán COD, phân tích SLA giao vận và truy vết kiểm toán.
+
+| Cột | Kiểu | Constraint | Mô tả |
+|-----|------|-----------|-------|
+| `attempt_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
+| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
+| `shipment_id` | `BIGINT UNSIGNED` | FK → `shipments.shipment_id`, NOT NULL, ON DELETE RESTRICT | Phiếu vận đơn liên quan |
+| `attempt_number` | `INT UNSIGNED` | NOT NULL | Số thứ tự lần giao (1, 2, hoặc 3) |
+| `delivery_staff_id` | `BIGINT UNSIGNED` | FK → `delivery_staff.staff_id`, NULLABLE, ON DELETE SET NULL | Shipper thực hiện lần thử |
+| `status` | `VARCHAR(32)` | NOT NULL | `attempted_failed`, `attempted_success`, `failed`, `delivered` |
+| `failure_reason` | `VARCHAR(255)` | NULLABLE | Lý do cụ thể của lần giao thất bại |
+| `is_buyer_fault` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | `TRUE` nếu lỗi từ người mua; `FALSE` nếu lỗi logistics/ngoại cảnh |
+| `idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key bảo vệ từng lần giao không bị lặp |
+| `attempted_at` | `DATETIME(6)` | NOT NULL | Thời điểm diễn ra lần thử giao |
+| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm ghi nhận bản ghi |
+| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | Thời điểm cập nhật cuối |
+
+**Check constraints**:
+- `ck_shipment_attempts_attempt_number`: `attempt_number BETWEEN 1 AND 3`
+- `ck_shipment_attempts_status`: `status IN ('attempted_failed', 'attempted_success', 'failed', 'delivered')`
+
+**Indexes**:
+- `uq_shipment_attempts_public_id` — UK trên `public_id`
+- `uq_shipment_attempts_idempotency_key` — UK trên `idempotency_key`
+- `uq_shipment_attempts_shipment_attempt_number` — UK trên `(shipment_id, attempt_number)`
+- `ix_shipment_attempts_delivery_staff_id` — `(delivery_staff_id)`
+- `ix_shipment_attempts_attempted_at` — `(attempted_at)`
+
+**Invariant**:
+- Một phiếu giao hàng có tối đa 3 lần thử (`attempt_number` từ 1 đến 3).
+- Mỗi lần thử giao thất bại phải cung cấp `idempotency_key` duy nhất và phân loại `is_buyer_fault`.
+- Chỉ các lần giao thất bại có `is_buyer_fault = TRUE` mới được tính vào điểm rủi ro khách hàng (`customers.boom_count`).
+- Lần giao thứ 3 thất bại sẽ kết thúc vòng đời giao hàng, chuyển shipment sang `failed` và đơn hàng sang `failed_delivery`.
+
+---
+
+### 5.24. `return_requests`
 
 **Mục đích**: Ghi nhận và quản lý quy trình yêu cầu đổi / trả hàng trong vòng 7 ngày sau khi nhận hàng của khách hàng.
 
@@ -926,7 +972,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 ---
 
-### 5.24. `return_items`
+### 5.25. `return_items`
 
 **Mục đích**: Chi tiết từng món hàng cần đổi hoặc trả trong một yêu cầu đổi trả, phục vụ khâu kiểm định chất lượng sản phẩm (inspection).
 
@@ -959,9 +1005,9 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 ---
 
-### 5.25. `inventory_transactions`
+### 5.26. `inventory_transactions`
 
-**Mục đích**: Sổ cái ghi nhận bất biến mọi giao dịch biến động số lượng tồn kho (nhập xưởng, xuất bán, chuyển cửa hàng, hoàn hàng boom, đổi trả). Không dùng bảng `suppliers` mà giả lập nhập kho trực tiếp qua giao dịch `inbound`.
+**Mục đích**: Sổ cái ghi nhận bất biến mọi giao dịch biến động số lượng tồn kho (nhập xưởng, xuất bán, chuyển cửa hàng, hoàn hàng boom, đổi trả, hoàn kho hủy đơn). Không dùng bảng `suppliers` mà giả lập nhập kho trực tiếp qua giao dịch `inbound`.
 
 | Cột | Kiểu | Constraint | Mô tả |
 |-----|------|-----------|-------|
@@ -978,7 +1024,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 **Check constraints**:
 - `location_type IN ('central_warehouse', 'store')`
-- `movement_type IN ('inbound', 'outbound_order', 'outbound_pos', 'transfer_to_store', 'transfer_received', 'return_boom', 'return_customer', 'exchange_out', 'adjustment')`
+- `movement_type IN ('inbound', 'outbound_order', 'outbound_pos', 'transfer_to_store', 'transfer_received', 'return_boom', 'return_customer', 'exchange_out', 'adjustment', 'order_cancellation')`
 - `(location_type = 'central_warehouse' AND store_id IS NULL) OR (location_type = 'store' AND store_id IS NOT NULL)`
 
 **Indexes**:
@@ -992,7 +1038,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 ---
 
-### 5.26. `inbound_receipts`
+### 5.27. `inbound_receipts`
 
 **Mục đích**: Quản lý các đợt nhập thành phẩm từ xưởng sản xuất nội bộ vào kho trung tâm D&K, làm căn cứ cập nhật tồn kho và tính toán giá vốn hàng bán (COGS).
 
@@ -1022,7 +1068,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 
 ---
 
-### 5.27. `inbound_receipt_items`
+### 5.28. `inbound_receipt_items`
 
 **Mục đích**: Chi tiết từng dòng biến thể trong phiếu nhập xưởng, ghi nhận đơn giá sản xuất và lưu vết biến động giá vốn cũ → giá vốn mới.
 

@@ -139,6 +139,11 @@ class AdminCustomerResponse(BaseModel):
     email: str
     status: str
     role: str
+    is_cod_blocked: bool = False
+    boom_count: int = 0
+    cod_reinstated_at: datetime | None = None
+    cod_reinstated_by: int | None = None
+    cod_reinstatement_reason: str | None = None
     created_at: datetime
 
 
@@ -146,6 +151,23 @@ class UpdateCustomerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: str = Field(pattern=r"^(active|inactive)$")
+
+
+class ReinstateCodRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    reason: str = Field(min_length=3, max_length=255)
+    probation_failed_count: int = Field(default=2, ge=0, le=2)
+
+
+class ReinstateCodResponse(BaseModel):
+    customer_id: int
+    public_id: str
+    is_cod_blocked: bool
+    boom_count: int
+    cod_reinstated_at: datetime
+    cod_reinstated_by: int
+    cod_reinstatement_reason: str
 
 
 class RefillInventoryRequest(BaseModel):

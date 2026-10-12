@@ -30,6 +30,13 @@ class Customer(Base):
     boom_count: Mapped[int] = mapped_column(
         INTEGER(unsigned=True), nullable=False, default=0, server_default=text("0")
     )
+    cod_reinstated_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)
+    cod_reinstated_by: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("customers.customer_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    cod_reinstatement_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     data_origin: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
     generation_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     anonymized_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6), nullable=True)

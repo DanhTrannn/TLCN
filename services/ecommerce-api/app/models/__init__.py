@@ -4,7 +4,7 @@ from app.models.customer import Customer, CustomerCredential
 from app.models.inbound import InboundReceipt, InboundReceiptItem
 from app.models.inventory import Inventory
 from app.models.inventory_tx import InventoryTransaction
-from app.models.logistics import DeliveryStaff, Shipment
+from app.models.logistics import DeliveryStaff, Shipment, ShipmentAttempt
 from app.models.multicity import City, Store, StoreInventory
 from app.models.order import Order, OrderItem, OrderStatusHistory, Payment, Refund
 from app.models.promotion import Coupon, CouponRedemption
@@ -34,6 +34,7 @@ __all__ = [
     "ReturnItem",
     "ReturnRequest",
     "Shipment",
+    "ShipmentAttempt",
     "Coupon",
     "CouponRedemption",
     "ProductReview",

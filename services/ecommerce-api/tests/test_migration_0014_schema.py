@@ -49,9 +49,22 @@ def test_shipments_table_exists() -> None:
     assert "delivered_at" in cols
     assert "failed_at" in cols
     assert "failure_reason" in cols
-    assert "failed_attempt_1_key" in cols
-    assert "failed_attempt_2_key" in cols
-    assert "failed_attempt_3_key" in cols
+
+
+def test_shipment_attempts_table_exists() -> None:
+    assert "shipment_attempts" in _table_names()
+    cols = _column_names("shipment_attempts")
+    assert "attempt_id" in cols
+    assert "public_id" in cols
+    assert "shipment_id" in cols
+    assert "attempt_number" in cols
+    assert "delivery_staff_id" in cols
+    assert "status" in cols
+    assert "failure_reason" in cols
+    assert "is_buyer_fault" in cols
+    assert "idempotency_key" in cols
+    assert "attempted_at" in cols
+    assert "created_at" in cols
 
 
 def test_return_requests_table_exists() -> None:

@@ -7,6 +7,7 @@ from app.core.errors import OUT_OF_STOCK, RESOURCE_NOT_FOUND, AppError
 from app.core.ids import new_order_number, new_payment_reference, uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Category, Product, ProductVariant
+from app.models.customer import Customer
 from app.models.inventory import Inventory
 from app.models.inventory_tx import InventoryTransaction
 from app.models.multicity import Store, StoreInventory
@@ -147,10 +148,22 @@ def create_pos_transaction(
 
         total = subtotal  # POS: no shipping fee
 
+        # Resolve customer if provided (walk-in guest by default: customer_id = None)
+        order_customer_id = None
+        receiver_name = "POS Customer"
+        receiver_phone = ""
+        if request.customer_id is not None:
+            matched_cust = db.execute(
+                select(Customer).where(Customer.customer_id == request.customer_id)
+            ).scalar_one_or_none()
+            if matched_cust is not None:
+                order_customer_id = matched_cust.customer_id
+                receiver_name = matched_cust.display_name
+
         # Create order
         order = Order(
             order_number=order_number,
-            customer_id=staff_id,
+            customer_id=order_customer_id,
             store_id=request.store_id,
             channel="pos",
             staff_id=staff_id,
@@ -162,8 +175,8 @@ def create_pos_transaction(
             discount_amount_vnd=0,
             shipping_fee_vnd=0,
             total_vnd=total,
-            receiver_name="POS Customer",
-            receiver_phone="",
+            receiver_name=receiver_name,
+            receiver_phone=receiver_phone,
             shipping_address_text=store.address or "",
             data_origin="manual",
             paid_at=now,
@@ -226,6 +239,8 @@ def create_pos_transaction(
             "status": order.status,
             "channel": order.channel,
             "store_id": order.store_id,
+            "staff_id": order.staff_id,
+            "customer_id": order.customer_id,
             "payment_method": request.payment_method,
             "items": order_items,
             "subtotal_vnd": subtotal,

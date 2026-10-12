@@ -17,6 +17,7 @@ def test_all_tables_have_ddl():
         "silver_delivery_staff", "silver_shipments", "silver_return_requests",
         "silver_return_items", "silver_inventory_transactions",
         "silver_inbound_receipts", "silver_inbound_receipt_items",
+        "silver_shipment_attempts",
     }
     assert set(SILVER_TABLE_DDL.keys()) == expected_tables
 

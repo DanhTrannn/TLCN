@@ -26,6 +26,8 @@ from app.modules.admin.schemas import (
     ArchiveRequest,
     CreateProductRequest,
     RefillInventoryRequest,
+    ReinstateCodRequest,
+    ReinstateCodResponse,
     UpdateCustomerRequest,
     UpdateProductRequest,
     UpdateVariantRequest,
@@ -38,6 +40,7 @@ from app.modules.admin.service import (
     list_customers,
     list_orders,
     list_products,
+    reinstate_customer_cod,
     update_customer_status,
     update_product,
     update_variant,
@@ -256,6 +259,21 @@ def patch_customer(
 ) -> Response:
     update_customer_status(admin.customer_id, public_id, payload.status)
     return Response(status_code=204)
+
+
+@router.post("/customers/{customer_id}/reinstate-cod", response_model=ReinstateCodResponse)
+def reinstate_cod(
+    customer_id: str,
+    payload: ReinstateCodRequest,
+    admin: Customer = Depends(get_current_admin),
+    _: None = Depends(verify_csrf),
+) -> ReinstateCodResponse:
+    return reinstate_customer_cod(
+        admin_customer_id=admin.customer_id,
+        customer_id_or_public_id=customer_id,
+        reason=payload.reason,
+        probation_failed_count=payload.probation_failed_count,
+    )
 
 
 @router.get("/branch-inventory", response_model=list[BranchInventoryItem])

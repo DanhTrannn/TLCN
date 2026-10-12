@@ -513,7 +513,7 @@ class SqlExportTest(unittest.TestCase):
             sql = path.read_text(encoding="utf-8")
 
             # Check new tables exist
-            for table in ("delivery_staff", "shipments", "inventory_transactions"):
+            for table in ("delivery_staff", "shipments", "shipment_attempts", "inventory_transactions"):
                 self.assertIn(f"INSERT INTO `{table}`", sql)
 
             # Check delivery staff count and unique valid phones
