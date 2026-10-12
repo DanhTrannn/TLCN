@@ -833,20 +833,12 @@ function SalesDashboard({
                         <div>
                           <p className="text-sm font-bold text-ink">{vp.product_name}</p>
                           <p className="text-xs text-muted">
-                            Đã bán {vp.units_sold_recent} chiếc gần đây (Vận tốc: x{vp.growth_velocity_multiple} lần)
+                            Đã bán {vp.units_sold_recent} chiếc gần đây
                           </p>
                         </div>
-                        <button
-                          className="button-secondary text-[11px] font-semibold text-amber-800 border-amber-300 hover:bg-amber-50 dark:text-amber-300"
-                          onClick={() =>
-                            onActionFeedback(
-                              `Đã chuyển yêu cầu đưa sản phẩm "${vp.product_name}" lên vị trí Banner nổi bật trang chủ!`
-                            )
-                          }
-                          type="button"
-                        >
-                          Đưa lên Banner
-                        </button>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                          🔥 x{vp.growth_velocity_multiple} lần
+                        </span>
                       </div>
                     ))}
                   </div>
