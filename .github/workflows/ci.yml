@@ -125,6 +125,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Lint storefront
+        run: npm run lint
+
       - name: Type-check storefront
         run: npm run typecheck
 
@@ -186,6 +189,21 @@ jobs:
             echo "Waiting for database services..."
             sleep 2
           done
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
+      - name: Verify Alembic migrations on real MySQL 8.4 (upgrade -> downgrade -> upgrade)
+        env:
+          API_DATABASE_URL: mysql+pymysql://ecommerce_app:password@127.0.0.1:3306/ecommerce
+          API_SECRET_KEY: ci-test-secret-key-32-characters-minimum
+        run: |
+          uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade head
+          uv run --locked --package ecommerce-api alembic -c database/alembic.ini downgrade -1
+          uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade head
 
       - name: Teardown
         if: always()
