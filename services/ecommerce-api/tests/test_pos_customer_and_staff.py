@@ -1,6 +1,7 @@
 import app.db.deps
 import app.db.uow
 import pytest
+from app.core.errors import AppError
 from app.core.ids import uuid7
 from app.db.base import Base
 from app.models.catalog import Category, Product, ProductVariant
@@ -118,3 +119,45 @@ def test_pos_supports_card_payment(pos_db):
     )
     res = create_pos_transaction(req, staff_id=10)
     assert res["payment_method"] == "card"
+
+
+def test_pos_rejects_unknown_member_customer(pos_db):
+    req = POSTransactionRequest(
+        store_id=1,
+        items=[POSTItemRequest(variant_id=1, quantity=1)],
+        payment_method="cash",
+        customer_id=999,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        create_pos_transaction(req, staff_id=10)
+
+    assert exc_info.value.status_code == 404
+
+
+def test_pos_rejects_staff_as_member_customer(pos_db):
+    req = POSTransactionRequest(
+        store_id=1,
+        items=[POSTItemRequest(variant_id=1, quantity=1)],
+        payment_method="cash",
+        customer_id=10,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        create_pos_transaction(req, staff_id=10)
+
+    assert exc_info.value.status_code == 409
+
+
+def test_pos_rejects_insufficient_cash(pos_db):
+    req = POSTransactionRequest(
+        store_id=1,
+        items=[POSTItemRequest(variant_id=1, quantity=1)],
+        payment_method="cash",
+        amount_received_vnd=149999,
+    )
+
+    with pytest.raises(AppError) as exc_info:
+        create_pos_transaction(req, staff_id=10)
+
+    assert exc_info.value.status_code == 400

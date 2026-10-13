@@ -181,14 +181,18 @@ jobs:
 
       - name: Wait for MySQL OLTP and PostgreSQL readiness
         run: |
+          ready=0
           for i in {1..30}; do
-            if docker compose exec -T mysql mysqladmin ping -u root -ppassword --silent && docker compose exec -T postgres pg_isready -U postgres; then
+            if docker compose exec -T mysql mysql --protocol=tcp -h 127.0.0.1 -u ecommerce_app -ppassword ecommerce -Nse "SELECT 1" \
+              && docker compose exec -T postgres pg_isready -U postgres; then
               echo "Core database services are healthy"
+              ready=1
               break
             fi
             echo "Waiting for database services..."
             sleep 2
           done
+          test "$ready" -eq 1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -196,11 +200,57 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
 
-      - name: Verify Alembic migrations on real MySQL 8.4 (upgrade -> downgrade -> upgrade)
+      - name: Verify data-bearing Alembic migrations on real MySQL 8.4
         env:
           API_DATABASE_URL: mysql+pymysql://ecommerce_app:password@127.0.0.1:3306/ecommerce
           API_SECRET_KEY: ci-test-secret-key-32-characters-minimum
         run: |
+          set -o pipefail
+          uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade 0018
+          docker compose exec -T mysql mysql -u ecommerce_app -ppassword ecommerce -e \
+            "INSERT INTO customers (public_id, display_name, status, data_origin) \
+             VALUES (UUID_TO_BIN(UUID()), 'Migration Customer', 'active', 'manual'); \
+             SET @customer_id = LAST_INSERT_ID(); \
+             INSERT INTO orders \
+               (order_number, cart_id, customer_id, checkout_idempotency_key, status, payment_method, \
+                currency_code, subtotal_vnd, shipping_fee_vnd, total_vnd, receiver_name, receiver_phone, \
+                shipping_address_text, data_origin, confirmed_at, channel) \
+             VALUES \
+               ('ORD-MIGRATION-CHECK', NULL, @customer_id, 'migration-checkout', 'shipping', 'cod', \
+                'VND', 100000, 0, 100000, 'Migration Customer', '0901234567', \
+                'Migration Address', 'manual', CURRENT_TIMESTAMP(6), 'online'); \
+             SET @order_id = LAST_INSERT_ID(); \
+             INSERT INTO shipments \
+               (public_id, shipment_code, order_id, failure_reason, failed_attempt_1_key, failed_attempt_2_key) \
+             VALUES \
+               (UUID_TO_BIN(UUID()), 'SHP-MIGRATION-CHECK', @order_id, 'customer_unavailable', \
+                'migration-attempt-1', 'migration-attempt-2'); \
+             INSERT INTO categories (public_id, code, name) \
+             VALUES (UUID_TO_BIN(UUID()), 'MIGRATION-CAT', 'Migration Category'); \
+             SET @category_id = LAST_INSERT_ID(); \
+             INSERT INTO products (public_id, category_id, slug, name) \
+             VALUES (UUID_TO_BIN(UUID()), @category_id, 'migration-product', 'Migration Product'); \
+             SET @product_id = LAST_INSERT_ID(); \
+             INSERT INTO product_variants \
+               (public_id, product_id, sku, size_code, color_code, price_vnd) \
+             VALUES \
+               (UUID_TO_BIN(UUID()), @product_id, 'MIGRATION-SKU', 'M', 'BLACK', 100000);"
+          uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade 0019
+          docker compose exec -T mysql mysql -u ecommerce_app -ppassword ecommerce -Nse \
+            "SELECT COUNT(*) FROM shipment_attempts WHERE idempotency_key LIKE 'migration-attempt-%'" \
+            | grep -qx 2
+          docker compose exec -T mysql mysql -u ecommerce_app -ppassword ecommerce -e \
+            "INSERT INTO inventory_transactions \
+               (public_id, variant_id, location_type, movement_type, quantity_delta, reference_code) \
+             SELECT UUID_TO_BIN(UUID()), variant_id, 'central_warehouse', 'order_cancellation', 1, 'MIGRATION-CANCEL' \
+             FROM product_variants WHERE sku = 'MIGRATION-SKU';"
+          uv run --locked --package ecommerce-api alembic -c database/alembic.ini downgrade 0018
+          docker compose exec -T mysql mysql -u ecommerce_app -ppassword ecommerce -Nse \
+            "SELECT CONCAT(failed_attempt_1_key, ':', failed_attempt_2_key) FROM shipments WHERE shipment_code = 'SHP-MIGRATION-CHECK'" \
+            | grep -qx "migration-attempt-1:migration-attempt-2"
+          docker compose exec -T mysql mysql -u ecommerce_app -ppassword ecommerce -Nse \
+            "SELECT COUNT(*) FROM inventory_transactions WHERE reference_code = 'MIGRATION-CANCEL' AND movement_type = 'adjustment'" \
+            | grep -qx 1
           uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade head
           uv run --locked --package ecommerce-api alembic -c database/alembic.ini downgrade -1
           uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade head

@@ -45,10 +45,14 @@ export default function StorePosPage() {
   const [cart, setCart] = useState<PosItem[]>([]);
   const [searching, setSearching] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [customerId, setCustomerId] = useState("");
+  const [selectedStoreId, setSelectedStoreId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "vietqr">("cash");
   const [error, setError] = useState<string | null>(null);
   const [lastOrder, setLastOrder] = useState<OrderSuccess | null>(null);
 
-  const storeId = customer?.store_id ?? 7;
+  const canSelectStore = customer?.role === "admin" || customer?.role === "system_admin";
+  const storeId = customer?.store_id ?? (selectedStoreId ? Number(selectedStoreId) : undefined);
 
   const searchProduct = useCallback(async () => {
     if (!searchCode.trim() || !storeId) return;
@@ -115,8 +119,9 @@ export default function StorePosPage() {
         body: JSON.stringify({
           store_id: storeId,
           items: cart.map((i) => ({ variant_id: i.variant_id, quantity: i.quantity })),
-          payment_method: "cash",
-          amount_received_vnd: total,
+          payment_method: paymentMethod,
+          ...(paymentMethod === "cash" ? { amount_received_vnd: total } : {}),
+          ...(customerId.trim() ? { customer_id: Number(customerId) } : {}),
         }),
       });
       setLastOrder({ order_number: result.order_number, total_vnd: result.total_vnd, items: [...cart] });
@@ -127,13 +132,27 @@ export default function StorePosPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [cart, total, storeId, router]);
+  }, [cart, total, storeId, router, customerId, paymentMethod]);
 
   if (!storeId) {
     return (
       <div>
         <h1 className="admin-heading">Bán hàng tại quầy</h1>
-        <p className="mt-4 text-muted">Vui lòng chọn cửa hàng.</p>
+        {canSelectStore ? (
+          <label className="mt-4 grid max-w-sm gap-2 text-sm">
+            <span className="font-medium text-ink">Mã cửa hàng cần thao tác</span>
+            <input
+              className="form-control"
+              min="1"
+              placeholder="Nhập mã cửa hàng"
+              type="number"
+              value={selectedStoreId}
+              onChange={(event) => setSelectedStoreId(event.target.value)}
+            />
+          </label>
+        ) : (
+          <p className="mt-4 text-muted">Tài khoản chưa được phân công cửa hàng.</p>
+        )}
       </div>
     );
   }
@@ -249,6 +268,33 @@ export default function StorePosPage() {
           )}
 
           {error && <p className="feedback-error mt-4">{error}</p>}
+
+          <div className="mt-4 grid gap-3">
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-ink">Mã khách hàng thành viên</span>
+              <input
+                className="form-control"
+                inputMode="numeric"
+                min="1"
+                placeholder="Để trống nếu là khách vãng lai"
+                type="number"
+                value={customerId}
+                onChange={(event) => setCustomerId(event.target.value)}
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              <span className="font-medium text-ink">Phương thức thanh toán</span>
+              <select
+                className="form-control"
+                value={paymentMethod}
+                onChange={(event) => setPaymentMethod(event.target.value as "cash" | "card" | "vietqr")}
+              >
+                <option value="cash">Tiền mặt</option>
+                <option value="card">Thẻ</option>
+                <option value="vietqr">VietQR</option>
+              </select>
+            </label>
+          </div>
 
           <button
             className="button-accent mt-4 w-full"

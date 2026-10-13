@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.errors import OUT_OF_STOCK, RESOURCE_NOT_FOUND, AppError
+from app.core.errors import OUT_OF_STOCK, RESOURCE_NOT_FOUND, VALIDATION_ERROR, AppError
 from app.core.ids import new_order_number, new_payment_reference, uuid7
 from app.db.uow import run_in_transaction
 from app.models.catalog import Category, Product, ProductVariant
@@ -148,6 +148,20 @@ def create_pos_transaction(
 
         total = subtotal  # POS: no shipping fee
 
+        if request.payment_method == "cash":
+            if request.amount_received_vnd is not None and request.amount_received_vnd < total:
+                raise AppError(
+                    VALIDATION_ERROR,
+                    "Số tiền khách đưa phải lớn hơn hoặc bằng tổng thanh toán.",
+                    status_code=400,
+                )
+        elif request.amount_received_vnd is not None:
+            raise AppError(
+                VALIDATION_ERROR,
+                "Chỉ giao dịch tiền mặt mới được ghi nhận số tiền khách đưa.",
+                status_code=400,
+            )
+
         # Resolve customer if provided (walk-in guest by default: customer_id = None)
         order_customer_id = None
         receiver_name = "POS Customer"
@@ -156,9 +170,16 @@ def create_pos_transaction(
             matched_cust = db.execute(
                 select(Customer).where(Customer.customer_id == request.customer_id)
             ).scalar_one_or_none()
-            if matched_cust is not None:
-                order_customer_id = matched_cust.customer_id
-                receiver_name = matched_cust.display_name
+            if matched_cust is None:
+                raise AppError(RESOURCE_NOT_FOUND, "Không tìm thấy khách hàng thành viên.", status_code=404)
+            if matched_cust.role != "customer" or matched_cust.status != "active":
+                raise AppError(
+                    VALIDATION_ERROR,
+                    "Tài khoản được chọn không phải khách hàng đang hoạt động.",
+                    status_code=409,
+                )
+            order_customer_id = matched_cust.customer_id
+            receiver_name = matched_cust.display_name
 
         # Create order
         order = Order(
@@ -225,7 +246,7 @@ def create_pos_transaction(
             order_id=order.order_id,
             from_status=None,
             to_status="completed",
-            transition_source="admin",
+            transition_source="pos",
             transition_idempotency_key=f"pos:{order.order_number}:completed",
             transitioned_at=now,
             created_at=now,

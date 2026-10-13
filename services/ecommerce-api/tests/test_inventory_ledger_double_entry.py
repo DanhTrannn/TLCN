@@ -70,7 +70,7 @@ def test_checkout_deduct_inventory_creates_ledger(ledger_db):
     assert tx.location_type == "central_warehouse"
 
 
-def test_double_entry_ledger_balance_invariant(ledger_db):
+def test_inventory_movement_pair_restores_balance(ledger_db):
     # Simulate outbound_order
     deduct_inventory(ledger_db, [{"variant_id": 1, "quantity": 10}], reference_code="ORD-1")
 
@@ -92,7 +92,9 @@ def test_double_entry_ledger_balance_invariant(ledger_db):
     )
     ledger_db.commit()
 
-    # Verify accounting invariant: opening_on_hand + SUM(quantity_delta) == on_hand
+    # The outbound and compensating cancellation movements net to zero. This
+    # checks an operation pair, not a global opening-balance equation: inbound
+    # receipts also expand opening_on_hand to preserve the stock ceiling.
     delta_sum = ledger_db.scalar(
         select(func.sum(InventoryTransaction.quantity_delta)).where(
             InventoryTransaction.variant_id == 1

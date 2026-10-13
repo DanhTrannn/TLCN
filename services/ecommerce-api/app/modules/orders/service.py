@@ -882,10 +882,20 @@ def fail_delivery_order(
                     "Idempotency key đã được dùng cho request khác.",
                     status_code=409,
                 )
-            return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+            return OrderTransitionResponse(
+                order_number=order.order_number,
+                status=order.status,
+                delivery_attempt_count=3,
+                remaining_delivery_attempts=0,
+            )
 
     if order.status == "failed_delivery":
-        return OrderTransitionResponse(order_number=order.order_number, status=order.status)
+        return OrderTransitionResponse(
+            order_number=order.order_number,
+            status=order.status,
+            delivery_attempt_count=3,
+            remaining_delivery_attempts=0,
+        )
     if order.status != "shipping":
         raise AppError(
             INVALID_STATE_TRANSITION,

@@ -85,3 +85,23 @@ def test_customers_has_cod_reinstatement_audit_fields() -> None:
 def test_inventory_transactions_movement_type_includes_order_cancellation() -> None:
     sql = _check_sql("inventory_transactions", "ck_inv_tx_movement_type")
     assert "'order_cancellation'" in sql
+
+
+def test_inventory_transaction_location_and_direction_constraints() -> None:
+    location_sql = _check_sql("inventory_transactions", "location_store_consistency")
+    direction_sql = _check_sql("inventory_transactions", "movement_direction")
+    non_zero_sql = _check_sql("inventory_transactions", "quantity_non_zero")
+
+    assert "location_type = 'store' and store_id is not null" in location_sql
+    assert "'outbound_pos'" in direction_sql
+    assert "quantity_delta < 0" in direction_sql
+    assert "quantity_delta != 0" in non_zero_sql
+
+
+def test_order_channel_constraints_require_online_owner_and_completed_pos() -> None:
+    online_sql = _check_sql("orders", "online_customer")
+    pos_sql = _check_sql("orders", "pos_completion")
+
+    assert "customer_id is not null" in online_sql
+    assert "status = 'completed'" in pos_sql
+    assert "paid_at is not null" in pos_sql

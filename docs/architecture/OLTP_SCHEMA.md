@@ -9,7 +9,7 @@ Kết hợp thiết kế logic, column-level reference, transaction catalog và 
 
 Schema tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
-Hệ thống có **28 bảng nghiệp vụ** (schema hiện hành đến migration `0019_pos_customer_shipment_attempts_and_invariants.py`). Pipeline Lakehouse DE trích xuất **27 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
+Hệ thống có **28 bảng nghiệp vụ** (schema hiện hành đến migration `0020_strengthen_inventory_and_pos_invariants.py`). Pipeline Lakehouse DE trích xuất **27 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
 
 ### Quy tắc thiết kế cốt lõi
 
@@ -303,7 +303,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | Cột | Kiểu | Constraint | Mô tả |
 |-----|------|-----------|-------|
 | `variant_id` | `BIGINT UNSIGNED` | PK/FK → `product_variants.variant_id`, ON DELETE RESTRICT | 1:1 với variant |
-| `opening_on_hand` | `BIGINT UNSIGNED` | NOT NULL | Số lượng tồn đầu kỳ |
+| `opening_on_hand` | `BIGINT UNSIGNED` | NOT NULL | Tổng lượng hàng đã cấp làm trần kiểm soát tồn |
 | `on_hand` | `BIGINT UNSIGNED` | NOT NULL | Số lượng tồn hiện tại |
 | `version` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` |乐观锁 — tăng khi checkout/cancel |
 | `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
@@ -376,7 +376,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `store_id` | `BIGINT UNSIGNED` | PK/FK → `stores.store_id`, ON DELETE RESTRICT | Cửa hàng |
 | `variant_id` | `BIGINT UNSIGNED` | PK/FK → `product_variants.variant_id`, ON DELETE RESTRICT | Variant |
 | `on_hand` | `BIGINT UNSIGNED` | NOT NULL | Số lượng tồn hiện tại |
-| `opening_on_hand` | `BIGINT UNSIGNED` | NOT NULL | Số lượng tồn đầu kỳ |
+| `opening_on_hand` | `BIGINT UNSIGNED` | NOT NULL | Tổng lượng hàng đã cấp làm trần kiểm soát tồn |
 | `version` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | 乐观锁 — tăng khi POS/cancel |
 | `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
 
@@ -1026,6 +1026,8 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - `location_type IN ('central_warehouse', 'store')`
 - `movement_type IN ('inbound', 'outbound_order', 'outbound_pos', 'transfer_to_store', 'transfer_received', 'return_boom', 'return_customer', 'exchange_out', 'adjustment', 'order_cancellation')`
 - `(location_type = 'central_warehouse' AND store_id IS NULL) OR (location_type = 'store' AND store_id IS NOT NULL)`
+- `quantity_delta != 0`
+- Các movement nhập/hoàn có delta dương; các movement xuất/chuyển đi có delta âm; `adjustment` cho phép cả hai chiều.
 
 **Indexes**:
 - `uq_inventory_tx_public_id` — UK trên `public_id`
@@ -1034,7 +1036,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 - `ix_inv_tx_movement_type` — `(movement_type)`
 - `ix_inv_tx_created_at_tx_id` — extraction cursor
 
-**Audit & Ledger Invariant**: Bảng hoàn toàn append-only. Không bao giờ được sửa đổi hoặc xóa các dòng trong `inventory_transactions`. Tổng đại số $\sum \text{quantity\_delta}$ qua mọi thời kỳ của 1 biến thể tại kho tổng phải khớp đúng với `inventory.on_hand`.
+**Audit & Ledger Invariant**: Bảng hoàn toàn append-only trong runtime ứng dụng. Mỗi thao tác thay đổi tồn phải thỏa `on_hand_after - on_hand_before = SUM(quantity_delta)` của các dòng ledger được tạo trong cùng transaction. Đối soát dài hạn phải bắt đầu từ một snapshot/checkpoint vì `opening_on_hand` là trần tích lũy được mở rộng khi nhập hoặc điều chuyển hàng, không phải số dư ledger cố định.
 
 ---
 
@@ -1302,8 +1304,8 @@ Hệ thống trích xuất **26 bảng** sang hồ dữ liệu Lakehouse (toàn 
 - `archived_at IS NOT NULL` thì entity inactive và đủ actor/reason; order/order item lịch sử vẫn join được đến product/coupon archive
 - Mọi review phải trỏ đến completed purchased order item
 - Review `approved` auto-publish có thể không có moderator; review `rejected` phải đủ moderator/time/reason
-- `inventory.on_hand = opening_on_hand + SUM(inventory_transactions.quantity_delta)` tại kho tổng
-- `SUM(store_inventory.on_hand) <= inventory.on_hand`
+- Mỗi mutation kho phải atomically thỏa `on_hand_after - on_hand_before = SUM(quantity_delta)` theo location trong cùng transaction.
+- Điều chuyển kho tạo cặp ledger cùng `reference_code`: `transfer_to_store` âm ở kho tổng và `transfer_received` dương tại cửa hàng.
 - POS order: `channel='pos'`, `store_id` NOT NULL, `staff_id` NOT NULL, status=`completed`
 - Snapshot COGS: `order_items.cost_price_vnd` cố định tại thời điểm checkout từ `product_variants.cost_price_vnd`. Với đơn hàng `delivered` hoặc `completed`:
   $$\text{COGS} = \sum (\text{quantity} \times \text{cost\_price\_vnd})$$

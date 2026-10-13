@@ -93,6 +93,32 @@ def upgrade() -> None:
     op.create_index("ix_shipment_attempts_delivery_staff_id", "shipment_attempts", ["delivery_staff_id"])
     op.create_index("ix_shipment_attempts_attempted_at", "shipment_attempts", ["attempted_at"])
 
+    # Preserve delivery attempts recorded by revision 0018 before removing the
+    # denormalized key columns. The old schema only retained the latest failure
+    # reason/timestamp on the shipment, so those values are the best historical
+    # snapshot available for every migrated attempt.
+    for attempt_number in range(1, 4):
+        op.execute(
+            sa.text(
+                f"""
+                INSERT INTO shipment_attempts (
+                    public_id, shipment_id, attempt_number, delivery_staff_id,
+                    status, failure_reason, is_buyer_fault, idempotency_key,
+                    attempted_at, created_at, updated_at
+                )
+                SELECT
+                    UUID_TO_BIN(UUID()), shipment_id, :attempt_number, delivery_staff_id,
+                    'attempted_failed', failure_reason, 1,
+                    failed_attempt_{attempt_number}_key,
+                    COALESCE(updated_at, created_at),
+                    COALESCE(updated_at, created_at),
+                    COALESCE(updated_at, created_at)
+                FROM shipments
+                WHERE failed_attempt_{attempt_number}_key IS NOT NULL
+                """
+            ).bindparams(attempt_number=attempt_number)
+        )
+
     # 2b. shipments: drop 3 flat attempt key columns
     op.drop_index("uq_shipments_failed_attempt_3_key", table_name="shipments")
     op.drop_index("uq_shipments_failed_attempt_2_key", table_name="shipments")
@@ -137,8 +163,13 @@ def downgrade() -> None:
     if bind.dialect.name != "mysql":
         return
 
-    # 4. inventory_transactions: restore original movement_type check
+    # 4. inventory_transactions: retain rows while mapping the new movement
+    # type to the closest type understood by revision 0018.
     _drop_matching_checks("inventory_transactions", ("movement_type",))
+    op.execute(
+        "UPDATE inventory_transactions SET movement_type = 'adjustment' "
+        "WHERE movement_type = 'order_cancellation'"
+    )
     op.execute(
         "ALTER TABLE inventory_transactions ADD CONSTRAINT ck_inventory_transactions_movement_type CHECK ("
         "movement_type in ('inbound','outbound_order','outbound_pos','transfer_to_store','transfer_received',"
@@ -157,6 +188,23 @@ def downgrade() -> None:
     op.add_column("shipments", sa.Column("failed_attempt_1_key", sa.String(64), nullable=True))
     op.add_column("shipments", sa.Column("failed_attempt_2_key", sa.String(64), nullable=True))
     op.add_column("shipments", sa.Column("failed_attempt_3_key", sa.String(64), nullable=True))
+    op.execute(
+        """
+        UPDATE shipments AS s
+        LEFT JOIN shipment_attempts AS a1
+          ON a1.shipment_id = s.shipment_id AND a1.attempt_number = 1
+             AND a1.status = 'attempted_failed'
+        LEFT JOIN shipment_attempts AS a2
+          ON a2.shipment_id = s.shipment_id AND a2.attempt_number = 2
+             AND a2.status = 'attempted_failed'
+        LEFT JOIN shipment_attempts AS a3
+          ON a3.shipment_id = s.shipment_id AND a3.attempt_number = 3
+             AND a3.status = 'attempted_failed'
+        SET s.failed_attempt_1_key = a1.idempotency_key,
+            s.failed_attempt_2_key = a2.idempotency_key,
+            s.failed_attempt_3_key = a3.idempotency_key
+        """
+    )
     op.create_index("uq_shipments_failed_attempt_1_key", "shipments", ["failed_attempt_1_key"], unique=True)
     op.create_index("uq_shipments_failed_attempt_2_key", "shipments", ["failed_attempt_2_key"], unique=True)
     op.create_index("uq_shipments_failed_attempt_3_key", "shipments", ["failed_attempt_3_key"], unique=True)
@@ -165,5 +213,4 @@ def downgrade() -> None:
     # 1. orders: drop constraints, set default for nulls, restore customer_id NOT NULL
     _drop_matching_checks("orders", ("pos_channel", "channel_payment", "cod_pending_no_paid_at"))
     op.execute("UPDATE orders SET customer_id = staff_id WHERE customer_id IS NULL AND staff_id IS NOT NULL")
-    op.execute("UPDATE orders SET customer_id = 1 WHERE customer_id IS NULL")
     op.execute("ALTER TABLE orders MODIFY customer_id BIGINT UNSIGNED NOT NULL")

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import OUT_OF_STOCK, VALIDATION_ERROR, AppError, not_found
+from app.core.ids import uuid7
 from app.db.deps import (
     get_current_admin,
     get_current_inventory_staff,
@@ -15,6 +16,7 @@ from app.db.deps import (
 from app.models.catalog import ProductVariant
 from app.models.customer import Customer
 from app.models.inventory import Inventory
+from app.models.inventory_tx import InventoryTransaction
 from app.models.multicity import Store, StoreInventory
 from app.modules.admin.branch_inventory_schemas import BranchInventoryItem, UpdateStockRequest
 from app.modules.admin.branch_inventory_service import check_store_inventory_permission
@@ -408,6 +410,34 @@ def refill_inventory(
             updated_at=now,
         )
         db.add(store_inv)
+
+    reference_code = f"TRANSFER-{payload.store_id}-{payload.variant_id}-{uuid7()}"[:64]
+    db.add_all(
+        [
+            InventoryTransaction(
+                public_id=uuid7(),
+                variant_id=payload.variant_id,
+                location_type="central_warehouse",
+                store_id=None,
+                movement_type="transfer_to_store",
+                quantity_delta=-payload.quantity,
+                reference_code=reference_code,
+                notes=f"Chuyển hàng đến cửa hàng {store.code}",
+                created_at=now,
+            ),
+            InventoryTransaction(
+                public_id=uuid7(),
+                variant_id=payload.variant_id,
+                location_type="store",
+                store_id=payload.store_id,
+                movement_type="transfer_received",
+                quantity_delta=payload.quantity,
+                reference_code=reference_code,
+                notes=f"Cửa hàng {store.code} nhận hàng từ kho tổng",
+                created_at=now,
+            ),
+        ]
+    )
 
     db.flush()
     return Response(status_code=204)

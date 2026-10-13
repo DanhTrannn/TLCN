@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("API_SECRET_KEY", "test-secret-key-least-32-characters-long")
 os.environ.setdefault("API_INTERNAL_SECRET", "test-internal-secret")
 
-from app.db.deps import get_current_customer  # noqa: E402
+from app.db.deps import get_current_customer, verify_csrf  # noqa: E402
 from app.main import app  # noqa: E402
 
 
@@ -24,7 +24,9 @@ def mock_staff_auth(client):
     mock_customer.public_id = "staff-public-id"
     mock_customer.role = "store_manager"
     mock_customer.status = "active"
+    mock_customer.store_id = 1
     app.dependency_overrides[get_current_customer] = lambda: mock_customer
+    app.dependency_overrides[verify_csrf] = lambda: None
     yield client
     app.dependency_overrides.clear()
 

@@ -56,6 +56,10 @@ def test_refill_inventory_success():
     assert result.status_code == 204
     assert mock_inv.on_hand == 80
     assert mock_store_inv.on_hand == 30
+    transfer_rows = mock_db.add_all.call_args.args[0]
+    assert [row.movement_type for row in transfer_rows] == ["transfer_to_store", "transfer_received"]
+    assert [row.quantity_delta for row in transfer_rows] == [-20, 20]
+    assert transfer_rows[0].reference_code == transfer_rows[1].reference_code
 
 
 def test_refill_inventory_insufficient_stock():

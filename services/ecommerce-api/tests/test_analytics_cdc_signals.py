@@ -392,6 +392,8 @@ def cdc_session():
         receiver_name="Người Nhận 2",
         receiver_phone="0901234567",
         shipping_address_text="Tại quầy",
+        paid_at=now - timedelta(hours=2),
+        completed_at=now - timedelta(hours=2),
         created_at=now - timedelta(hours=2),
     )
     order_stale = Order(

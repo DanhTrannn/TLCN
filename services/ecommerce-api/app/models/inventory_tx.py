@@ -32,6 +32,19 @@ class InventoryTransaction(Base):
     __table_args__ = (
         CheckConstraint("location_type in ('central_warehouse','store')", name="ck_inv_tx_location_type"),
         CheckConstraint(
+            "(location_type = 'central_warehouse' and store_id is null) or "
+            "(location_type = 'store' and store_id is not null)",
+            name="ck_inv_tx_location_store_consistency",
+        ),
+        CheckConstraint("quantity_delta != 0", name="ck_inv_tx_quantity_non_zero"),
+        CheckConstraint(
+            "(movement_type in ('inbound','transfer_received','return_boom','return_customer','order_cancellation') "
+            "and quantity_delta > 0) or "
+            "(movement_type in ('outbound_order','outbound_pos','transfer_to_store','exchange_out') "
+            "and quantity_delta < 0) or movement_type = 'adjustment'",
+            name="ck_inv_tx_movement_direction",
+        ),
+        CheckConstraint(
             "movement_type in ('inbound','outbound_order','outbound_pos','transfer_to_store','transfer_received','return_boom','return_customer','exchange_out','adjustment','order_cancellation')",
             name="ck_inv_tx_movement_type",
         ),

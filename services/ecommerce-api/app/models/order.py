@@ -96,6 +96,14 @@ class Order(Base):
             name="pos_channel",
         ),
         CheckConstraint(
+            "channel != 'online' or customer_id is not null",
+            name="online_customer",
+        ),
+        CheckConstraint(
+            "channel != 'pos' or (status = 'completed' and paid_at is not null and completed_at is not null)",
+            name="pos_completion",
+        ),
+        CheckConstraint(
             "((channel = 'pos' and payment_method in ('cash','card','vietqr')) or "
             "(channel = 'online' and payment_method in ('vietqr','cod')))",
             name="channel_payment",
@@ -270,7 +278,7 @@ class OrderStatusHistory(Base):
             name="valid_transition",
         ),
         CheckConstraint(
-            "transition_source in ('checkout','internal_endpoint','generator','system','admin','customer','admin_dispatch','admin_deliver','admin_failed_delivery','admin_complete','admin_return')",
+            "transition_source in ('checkout','internal_endpoint','generator','system','admin','customer','pos','admin_dispatch','admin_deliver','admin_failed_delivery','admin_complete','admin_return')",
             name="transition_source",
         ),
         CheckConstraint("to_status <> 'cancelled' or reason is not null", name="cancel_reason"),
