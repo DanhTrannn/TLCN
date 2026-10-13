@@ -250,7 +250,7 @@ function ExecutiveDashboard({
           height: 18,
           borderColor: "transparent",
           backgroundColor: "rgba(0,0,0,0.03)",
-          fillerColor: "rgba(169, 71, 40, 0.2)",
+          fillerColor: "rgba(30, 41, 59, 0.15)",
         },
       ],
       series: [
@@ -258,14 +258,14 @@ function ExecutiveDashboard({
           name: "Doanh thu",
           type: "bar",
           data: revenues,
-          itemStyle: { color: "#a94728", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#1e293b", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 20,
         },
         {
           name: "Giá vốn (COGS)",
           type: "bar",
           data: cogs,
-          itemStyle: { color: "#315b4f", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#94a3b8", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 20,
         },
         {
@@ -321,7 +321,7 @@ function ExecutiveDashboard({
           },
           data: [
             { value: deliveredCount, name: "Giao thành công", itemStyle: { color: "#059669" } },
-            { value: boomCount, name: "Giao thất bại (Boom)", itemStyle: { color: "#e11d48" } },
+            { value: boomCount, name: "Giao thất bại (COD)", itemStyle: { color: "#e11d48" } },
             { value: returnCount, name: "Yêu cầu đổi trả", itemStyle: { color: "#d97706" } },
           ],
         },
@@ -334,29 +334,25 @@ function ExecutiveDashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <article className="min-w-0 overflow-hidden rounded-2xl bg-ink p-6 text-paper shadow-lift">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-paper/70">Doanh thu thuần (Net Revenue)</p>
-            <Icon className="text-paper/65" name="dashboard" size={18} />
+            <p className="text-sm font-medium text-paper/70">Doanh thu thuần (Net Revenue)</p>
           </div>
           <p aria-label={formatVnd(metrics.net_revenue_vnd)} className={metricValueClasses} title={formatVnd(metrics.net_revenue_vnd)}>
             {formatMetricVnd(metrics.net_revenue_vnd)}
           </p>
-          <p className="mt-3 text-xs text-paper/60">Doanh thu đã trừ hoàn tiền</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Tổng giá trị hàng hóa (GMV)</p>
-            <Icon className="text-muted" name="receipt" size={18} />
+            <p className="text-sm font-medium text-muted">Tổng giá trị hàng hóa (GMV)</p>
           </div>
           <p aria-label={formatVnd(metrics.gmv_vnd)} className={metricValueClasses} title={formatVnd(metrics.gmv_vnd)}>
             {formatMetricVnd(metrics.gmv_vnd)}
           </p>
-          <p className="mt-3 text-xs text-muted">Tổng đơn không bị hủy</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Lợi nhuận gộp (Gross Profit)</p>
+            <p className="text-sm font-medium text-muted">Lợi nhuận gộp (Gross Profit)</p>
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                 metrics.gross_margin_percent >= 0
@@ -370,43 +366,36 @@ function ExecutiveDashboard({
           <p aria-label={formatVnd(metrics.gross_profit_vnd)} className={metricValueClasses} title={formatVnd(metrics.gross_profit_vnd)}>
             {formatMetricVnd(metrics.gross_profit_vnd)}
           </p>
-          <p className="mt-3 text-xs text-muted">Doanh thu thuần trừ giá vốn</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Giá vốn hàng bán (COGS)</p>
-            <Icon className="text-muted" name="box" size={18} />
+            <p className="text-sm font-medium text-muted">Giá vốn hàng bán (COGS)</p>
           </div>
           <p aria-label={formatVnd(metrics.cogs_vnd)} className={metricValueClasses} title={formatVnd(metrics.cogs_vnd)}>
             {formatMetricVnd(metrics.cogs_vnd)}
           </p>
-          <p className="mt-3 text-xs text-muted">Bình quân gia quyền di động</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Tổng số đơn hàng</p>
-            <Icon className="text-muted" name="package" size={18} />
+            <p className="text-sm font-medium text-muted">Tổng số đơn hàng</p>
           </div>
           <p className={metricValueClasses}>{metrics.total_orders.toLocaleString("vi-VN")}</p>
-          <p className="mt-3 text-xs text-muted">Toàn bộ đơn hàng ghi nhận</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Giá trị đơn TB (AOV)</p>
-            <Icon className="text-muted" name="cash" size={18} />
+            <p className="text-sm font-medium text-muted">Giá trị đơn TB (AOV)</p>
           </div>
           <p aria-label={formatVnd(metrics.aov_vnd)} className={metricValueClasses} title={formatVnd(metrics.aov_vnd)}>
             {formatMetricVnd(metrics.aov_vnd)}
           </p>
-          <p className="mt-3 text-xs text-muted">Bình quân mỗi đơn hoàn tất</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Tỷ lệ Boom hàng</p>
+            <p className="text-sm font-medium text-muted">Tỷ lệ Giao thất bại (COD)</p>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                 metrics.boom_rate_percent > 5
@@ -420,12 +409,11 @@ function ExecutiveDashboard({
           <p className={`${metricValueClasses} ${metrics.boom_rate_percent > 5 ? "text-danger" : ""}`}>
             {metrics.boom_rate_percent}%
           </p>
-          <p className="mt-3 text-xs text-muted">Giao thất bại khách hủy nhận</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Tỷ lệ Đổi trả</p>
+            <p className="text-sm font-medium text-muted">Tỷ lệ Đổi trả</p>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                 metrics.return_rate_percent > 3
@@ -437,13 +425,11 @@ function ExecutiveDashboard({
             </span>
           </div>
           <p className={metricValueClasses}>{metrics.return_rate_percent}%</p>
-          <p className="mt-3 text-xs text-muted">Yêu cầu hoàn trả sản phẩm</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Tỷ suất LN gộp (Gross Margin)</p>
-            <Icon className="text-muted" name="bar-chart" size={18} />
+            <p className="text-sm font-medium text-muted">Tỷ suất LN gộp (Gross Margin)</p>
           </div>
           <p
             className={`${metricValueClasses} ${
@@ -452,7 +438,6 @@ function ExecutiveDashboard({
           >
             {metrics.gross_margin_percent}%
           </p>
-          <p className="mt-3 text-xs text-muted">Hiệu quả giá vốn doanh thu</p>
         </article>
       </div>
 
@@ -469,9 +454,6 @@ function ExecutiveDashboard({
                 Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
-            <span className="w-fit rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">
-              Cửa sổ biến động: 1h - Trong ngày
-            </span>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -542,9 +524,6 @@ function ExecutiveDashboard({
                     <span className="text-2xl font-extrabold text-ink tabular-nums">
                       {formatVnd(metrics.cash_in_transit.total_cod_amount_vnd)}
                     </span>
-                    <p className="mt-1 text-xs text-muted">
-                      Tổng tiền mặt shipper đối tác đang thu hộ chưa chuyển về quỹ công ty
-                    </p>
                   </div>
 
                   {metrics.cash_in_transit.carrier_breakdown &&
@@ -587,10 +566,7 @@ function ExecutiveDashboard({
         {/* Dual-Axis Trend Chart */}
         <section className="admin-panel lg:col-span-2 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-ink">Xu hướng Doanh thu & Lợi nhuận gộp theo ngày</h3>
-              <p className="text-xs text-muted">Dữ liệu thực thời từ Lakehouse Mart (mart_sales_daily via Trino)</p>
-            </div>
+            <h3 className="text-lg font-semibold text-ink">Xu hướng Doanh thu & Lợi nhuận gộp theo ngày</h3>
             <div className="flex items-center gap-1.5 rounded-xl border border-line bg-paper p-1">
               {[7, 14, 30].map((days) => (
                 <button
@@ -616,10 +592,7 @@ function ExecutiveDashboard({
 
         {/* Executive Fulfillment Donut */}
         <section className="admin-panel space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-ink">Cơ cấu Đơn hàng & Boom rate</h3>
-            <p className="text-xs text-muted">Tỷ trọng giao thành công vs rủi ro hoàn hủy</p>
-          </div>
+          <h3 className="text-lg font-semibold text-ink">Cơ cấu Đơn hàng & Boom rate</h3>
           <EChart height={340} option={executiveDonutOption} />
         </section>
       </div>
@@ -733,7 +706,7 @@ function SalesDashboard({
         {
           type: "bar",
           data: prods.map((p) => p.revenue_vnd),
-          itemStyle: { color: "#a94728", borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: "#1e293b", borderRadius: [0, 4, 4, 0] },
           barMaxWidth: 20,
         },
       ],
@@ -787,7 +760,7 @@ function SalesDashboard({
           name: "Doanh thu",
           type: "bar",
           data: aggregatedContributions.map((s) => s.revenue_vnd),
-          itemStyle: { color: "#152722", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#1e293b", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 32,
         },
       ],
@@ -809,9 +782,6 @@ function SalesDashboard({
                 Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
-            <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Vận tốc tiêu thụ & Tăng trưởng kênh
-            </span>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -824,7 +794,7 @@ function SalesDashboard({
                       Sản phẩm Ngựa ô Bán chạy Đột biến (Viral)
                     </span>
                     <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-400">
-                      🔥 Tăng tốc bất thường
+                      Tăng tốc bất thường
                     </span>
                   </div>
                   <div className="mt-3 divide-y divide-line/60">
@@ -837,7 +807,7 @@ function SalesDashboard({
                           </p>
                         </div>
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-400">
-                          🔥 x{vp.growth_velocity_multiple} lần
+                          x{vp.growth_velocity_multiple} lần
                         </span>
                       </div>
                     ))}
@@ -907,29 +877,20 @@ function SalesDashboard({
 
       {/* Store Contributions Chart */}
       <section className="admin-panel space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-ink">Đóng góp Doanh thu theo Chi nhánh & Kênh</h3>
-          <p className="text-xs text-muted">Phân tích hiệu quả kinh doanh đa kênh (Multi-city & Online)</p>
-        </div>
+        <h3 className="text-lg font-semibold text-ink">Đóng góp Doanh thu theo Chi nhánh & Kênh</h3>
         <EChart height={280} option={storeOption} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top Selling Products */}
         <section className="admin-panel space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-ink">Top Sản phẩm bán chạy</h3>
-            <p className="text-xs text-muted">Xếp hạng theo tổng doanh thu phát sinh trên DWH</p>
-          </div>
+          <h3 className="text-lg font-semibold text-ink">Top Sản phẩm bán chạy</h3>
           <EChart height={300} option={topProductsOption} />
         </section>
 
         {/* Category Share */}
         <section className="admin-panel space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-ink">Tỷ trọng Doanh thu Danh mục</h3>
-            <p className="text-xs text-muted">Cơ cấu doanh số mặt hàng theo Data Mart</p>
-          </div>
+          <h3 className="text-lg font-semibold text-ink">Tỷ trọng Doanh thu Danh mục</h3>
           <EChart height={300} option={categoryOption} />
         </section>
       </div>
@@ -1132,9 +1093,6 @@ function StoreDashboard({
                 Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
-            <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Tồn quầy cục bộ & Nhịp độ doanh số Run-Rate
-            </span>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -1211,9 +1169,9 @@ function StoreDashboard({
                       }`}
                     >
                       {metrics.run_rate.pace_status === "ahead"
-                        ? "⚡ Vượt nhịp độ"
+                        ? "Vượt nhịp độ"
                         : metrics.run_rate.pace_status === "behind"
-                        ? "⚠️ Chậm nhịp độ"
+                        ? "Chậm nhịp độ"
                         : "Đúng tiến độ"}
                     </span>
                   </div>
@@ -1269,27 +1227,23 @@ function StoreDashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <article className="min-w-0 overflow-hidden rounded-2xl bg-ink p-5 text-paper shadow-lift">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-paper/70">Doanh thu hôm nay</p>
-            <Icon className="text-paper/65" name="cash" size={16} />
+            <p className="text-xs font-medium text-paper/70">Doanh thu hôm nay</p>
           </div>
           <p aria-label={formatVnd(metrics.store_revenue_today_vnd)} className={metricValueClasses} title={formatVnd(metrics.store_revenue_today_vnd)}>
             {formatMetricVnd(metrics.store_revenue_today_vnd)}
           </p>
-          <p className="mt-3 text-xs text-paper/60">Ghi nhận trong ngày</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Số đơn hôm nay</p>
-            <Icon className="text-muted" name="receipt" size={16} />
+            <p className="text-xs font-medium text-muted">Số đơn hôm nay</p>
           </div>
           <p className={metricValueClasses}>{metrics.store_orders_count}</p>
-          <p className="mt-3 text-xs text-muted">Đơn hoàn tất tại cửa hàng</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Tiến độ chỉ tiêu ngày</p>
+            <p className="text-xs font-medium text-muted">Tiến độ chỉ tiêu ngày</p>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                 metrics.target_achievement_percent >= 80
@@ -1303,27 +1257,26 @@ function StoreDashboard({
           <p className={`${metricValueClasses} text-emerald-700 dark:text-emerald-400`}>
             {metrics.target_achievement_percent}%
           </p>
-          <p className="mt-3 text-xs text-muted">Mục tiêu 20.000.000₫/ngày</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Tồn kho thấp tại cửa hàng</p>
-            <Icon className={metrics.low_stock_at_store_count > 0 ? "text-danger" : "text-muted"} name="alert" size={16} />
+            <p className="text-xs font-medium text-muted">Tồn kho thấp tại cửa hàng</p>
+            {metrics.low_stock_at_store_count > 0 && (
+              <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
+                Cảnh báo
+              </span>
+            )}
           </div>
           <p className={`${metricValueClasses} ${metrics.low_stock_at_store_count > 0 ? "text-danger" : ""}`}>
             {metrics.low_stock_at_store_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Biến thể có tồn kho ≤ 5</p>
         </article>
       </div>
 
       {/* Target Gauge Visualization */}
       <section className="admin-panel space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-ink">Đồng hồ Tiến độ Doanh số Chỉ tiêu (Daily Target Gauge)</h3>
-          <p className="text-xs text-muted">Mức độ hoàn thành chỉ tiêu doanh thu ngày của chi nhánh</p>
-        </div>
+        <h3 className="text-lg font-semibold text-ink">Đồng hồ Tiến độ Doanh số Chỉ tiêu (Daily Target Gauge)</h3>
         <EChart height={280} option={gaugeOption} />
       </section>
 
@@ -1376,7 +1329,7 @@ function InventoryDashboard({
           name: "Số lượng tồn kho (Units)",
           type: "bar",
           data: [metrics.warehouse_stock_units, metrics.store_stock_units],
-          itemStyle: { color: "#152722", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#1e293b", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 56,
         },
       ],
@@ -1399,9 +1352,6 @@ function InventoryDashboard({
                 Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
-            <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Vận tốc rút tồn kho & Chặn bán vượt tồn
-            </span>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -1434,8 +1384,8 @@ function InventoryDashboard({
                             <span
                               className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                                 item.alert_level === "critical"
-                                  ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-                                  : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                    ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                                    : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
                               }`}
                             >
                               Runway: Còn ~{item.estimated_minutes_to_stockout} phút
@@ -1469,7 +1419,7 @@ function InventoryDashboard({
                       Chặn đứng Bán Vượt Tồn (Overselling Prevention)
                     </span>
                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                      🛡️ Bảo vệ giao dịch
+                      Bảo vệ giao dịch
                     </span>
                   </div>
 
@@ -1485,7 +1435,7 @@ function InventoryDashboard({
                             </p>
                           </div>
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                            🛡️ Đã đồng bộ Web
+                            Đã đồng bộ Web
                           </span>
                         </div>
                       ))}
@@ -1519,42 +1469,38 @@ function InventoryDashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <article className="min-w-0 overflow-hidden rounded-2xl bg-ink p-6 text-paper shadow-lift">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-paper/70">Tổng giá trị định giá tồn kho</p>
-            <Icon className="text-paper/65" name="box" size={18} />
+            <p className="text-sm font-medium text-paper/70">Tổng giá trị định giá tồn kho</p>
           </div>
           <p aria-label={formatVnd(metrics.total_inventory_value_vnd)} className={metricValueClasses} title={formatVnd(metrics.total_inventory_value_vnd)}>
             {formatMetricVnd(metrics.total_inventory_value_vnd)}
           </p>
-          <p className="mt-3 text-xs text-paper/60">Tính theo giá vốn (Cost Price)</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Lô hàng nhập kho sản xuất</p>
-            <Icon className="text-muted" name="box" size={18} />
+            <p className="text-sm font-medium text-muted">Lô hàng nhập kho sản xuất</p>
           </div>
           <p className={metricValueClasses}>{metrics.inbound_batches_count}</p>
-          <p className="mt-3 text-xs text-muted">Phiếu nhập kho đã ghi nhận</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">Mặt hàng hết hàng (Stockout)</p>
-            <Icon className={metrics.stockout_count > 0 ? "text-danger" : "text-muted"} name="alert" size={18} />
+            <p className="text-sm font-medium text-muted">Mặt hàng hết hàng (Stockout)</p>
+            {metrics.stockout_count > 0 && (
+              <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
+                Hết hàng
+              </span>
+            )}
           </div>
           <p className={`${metricValueClasses} ${metrics.stockout_count > 0 ? "text-danger" : ""}`}>
             {metrics.stockout_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Biến thể có tồn kho = 0</p>
         </article>
       </div>
 
       {/* Stock Split Visualization */}
       <section className="admin-panel space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-ink">Phân bổ Tồn kho: Tổng kho vs Điểm bán</h3>
-          <p className="text-xs text-muted">Tỷ lệ phân tán hàng hóa theo dữ liệu mart_inventory_health</p>
-        </div>
+        <h3 className="text-lg font-semibold text-ink">Phân bổ Tồn kho: Tổng kho vs Điểm bán</h3>
         <EChart height={280} option={stockOption} />
 
         <div className="pt-2">
@@ -1593,9 +1539,9 @@ function OperationsDashboard({
           itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
           data: [
             { value: Math.max(1, 100 - metrics.boom_orders_count), name: "Giao nhận bình thường", itemStyle: { color: "#059669" } },
-            { value: metrics.boom_orders_count, name: "Boom hàng (Giao thất bại)", itemStyle: { color: "#e11d48" } },
+            { value: metrics.boom_orders_count, name: "Giao thất bại (COD)", itemStyle: { color: "#e11d48" } },
             { value: metrics.shipping_sla_violations_count, name: "Vi phạm SLA", itemStyle: { color: "#d97706" } },
-            { value: metrics.return_requests_count, name: "Yêu cầu đổi trả", itemStyle: { color: "#3d647a" } },
+            { value: metrics.return_requests_count, name: "Yêu cầu đổi trả", itemStyle: { color: "#64748b" } },
           ],
         },
       ],
@@ -1618,9 +1564,6 @@ function OperationsDashboard({
                 Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
-            <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Bùng phát Boom COD theo khu vực & Nghẽn đóng gói
-            </span>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -1651,8 +1594,8 @@ function OperationsDashboard({
                               reg.boom_rate_percent >= 25 ? "text-rose-600" : "text-ink"
                             }`}
                           >
-                            Tỷ lệ boom: {reg.boom_rate_percent}%{" "}
-                            {reg.boom_rate_percent >= 25 ? "(⚠️ Đột biến)" : ""}
+                            Tỷ lệ thất bại: {reg.boom_rate_percent}%{" "}
+                            {reg.boom_rate_percent >= 25 ? "(Đột biến)" : ""}
                           </p>
                         </div>
                         {reg.boom_rate_percent >= 25 && (
@@ -1691,7 +1634,7 @@ function OperationsDashboard({
                       }`}
                     >
                       {metrics.fulfillment_bottleneck.bottleneck_warning
-                        ? "⚠️ Nghẽn xuất hàng"
+                        ? "Nghẽn xuất hàng"
                         : "Lưu thông tốt"}
                     </span>
                   </div>
@@ -1752,13 +1695,11 @@ function OperationsDashboard({
           href="/admin/orders"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Đơn chờ xuất hàng</p>
-            <Icon className="text-muted" name="receipt" size={16} />
+            <p className="text-xs font-medium text-muted">Đơn chờ xuất hàng</p>
           </div>
           <p className={`${metricValueClasses} ${metrics.pending_fulfillment_count > 0 ? "text-warning" : ""}`}>
             {metrics.pending_fulfillment_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Đã thanh toán / Chờ xử lý</p>
         </Link>
 
         <Link
@@ -1766,13 +1707,16 @@ function OperationsDashboard({
           href="/admin/logistics"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Vi phạm SLA giao vận</p>
-            <Icon className={metrics.shipping_sla_violations_count > 0 ? "text-danger" : "text-muted"} name="truck" size={16} />
+            <p className="text-xs font-medium text-muted">Vi phạm SLA giao vận</p>
+            {metrics.shipping_sla_violations_count > 0 && (
+              <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
+                Chậm trễ
+              </span>
+            )}
           </div>
           <p className={`${metricValueClasses} ${metrics.shipping_sla_violations_count > 0 ? "text-danger" : ""}`}>
             {metrics.shipping_sla_violations_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Đơn chậm trễ hoặc lỗi giao</p>
         </Link>
 
         <Link
@@ -1780,13 +1724,16 @@ function OperationsDashboard({
           href="/admin/orders?status=failed_delivery"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Đơn giao thất bại (Boom)</p>
-            <Icon className={metrics.boom_orders_count > 0 ? "text-danger" : "text-muted"} name="alert" size={16} />
+            <p className="text-xs font-medium text-muted">Đơn giao thất bại (COD)</p>
+            {metrics.boom_orders_count > 0 && (
+              <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
+                Thất bại
+              </span>
+            )}
           </div>
           <p className={`${metricValueClasses} ${metrics.boom_orders_count > 0 ? "text-danger" : ""}`}>
             {metrics.boom_orders_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Khách từ chối nhận hàng</p>
         </Link>
 
         <Link
@@ -1794,22 +1741,17 @@ function OperationsDashboard({
           href="/admin/returns"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Yêu cầu đổi trả cần duyệt</p>
-            <Icon className="text-muted" name="rotate-ccw" size={16} />
+            <p className="text-xs font-medium text-muted">Yêu cầu đổi trả cần duyệt</p>
           </div>
           <p className={`${metricValueClasses} ${metrics.return_requests_count > 0 ? "text-accent" : ""}`}>
             {metrics.return_requests_count}
           </p>
-          <p className="mt-3 text-xs text-muted">Yêu cầu trả hàng từ khách</p>
         </Link>
       </div>
 
       {/* Logistics Performance Donut */}
       <section className="admin-panel space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-ink">Chỉ số Hiệu suất Giao vận & Tỷ lệ Boom (Logistics Mart)</h3>
-          <p className="text-xs text-muted">Dữ liệu tổng hợp từ mart_logistics_performance</p>
-        </div>
+        <h3 className="text-lg font-semibold text-ink">Chỉ số Hiệu suất Giao vận & Tỷ lệ Boom (Logistics Mart)</h3>
         <EChart height={290} option={opsDonutOption} />
       </section>
     </div>
@@ -1883,9 +1825,6 @@ function MarketingDashboard({
                 Tín hiệu Tác nghiệp Gần Thời Gian Thực
               </h3>
             </div>
-            <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Vận tốc đốt ngân sách Voucher & Bùng phát Review
-            </span>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -1904,7 +1843,7 @@ function MarketingDashboard({
                           : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                       }`}
                     >
-                      {metrics.voucher_burn_rate.budget_warning ? "🔥 Sắp cạn hạn mức" : "Ổn định"}
+                      {metrics.voucher_burn_rate.budget_warning ? "Sắp cạn hạn mức" : "Ổn định"}
                     </span>
                   </div>
 
@@ -1981,7 +1920,7 @@ function MarketingDashboard({
                           : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                       }`}
                     >
-                      {metrics.negative_review_spikes.length > 0 ? "⚠️ Cần can thiệp" : "Hài lòng"}
+                      {metrics.negative_review_spikes.length > 0 ? "Cần can thiệp" : "Hài lòng"}
                     </span>
                   </div>
 
@@ -2033,30 +1972,24 @@ function MarketingDashboard({
       {/* Top Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
         <article className="min-w-0 overflow-hidden rounded-2xl bg-ink p-5 text-paper shadow-lift">
-          <p className="text-xs text-paper/70">Tỷ lệ chuyển đổi tổng thể</p>
+          <p className="text-xs font-medium text-paper/70">Tỷ lệ chuyển đổi tổng thể</p>
           <p className={`${metricValueClasses} text-emerald-400`}>{metrics.conversion_rate_percent}%</p>
-          <p className="mt-3 text-xs text-paper/60">Lượt xem chuyển thành đơn mua</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
-          <p className="text-xs text-muted">Tổng lượt truy cập phễu</p>
+          <p className="text-xs font-medium text-muted">Tổng lượt truy cập phễu</p>
           <p className={metricValueClasses}>{metrics.total_visitors.toLocaleString("vi-VN")}</p>
-          <p className="mt-3 text-xs text-muted">Lượt xem sản phẩm được ghi nhận</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
-          <p className="text-xs text-muted">Tổng đơn mua thành công</p>
+          <p className="text-xs font-medium text-muted">Tổng đơn mua thành công</p>
           <p className={`${metricValueClasses} text-accent`}>{metrics.total_purchases.toLocaleString("vi-VN")}</p>
-          <p className="mt-3 text-xs text-muted">Đơn hàng hoàn tất thanh toán</p>
         </article>
       </div>
 
       {/* 4-Step Conversion Funnel Visualization */}
       <section className="admin-panel space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-ink">Phễu chuyển đổi E-commerce (Conversion Funnel)</h3>
-          <p className="text-xs text-muted">Theo dõi tỷ lệ suy giảm qua từng bước trong hành trình khách hàng</p>
-        </div>
+        <h3 className="text-lg font-semibold text-ink">Phễu chuyển đổi E-commerce (Conversion Funnel)</h3>
         <EChart height={320} option={funnelOption} />
       </section>
 
@@ -2100,14 +2033,14 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
           name: "OLTP MySQL",
           type: "bar",
           data: metrics.reconciliation_variance.map((v) => v.oltp_value),
-          itemStyle: { color: "#315b4f", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#1e293b", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 36,
         },
         {
           name: "Lakehouse Iceberg",
           type: "bar",
           data: metrics.reconciliation_variance.map((v) => v.lakehouse_value),
-          itemStyle: { color: "#a94728", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#059669", borderRadius: [4, 4, 0, 0] },
           barMaxWidth: 36,
         },
       ],
@@ -2120,31 +2053,25 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">Trạng thái Batch ETL / Access-log Stream</p>
+            <p className="text-xs font-medium text-muted">Trạng thái Batch ETL / Access-log Stream</p>
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="mt-3 text-xl font-bold capitalize text-emerald-700 dark:text-emerald-400">
             {metrics.pipeline_status === "healthy" ? "Hoạt động ổn định (Healthy)" : metrics.pipeline_status}
           </p>
-          <p className="mt-2 text-xs text-muted">Batch OLTP và streaming access log sang Lakehouse</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">SLA độ trễ làm mới (Freshness SLA)</p>
-            <Icon className="text-muted" name="shield" size={16} />
+            <p className="text-xs font-medium text-muted">SLA độ trễ làm mới (Freshness SLA)</p>
           </div>
           <p className={metricValueClasses}>{metrics.data_freshness_sla_minutes} phút</p>
-          <p className="mt-2 text-xs text-muted">Cam kết trễ dữ liệu tối đa của Lakehouse</p>
         </article>
       </div>
 
       {/* Reconciliation Comparison Chart */}
       <section className="admin-panel space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold text-ink">Đối soát Dữ liệu (Reconciliation Gate: OLTP vs Lakehouse)</h3>
-          <p className="text-xs text-muted">Kiểm thử toàn vẹn dữ liệu giữa cơ sở dữ liệu giao dịch và kho báo cáo BI</p>
-        </div>
+        <h3 className="text-lg font-semibold text-ink">Đối soát Dữ liệu (Reconciliation Gate: OLTP vs Lakehouse)</h3>
 
         {allMatch && (
           <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-900 dark:text-emerald-300">
@@ -2304,8 +2231,6 @@ function AnalyticsHubContent() {
 
   // Filter visible tabs based on RBAC
   const visibleTabs = isAdmin ? ALL_ROLES : ALL_ROLES.filter((t) => t.id === userCanonicalRole);
-
-  const currentTabInfo = ALL_ROLES.find((t) => t.id === activeRole) || ALL_ROLES[0];
 
   return (
     <section className="space-y-6">
