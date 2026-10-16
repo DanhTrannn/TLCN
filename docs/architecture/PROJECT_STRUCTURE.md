@@ -10,7 +10,7 @@ The following diagram illustrates the data flow and system boundaries:
 flowchart LR
     Browser[Storefront Next.js] --> API[Ecommerce API FastAPI]
     Generator[Data Generator CLI] --> API
-    API --> OLTP[(MySQL 8.4 OLTP 27 tables)]
+    API --> OLTP[(MySQL 8.4 OLTP 28 tables)]
     Browser --> Logs[Structured JSON Access Logs]
     API --> Logs
     API -->|Real-time Events| Kafka[Apache Kafka]
@@ -49,7 +49,7 @@ flowchart LR
 
 1. **Presentation Boundary:** The Storefront communicates exclusively with the Ecommerce API via HTTP/JSON.
 2. **Short Transactions:** The Ecommerce API writes to MySQL via short transactions and emits structured JSON access logs to stdout/Kafka. It does not publish a general domain-event or MySQL CDC stream.
-3. **Read-Only Ingestion:** The Data Engineering (DE) extractor uses a read-only account scoped strictly to the 26 allowed analytical tables (excluding `customer_credentials`).
+3. **Read-Only Ingestion:** The Data Engineering (DE) extractor uses a read-only account scoped strictly to the 27 allowed analytical tables (excluding `customer_credentials`).
 4. **Single Writer Principal:** Apache Airflow orchestrates workflows; Apache Spark executes the batch ingestion, transformations, and Iceberg commits. Spark is the primary Iceberg batch writer, working alongside Apache Flink for streaming ingestion.
 5. **Catalog Decoupling:** Apache Polaris manages table metadata, namespaces, and RBAC privileges. It does not perform compute or store data files.
 6. **Read-Only Query Engine:** Trino is the distributed SQL engine reading Iceberg tables via Polaris. The Storefront Admin BI Hub connects to Trino for analytical dashboards and native Apache ECharts visualizations.
@@ -64,10 +64,10 @@ flowchart LR
 ├── apps/
 │   └── storefront/                       # Next.js 15 customer storefront, POS, and 7-Role BI Hub (/admin/analytics)
 ├── services/
-│   └── ecommerce-api/                    # FastAPI backend (27 tables, 16 domain modules)
+│   └── ecommerce-api/                    # FastAPI backend (28 tables, 16 domain modules)
 ├── database/
 │   ├── alembic.ini                       # Alembic migration configuration
-│   ├── migrations/                       # Alembic schema versions (0001 to 0018)
+│   ├── migrations/                       # Alembic schema versions (0001 to 0020)
 │   └── seeds/                            # Master catalog and multi-role demo scenarios seeds
 ├── generator/
 │   ├── configs/                          # Dataset scale scenarios (small, medium, large)
@@ -133,7 +133,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 |---|---|---|---|
 | **Storefront** | `3000` | HTTP | Customer web store & operator console |
 | **Admin BI Hub** | `3000` | HTTP | 7-Role executive and operational BI Hub (`/admin/analytics`) |
-| **MySQL** | `3306` | TCP | OLTP relational database (27 business tables) |
+| **MySQL** | `3306` | TCP | OLTP relational database (28 business tables) |
 | **Ecommerce API** | `8000` | HTTP | FastAPI REST endpoints & Swagger docs (`/docs`) |
 | **LibreDB Studio (SQL IDE)** | `3001` | HTTP | Web-based SQL editor for MySQL, PostgreSQL, and Trino |
 | **Airflow Webserver** | `8080` | HTTP | Pipeline DAG execution & monitoring UI |
@@ -165,7 +165,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | Apache Flink | 1.19 | Done |
 | Trino (query engine) | v483 | Done |
 | Airflow (orchestration) | 2.10.5 | Done |
-| MySQL (OLTP source) | 8.4.5 (27 tables) | Done |
+| MySQL (OLTP source) | 8.4.5 (28 tables) | Done |
 | LibreDB Studio (SQL IDE) | latest | Done |
 | Apache ECharts (Native BI) | 6.1 | Done |
 | E-Commerce API + Storefront | 0.1.0 | Done |
@@ -174,8 +174,8 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 
 | Layer | OLTP | Logs |
 |---|---|---|
-| Landing → Bronze | Done (26/26 analytical tables) | Done (`web_events`) |
-| Bronze → Silver | Done (26/26 analytical tables) | Done (`silver_logs`) |
+| Landing → Bronze | Done (27/27 analytical tables) | Done (`web_events`) |
+| Bronze → Silver | Done (27/27 analytical tables) | Done (`silver_logs`) |
 | Silver → Gold | Done (6 dimensions, 5 facts, 4 OLTP marts with COGS & margin) | Done (`fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand`) |
 
 ### Airflow DAGs

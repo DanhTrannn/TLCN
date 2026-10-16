@@ -4,8 +4,9 @@ This directory contains reference architecture documents, logical data schemas, 
 
 ## Table of Contents
 
+- [`SYSTEM_ARCHITECTURE_VISUAL.md`](SYSTEM_ARCHITECTURE_VISUAL.md): Sơ đồ trực quan system context, container architecture, batch/streaming data flow, request sequence, và deployment profiles.
 - [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md): Container boundaries, dependency rules, directory layout, Python workspace packages, and Docker runtime profiles.
-- [`OLTP_SCHEMA.md`](OLTP_SCHEMA.md): Logical schema for 27 MySQL tables, relational constraints, transaction boundaries, concurrency controls, archive logic, and indexing strategies (through migration 0018).
+- [`OLTP_SCHEMA.md`](OLTP_SCHEMA.md): Logical schema for 28 MySQL tables, relational constraints, transaction boundaries, concurrency controls, archive logic, and indexing strategies (through migration 0020).
 - [`ACCESS_LOG_DESIGN.md`](ACCESS_LOG_DESIGN.md): Structured JSON request log contract, Apache Kafka + Apache Flink streaming pipeline, S3 Landing Zone layout, privacy redactions, and Medallion mapping.
 - [`MANAGEMENT_INFO_TECHNICAL_SPEC.md`](MANAGEMENT_INFO_TECHNICAL_SPEC.md): Comprehensive System Analysis & Design (SAD) technical specification for the Management Information System (MIS), dimensional modeling, standardized metrics, and governance rules.
 - [`CDC_DASHBOARD_DATA_SPEC.md`](CDC_DASHBOARD_DATA_SPEC.md): Current operational-signal queries and the boundary for a future CDC implementation.

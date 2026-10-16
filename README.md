@@ -21,7 +21,7 @@
 
 </div>
 
-The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse monorepo combining high-throughput transactional processing, real-time event streaming, and analytical data lakehouse architecture. It operates an operational MySQL 8.4 database with 27 relational tables (26 analytical tables ingested into Lakehouse), a FastAPI e-commerce backend, and a modern Next.js 15 storefront. The data platform combines Apache Kafka + Apache Flink for real-time streaming ingestion alongside Apache Spark for Medallion batch processing (Bronze, Silver, Gold) on Apache Iceberg with Polaris catalog. The analytical layer powers distributed SQL queries via Apache Trino and direct executive and multi-role visual analytics via Apache ECharts in the Admin BI Hub (`/admin/analytics`).
+The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse monorepo combining high-throughput transactional processing, real-time event streaming, and analytical data lakehouse architecture. It operates an operational MySQL 8.4 database with 28 relational tables (27 analytical tables ingested into Lakehouse), a FastAPI e-commerce backend, and a modern Next.js 15 storefront. The data platform combines Apache Kafka + Apache Flink for real-time streaming ingestion alongside Apache Spark for Medallion batch processing (Bronze, Silver, Gold) on Apache Iceberg with Polaris catalog. FastAPI applies RBAC before serving Apache Trino analytics to Apache ECharts in the Admin BI Hub (`/admin/analytics`).
 
 > [!NOTE]
 > The platform implements a **Hybrid Batch & Streaming Architecture**: Kafka & Apache Flink handle real-time clickstream events and streaming ingestion into Iceberg, while Apache Spark orchestrates scheduled batch transformations across Bronze, Silver, and Gold Medallion layers.
@@ -30,7 +30,7 @@ The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse mon
 
 Building an analytical environment for an operational e-commerce database can place a high load on production systems. This platform provides a robust data lakehouse pattern to offload historical analytical queries and track access patterns without impacting operational processing. Machine learning is intentionally reserved for a later phase.
 
-The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 27 relational business tables (26 analytical tables), a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
+The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 28 relational business tables (27 analytical tables), a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
 
 ## Features
 
@@ -135,7 +135,9 @@ Once the services are running, access the following dashboards and endpoints:
 
 ## Architecture
 
-The system processes data from two operational pipelines: transactional business entities from MySQL (27 tables) and structured clickstream/access logs from FastAPI. It combines real-time streaming ingestion via Kafka + Flink and batch Medallion pipelines via Spark + Iceberg.
+The system processes data from two operational pipelines: 27 allowed analytical tables extracted from the 28-table MySQL OLTP schema, and structured access logs emitted by FastAPI. It combines real-time streaming ingestion via Kafka + Flink and batch Medallion pipelines via Spark + Iceberg.
+
+See the [visual System Architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) for system context, container boundaries, batch/streaming flows, request sequences, and deployment profiles.
 
 ```text
                         Customer / Admin Traffic
@@ -181,8 +183,8 @@ The system processes data from two operational pipelines: transactional business
 |---|---|---|---|
 | **Presentation** | Next.js / React | 15.5 / 19.1 | Customer storefront, POS, and 7-Role BI Hub |
 | **Visual Analytics** | Apache ECharts | 6.1 | Interactive role-based charts and Trino live telemetry |
-| **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic (27 tables, 16 modules) |
-| **Operational DB** | MySQL | 8.4 LTS | Primary relational database (27 tables, 26 analytical) |
+| **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic (28 tables, 16 modules) |
+| **Operational DB** | MySQL | 8.4 LTS | Primary relational database (28 tables, 27 analytical) |
 | **Event Streaming** | Apache Kafka | 3.8 | Distributed access-log streaming backbone |
 | **Stream Processing** | Apache Flink | 1.19 | Real-time event consumption and Iceberg streaming ingest |
 | **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`lakehouse` bucket) |
