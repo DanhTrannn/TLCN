@@ -72,6 +72,22 @@ ROLE_CANONICAL_MAP: dict[str, str] = {
 }
 
 
+def _trino_unavailable(base_url: str) -> AppError:
+    return AppError(
+        INTERNAL_ERROR,
+        f"Không thể kết nối đến Trino DWH Coordinator ({base_url}). Dịch vụ Trino không khả dụng.",
+        status_code=503,
+    )
+
+
+def _trino_query_failed(area: str, exc: Exception) -> AppError:
+    return AppError(
+        INTERNAL_ERROR,
+        f"Lỗi truy vấn Trino DWH ({area}): {exc}",
+        status_code=502,
+    )
+
+
 def validate_role_access(actor: Customer, target_role: str, store_id: int | None = None) -> None:
     """Enforce strict role-based access control for analytics dashboards."""
     normalized_target = target_role.strip().lower() if target_role else ""
@@ -803,7 +819,7 @@ def get_executive_metrics(
 ) -> ExecutiveMetricsResponse:
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         sales_rows = client.execute_query("""
@@ -862,7 +878,7 @@ def get_executive_metrics(
         )
     except Exception as exc:
         logger.error("Trino executive query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Executive): {exc}") from exc
+        raise _trino_query_failed("Executive", exc) from exc
 
 
 def get_sales_metrics(
@@ -871,7 +887,7 @@ def get_sales_metrics(
 ) -> SalesMetricsResponse:
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         store_rows = client.execute_query("""
@@ -1009,7 +1025,7 @@ def get_sales_metrics(
         )
     except Exception as exc:
         logger.error("Trino sales query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Sales): {exc}") from exc
+        raise _trino_query_failed("Sales", exc) from exc
 
 
 def get_marketing_metrics(
@@ -1018,7 +1034,7 @@ def get_marketing_metrics(
 ) -> MarketingMetricsResponse:
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         funnel_rows = None
@@ -1110,7 +1126,7 @@ def get_marketing_metrics(
         )
     except Exception as exc:
         logger.error("Trino marketing query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Marketing): {exc}") from exc
+        raise _trino_query_failed("Marketing", exc) from exc
 
 
 def get_store_metrics(
@@ -1142,7 +1158,7 @@ def get_store_metrics(
 
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         store_name = None
@@ -1227,7 +1243,7 @@ def get_store_metrics(
         )
     except Exception as exc:
         logger.error("Trino store query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Store): {exc}") from exc
+        raise _trino_query_failed("Store", exc) from exc
 
 
 def get_active_stores_list(actor: Customer, db: Session) -> list[StoreItemResponse]:
@@ -1251,7 +1267,7 @@ def get_inventory_metrics(
 ) -> InventoryMetricsResponse:
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         inv_rows = client.execute_query("""
@@ -1292,7 +1308,7 @@ def get_inventory_metrics(
         )
     except Exception as exc:
         logger.error("Trino inventory query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Inventory): {exc}") from exc
+        raise _trino_query_failed("Inventory", exc) from exc
 
 
 def get_operations_metrics(
@@ -1301,7 +1317,7 @@ def get_operations_metrics(
 ) -> OperationsMetricsResponse:
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         log_rows = client.execute_query("""
@@ -1345,7 +1361,7 @@ def get_operations_metrics(
         )
     except Exception as exc:
         logger.error("Trino operations query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Operations): {exc}") from exc
+        raise _trino_query_failed("Operations", exc) from exc
 
 
 def get_system_metrics(
@@ -1354,7 +1370,7 @@ def get_system_metrics(
 ) -> SystemMetricsResponse:
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        raise _trino_unavailable(client.base_url)
 
     try:
         sales_rows = client.execute_query("""
@@ -1430,7 +1446,7 @@ def get_system_metrics(
         raise
     except Exception as exc:
         logger.error("Trino system query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (System): {exc}") from exc
+        raise _trino_query_failed("System", exc) from exc
 
 
 
@@ -1440,25 +1456,45 @@ def get_role_metrics_data(
     db: Session | None = None,
     trino_client: TrinoClient | None = None,
 ) -> RoleMetricsResponse:
-    """Route metric aggregation by canonical target role backed by Trino Lakehouse DWH (with OLTP fallback)."""
+    """Route metrics through Trino, falling back to bounded OLTP aggregates when unavailable."""
     canonical = ROLE_CANONICAL_MAP[target_role.strip().lower()]
+    primary_getters = {
+        "executive": lambda: get_executive_metrics(db=db, trino_client=trino_client),
+        "sales": lambda: get_sales_metrics(db=db, trino_client=trino_client),
+        "marketing": lambda: get_marketing_metrics(db=db, trino_client=trino_client),
+        "store": lambda: get_store_metrics(store_id=store_id, db=db, trino_client=trino_client),
+        "inventory": lambda: get_inventory_metrics(db=db, trino_client=trino_client),
+        "operations": lambda: get_operations_metrics(db=db, trino_client=trino_client),
+        "system": lambda: get_system_metrics(db=db, trino_client=trino_client),
+    }
+    oltp_getters = {
+        "executive": lambda: _get_executive_metrics_oltp(db),
+        "sales": lambda: _get_sales_metrics_oltp(db),
+        "marketing": lambda: _get_marketing_metrics_oltp(db),
+        "store": lambda: _get_store_metrics_oltp(db, store_id),
+        "inventory": lambda: _get_inventory_metrics_oltp(db),
+        "operations": lambda: _get_operations_metrics_oltp(db),
+        "system": lambda: _get_system_metrics_oltp(db),
+    }
 
-    if canonical == "executive":
-        return get_executive_metrics(db=db, trino_client=trino_client)
-    elif canonical == "sales":
-        return get_sales_metrics(db=db, trino_client=trino_client)
-    elif canonical == "marketing":
-        return get_marketing_metrics(db=db, trino_client=trino_client)
-    elif canonical == "store":
-        return get_store_metrics(store_id=store_id, db=db, trino_client=trino_client)
-    elif canonical == "inventory":
-        return get_inventory_metrics(db=db, trino_client=trino_client)
-    elif canonical == "operations":
-        return get_operations_metrics(db=db, trino_client=trino_client)
-    elif canonical == "system":
-        return get_system_metrics(db=db, trino_client=trino_client)
+    primary_getter = primary_getters.get(canonical)
+    if primary_getter is None:
+        raise AppError(VALIDATION_ERROR, f"Vai trò '{target_role}' không được hỗ trợ.", status_code=400)
 
-    raise AppError(VALIDATION_ERROR, f"Vai trò '{target_role}' không được hỗ trợ.", status_code=400)
+    try:
+        return primary_getter()
+    except AppError as exc:
+        if db is None or exc.code != INTERNAL_ERROR:
+            raise
+        logger.warning("Trino analytics unavailable for role=%s; using OLTP fallback: %s", canonical, exc.message)
+        fallback = oltp_getters[canonical]()
+        return fallback.model_copy(
+            update={
+                "data_source": "oltp_fallback",
+                "is_degraded": True,
+                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+            }
+        )
 
 
 def get_sales_trend(
@@ -1469,7 +1505,15 @@ def get_sales_trend(
     days_val = max(1, min(int(days), 365))
     client = trino_client or default_trino_client
     if not client.is_healthy():
-        raise AppError(INTERNAL_ERROR, f"Không thể kết nối đến Trino DWH Coordinator ({client.base_url}). Dịch vụ Trino không khả dụng.")
+        if db is None:
+            raise _trino_unavailable(client.base_url)
+        return _get_sales_trend_oltp(db, days_val).model_copy(
+            update={
+                "data_source": "oltp_fallback",
+                "is_degraded": True,
+                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+            }
+        )
 
     try:
         sql = f"""
@@ -1496,9 +1540,27 @@ def get_sales_trend(
             for r in rows
         ]
         return SalesTrendResponse(days=days_val, points=points)
-    except AppError:
-        raise
+    except AppError as exc:
+        if db is None:
+            raise
+        logger.warning("Trino sales trend unavailable; using OLTP fallback: %s", exc.message)
+        return _get_sales_trend_oltp(db, days_val).model_copy(
+            update={
+                "data_source": "oltp_fallback",
+                "is_degraded": True,
+                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+            }
+        )
     except Exception as exc:
-        logger.error("Trino sales trend query failed: %s", exc)
-        raise AppError(INTERNAL_ERROR, f"Lỗi truy vấn Trino DWH (Sales Trend): {exc}") from exc
+        if db is None:
+            logger.error("Trino sales trend query failed: %s", exc)
+            raise _trino_query_failed("Sales Trend", exc) from exc
+        logger.warning("Trino sales trend failed; using OLTP fallback: %s", exc)
+        return _get_sales_trend_oltp(db, days_val).model_copy(
+            update={
+                "data_source": "oltp_fallback",
+                "is_degraded": True,
+                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+            }
+        )
 

@@ -11,6 +11,53 @@ except ImportError:
     col = current_timestamp = input_file_name = lit = None  # type: ignore
 
 
+def _append_iceberg_with_schema_evolution(spark, df, target_table: str) -> None:
+    """Append while allowing additive source columns to evolve an existing Bronze table."""
+    try:
+        spark.table(target_table).limit(0).collect()
+        table_exists = True
+    except Exception:
+        table_exists = False
+
+    if table_exists:
+        spark.sql(
+            f"ALTER TABLE {target_table} SET TBLPROPERTIES "
+            "('write.spark.accept-any-schema' = 'true')"
+        )
+
+        target_schema = spark.table(target_table).schema
+        target_names = {field.name for field in target_schema.fields}
+        for field in df.schema.fields:
+            if field.name not in target_names:
+                column_name = field.name.replace("`", "``")
+                spark.sql(
+                    f"ALTER TABLE {target_table} ADD COLUMN "
+                    f"`{column_name}` {field.dataType.simpleString()}"
+                )
+
+        # Iceberg validates physical field ordering even for V2 writes. Align
+        # to the evolved table and backfill a typed NULL when a source column
+        # has been retired.
+        target_schema = spark.table(target_table).schema
+        source_names = set(df.columns)
+        aligned_df = df.select(*[
+            col(f"`{field.name.replace('`', '``')}`")
+            if field.name in source_names
+            else lit(None).cast(field.dataType).alias(field.name)
+            for field in target_schema.fields
+        ])
+        aligned_df.writeTo(target_table).append()
+        return
+
+    (
+        df.writeTo(target_table)
+        .using("iceberg")
+        .tableProperty("format-version", "2")
+        .tableProperty("write.spark.accept-any-schema", "true")
+        .create()
+    )
+
+
 def ingest_to_bronze(
     spark: SparkSession,
     run_id: str,
@@ -54,7 +101,9 @@ def ingest_to_bronze(
 
             if error_count > 0:
                 if _write_format == "iceberg":
-                    error_df.write.format("iceberg").mode("append").saveAsTable(quarantine_table)
+                    _append_iceberg_with_schema_evolution(
+                        spark, error_df, quarantine_table
+                    )
                 else:
                     error_df.write.format(_write_format).mode("append").save(quarantine_table)
 
@@ -64,7 +113,7 @@ def ingest_to_bronze(
 
         # Write valid to target
         if _write_format == "iceberg":
-            valid_df.write.format("iceberg").mode("append").saveAsTable(target_table)
+            _append_iceberg_with_schema_evolution(spark, valid_df, target_table)
         else:
             valid_df.write.format(_write_format).mode("append").save(target_table)
     finally:

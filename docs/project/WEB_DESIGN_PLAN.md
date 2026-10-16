@@ -32,7 +32,7 @@ Short Transactions         Real-Time Event Streaming
       /                          \
      ▼                            ▼
 MySQL 8.4 (OLTP)             Apache Kafka (Access Logs)
-  (27 tables)                     │
+  (28 tables)                     │
      │                            ▼
      │                       Apache Flink (Streaming Ingestion)
      │                            │

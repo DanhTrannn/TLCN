@@ -49,7 +49,7 @@ def get_role_metrics(
     actor: Customer = Depends(get_current_staff),
     db: Session = Depends(get_db),
 ) -> RoleMetricsResponse:
-    """Role-based metrics aggregation with strict RBAC security check backed by Trino Lakehouse DWH."""
+    """RBAC metrics from Trino, with an explicitly marked bounded OLTP fallback."""
     validate_role_access(actor=actor, target_role=target_role, store_id=store_id)
     effective_store_id = resolve_effective_store_id(actor=actor, target_role=target_role, store_id=store_id)
     return get_role_metrics_data(target_role=target_role, store_id=effective_store_id, db=db)

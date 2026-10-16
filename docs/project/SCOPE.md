@@ -21,11 +21,11 @@ Key capabilities include:
 ## 2. Data Sources and Boundaries
 
 The platform ingests data across a **Hybrid Batch & Streaming Architecture**:
-1. **Transactional Data (Batch Extraction)**: MySQL 8.4 transactional database with 27 tables (26 analytical tables extracted). No MySQL binlog/Debezium CDC pipeline is deployed.
+1. **Transactional Data (Batch Extraction)**: MySQL 8.4 transactional database with 28 tables (27 analytical tables extracted). No MySQL binlog/Debezium CDC pipeline is deployed.
 2. **Access & Clickstream Logs (Batch & Streaming)**: Real-time streaming events via Apache Kafka and Apache Flink into Apache Iceberg, with deterministic historical batch logs backfill.
 
 ### 2.1. MySQL OLTP Database
-The system extracts data from **26 operational tables** (out of 27 tables total in MySQL, strictly excluding `customer_credentials` for security and privacy):
+The system extracts data from **27 operational tables** (out of 28 tables total in MySQL, strictly excluding `customer_credentials` for security and privacy):
 
 **Core e-commerce tables (19):**
 - `customers`, `categories`, `products`, `product_variants`
@@ -35,9 +35,10 @@ The system extracts data from **26 operational tables** (out of 27 tables total 
 - `inventory`, `coupons`, `coupon_redemptions`, `product_reviews`
 - `cities`, `stores`, `store_inventory`
 
-**Omnichannel & Logistics tables (5) — added in migration 0014:**
+**Omnichannel & Logistics tables (6) — added in migrations 0014 and 0019:**
 - `delivery_staff` — In-house shipper registry (D&K internal logistics team)
 - `shipments` — Shipment lifecycle tracking per order
+- `shipment_attempts` — Normalized, idempotent delivery-attempt audit history
 - `return_requests` — Customer return/refund headers (`exchange` remains schema-reserved for a future phase)
 - `return_items` — Line-item detail for each return/refund request
 - `inventory_transactions` — Full inbound/outbound ledger for the central warehouse
@@ -79,7 +80,7 @@ The backend API emits structured JSON logs on container stdout for every complet
 ### 4.2. Silver Layer
 - Parses, types, and standardizes timestamps to UTC.
 - Deduplicates rows based on primary keys or `request_id`.
-- Performs UPSERT (`MERGE`) operations for mutable OLTP tables (26 tables).
+- Performs UPSERT (`MERGE`) operations for mutable OLTP tables (27 tables).
 - Pseudonymizes customer identifiers and sensitive attributes.
 - Isolates records violating business logic into semantic quarantine tables (`lakehouse.quarantine`).
 

@@ -5,7 +5,12 @@ import pytest
 from app.core.ids import uuid7
 from app.db.base import Base
 from app.models.customer import Customer
-from app.modules.analytics.service import _get_marketing_metrics_oltp, get_marketing_metrics
+from app.modules.analytics.service import (
+    _get_marketing_metrics_oltp,
+    get_marketing_metrics,
+    get_role_metrics_data,
+    get_sales_trend,
+)
 from app.modules.analytics.trino_client import TrinoClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.mysql import BIGINT
@@ -172,4 +177,34 @@ def test_get_metrics_fails_fast_when_trino_query_fails(in_memory_db: Session):
 
     assert "Lỗi truy vấn Trino DWH (Executive)" in str(exc_info.value.message)
     assert "Table 'lakehouse.gold.mart_sales_daily' not found" in str(exc_info.value.message)
+
+
+def test_role_metrics_returns_explicit_oltp_degraded_mode(in_memory_db: Session):
+    mock_trino = MagicMock(spec=TrinoClient)
+    mock_trino.is_healthy.return_value = False
+    mock_trino.base_url = "http://trino:8080"
+
+    result = get_role_metrics_data(
+        target_role="marketing",
+        db=in_memory_db,
+        trino_client=mock_trino,
+    )
+
+    assert result.role == "marketing"
+    assert result.data_source == "oltp_fallback"
+    assert result.is_degraded is True
+    assert result.degraded_reason
+
+
+def test_sales_trend_returns_explicit_oltp_degraded_mode(in_memory_db: Session):
+    mock_trino = MagicMock(spec=TrinoClient)
+    mock_trino.is_healthy.return_value = False
+    mock_trino.base_url = "http://trino:8080"
+
+    result = get_sales_trend(days=7, db=in_memory_db, trino_client=mock_trino)
+
+    assert result.days == 7
+    assert result.data_source == "oltp_fallback"
+    assert result.is_degraded is True
+    assert len(result.points) == 8
 

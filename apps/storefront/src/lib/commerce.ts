@@ -892,7 +892,13 @@ export interface CashInTransitSignal {
   carrier_breakdown: Record<string, number>;
 }
 
-export interface ExecutiveMetricsResponse {
+export interface AnalyticsDataStatus {
+  data_source: "lakehouse" | "oltp_fallback";
+  is_degraded: boolean;
+  degraded_reason: string | null;
+}
+
+export interface ExecutiveMetricsResponse extends AnalyticsDataStatus {
   role: "executive";
   gmv_vnd: number;
   net_revenue_vnd: number;
@@ -928,7 +934,7 @@ export interface CategoryShareMetric {
   share_percent: number;
 }
 
-export interface SalesMetricsResponse {
+export interface SalesMetricsResponse extends AnalyticsDataStatus {
   role: "sales";
   store_contributions: StoreContribution[];
   top_selling_products: TopProductMetric[];
@@ -943,7 +949,7 @@ export interface FunnelStep {
   conversion_rate_percent: number;
 }
 
-export interface MarketingMetricsResponse {
+export interface MarketingMetricsResponse extends AnalyticsDataStatus {
   role: "marketing";
   funnel_steps: FunnelStep[];
   conversion_rate_percent: number;
@@ -953,7 +959,7 @@ export interface MarketingMetricsResponse {
   negative_review_spikes?: NegativeReviewSpikeSignal[];
 }
 
-export interface StoreMetricsResponse {
+export interface StoreMetricsResponse extends AnalyticsDataStatus {
   role: "store";
   store_id: number | null;
   store_name: string | null;
@@ -965,7 +971,7 @@ export interface StoreMetricsResponse {
   run_rate?: StoreRunRateSignal | null;
 }
 
-export interface InventoryMetricsResponse {
+export interface InventoryMetricsResponse extends AnalyticsDataStatus {
   role: "inventory";
   total_inventory_value_vnd: number;
   warehouse_stock_units: number;
@@ -976,7 +982,7 @@ export interface InventoryMetricsResponse {
   critical_stockout_alerts?: CriticalStockoutSignal[];
 }
 
-export interface OperationsMetricsResponse {
+export interface OperationsMetricsResponse extends AnalyticsDataStatus {
   role: "operations";
   pending_fulfillment_count: number;
   shipping_sla_violations_count: number;
@@ -993,7 +999,7 @@ export interface ReconciliationVariance {
   variance_percent: number;
 }
 
-export interface SystemMetricsResponse {
+export interface SystemMetricsResponse extends AnalyticsDataStatus {
   role: "system";
   pipeline_status: string;
   data_freshness_sla_minutes: number;
@@ -1017,7 +1023,7 @@ export interface DailySalesTrendPoint {
   orders_count: number;
 }
 
-export interface SalesTrendResponse {
+export interface SalesTrendResponse extends AnalyticsDataStatus {
   days: number;
   points: DailySalesTrendPoint[];
 }

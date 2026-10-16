@@ -2252,6 +2252,20 @@ function AnalyticsHubContent() {
         )}
       </header>
 
+      {roleMetrics?.is_degraded && !isUnauthorizedRole && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950" role="status">
+          <div className="flex items-start gap-2">
+            <Icon className="mt-0.5 text-amber-700" name="alert" size={18} />
+            <div>
+              <p className="font-semibold">Chế độ dữ liệu vận hành</p>
+              <p className="mt-1 text-xs leading-5 sm:text-sm">
+                Lakehouse tạm thời không khả dụng. Dashboard đang hiển thị số liệu OLTP mới nhất với phạm vi rút gọn.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Role Tabs Bar */}
       <div className="border-b border-line">
         <nav aria-label="Vai trò phân tích" className="flex gap-2 overflow-x-auto pb-2">

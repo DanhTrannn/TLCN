@@ -1,1 +1,3 @@
 *.tsbuildinfo
+playwright-report/
+test-results/

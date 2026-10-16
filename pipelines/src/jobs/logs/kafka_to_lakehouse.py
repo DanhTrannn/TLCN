@@ -24,6 +24,7 @@ from lakehouse.flink import (
     create_table_environment,
     ensure_medallion_namespaces,
     ensure_merge_on_read,
+    ensure_streaming_tables,
     ensure_upsert_mode,
     register_polaris_catalog,
 )
@@ -188,6 +189,7 @@ def main() -> None:
     # 2. Polaris Iceberg REST Catalog
     register_polaris_catalog(t_env, catalog_name="lakehouse")
     ensure_medallion_namespaces(t_env, catalog_name="lakehouse")
+    ensure_streaming_tables(t_env)
     ensure_merge_on_read(t_env, [
         "lakehouse.landing.access_logs",
         "lakehouse.bronze.web_events",

@@ -14,7 +14,7 @@ This directory contains the architecture specifications, data schemas, operation
 
 ### Data Contracts and Schemas
 
-- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 27 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-12), in-house logistics, 7-day returns, inventory ledger, MWA costing, lock ordering, race handling, and reconciliation rules.
+- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 28 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-12), in-house logistics, 7-day returns, inventory ledger, MWA costing, lock ordering, race handling, and reconciliation rules.
 - [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Kafka + Flink streaming collection pipeline, privacy redactions, and S3 partition layouts.
 - [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
 
@@ -37,7 +37,7 @@ This directory contains the architecture specifications, data schemas, operation
 | Apache Flink | Done | 1.19 Streaming engine ingesting Kafka events into Iceberg |
 | Trino (query engine) | Done | v483, distributed queries via Polaris and direct telemetry for BI Hub |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
-| MySQL (OLTP source) | Done | 27 tables, synthetic data via generator & demo scenarios seed |
+| MySQL (OLTP source) | Done | 28 tables, synthetic data via generator & demo scenarios seed |
 | LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
 | E-Commerce API + Storefront | Done | FastAPI + Next.js (32 page routes at this revision) |
 
@@ -45,7 +45,7 @@ This directory contains the architecture specifications, data schemas, operation
 
 | DAG / Pipeline | Status | Tables | Notes |
 |---|---|---|---|
-| `lakehouse_oltp_pipeline` | Done | 26 tables | Unified End-to-End OLTP DAG: Landing → Bronze → Silver → Gold |
+| `lakehouse_oltp_pipeline` | Done | 27 tables | Unified End-to-End OLTP DAG: Landing → Bronze → Silver → Gold |
 | `kafka_to_lakehouse_pure_streaming` | Done | Real-time | Streaming logs into Landing, Bronze, Silver, Gold |
 | `lakehouse_streaming_maintenance` | Done | 4 layers | Streaming logs healthcheck, Iceberg maintenance & Gold Marts rollup |
 
@@ -53,12 +53,12 @@ This directory contains the architecture specifications, data schemas, operation
 
 | Check | Status | Result |
 |---|---|---|
-| OLTP extraction (MySQL → Landing) | Pass | 26 tables, Parquet + MD5 manifests |
-| Landing → Bronze ingestion | Pass | 26 tables, 0 skipped, 0 quarantine |
+| OLTP extraction (MySQL → Landing) | Pass | 27 tables, Parquet + MD5 manifests |
+| Landing → Bronze ingestion | Pass | 27 tables, 0 skipped, 0 quarantine |
 | Bronze table counts (Trino) | Pass | Matches source |
 | Polaris catalog + RBAC | Pass | Spark write, Trino read-only |
 | Access logs → Bronze | Pass | `web_events` table (streaming + batch) |
-| OLTP Bronze → Silver | Pass | 26 tables, MERGE, PII pseudonymization, quarantine |
+| OLTP Bronze → Silver | Pass | 27 tables, MERGE, PII pseudonymization, quarantine |
 | OLTP Silver → Gold | Pass | 6 dims, 5 facts, 4 marts built and verified via Trino (with COGS & margins) |
 | Logs Bronze → Silver | Pass | `silver_logs` window dedup, struct flattening |
 | Logs Silver → Gold | Pass | `fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand` |
@@ -73,4 +73,4 @@ This directory contains the architecture specifications, data schemas, operation
 | [`project/`](project/) | Specification | Scope, Lakehouse Medallion roadmap, and Web Design plans |
 | [`architecture/`](architecture/) | Reference | System structure, OLTP schema, and access log contracts |
 | [`contracts/`](contracts/) | Schema | JSON Schema definitions for telemetry contracts |
-| [`runbook/`](runbook/) | How-To | Deployment, local verification, and disaster recovery runbooks |
+| [`runbook/`](runbook/) | How-To | Local deployment, startup, CI, and end-to-end verification |

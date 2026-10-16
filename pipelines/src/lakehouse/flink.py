@@ -18,6 +18,128 @@ log = logging.getLogger("lakehouse.flink")
 DEFAULT_REALM = "POLARIS"
 
 
+STREAMING_TABLE_DDLS = (
+    """
+    CREATE TABLE IF NOT EXISTS lakehouse.landing.access_logs (
+        event_id STRING,
+        event_ts TIMESTAMP(6),
+        ingest_ts TIMESTAMP(6),
+        service_name STRING,
+        http_method STRING,
+        http_route STRING,
+        http_status_code INT,
+        duration_ns BIGINT,
+        actor_type STRING,
+        ecommerce_action STRING,
+        raw_payload STRING
+    ) WITH (
+        'format-version' = '2',
+        'write.parquet.compression-codec' = 'zstd'
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS lakehouse.bronze.web_events (
+        event_id STRING,
+        event_ts TIMESTAMP_LTZ(6),
+        observed_timestamp TIMESTAMP_LTZ(6),
+        `schema` ROW<`name` STRING, `version` STRING>,
+        service ROW<`name` STRING, `version` STRING, `environment` STRING, `instance_id` STRING>,
+        severity_number INT,
+        severity_text STRING,
+        trace_id STRING,
+        span_id STRING,
+        `event` ROW<`name` STRING, `category` STRING, `kind` STRING, `outcome` STRING, `duration_ns` BIGINT>,
+        http ROW<`request_method` STRING, `route` STRING, `status_code` INT>,
+        request ROW<`id` STRING>,
+        actor ROW<`type` STRING, `key` STRING>,
+        client ROW<`user_agent` STRING>,
+        ecommerce ROW<`action` STRING, `product_key` STRING, `variant_key` STRING, `search_query` STRING, `search_redacted` BOOLEAN, `filters` MAP<STRING, STRING>>,
+        error ROW<`code` STRING, `type` STRING>,
+        data_origin STRING,
+        _run_id STRING,
+        _source_system STRING,
+        _source_file STRING,
+        _ingested_at TIMESTAMP_LTZ(6)
+    ) WITH (
+        'format-version' = '2',
+        'write.parquet.compression-codec' = 'zstd'
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_logs (
+        event_id STRING,
+        event_ts TIMESTAMP_LTZ(6),
+        observed_timestamp TIMESTAMP_LTZ(6),
+        schema_name STRING,
+        schema_version STRING,
+        service_name STRING,
+        service_version STRING,
+        service_environment STRING,
+        service_instance_id STRING,
+        severity_number INT,
+        severity_text STRING,
+        trace_id STRING,
+        span_id STRING,
+        event_name STRING,
+        event_category STRING,
+        event_kind STRING,
+        event_outcome STRING,
+        event_duration_ns BIGINT,
+        http_request_method STRING,
+        http_route STRING,
+        http_status_code INT,
+        request_id STRING,
+        actor_type STRING,
+        actor_key STRING,
+        client_user_agent STRING,
+        ecommerce_action STRING,
+        ecommerce_product_key STRING,
+        ecommerce_variant_key STRING,
+        ecommerce_search_query STRING,
+        ecommerce_search_redacted BOOLEAN,
+        ecommerce_filters MAP<STRING, STRING>,
+        error_code STRING,
+        error_type STRING,
+        data_origin STRING,
+        _silver_ingested_at TIMESTAMP_LTZ(6),
+        _source_bronze_run_id STRING,
+        PRIMARY KEY (event_id) NOT ENFORCED
+    ) WITH (
+        'format-version' = '2',
+        'write.upsert.enabled' = 'true',
+        'write.parquet.compression-codec' = 'zstd'
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_web_events (
+        event_id STRING,
+        event_ts TIMESTAMP_LTZ(6),
+        event_date DATE,
+        actor_key STRING,
+        actor_type STRING,
+        http_request_method STRING,
+        http_route STRING,
+        http_status_code INT,
+        ecommerce_action STRING,
+        product_key STRING,
+        variant_key STRING,
+        duration_ms DOUBLE,
+        is_success BOOLEAN,
+        is_client_error BOOLEAN,
+        is_server_error BOOLEAN,
+        is_slow_request BOOLEAN,
+        _gold_ingested_at TIMESTAMP_LTZ(6),
+        _source_run_id STRING,
+        PRIMARY KEY (event_id) NOT ENFORCED
+    ) WITH (
+        'format-version' = '2',
+        'write.upsert.enabled' = 'true',
+        'write.parquet.compression-codec' = 'zstd'
+    )
+    """,
+)
+
+
 def polaris_flink_credentials() -> tuple[str, str]:
     """Retrieve Polaris OAuth2 client id and secret for Flink."""
     # First check environment variables
@@ -114,6 +236,13 @@ def ensure_medallion_namespaces(
     """Ensure Landing, Bronze, Silver, and Gold databases exist in the catalog."""
     for ns in ["landing", "bronze", "silver", "gold"]:
         t_env.execute_sql(f"CREATE DATABASE IF NOT EXISTS {catalog_name}.{ns}")
+
+
+def ensure_streaming_tables(t_env: StreamTableEnvironment) -> None:
+    """Provision the Iceberg sinks required by the standalone streaming profile."""
+    for ddl in STREAMING_TABLE_DDLS:
+        t_env.execute_sql(ddl)
+    log.info("Ensured %d streaming Iceberg sink tables", len(STREAMING_TABLE_DDLS))
 
 
 def ensure_merge_on_read(

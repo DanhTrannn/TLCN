@@ -136,7 +136,15 @@ class CashInTransitSignal(BaseModel):
 # Role Metrics Responses (6 Business Roles + 1 System Governance Role)
 # -----------------------------------------------------------------------------
 
-class ExecutiveMetricsResponse(BaseModel):
+class AnalyticsDataStatus(BaseModel):
+    """Expose whether a response came from the Lakehouse or a bounded OLTP fallback."""
+
+    data_source: str = "lakehouse"
+    is_degraded: bool = False
+    degraded_reason: str | None = None
+
+
+class ExecutiveMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "executive"
@@ -174,7 +182,7 @@ class CategoryShareMetric(BaseModel):
     share_percent: float = 0.0
 
 
-class SalesMetricsResponse(BaseModel):
+class SalesMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "sales"
@@ -191,7 +199,7 @@ class FunnelStep(BaseModel):
     conversion_rate_percent: float = 0.0
 
 
-class MarketingMetricsResponse(BaseModel):
+class MarketingMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "marketing"
@@ -203,7 +211,7 @@ class MarketingMetricsResponse(BaseModel):
     negative_review_spikes: list[NegativeReviewSpikeSignal] = Field(default_factory=list)
 
 
-class StoreMetricsResponse(BaseModel):
+class StoreMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "store"
@@ -225,7 +233,7 @@ class StoreItemResponse(BaseModel):
     code: str
 
 
-class InventoryMetricsResponse(BaseModel):
+class InventoryMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "inventory"
@@ -238,7 +246,7 @@ class InventoryMetricsResponse(BaseModel):
     critical_stockout_alerts: list[CriticalStockoutSignal] = Field(default_factory=list)
 
 
-class OperationsMetricsResponse(BaseModel):
+class OperationsMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "operations"
@@ -257,7 +265,7 @@ class ReconciliationVariance(BaseModel):
     variance_percent: float
 
 
-class SystemMetricsResponse(BaseModel):
+class SystemMetricsResponse(AnalyticsDataStatus):
     model_config = ConfigDict(from_attributes=True)
 
     role: str = "system"
@@ -274,7 +282,7 @@ class DailySalesTrendPoint(BaseModel):
     orders_count: int = 0
 
 
-class SalesTrendResponse(BaseModel):
+class SalesTrendResponse(AnalyticsDataStatus):
     days: int = 30
     points: list[DailySalesTrendPoint] = Field(default_factory=list)
 

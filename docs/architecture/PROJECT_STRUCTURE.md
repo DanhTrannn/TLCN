@@ -16,7 +16,7 @@ flowchart LR
     API -->|Real-time Events| Kafka[Apache Kafka]
     Kafka --> Flink[Apache Flink Ingestion]
 
-    OLTP -->|Batch Extract 26 tables| Landing[(MinIO Landing Zone)]
+    OLTP -->|Batch Extract 27 tables| Landing[(MinIO Landing Zone)]
     Flink -->|Streaming Ingestion| Landing
     Logs -->|15-minute JSONL.gz| Landing
     Landing --> Bronze[Bronze Iceberg]
@@ -74,7 +74,7 @@ flowchart LR
 │   ├── src/generator/                    # Deterministic data generator CLI package (v0.6.0)
 │   └── tests/                            # Generator distribution & SQL tests (55 tests)
 ├── pipelines/
-│   ├── config/                           # Lakehouse table configurations (default.yml - 26 tables)
+│   ├── config/                           # Lakehouse table configurations (default.yml - 27 tables)
 │   ├── src/jobs/                         # Spark batch jobs organized by domain (jobs/logs/, jobs/oltp/)
 │   ├── src/lakehouse/                    # Core library and domain logic (lakehouse/logs/, lakehouse/oltp/, common)
 │   └── tests/                            # Pipeline, Bronze, Silver & Gold tests
@@ -183,7 +183,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | DAG | Status | Schedule | Description |
 |---|---|---|---|
 | `lakehouse_logs_pipeline` | Done | Every 2 hours | Unified Master Logs DAG: Staging → Bronze → Silver → Gold |
-| `ingest_oltp_batch` | Done | Hourly | MySQL OLTP extraction to MinIO Landing Zone (26 tables) |
+| `lakehouse_oltp_pipeline` | Done | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold for 27 analytical tables |
 | `ingest_oltp_landing_to_bronze` | Done | Daily 2 AM | Landing Parquet ingestion to Iceberg Bronze tables |
 | `ingest_oltp_bronze_to_silver` | Done | Daily 2 AM | Bronze to Silver MERGE, PII pseudonymization & quarantine |
 | `ingest_oltp_silver_to_gold` | Done | Daily 2 AM | Star schema (`dim_*`, `fact_*`), sales marts with financial COGS |

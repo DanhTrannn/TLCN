@@ -88,7 +88,7 @@ pipelines/
 
 | DAG / Job | Schedule | Source → Target | Architecture | Notes |
 |---|---|---|---|---|
-| `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors (26 tables), MD5 manifests, PII, MERGE, COGS Marts |
+| `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors (27 tables), MD5 manifests, PII, MERGE, COGS Marts |
 | `kafka_to_lakehouse_pure_streaming` | Continuous (10s checkpoints) | Kafka → Landing, Bronze, Silver, Gold | **Pure Streaming (PyFlink)** | StatementSet, Pendulum VN timezone, Merge-on-Read |
 | `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
 | `build_oltp_gold` | Daily 2 AM | Silver → Gold (`dim_*`, `fact_*`, `mart_*`) | **Gold Batch Transformation** | Star schema, financial COGS parity, gross profit rollups |
@@ -97,10 +97,10 @@ pipelines/
 
 ```text
 OLTP extraction (MySQL → Landing):        Pass  (26 analytical tables, Parquet + manifests)
-Landing → Bronze ingestion:               Pass  (26 tables, 0 skipped, 0 quarantine)
+Landing → Bronze ingestion:               Pass  (27 tables, 0 skipped, 0 quarantine)
 Bronze table counts (Trino):              Pass  (verified via Trino & Polaris catalog)
 Access logs → Bronze:                     Pass  (web_events table)
-OLTP Bronze → Silver:                     Pass  (26 tables, MERGE, PII, quarantine)
+OLTP Bronze → Silver:                     Pass  (27 tables, MERGE, PII, quarantine)
 Logs Bronze → Silver:                     Pass  (web_events, anti-join dedup)
 Silver → Gold Marts:                      Pass  (sales marts, inventory health, COGS)
 ```

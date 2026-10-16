@@ -117,10 +117,18 @@ PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev --
 # Run all Python tests in single runner
 PYTHONPATH=pipelines/src:generator/src:services/ecommerce-api uv run pytest
 
-# Frontend Typecheck and Production Build
+# Frontend unit tests, Typecheck, Production Build, and browser tests
+npm --prefix apps/storefront test
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build
+npm --prefix apps/storefront run test:e2e
 
-# Lakehouse Smoke Test
+# Live verification (requires the corresponding Compose profiles)
+./scripts/verify_core.sh
 ./scripts/lakehouse_smoke.sh
+./scripts/verify_batch_pipeline.sh
+./scripts/verify_streaming.sh
+
+# Or verify every demo path
+make verify-demo
 ```

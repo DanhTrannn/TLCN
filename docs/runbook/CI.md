@@ -6,7 +6,10 @@ Tài liệu này hướng dẫn chi tiết về kiến trúc, cấu hình và qu
 
 ## 1. Tổng quan Kiến trúc CI (Continuous Integration)
 
-Quy trình CI được xây dựng trên nền tảng **GitHub Actions** ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) nhằm tự động kiểm thử toàn diện mã nguồn trước khi tích hợp vào các nhánh chính (`dev`, `main`):
+Hệ thống dùng hai GitHub Actions workflow: CI nhanh
+([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) cho pull request/push và
+integration thật ([`.github/workflows/integration.yml`](../../.github/workflows/integration.yml))
+cho `main`/`master`, lịch hằng tuần hoặc chạy thủ công.
 
 ```mermaid
 flowchart TD
@@ -23,7 +26,7 @@ flowchart TD
         subgraph StaticChecks["1. Static & Validation Checks"]
             Compose["Docker Compose Config<br/>(core, batch, streaming, lakehouse-tools)"]
             DAGComp["Airflow DAG compileall"]
-            RuffLint["Ruff Critical Syntax Check (0.2s)"]
+            RuffLint["Ruff toàn repository"]
         end
 
         subgraph ParallelTests["2. Matrix Tests (Chạy song song)"]
@@ -34,12 +37,15 @@ flowchart TD
 
         subgraph FrontChecks["3. Storefront Checks"]
             TypeCheck["TypeScript typecheck (0 errors)"]
+            UnitUI["Vitest unit tests"]
             NextBuild["Next.js Production Build"]
+            BrowserUI["Playwright browser tests"]
         end
 
-        subgraph DockerSmoke["4. Docker Build Smoke Test"]
+        subgraph DockerSmoke["4. Docker & Core Smoke"]
             SmokeAPI["Build API Dockerfile (push: false)"]
             SmokeUI["Build Storefront Dockerfile (push: false)"]
+            CoreLive["MySQL migration + live API/UI verifier"]
         end
 
         Filter --> StaticChecks --> ParallelTests & FrontChecks --> DockerSmoke
@@ -48,6 +54,11 @@ flowchart TD
     PR --> CI
     Push --> CI
     Manual --> CI
+
+    subgraph Integration["integration.yml"]
+        BatchE2E["MySQL → Landing → Bronze → Silver → Gold → Trino"]
+        StreamE2E["API → Kafka → Flink → Iceberg Gold → Trino"]
+    end
 ```
 
 ---
@@ -60,7 +71,7 @@ flowchart TD
 ### 2.2. Kiểm tra tĩnh & Tính tương thích Hạ tầng (`repository-validation`)
 1. **Docker Compose Validation:** Chạy `docker compose config --quiet` trên toàn bộ 4 profile hoạt động thực tế (`core`, `batch`, `streaming`, `lakehouse-tools`). Đảm bảo không có xung đột cổng, lỗi cú pháp YAML hoặc biến môi trường thiếu.
 2. **Kiểm tra biên dịch Airflow DAG:** Chạy `python3 -m compileall -q airflow/dags/` để phát hiện ngay lập tức bất kỳ lỗi cú pháp Python nào trong các định nghĩa pipeline.
-3. **Kiểm tra lỗi cú pháp mã nguồn (Ruff Linter):** Chạy `uvx ruff check --select E9,F63,F7,F82 .` để rà quét các lỗi cú pháp nghiêm trọng (undefined variables, invalid syntax) chỉ trong **0.2 giây**.
+3. **Ruff Linter:** Chạy `uvx ruff check .` cho toàn bộ ruleset đã cấu hình của repository.
 
 ### 2.3. Kiểm thử song song theo Matrix (`python-tests`)
 Để tối ưu hóa thời gian thực thi, các bộ test Python được phân tách thành ma trận chạy đồng thời trên 3 runner riêng biệt:
@@ -69,12 +80,24 @@ flowchart TD
 - **`Batch Pipeline & DAGs`:** Kiểm thử các tầng Medallion (Landing, Bronze, Silver, Gold), bảo trì Iceberg và tính toàn vẹn DAG (`pipelines/tests/test_dags.py`).
 
 ### 2.4. Kiểm tra mã nguồn giao diện (`storefront`)
+- **ESLint:** kiểm tra quy ước và lỗi mã nguồn React/Next.js.
+- **Vitest:** unit test API client, error contract và phân quyền/redirect theo role.
 - **TypeScript Typecheck:** `npm run typecheck` (`tsc --noEmit`) kiểm tra strict type safety cho toàn bộ giao diện.
 - **Next.js Production Build:** `npm run build` kiểm tra khả năng đóng gói Next.js standalone server phục vụ triển khai.
+- **Playwright:** browser test luồng public home → catalog và bảo vệ return target đăng nhập.
 
-### 2.5. Kiểm tra sức sống của Dockerfile (`docker-smoke-build`)
+### 2.5. Kiểm tra Docker và core stack
 - Biên dịch thử nghiệm cả hai `Dockerfile` (`services/ecommerce-api/Dockerfile` và `apps/storefront/Dockerfile`) với tham số `push: false`.
 - Tận dụng GitHub Actions Cache (`type=gha`) để tái sử dụng các tầng image (layer caching).
+- Chạy migration tiến/lùi trên MySQL 8.4 thật, sau đó khởi động API/storefront và xác minh health, OpenAPI, auth và contract analytics degraded mode.
+
+### 2.6. Integration workflow
+
+- **Batch:** chạy catalog interoperability smoke test, trigger DAG Airflow và chỉ đạt khi
+  `fact_order` cùng `mart_sales_daily` có dữ liệu đọc được từ Trino.
+- **Streaming:** phát request thật qua API và đối chiếu cùng `request_id` trong Kafka rồi
+  `lakehouse.gold.fact_web_events` qua Trino.
+- Workflow thu log khi lỗi và luôn xóa stack/volume sau khi chạy.
 
 ---
 
@@ -93,14 +116,23 @@ docker compose --profile core --profile batch --profile streaming --profile lake
 
 # 2. Kiểm tra cú pháp DAGs & Linter
 python3 -m compileall -q airflow/dags/
-uvx ruff check --select E9,F63,F7,F82 .
+uvx ruff check .
 
 # 3. Chạy toàn bộ Unit Tests Python
 uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
 uv run --locked --package data-generator --extra dev -- pytest generator/tests
 PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
 
-# 4. Kiểm tra Typecheck và Build Storefront
+# 4. Kiểm tra Storefront
+npm --prefix apps/storefront run lint
+npm --prefix apps/storefront test
 npm --prefix apps/storefront run typecheck
 npm --prefix apps/storefront run build
+npm --prefix apps/storefront run test:e2e
+
+# 5. Verifier theo tầng (sau khi stack tương ứng đã chạy)
+./scripts/verify_core.sh
+./scripts/lakehouse_smoke.sh
+./scripts/verify_batch_pipeline.sh
+./scripts/verify_streaming.sh
 ```

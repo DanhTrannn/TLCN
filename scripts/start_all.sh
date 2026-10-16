@@ -18,6 +18,8 @@ NC='\033[0m' # No Color
 
 WAIT_FOR_HEALTH=true
 BUILD_IMAGES=false
+ALLOW_DEGRADED=false
+SEED_DEMO=false
 
 usage() {
   cat <<EOF
@@ -26,12 +28,15 @@ ${BOLD}Usage:${NC} $0 [OPTIONS]
 ${BOLD}Options:${NC}
   -b, --build       Rebuild container images before starting
   --no-wait         Start services in background without waiting for health checks
+  --allow-degraded  Continue when a service or Gold initialization check fails
+  --seed-demo       Idempotently load the seven-role demo scenario after startup
   -h, --help        Show this help message
 
 ${BOLD}Examples:${NC}
   $0                # Fast startup of all services with health checks
   $0 --build        # Rebuild updated images and start full stack
   $0 --no-wait      # Instant background startup without waiting
+  $0 --seed-demo    # Start and prepare deterministic demo accounts/data
 EOF
   exit 0
 }
@@ -44,6 +49,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-wait)
       WAIT_FOR_HEALTH=false
+      shift
+      ;;
+    --allow-degraded)
+      ALLOW_DEGRADED=true
+      shift
+      ;;
+    --seed-demo)
+      SEED_DEMO=true
       shift
       ;;
     -h|--help)
@@ -105,13 +118,20 @@ wait_for_url() {
   return 1
 }
 
-wait_for_url "FastAPI Backend" "http://localhost:8000/health/ready" 30 || true
-wait_for_url "Next.js Storefront" "http://localhost:3000" 30 || true
-wait_for_url "Trino SQL Engine" "http://localhost:8084/v1/info" 30 || true
-wait_for_url "MinIO S3" "http://localhost:9000/minio/health/live" 20 || true
-wait_for_url "Polaris Console" "http://localhost:8183" 20 || true
-wait_for_url "Airflow Web UI" "http://localhost:8080/health" 30 || true
-wait_for_url "Flink Dashboard" "http://localhost:8085/overview" 20 || true
+STARTUP_FAILED=0
+wait_for_url "FastAPI Backend" "http://localhost:8000/health/ready" 30 || STARTUP_FAILED=1
+wait_for_url "Next.js Storefront" "http://localhost:3000" 30 || STARTUP_FAILED=1
+wait_for_url "Trino SQL Engine" "http://localhost:8084/v1/info" 30 || STARTUP_FAILED=1
+wait_for_url "MinIO S3" "http://localhost:9000/minio/health/live" 20 || STARTUP_FAILED=1
+wait_for_url "Polaris Console" "http://localhost:8183" 20 || STARTUP_FAILED=1
+wait_for_url "Airflow Web UI" "http://localhost:8080/health" 30 || STARTUP_FAILED=1
+wait_for_url "Flink Dashboard" "http://localhost:8085/overview" 20 || STARTUP_FAILED=1
+
+if [[ "$STARTUP_FAILED" -ne 0 && "$ALLOW_DEGRADED" != "true" ]]; then
+  echo -e "${YELLOW}[!] One or more required services failed readiness checks.${NC}" >&2
+  echo "    Re-run with --allow-degraded only when intentionally diagnosing a partial stack." >&2
+  exit 1
+fi
 
 # 4. Initialize Gold Marts on Iceberg if needed
 echo -e "\n${BLUE}[*] Verifying Lakehouse Gold Marts on Iceberg...${NC}"
@@ -123,10 +143,26 @@ if [[ "$GOLD_CHECK" != *"mart_sales_daily"* ]]; then
     --master spark://spark-master:7077 \
     --conf spark.driver.host=spark-client \
     --conf spark.driver.bindAddress=0.0.0.0 \
-    -f /opt/project/spark/sql/init_gold_marts.sql > /dev/null 2>&1 || true
-  echo -e "    ${GREEN}[✔] Gold Marts schema initialized successfully.${NC}"
+    -f /opt/project/spark/sql/init_gold_marts.sql > /dev/null 2>&1 || {
+      if [[ "$ALLOW_DEGRADED" != "true" ]]; then
+        echo "    Gold Marts initialization failed." >&2
+        exit 1
+      fi
+    }
+  GOLD_CHECK="$(docker compose exec -T trino trino --execute "SHOW TABLES FROM lakehouse.gold LIKE 'mart_sales_daily'" 2>/dev/null || echo "")"
+  if [[ "$GOLD_CHECK" != *"mart_sales_daily"* && "$ALLOW_DEGRADED" != "true" ]]; then
+    echo "    Gold Marts verification failed after initialization." >&2
+    exit 1
+  fi
+  echo -e "    ${GREEN}[✔] Gold Marts schema initialized and verified.${NC}"
 else
   echo -e "    ${GREEN}[✔] Gold Marts already present in catalog.${NC}"
+fi
+
+if [[ "$SEED_DEMO" == "true" ]]; then
+  echo -e "\n${BLUE}[*] Loading deterministic demo scenarios...${NC}"
+  docker compose exec -T ecommerce-api python -m database.seeds.seed_demo_scenarios >/dev/null
+  echo -e "    ${GREEN}[✔] Demo data is ready.${NC}"
 fi
 
 # 5. Print Service Directory Table

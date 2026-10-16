@@ -128,11 +128,20 @@ jobs:
       - name: Lint storefront
         run: npm run lint
 
+      - name: Run storefront unit tests
+        run: npm test
+
       - name: Type-check storefront
         run: npm run typecheck
 
       - name: Build storefront
         run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run storefront browser tests
+        run: npm run test:e2e
 
   docker-smoke-build:
     name: Dockerfile build verification
@@ -254,6 +263,12 @@ jobs:
           uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade head
           uv run --locked --package ecommerce-api alembic -c database/alembic.ini downgrade -1
           uv run --locked --package ecommerce-api alembic -c database/alembic.ini upgrade head
+
+      - name: Start the operational web stack
+        run: docker compose --profile core up -d --build --wait ecommerce-api storefront
+
+      - name: Verify live HTTP, auth, OpenAPI, and analytics degradation contracts
+        run: ./scripts/verify_core.sh
 
       - name: Teardown
         if: always()
