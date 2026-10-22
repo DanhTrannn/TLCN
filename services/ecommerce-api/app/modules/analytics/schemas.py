@@ -271,6 +271,7 @@ class SystemMetricsResponse(AnalyticsDataStatus):
 
     role: str = "system"
     pipeline_status: str = "healthy"
+    data_freshness_minutes: int | None = None
     data_freshness_sla_minutes: int = 15
     reconciliation_variance: list[ReconciliationVariance] = Field(default_factory=list)
 

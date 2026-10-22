@@ -1,6 +1,7 @@
 """Integration tests for Comprehensive Seed & Demo Scenarios Script (Gói 4 - Task 4)."""
 
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import app.db.uow
@@ -288,14 +289,13 @@ def test_seed_demo_data_analytics_dashboards_queryable(test_db, monkeypatch):
                 "category_name": "Áo Nam",
                 "revenue_vnd": 10000000,
             }]
-        if "mart_sales_daily" in q and "latest_date" in q:
-            from app.models.order import Order
+        if "fact_order" in q and "latest_gold_at" in q:
             actual_orders = test_db.scalar(select(func.count(Order.order_id))) or 27
-            actual_rev = test_db.scalar(select(func.sum(Order.total_vnd)).where(Order.status != "cancelled")) or 35000000
+            actual_rev = test_db.scalar(select(func.sum(Order.total_vnd))) or 35000000
             return [{
                 "total_orders": actual_orders,
                 "gross_revenue_vnd": actual_rev,
-                "latest_date": "2026-10-04",
+                "latest_gold_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             }]
         if "mart_sales_daily" in q:
             return [{

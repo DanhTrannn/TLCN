@@ -1003,6 +1003,7 @@ export interface ReconciliationVariance {
 export interface SystemMetricsResponse extends AnalyticsDataStatus {
   role: "system";
   pipeline_status: string;
+  data_freshness_minutes: number | null;
   data_freshness_sla_minutes: number;
   reconciliation_variance: ReconciliationVariance[];
 }

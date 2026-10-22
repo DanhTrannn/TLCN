@@ -1,7 +1,7 @@
 """Analytics service with RBAC security gating and hybrid Trino Lakehouse DWH with OLTP fallback."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import desc, func, or_, select, union
@@ -56,6 +56,11 @@ from app.modules.analytics.trino_client import TrinoClient, default_trino_client
 logger = logging.getLogger(__name__)
 
 MARKETING_FUNNEL_WINDOW_DAYS = 30
+
+SYSTEM_FRESHNESS_SLA_MINUTES = 15
+SYSTEM_FRESHNESS_CRITICAL_MINUTES = 60
+SYSTEM_VARIANCE_DEGRADED_PERCENT = 5.0
+SYSTEM_VARIANCE_UNHEALTHY_PERCENT = 20.0
 
 ROLE_CANONICAL_MAP: dict[str, str] = {
     "executive": "executive",
@@ -753,14 +758,53 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
     )
 
 
+def _coerce_gold_timestamp(value: object) -> datetime | None:
+    """Normalize a Trino/Spark timestamp to a naive UTC datetime."""
+    if value is None:
+        return None
+
+    dt: datetime
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, date):
+        dt = datetime.combine(value, datetime.min.time())
+    elif isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        if raw.endswith(" UTC"):
+            raw = raw[:-4] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                dt = datetime.strptime(raw[:19], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return None
+    else:
+        return None
+
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
+    return dt
+
+
+def _reconciliation_variance_percent(oltp_value: float, lakehouse_value: float) -> float:
+    if oltp_value == 0:
+        return 0.0 if lakehouse_value == 0 else 100.0
+    return round(abs(oltp_value - lakehouse_value) / oltp_value * 100, 2)
+
+
+def _gold_freshness_minutes(latest_gold_at: datetime | None) -> int | None:
+    if latest_gold_at is None:
+        return None
+    age_seconds = (datetime.now(UTC).replace(tzinfo=None) - latest_gold_at).total_seconds()
+    return max(0, int((age_seconds + 59) // 60))
+
+
 def _get_system_metrics_oltp(db: Session) -> SystemMetricsResponse:
     total_orders = db.scalar(select(func.count()).select_from(Order)) or 0
-    gross_rev = (
-        db.scalar(
-            select(func.coalesce(func.sum(Payment.amount_vnd), 0)).where(Payment.status == "succeeded")
-        )
-        or 0
-    )
+    gross_rev = db.scalar(select(func.coalesce(func.sum(Order.total_vnd), 0))) or 0
 
     # Truthfully signal that Lakehouse is disconnected/down in OLTP-only fallback
     reconciliation = [
@@ -781,7 +825,8 @@ def _get_system_metrics_oltp(db: Session) -> SystemMetricsResponse:
     return SystemMetricsResponse(
         role="system",
         pipeline_status="degraded",
-        data_freshness_sla_minutes=999,
+        data_freshness_minutes=None,
+        data_freshness_sla_minutes=SYSTEM_FRESHNESS_SLA_MINUTES,
         reconciliation_variance=reconciliation,
     )
 
@@ -1386,50 +1431,45 @@ def get_system_metrics(
         raise _trino_unavailable(client.base_url)
 
     try:
-        sales_rows = client.execute_query("""
+        rows = client.execute_query("""
             SELECT
-                COALESCE(SUM(total_orders), 0) AS total_orders,
+                COUNT(DISTINCT order_id) AS total_orders,
                 COALESCE(SUM(gross_revenue_vnd), 0) AS gross_revenue_vnd,
-                MAX(order_date) AS latest_date
-            FROM lakehouse.gold.mart_sales_daily
+                MAX(_gold_ingested_at) AS latest_gold_at
+            FROM lakehouse.gold.fact_order
         """)
-        s_row = sales_rows[0] if sales_rows else {}
-        total_orders = float(s_row.get("total_orders") or 0)
-        gross_rev = float(s_row.get("gross_revenue_vnd") or 0)
+        row = rows[0] if rows else {}
+        total_orders = float(row.get("total_orders") or 0)
+        gross_rev = float(row.get("gross_revenue_vnd") or 0)
+        latest_gold_at = _coerce_gold_timestamp(row.get("latest_gold_at"))
+        freshness_minutes = _gold_freshness_minutes(latest_gold_at)
 
-        # Dynamic data freshness calculation from latest Gold Mart update
-        latest_date_raw = s_row.get("latest_date")
-        if latest_date_raw:
-            try:
-                from datetime import date as d_cls
-                if isinstance(latest_date_raw, str):
-                    d_obj = datetime.strptime(latest_date_raw[:10], "%Y-%m-%d").date()
-                elif isinstance(latest_date_raw, d_cls):
-                    d_obj = latest_date_raw
-                else:
-                    d_obj = d_cls.today()
-                today_date = d_cls.today()
-                days_lag = max(0, (today_date - d_obj).days)
-                freshness_sla = max(5, days_lag * 1440 if days_lag > 0 else 15)
-            except Exception:
-                freshness_sla = 15
-        else:
-            freshness_sla = 60
-
-        # Variance vs OLTP if db is available
+        # Compare like-for-like: both sides count every order and use Order.total_vnd.
         oltp_orders = total_orders
         oltp_rev = gross_rev
         if db is not None:
             oltp_orders = float(db.scalar(select(func.count(Order.order_id))) or 0)
-            oltp_rev = float(db.scalar(select(func.sum(Order.total_vnd)).where(Order.status != "cancelled")) or 0)
+            oltp_rev = float(db.scalar(select(func.sum(Order.total_vnd))) or 0)
 
-        orders_var = round(abs(oltp_orders - total_orders) / oltp_orders * 100, 2) if oltp_orders > 0 else 0.0
-        rev_var = round(abs(oltp_rev - gross_rev) / oltp_rev * 100, 2) if oltp_rev > 0 else 0.0
+        orders_var = _reconciliation_variance_percent(oltp_orders, total_orders)
+        rev_var = _reconciliation_variance_percent(oltp_rev, gross_rev)
 
-        # Dynamic status based on variance thresholds
-        if orders_var > 20.0 or rev_var > 20.0:
+        freshness_unhealthy = (
+            freshness_minutes is None or freshness_minutes > SYSTEM_FRESHNESS_CRITICAL_MINUTES
+        )
+        freshness_degraded = freshness_minutes is not None and freshness_minutes > SYSTEM_FRESHNESS_SLA_MINUTES
+
+        if (
+            orders_var > SYSTEM_VARIANCE_UNHEALTHY_PERCENT
+            or rev_var > SYSTEM_VARIANCE_UNHEALTHY_PERCENT
+            or freshness_unhealthy
+        ):
             status = "unhealthy"
-        elif orders_var > 5.0 or rev_var > 5.0:
+        elif (
+            orders_var > SYSTEM_VARIANCE_DEGRADED_PERCENT
+            or rev_var > SYSTEM_VARIANCE_DEGRADED_PERCENT
+            or freshness_degraded
+        ):
             status = "degraded"
         else:
             status = "healthy"
@@ -1452,7 +1492,8 @@ def get_system_metrics(
         return SystemMetricsResponse(
             role="system",
             pipeline_status=status,
-            data_freshness_sla_minutes=freshness_sla,
+            data_freshness_minutes=freshness_minutes,
+            data_freshness_sla_minutes=SYSTEM_FRESHNESS_SLA_MINUTES,
             reconciliation_variance=reconciliation,
         )
     except AppError:

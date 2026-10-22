@@ -74,6 +74,12 @@ def setup_analytics_db(monkeypatch):
                 "total_orders": 30,
                 "boom_orders": 2,
             }]
+        if "fact_order" in q and "latest_gold_at" in q:
+            return [{
+                "total_orders": 30,
+                "gross_revenue_vnd": 20000000,
+                "latest_gold_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
+            }]
         if "mart_sales_daily" in q and "effective_store_key" in q:
             return [{
                 "effective_store_key": 1,

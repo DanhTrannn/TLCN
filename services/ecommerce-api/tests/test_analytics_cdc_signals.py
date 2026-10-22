@@ -23,6 +23,7 @@ from app.modules.analytics.schemas import (
     ViralProductSignal,
     VoucherBurnRateSignal,
 )
+from app.modules.analytics.service import _get_system_metrics_oltp, get_system_metrics
 
 
 def test_marketing_metrics_schema_includes_cdc_signals():
@@ -886,3 +887,84 @@ def test_store_no_db_fallback_is_marked_degraded():
     assert result.degraded_reason
     assert result.store_revenue_today_vnd == 1000000
 
+
+def test_system_metrics_uses_fact_order_and_gold_ingestion_freshness(cdc_session, monkeypatch):
+    from unittest.mock import MagicMock
+
+    from app.modules.analytics import service
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            fixed = datetime(2026, 10, 22, 12, 0, tzinfo=UTC)
+            return fixed.astimezone(tz) if tz is not None else fixed.replace(tzinfo=None)
+
+    monkeypatch.setattr(service, "datetime", FixedDatetime)
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+    trino.execute_query.return_value = [{
+        "total_orders": 3,
+        "gross_revenue_vnd": 1_010_000,
+        "latest_gold_at": "2026-10-22 11:55:00",
+    }]
+
+    result = get_system_metrics(db=cdc_session, trino_client=trino)
+
+    sql = trino.execute_query.call_args[0][0]
+    assert "FROM lakehouse.gold.fact_order" in sql
+    assert "COUNT(DISTINCT order_id)" in sql
+    assert "SUM(gross_revenue_vnd)" in sql
+    assert "MAX(_gold_ingested_at)" in sql
+    assert "mart_sales_daily" not in sql
+
+    orders = next(m for m in result.reconciliation_variance if m.metric_name == "total_orders")
+    revenue = next(m for m in result.reconciliation_variance if m.metric_name == "gross_revenue_vnd")
+    assert orders.oltp_value == 3
+    assert orders.lakehouse_value == 3
+    assert orders.variance_percent == 0
+    assert revenue.oltp_value == 1_010_000
+    assert revenue.lakehouse_value == 1_010_000
+    assert revenue.variance_percent == 0
+    assert result.pipeline_status == "healthy"
+    assert result.data_freshness_minutes == 5
+    assert result.data_freshness_sla_minutes == 15
+
+
+@pytest.mark.parametrize(
+    ("gross_revenue_vnd", "age_minutes", "expected_status"),
+    [
+        (1_010_000, 5, "healthy"),
+        (1_010_000, 30, "degraded"),
+        (1_010_000, 90, "unhealthy"),
+        (950_000, 5, "degraded"),
+        (800_000, 5, "unhealthy"),
+    ],
+)
+def test_system_metrics_status_thresholds(
+    cdc_session, gross_revenue_vnd, age_minutes, expected_status
+):
+    from unittest.mock import MagicMock
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+    trino.execute_query.return_value = [{
+        "total_orders": 3,
+        "gross_revenue_vnd": gross_revenue_vnd,
+        "latest_gold_at": now - timedelta(minutes=age_minutes),
+    }]
+
+    result = get_system_metrics(db=cdc_session, trino_client=trino)
+
+    assert result.pipeline_status == expected_status
+
+
+def test_system_metrics_oltp_uses_order_total_value(cdc_session):
+    result = _get_system_metrics_oltp(cdc_session)
+
+    revenue = next(m for m in result.reconciliation_variance if m.metric_name == "gross_revenue_vnd")
+    assert revenue.oltp_value == 1_010_000
+    assert result.data_freshness_minutes is None
+    assert result.data_freshness_sla_minutes == 15
+    assert result.pipeline_status == "degraded"

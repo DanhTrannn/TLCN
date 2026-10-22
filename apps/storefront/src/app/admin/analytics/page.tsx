@@ -128,6 +128,9 @@ const ROLE_CANONICAL_MAP: Record<string, string> = {
 const metricValueClasses =
   "mt-3 max-w-full truncate whitespace-nowrap text-[clamp(1.25rem,1.8vw,1.75rem)] font-semibold leading-tight tracking-[-0.03em] tabular-nums";
 
+const formatReconciliationValue = (value: number) =>
+  value >= 1_000_000 ? formatMetricVnd(value) : new Intl.NumberFormat("vi-VN").format(value);
+
 function ExecutiveDashboard({
   metrics,
   salesTrend,
@@ -2016,7 +2019,36 @@ function MarketingDashboard({
 
 function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
   const allMatch = metrics.reconciliation_variance.every((v: ReconciliationVariance) => v.variance_percent === 0);
-
+  const statusLabel =
+    metrics.pipeline_status === "healthy"
+      ? "Hoạt động ổn định (Healthy)"
+      : metrics.pipeline_status === "degraded"
+        ? "Cần theo dõi (Degraded)"
+        : metrics.pipeline_status === "unhealthy"
+          ? "Bất thường (Unhealthy)"
+          : metrics.pipeline_status;
+  const statusTextClass =
+    metrics.pipeline_status === "healthy"
+      ? "text-emerald-700 dark:text-emerald-400"
+      : metrics.pipeline_status === "degraded"
+        ? "text-amber-700 dark:text-amber-400"
+        : "text-rose-700 dark:text-rose-400";
+  const statusDotClass =
+    metrics.pipeline_status === "healthy"
+      ? "bg-emerald-500 animate-pulse"
+      : metrics.pipeline_status === "degraded"
+        ? "bg-amber-500"
+        : "bg-rose-500";
+  const freshnessText =
+    metrics.data_freshness_minutes === null
+      ? "Chưa có dữ liệu Gold"
+      : `${metrics.data_freshness_minutes} phút`;
+  const freshnessTextClass =
+    metrics.data_freshness_minutes === null || metrics.data_freshness_minutes > 60
+      ? "text-rose-700 dark:text-rose-400"
+      : metrics.data_freshness_minutes > metrics.data_freshness_sla_minutes
+        ? "text-amber-700 dark:text-amber-400"
+        : "text-emerald-700 dark:text-emerald-400";
   const reconOption: EChartsOption = useMemo(() => {
     return {
       tooltip: {
@@ -2032,7 +2064,7 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
       },
       yAxis: {
         type: "value",
-        axisLabel: { formatter: (v: number) => formatMetricVnd(v) },
+        axisLabel: { formatter: (v: number) => formatReconciliationValue(v) },
         splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)", type: "dashed" } },
       },
       series: [
@@ -2061,18 +2093,17 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-muted">Trạng thái Batch ETL / Access-log Stream</p>
-            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className={`flex h-2.5 w-2.5 rounded-full ${statusDotClass}`} />
           </div>
-          <p className="mt-3 text-xl font-bold capitalize text-emerald-700 dark:text-emerald-400">
-            {metrics.pipeline_status === "healthy" ? "Hoạt động ổn định (Healthy)" : metrics.pipeline_status}
-          </p>
+          <p className={`mt-3 text-xl font-bold ${statusTextClass}`}>{statusLabel}</p>
         </article>
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted">SLA độ trễ làm mới (Freshness SLA)</p>
+            <p className="text-xs font-medium text-muted">Độ trễ dữ liệu Gold (Freshness)</p>
           </div>
-          <p className={metricValueClasses}>{metrics.data_freshness_sla_minutes} phút</p>
+          <p className={`${metricValueClasses} ${freshnessTextClass}`}>{freshnessText}</p>
+          <p className="mt-1 text-xs text-muted">SLA mục tiêu: {metrics.data_freshness_sla_minutes} phút</p>
         </article>
       </div>
 
@@ -2087,6 +2118,21 @@ function SystemDashboard({ metrics }: { metrics: SystemMetricsResponse }) {
               <p className="font-semibold">Dữ liệu đối soát 100% khớp (Variance = 0.0%)</p>
               <p className="mt-0.5 text-xs">
                 Toàn bộ chỉ số số lượng đơn và doanh thu giữa MySQL OLTP và Iceberg Lakehouse hoàn toàn đồng nhất.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!allMatch && (
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-300">
+            <Icon className="shrink-0 text-amber-600" name="alert" size={20} />
+            <div>
+              <p className="font-semibold">Phát hiện chênh lệch dữ liệu OLTP và Lakehouse</p>
+              <p className="mt-0.5 text-xs">
+                {metrics.reconciliation_variance
+                  .filter((v: ReconciliationVariance) => v.variance_percent !== 0)
+                  .map((v: ReconciliationVariance) => `${v.metric_name}: ${v.variance_percent.toFixed(2)}%`)
+                  .join(" · ")}
               </p>
             </div>
           </div>
