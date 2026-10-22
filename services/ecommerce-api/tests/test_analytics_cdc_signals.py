@@ -216,6 +216,7 @@ from app.modules.analytics.service import (
     _get_operations_metrics_oltp,
     _get_sales_metrics_oltp,
     _get_store_metrics_oltp,
+    get_inventory_metrics,
     get_role_metrics_data,
     get_store_metrics,
 )
@@ -607,4 +608,86 @@ def test_get_store_metrics_uses_oltp_and_skips_trino(cdc_session):
     assert result.store_revenue_today_vnd >= 777000
     assert result.store_orders_count >= 1
     trino.execute_query.assert_not_called()
+
+
+def test_get_inventory_metrics_uses_oltp_and_actual_inbound(cdc_session):
+    from unittest.mock import MagicMock
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+
+    result = get_inventory_metrics(db=cdc_session, trino_client=trino)
+
+    assert result.data_source == "oltp"
+    assert result.inbound_batches_count == 0
+    assert result.total_inventory_value_vnd > 0
+    assert result.stockout_count >= 2
+    trino.execute_query.assert_not_called()
+
+
+def test_inventory_depletion_velocity_only_counts_last_hour(cdc_session):
+    now = datetime.now(UTC).replace(tzinfo=None)
+
+    old_order = Order(
+        order_id=101,
+        order_number="ORD-DEPLETION-OLD",
+        customer_id=1,
+        checkout_idempotency_key=f"chk-{uuid.uuid4().hex[:30]}",
+        channel="online",
+        status="completed",
+        subtotal_vnd=25000000,
+        discount_amount_vnd=0,
+        shipping_fee_vnd=0,
+        total_vnd=25000000,
+        receiver_name="Khách Cũ",
+        receiver_phone="0901234567",
+        shipping_address_text="Test cũ",
+        created_at=now - timedelta(hours=3),
+    )
+    recent_order = Order(
+        order_id=102,
+        order_number="ORD-DEPLETION-RECENT",
+        customer_id=1,
+        checkout_idempotency_key=f"chk-{uuid.uuid4().hex[:30]}",
+        channel="online",
+        status="completed",
+        subtotal_vnd=1000000,
+        discount_amount_vnd=0,
+        shipping_fee_vnd=0,
+        total_vnd=1000000,
+        receiver_name="Khách Mới",
+        receiver_phone="0901234567",
+        shipping_address_text="Test mới",
+        created_at=now - timedelta(minutes=10),
+    )
+    cdc_session.add_all([old_order, recent_order])
+    cdc_session.flush()
+
+    for order, quantity in ((old_order, 100), (recent_order, 4)):
+        cdc_session.add(
+            OrderItem(
+                public_id=uuid7(),
+                order_id=order.order_id,
+                variant_id=1,
+                product_public_id_snapshot=uuid7(),
+                category_code_snapshot="CAT-AO-NAM",
+                category_name_snapshot="Áo Nam",
+                product_name_snapshot="Áo Polo Thể Thao",
+                sku_snapshot="POLO-BLK-M",
+                size_code_snapshot="M",
+                color_code_snapshot="Black",
+                unit_price_vnd=250000,
+                cost_price_vnd=100000,
+                quantity=quantity,
+                line_total_vnd=250000 * quantity,
+                created_at=order.created_at,
+            )
+        )
+    cdc_session.commit()
+
+    result = get_inventory_metrics(db=cdc_session)
+
+    row = next((item for item in result.depletion_velocity if item.variant_id == 1), None)
+    assert row is not None
+    assert row.units_sold_last_hour == 4
 

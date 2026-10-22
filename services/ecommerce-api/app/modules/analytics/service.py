@@ -4,7 +4,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import desc, func, or_, select
+from sqlalchemy import desc, func, or_, select, union
 from sqlalchemy.orm import Session
 
 from app.core.errors import FORBIDDEN, INTERNAL_ERROR, VALIDATION_ERROR, AppError
@@ -577,11 +577,14 @@ def _get_inventory_metrics_oltp(db: Session) -> InventoryMetricsResponse:
     wh_units = db.scalar(select(func.coalesce(func.sum(Inventory.on_hand), 0))) or 0
     st_units = db.scalar(select(func.coalesce(func.sum(StoreInventory.on_hand), 0))) or 0
     inbound_batches = db.scalar(select(func.count()).select_from(InboundReceipt)) or 0
+    warehouse_zero = select(Inventory.variant_id).where(Inventory.on_hand == 0)
+    store_zero = select(StoreInventory.variant_id).where(StoreInventory.on_hand == 0)
     stockout_count = db.scalar(
-        select(func.count()).select_from(Inventory).where(Inventory.on_hand == 0)
+        select(func.count()).select_from(union(warehouse_zero, store_zero).subquery())
     ) or 0
 
-    # OLTP signal 1: Fast inventory depletion velocity
+    # OLTP signal 1: Fast inventory depletion velocity (last 60 minutes only)
+    depletion_cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
     fast_moving = db.execute(
         select(
             ProductVariant.variant_id,
@@ -593,6 +596,11 @@ def _get_inventory_metrics_oltp(db: Session) -> InventoryMetricsResponse:
         .join(Product, Product.product_id == ProductVariant.product_id)
         .join(Inventory, Inventory.variant_id == ProductVariant.variant_id)
         .join(OrderItem, OrderItem.variant_id == ProductVariant.variant_id)
+        .join(Order, Order.order_id == OrderItem.order_id)
+        .where(
+            Order.created_at >= depletion_cutoff,
+            Order.status.in_(("delivered", "completed")),
+        )
         .group_by(ProductVariant.variant_id, ProductVariant.sku, Product.name, Inventory.on_hand)
         .order_by(desc("units_sold"))
         .limit(5)
@@ -1255,6 +1263,9 @@ def get_inventory_metrics(
     db: Session | None = None,
     trino_client: TrinoClient | None = None,
 ) -> InventoryMetricsResponse:
+    if db is not None:
+        return _get_inventory_metrics_oltp(db).model_copy(update={"data_source": "oltp"})
+
     client = trino_client or default_trino_client
     if not client.is_healthy():
         raise _trino_unavailable(client.base_url)
