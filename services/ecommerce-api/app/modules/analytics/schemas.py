@@ -207,6 +207,7 @@ class MarketingMetricsResponse(AnalyticsDataStatus):
     conversion_rate_percent: float = 0.0
     total_visitors: int = 0
     total_purchases: int = 0
+    funnel_window_days: int = 30
     voucher_burn_rate: VoucherBurnRateSignal | None = None
     negative_review_spikes: list[NegativeReviewSpikeSignal] = Field(default_factory=list)
 

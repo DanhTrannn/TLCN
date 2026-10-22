@@ -55,6 +55,8 @@ from app.modules.analytics.trino_client import TrinoClient, default_trino_client
 
 logger = logging.getLogger(__name__)
 
+MARKETING_FUNNEL_WINDOW_DAYS = 30
+
 ROLE_CANONICAL_MAP: dict[str, str] = {
     "executive": "executive",
     "admin": "executive",
@@ -1047,13 +1049,14 @@ def get_marketing_metrics(
     try:
         funnel_rows = None
         try:
-            funnel_rows = client.execute_query("""
+            funnel_rows = client.execute_query(f"""
                 SELECT
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('product_detail', 'catalog_search') OR http_route LIKE '/api/v1/products%' THEN 1 ELSE 0 END), 0) AS visitors_count,
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('cart_item_set', 'cart_add') OR http_route LIKE '/api/v1/cart%' THEN 1 ELSE 0 END), 0) AS add_to_cart_count,
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('checkout_quote', 'checkout_submit') OR http_route LIKE '/api/v1/checkout%' THEN 1 ELSE 0 END), 0) AS checkouts_count,
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('order_complete', 'order_confirm_internal') OR (ecommerce_action = 'checkout_submit' AND is_success) THEN 1 ELSE 0 END), 0) AS purchases_count
                 FROM lakehouse.gold.fact_web_events
+                WHERE event_date >= current_date - INTERVAL '{MARKETING_FUNNEL_WINDOW_DAYS}' DAY
             """)
         except Exception as stream_exc:
             logger.info("Direct fact_web_events query not ready, checking mart_marketing_funnel_daily: %s", stream_exc)
@@ -1084,9 +1087,26 @@ def get_marketing_metrics(
             except Exception as mart_exc:
                 logger.info("mart_marketing_funnel_daily query skipped: %s", mart_exc)
 
-        # If Lakehouse log events are not yet aggregated, fallback to OLTP data
-        if visitors == 0 and add_to_cart == 0 and purchases == 0 and db is not None:
-            return _get_marketing_metrics_oltp(db)
+        # If the access-log stream has no events, use OLTP but mark the response degraded.
+        if (
+            visitors == 0
+            and add_to_cart == 0
+            and checkouts == 0
+            and purchases == 0
+            and db is not None
+        ):
+            fallback = _get_marketing_metrics_oltp(db)
+            return fallback.model_copy(
+                update={
+                    "data_source": "oltp_fallback",
+                    "is_degraded": True,
+                    "degraded_reason": (
+                        "Access-log stream chưa có dữ liệu trong 30 ngày; "
+                        "đang hiển thị OLTP fallback."
+                    ),
+                    "funnel_window_days": MARKETING_FUNNEL_WINDOW_DAYS,
+                }
+            )
 
         conv_rate = round((purchases / visitors) * 100, 2) if visitors > 0 else 0.0
 
@@ -1129,6 +1149,7 @@ def get_marketing_metrics(
             conversion_rate_percent=conv_rate,
             total_visitors=visitors,
             total_purchases=purchases,
+            funnel_window_days=MARKETING_FUNNEL_WINDOW_DAYS,
             voucher_burn_rate=voucher_burn_rate,
             negative_review_spikes=negative_review_spikes,
         )

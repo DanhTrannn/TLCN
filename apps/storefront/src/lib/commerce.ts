@@ -893,7 +893,7 @@ export interface CashInTransitSignal {
 }
 
 export interface AnalyticsDataStatus {
-  data_source: "lakehouse" | "oltp_fallback";
+  data_source: "lakehouse" | "oltp" | "oltp_fallback";
   is_degraded: boolean;
   degraded_reason: string | null;
 }
@@ -955,6 +955,7 @@ export interface MarketingMetricsResponse extends AnalyticsDataStatus {
   conversion_rate_percent: number;
   total_visitors: number;
   total_purchases: number;
+  funnel_window_days: number;
   voucher_burn_rate?: VoucherBurnRateSignal | null;
   negative_review_spikes?: NegativeReviewSpikeSignal[];
 }

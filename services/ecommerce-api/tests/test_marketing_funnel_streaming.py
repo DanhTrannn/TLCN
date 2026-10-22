@@ -208,3 +208,41 @@ def test_sales_trend_returns_explicit_oltp_degraded_mode(in_memory_db: Session):
     assert result.is_degraded is True
     assert len(result.points) == 8
 
+
+def test_marketing_funnel_uses_30_day_window():
+    mock_trino = MagicMock(spec=TrinoClient)
+    mock_trino.is_healthy.return_value = True
+    mock_trino.execute_query.return_value = [{
+        "visitors_count": 100,
+        "add_to_cart_count": 20,
+        "checkouts_count": 10,
+        "purchases_count": 5,
+    }]
+
+    res = get_marketing_metrics(trino_client=mock_trino)
+
+    called_sql = mock_trino.execute_query.call_args[0][0]
+    assert "event_date >= current_date - INTERVAL '30' DAY" in called_sql
+    assert res.funnel_window_days == 30
+
+
+def test_marketing_metrics_marks_oltp_fallback_when_stream_empty(in_memory_db: Session):
+    mock_trino = MagicMock(spec=TrinoClient)
+    mock_trino.is_healthy.return_value = True
+    mock_trino.execute_query.side_effect = [
+        [{
+            "visitors_count": 0,
+            "add_to_cart_count": 0,
+            "checkouts_count": 0,
+            "purchases_count": 0,
+        }],
+        RuntimeError("Table 'lakehouse.gold.mart_marketing_funnel_daily' not found"),
+    ]
+
+    res = get_marketing_metrics(db=in_memory_db, trino_client=mock_trino)
+
+    assert res.data_source == "oltp_fallback"
+    assert res.is_degraded is True
+    assert res.degraded_reason
+    assert res.funnel_window_days == 30
+
