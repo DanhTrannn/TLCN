@@ -11,6 +11,7 @@ The local stack implements the decoupled architecture defined in the lakehouse p
 - **Apache Spark (v3.5.9 + Iceberg v1.10.1):** The exclusive writer engine responsible for ETL and table commits.
 - **Trino (v483):** The distributed SQL query engine for read-only serving.
 - **LibreDB Studio (vlatest):** Web-based SQL IDE for MySQL, PostgreSQL, and Trino (`:3001`).
+- **Debezium Connect (v3.0.8):** Captures committed changes from the MySQL row binlog and publishes per-table Kafka topics (`:8086`, localhost only).
 - **Polaris Web Console:** Catalog and RBAC management UI (`:8183`).
 
 *Note: Polaris does not store Parquet files or execute queries. PostgreSQL holds only catalog/RBAC metadata, not actual Iceberg data.*
@@ -52,6 +53,8 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 3. `polaris-bootstrap` initializes the JDBC metadata store and default `POLARIS` realm.
 4. `polaris-init` creates the `lakehouse` catalog mapped to `s3://lakehouse/warehouse` and registers the namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
 5. `polaris-init` provisions 3 dedicated service principals (`trino_admin` with full administrative rights, `spark_writer` with read/write `CATALOG_MANAGE_CONTENT`, and `trino_reader` with least-privilege read access), persisting credentials to the `polaris-client-credentials` Docker volume.
+6. `mysql-cdc-init` provisions the dedicated replication account; `debezium-init` idempotently registers the MySQL connector.
+7. `flink-cdc-submit` starts the continuous Kafka-to-Iceberg Bronze CDC job alongside access-log streaming.
 
 ---
 
@@ -68,6 +71,7 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 | **Trino Web UI** | `http://localhost:8084` | 8084 | Query execution status |
 | **Polaris Console** | `http://localhost:8183` | 8183 | Catalog & RBAC UI (Realm: `POLARIS`) |
 | **MinIO Console** | `http://localhost:9001` | 9001 | S3 Object browser (`minioadmin` / `password`) |
+| **Debezium Connect** | `http://127.0.0.1:8086` | 8086 | CDC connector lifecycle/status API |
 
 ---
 
@@ -77,6 +81,12 @@ Run the automated smoke test script to verify end-to-end integration:
 
 ```bash
 ./scripts/lakehouse_smoke.sh
+```
+
+Verify CDC separately after the streaming profile is healthy:
+
+```bash
+make verify-cdc
 ```
 
 The script performs the following verifications:

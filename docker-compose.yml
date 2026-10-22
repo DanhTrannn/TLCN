@@ -70,6 +70,9 @@ x-flink-common: &flink-common
     AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
     MINIO_ENDPOINT: http://minio:9000
     KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    CDC_TOPIC_PREFIX: ${CDC_TOPIC_PREFIX:-ecommerce}
+    CDC_FLINK_GROUP_ID: ${CDC_FLINK_GROUP_ID:-flink-oltp-cdc-bronze-v1}
+    MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
     PYTHONPATH: /opt/project/pipelines/src
   networks: ["lakehouse-network"]
 
@@ -89,8 +92,19 @@ services:
       MYSQL_USER: ${MYSQL_USER:-ecommerce_app}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_CDC_USER: ${MYSQL_CDC_USER:-debezium}
+      MYSQL_CDC_PASSWORD: ${MYSQL_CDC_PASSWORD:-password}
       TZ: UTC
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --server-id=1
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --binlog-expire-logs-seconds=604800
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
@@ -100,6 +114,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    networks: ["lakehouse-network"]
+
+  mysql-cdc-init:
+    image: mysql:8.4.5
+    profiles: ["streaming"]
+    entrypoint: ["/bin/bash", "/opt/cdc/create-user.sh"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_CDC_USER: ${MYSQL_CDC_USER:-debezium}
+      MYSQL_CDC_PASSWORD: ${MYSQL_CDC_PASSWORD:-password}
+    volumes:
+      - ./infrastructure/mysql/create-cdc-user.sh:/opt/cdc/create-user.sh:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
     networks: ["lakehouse-network"]
 
   ecommerce-api:
@@ -496,6 +527,70 @@ services:
       start_period: 15s
     networks: ["lakehouse-network"]
 
+  kafka-init:
+    image: apache/kafka:3.8.0
+    profiles: ["streaming"]
+    command:
+      - /opt/kafka/bin/kafka-topics.sh
+      - --bootstrap-server
+      - kafka:9092
+      - --create
+      - --if-not-exists
+      - --topic
+      - ecommerce.access_logs
+      - --partitions
+      - "1"
+      - --replication-factor
+      - "1"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    networks: ["lakehouse-network"]
+
+  debezium-connect:
+    build:
+      context: .
+      dockerfile: infrastructure/debezium/Dockerfile
+      args:
+        DEBEZIUM_VERSION: 3.0.8.Final
+    image: lakehouse-debezium-connect:3.0.8
+    profiles: ["streaming"]
+    environment:
+      KAFKA_HEAP_OPTS: ${CDC_CONNECT_HEAP_OPTS:--Xms256m -Xmx512m}
+    ports:
+      - "${CDC_CONNECT_BIND_ADDRESS:-127.0.0.1}:${CDC_CONNECT_PORT:-8086}:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/8083'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mysql-cdc-init:
+        condition: service_completed_successfully
+    networks: ["lakehouse-network"]
+
+  debezium-init:
+    image: curlimages/curl:8.17.0
+    profiles: ["streaming"]
+    entrypoint: ["/bin/sh", "/opt/debezium/register-connector.sh"]
+    environment:
+      DEBEZIUM_CONNECT_URL: http://debezium-connect:8083
+      MYSQL_CDC_USER: ${MYSQL_CDC_USER:-debezium}
+      MYSQL_CDC_PASSWORD: ${MYSQL_CDC_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
+      CDC_TOPIC_PREFIX: ${CDC_TOPIC_PREFIX:-ecommerce}
+    volumes:
+      - ./infrastructure/debezium/register-connector.sh:/opt/debezium/register-connector.sh:ro
+    depends_on:
+      debezium-connect:
+        condition: service_healthy
+    restart: "no"
+    networks: ["lakehouse-network"]
+
   flink-jobmanager:
     <<: *flink-common
     command: ["/opt/project/flink/bin/with-polaris-credentials.sh", "/docker-entrypoint.sh", "jobmanager"]
@@ -550,6 +645,29 @@ services:
       - polaris-client-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      flink-jobmanager:
+        condition: service_healthy
+      flink-taskmanager:
+        condition: service_started
+
+  flink-cdc-submit:
+    <<: *flink-common
+    command: ["/opt/project/flink/bin/with-polaris-credentials.sh", "/opt/project/flink/bin/submit-job.sh"]
+    environment:
+      <<: *flink-environment
+      JOB_SCRIPT: /opt/project/pipelines/src/jobs/cdc/mysql_cdc_to_bronze.py
+      JOB_NAME_PATTERN: oltp_cdc_to_bronze
+    restart: "no"
+    volumes:
+      - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
+      - ./pipelines:/opt/project/pipelines:ro
+      - polaris-client-credentials:/run/polaris:ro
+      - flink-checkpoints:/opt/flink/checkpoints
+    depends_on:
+      debezium-init:
+        condition: service_completed_successfully
       flink-jobmanager:
         condition: service_healthy
       flink-taskmanager:

@@ -2,7 +2,7 @@ Bạn đang đóng vai trò là **Business Analyst + Data Architect** cho một 
 
 Mục tiêu của tài liệu là phân tích hệ thống từ góc nhìn **role → business questions → KPI → dashboard → data requirements**, đồng thời phân loại dữ liệu cho **Batch ETL, tín hiệu tác nghiệp và Streaming/Clickstream**.
 
-> **Trạng thái triển khai:** Batch OLTP và streaming access log đã có. Tín hiệu tác nghiệp hiện đọc MySQL qua FastAPI. Các nội dung “CDC” bên dưới chỉ là phân tích khả năng mở rộng tương lai; repository chưa triển khai binlog/Debezium CDC.
+> **Trạng thái triển khai:** Batch OLTP, streaming access log và MySQL binlog CDC qua Debezium/Kafka/Flink vào Iceberg Bronze đã có. Dashboard tác nghiệp vẫn đọc MySQL qua FastAPI; Silver/Gold tiếp tục được Spark batch đối soát.
 
 ## 1. Bối cảnh hệ thống
 
@@ -31,7 +31,7 @@ Hệ thống có thể có nhiều cửa hàng/chi nhánh và nhiều kho.
 Dữ liệu cần được thiết kế sao cho vừa phục vụ vận hành website vừa có thể đưa vào Lakehouse để thực hiện:
 
 * Batch processing
-* Tín hiệu tác nghiệp (CDC là hướng mở rộng tương lai)
+* CDC và tín hiệu tác nghiệp
 * Streaming processing
 * BI / Dashboard
 * Data quality
@@ -726,7 +726,7 @@ Phù hợp với:
 * Aggregated analytics
 * Periodic customer segmentation
 
-## CDC (đề xuất tương lai, chưa triển khai)
+## CDC (đã triển khai đến Iceberg Bronze)
 
 Phù hợp với:
 
@@ -746,7 +746,7 @@ UPDATE status
 UPDATE payment_status
 UPDATE shipping_status
 
-Nếu bổ sung CDC sau này, connector phải capture những thay đổi này. Hiện tại dashboard lấy các trạng thái cần thiết bằng truy vấn OLTP có giới hạn.
+Debezium hiện capture các thay đổi này từ row binlog và Flink lưu toàn bộ envelope vào `lakehouse.bronze.oltp_cdc_events`. Dashboard vẫn lấy trạng thái hành động hiện thời bằng truy vấn OLTP có giới hạn; CDC chưa tự động materialize toàn bộ typed Silver/Gold.
 
 ## Streaming
 

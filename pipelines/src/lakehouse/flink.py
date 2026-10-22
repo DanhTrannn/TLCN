@@ -140,6 +140,37 @@ STREAMING_TABLE_DDLS = (
 )
 
 
+CDC_TABLE_DDLS = (
+    """
+    CREATE TABLE IF NOT EXISTS lakehouse.bronze.oltp_cdc_events (
+        event_id STRING,
+        topic STRING,
+        database_name STRING,
+        table_name STRING,
+        operation STRING,
+        event_ts TIMESTAMP_LTZ(3),
+        source_ts TIMESTAMP_LTZ(3),
+        transaction_id STRING,
+        mysql_server_id STRING,
+        binlog_file STRING,
+        binlog_position BIGINT,
+        binlog_row INT,
+        kafka_partition INT,
+        kafka_offset BIGINT,
+        record_key STRING,
+        before_payload STRING,
+        after_payload STRING,
+        raw_payload STRING,
+        ingested_at TIMESTAMP_LTZ(3),
+        event_date DATE
+    ) PARTITIONED BY (event_date) WITH (
+        'format-version' = '2',
+        'write.parquet.compression-codec' = 'zstd'
+    )
+    """,
+)
+
+
 def polaris_flink_credentials() -> tuple[str, str]:
     """Retrieve Polaris OAuth2 client id and secret for Flink."""
     # First check environment variables
@@ -243,6 +274,13 @@ def ensure_streaming_tables(t_env: StreamTableEnvironment) -> None:
     for ddl in STREAMING_TABLE_DDLS:
         t_env.execute_sql(ddl)
     log.info("Ensured %d streaming Iceberg sink tables", len(STREAMING_TABLE_DDLS))
+
+
+def ensure_cdc_tables(t_env: StreamTableEnvironment) -> None:
+    """Provision the append-only Iceberg audit log for MySQL CDC envelopes."""
+    for ddl in CDC_TABLE_DDLS:
+        t_env.execute_sql(ddl)
+    log.info("Ensured %d CDC Iceberg sink tables", len(CDC_TABLE_DDLS))
 
 
 def ensure_merge_on_read(

@@ -5,6 +5,7 @@ set -euo pipefail
 
 JOB_MANAGER_ADDRESS="${JOB_MANAGER_ADDRESS:-flink-jobmanager:8081}"
 JOB_SCRIPT="${JOB_SCRIPT:-/opt/project/pipelines/src/jobs/logs/kafka_to_lakehouse.py}"
+JOB_NAME_PATTERN="${JOB_NAME_PATTERN:-kafka_to_lakehouse_pure_streaming|insert-into_lakehouse}"
 
 # Source Polaris credentials (sets POLARIS_FLINK_CLIENT_ID / SECRET / REALM)
 CRED_FILE="${POLARIS_CREDENTIAL_FILE:-/run/polaris/clients.env}"
@@ -31,7 +32,7 @@ echo "[submit-job] JobManager is ready."
 
 # Idempotency check: skip submission if job is already RUNNING
 RUNNING_JOBS="$(curl -sf "http://${JOB_MANAGER_ADDRESS}/jobs/overview" 2>/dev/null || echo "{}")"
-if echo "$RUNNING_JOBS" | grep -qE '"name":"(kafka_to_lakehouse_pure_streaming|insert-into_lakehouse)".*"state":"RUNNING"'; then
+if echo "$RUNNING_JOBS" | grep -qE "\"name\":\"(${JOB_NAME_PATTERN})\".*\"state\":\"RUNNING\""; then
     echo "[submit-job] Streaming Lakehouse job is already RUNNING. Skipping."
     exit 0
 fi

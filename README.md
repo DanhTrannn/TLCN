@@ -24,7 +24,7 @@
 The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse monorepo combining high-throughput transactional processing, real-time event streaming, and analytical data lakehouse architecture. It operates an operational MySQL 8.4 database with 28 relational tables (27 analytical tables ingested into Lakehouse), a FastAPI e-commerce backend, and a modern Next.js 15 storefront. The data platform combines Apache Kafka + Apache Flink for real-time streaming ingestion alongside Apache Spark for Medallion batch processing (Bronze, Silver, Gold) on Apache Iceberg with Polaris catalog. FastAPI applies RBAC before serving Apache Trino analytics to Apache ECharts in the Admin BI Hub (`/admin/analytics`).
 
 > [!NOTE]
-> The platform implements a **Hybrid Batch & Streaming Architecture**: Kafka & Apache Flink handle real-time clickstream events and streaming ingestion into Iceberg, while Apache Spark orchestrates scheduled batch transformations across Bronze, Silver, and Gold Medallion layers.
+> The platform implements a **Hybrid Batch, CDC & Streaming Architecture**: Debezium captures MySQL row changes into Kafka, Apache Flink persists the immutable CDC log and real-time clickstream into Iceberg, and Apache Spark orchestrates reconciled Bronze, Silver, and Gold batch transformations.
 
 ## Overview
 
@@ -38,7 +38,8 @@ The repository includes everything needed to run the data platform locally, incl
 - **Full Order & Logistics Lifecycle:** End-to-end shipper dispatch, boom COD handling (3-attempt threshold and automatic COD blocking), customer 7-day return/refund management, and customer-confirmed order completion (`delivered -> completed`).
 - **7-Role Interactive BI Analytics Hub (`/admin/analytics`):** Tailored operational views for Executive (CEO), Sales, Store Managers (with Application/API-level Row Filtering scoped by `store_id`), Inventory, Operations & Logistics, Marketing Funnel, and System Admin with reconciliation audits, integrated with Apache ECharts and Apache Trino distributed query engine.
 
-- **Hybrid Streaming & Batch Processing:** Real-time event streaming via Apache Kafka and Apache Flink alongside scheduled Apache Spark Medallion batch ETL.
+- **Log-based MySQL CDC:** MySQL row binlog → Debezium/Kafka Connect → Kafka → Flink → append-only Iceberg Bronze with snapshot, create, update, delete, tombstone, binlog, and Kafka replay metadata.
+- **Hybrid Streaming & Batch Processing:** Real-time CDC and access-log streaming via Apache Kafka and Apache Flink alongside scheduled Apache Spark Medallion batch ETL and reconciliation.
 - **Operational Analytics:** Query historical order, product, inventory, and customer metrics without placing analytical load on the production MySQL database.
 - **Access Log Analysis:** Inspect traffic patterns, latency distributions, error rates, and search keywords aggregated into hourly and daily summary tables.
 - **ML Roadmap (not implemented):** Point-in-time repurchase features, training, and scoring are deferred to a later phase.
@@ -130,12 +131,13 @@ Once the services are running, access the following dashboards and endpoints:
 | **Trino Query Engine** | 8084 | `http://localhost:8084` | `trino` |
 | **Flink Dashboard** | 8085 | `http://localhost:8085` | (Web UI) |
 | **Kafka Broker** | 9092, 9094 | `localhost:9092` | PLAINTEXT |
+| **Debezium Connect API** | 8086 | `http://127.0.0.1:8086` | Localhost only |
 
 ---
 
 ## Architecture
 
-The system processes data from two operational pipelines: 27 allowed analytical tables extracted from the 28-table MySQL OLTP schema, and structured access logs emitted by FastAPI. It combines real-time streaming ingestion via Kafka + Flink and batch Medallion pipelines via Spark + Iceberg.
+The system processes 27 analytical tables from the 28-table MySQL OLTP schema through both a reconciled Spark batch path and a Debezium row-binlog CDC path. Structured access logs emitted by FastAPI use a separate Kafka + Flink stream.
 
 See the [visual System Architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) for system context, container boundaries, batch/streaming flows, request sequences, and deployment profiles.
 
@@ -154,12 +156,11 @@ See the [visual System Architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUA
                      ▼                     ▼
                 MySQL 8.4             Apache Kafka
              (27 OLTP tables)          (Event Bus)
-                     │                     │
-                     │                     ▼
-                     │               Apache Flink
-                     │            (Streaming Ingest)
-                     │                     │
-                     └─────────────┬───────┘
+                  │  │                    ▲  │
+          Batch ──┘  └─ Binlog → Debezium ┘  ▼
+                  │                   Apache Flink
+                  │             (CDC + Access Logs)
+                  └──────────────┬───────────┘
                                    ▼
                          MinIO S3 / Apache Iceberg
                         s3://lakehouse/ (Polaris REST)
@@ -185,8 +186,9 @@ See the [visual System Architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUA
 | **Visual Analytics** | Apache ECharts | 6.1 | Interactive role-based charts and Trino live telemetry |
 | **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic (28 tables, 16 modules) |
 | **Operational DB** | MySQL | 8.4 LTS | Primary relational database (28 tables, 27 analytical) |
-| **Event Streaming** | Apache Kafka | 3.8 | Distributed access-log streaming backbone |
-| **Stream Processing** | Apache Flink | 1.19 | Real-time event consumption and Iceberg streaming ingest |
+| **Change Data Capture** | Debezium MySQL Connector | 3.0.8 | MySQL row-binlog snapshot and continuous change capture |
+| **Event Streaming** | Apache Kafka | 3.8 | Distributed CDC and access-log streaming backbone |
+| **Stream Processing** | Apache Flink | 1.19 | CDC/access-event consumption and Iceberg streaming ingest |
 | **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`lakehouse` bucket) |
 | **Table Catalog** | Apache Polaris | 1.6.0 | REST catalog managing Iceberg namespaces and RBAC |
 | **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
@@ -249,7 +251,7 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ### Real-Time Operational Signals & Instant Action Controls
 
-While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts, operational managers also need fresh intra-day indicators. The current BI Hub obtains these operational signals through FastAPI queries against MySQL OLTP; Kafka and Flink are used for structured access logs. The repository does **not** deploy MySQL binlog/Debezium CDC.
+While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts, operational managers also need fresh intra-day indicators. The BI Hub obtains actionable operational signals through bounded FastAPI queries against MySQL OLTP. Independently, Debezium and Flink retain the MySQL change log in Iceberg Bronze for low-latency audit/replay; typed Silver/Gold marts remain Spark-managed and reconciled.
 
 | Role | Operational Signal | Threshold / Detection Logic | Instant Action Control |
 |---|---|---|---|
@@ -307,7 +309,7 @@ Explore the detailed architecture and planning documents:
 | **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
 | **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
 | **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and analytical reporting |
-| **Operational Signals Spec** | [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Current OLTP signal queries, action controls, and future CDC boundary |
+| **CDC Architecture & Operations** | [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | MySQL binlog capture contract, replay metadata, verification, and current Silver/Gold boundary |
 | **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Kafka + Flink streaming pipeline, S3 layout |
 | **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
 | **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |

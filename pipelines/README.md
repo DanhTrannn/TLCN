@@ -12,6 +12,8 @@ pipelines/
 │   └── default.yml                       # Lakehouse table specifications, cursor mappings, and mutability
 ├── src/
 │   ├── jobs/                             # Data pipeline execution jobs (Streaming & Batch)
+│   │   ├── cdc/
+│   │   │   └── mysql_cdc_to_bronze.py    # Debezium Kafka topics -> immutable Iceberg Bronze CDC log
 │   │   ├── logs/                         # Access Logs streaming & analytical jobs
 │   │   │   ├── kafka_to_lakehouse.py     # Pure Streaming: Kafka -> Medallion (Landing, Bronze, Silver, Gold)
 │   │   │   └── build_logs_gold.py        # Builds Gold Data Marts from real-time fact_web_events
@@ -65,6 +67,7 @@ pipelines/
 
 ### 2.1. Pure Streaming Medallion Logs Pipeline & Maintenance
 - **Streaming Ingestion (PyFlink):** Continuous real-time ingestion from Kafka `ecommerce.access_logs` directly into all 4 layers (`landing.access_logs`, `bronze.web_events`, `silver.silver_logs`, `gold.fact_web_events`) via Flink `StatementSet` every 10-second checkpoint with Merge-on-Read write mode.
+- **OLTP CDC (Debezium + PyFlink):** MySQL row-binlog events for all 27 analytical tables are published to per-table Kafka topics and retained in `bronze.oltp_cdc_events`, including `r/c/u/d/t`, before/after images, transaction metadata, binlog coordinates, and Kafka offsets.
 - **Maintenance & Data Marts DAG (`lakehouse_streaming_maintenance`):**
   - **Schedule:** Every 2 hours (`0 */2 * * *`).
   - **Tasks:**
@@ -91,6 +94,7 @@ pipelines/
 |---|---|---|---|---|
 | `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors (27 tables), MD5 manifests, PII, MERGE, COGS Marts |
 | `kafka_to_lakehouse_pure_streaming` | Continuous (10s checkpoints) | Kafka → Landing, Bronze, Silver, Gold | **Pure Streaming (PyFlink)** | StatementSet, Pendulum VN timezone, Merge-on-Read |
+| `oltp_cdc_to_bronze` | Continuous (10s checkpoints) | MySQL binlog → Debezium → Kafka → Bronze | **Log-based CDC (PyFlink)** | Immutable envelopes, deletes/tombstones, deterministic event IDs, replay coordinates |
 | `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
 | `build_oltp_gold` | Daily 2 AM | Silver → Gold (`dim_*`, `fact_*`, `mart_*`) | **Gold Batch Transformation** | Star schema, financial COGS parity, gross profit rollups |
 
@@ -101,6 +105,7 @@ OLTP extraction (MySQL → Landing):        Pass  (26 analytical tables, Parquet
 Landing → Bronze ingestion:               Pass  (27 tables, 0 skipped, 0 quarantine)
 Bronze table counts (Trino):              Pass  (verified via Trino & Polaris catalog)
 Access logs → Bronze:                     Pass  (web_events table)
+MySQL CDC → Bronze:                       Verify with `make verify-cdc`
 OLTP Bronze → Silver:                     Pass  (27 tables, MERGE, PII, quarantine)
 Logs Bronze → Silver:                     Pass  (web_events, anti-join dedup)
 Silver → Gold Marts:                      Pass  (sales marts, inventory health, COGS)

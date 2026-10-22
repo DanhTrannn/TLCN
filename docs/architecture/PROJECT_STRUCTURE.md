@@ -48,7 +48,7 @@ flowchart LR
 ### 1.1. Dependency Rules
 
 1. **Presentation Boundary:** The Storefront communicates exclusively with the Ecommerce API via HTTP/JSON.
-2. **Short Transactions:** The Ecommerce API writes to MySQL via short transactions and emits structured JSON access logs to stdout/Kafka. It does not publish a general domain-event or MySQL CDC stream.
+2. **Short Transactions + CDC:** The Ecommerce API writes to MySQL via short transactions and emits structured JSON access logs to stdout/Kafka. Debezium independently captures committed row changes from MySQL binlog; the API does not dual-write domain events.
 3. **Read-Only Ingestion:** The Data Engineering (DE) extractor uses a read-only account scoped strictly to the 27 allowed analytical tables (excluding `customer_credentials`).
 4. **Single Writer Principal:** Apache Airflow orchestrates workflows; Apache Spark executes the batch ingestion, transformations, and Iceberg commits. Spark is the primary Iceberg batch writer, working alongside Apache Flink for streaming ingestion.
 5. **Catalog Decoupling:** Apache Polaris manages table metadata, namespaces, and RBAC privileges. It does not perform compute or store data files.
@@ -123,7 +123,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 |---|---|---|
 | *(Default)* | `mysql`, `postgres`, `minio`, `minio-init`, `polaris-bootstrap`, `polaris`, `polaris-init`, `polaris-console`, `trino`, `libredb-studio` | Core storage, PostgreSQL metadata, Polaris REST catalog, Trino SQL query engine, and LibreDB Studio SQL IDE |
 | `batch` | `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
-| `streaming` | `kafka`, `flink-jobmanager`, `flink-taskmanager` | Distributed event streaming (Kafka) and real-time streaming ingestion into Iceberg (Flink) |
+| `streaming` | `kafka`, `debezium-connect`, `flink-jobmanager`, `flink-taskmanager` | MySQL CDC, distributed event streaming, and real-time Iceberg ingestion |
 | `core` | `ecommerce-api`, `storefront` | Operational e-commerce web application, POS, and customer storefront |
 | `lakehouse-tools` | `spark-client` | Ad-hoc Spark CLI verification and SQL smoke tests |
 
@@ -145,6 +145,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | **MinIO S3 API** | `9000` | HTTP (S3) | Object storage API endpoint |
 | **MinIO Web Console** | `9001` | HTTP | Web management console for S3 buckets |
 | **Apache Kafka Broker** | `9092, 9094` | TCP | Distributed event streaming backbone |
+| **Debezium Connect API** | `8086` (localhost) | HTTP | Connector status and lifecycle API |
 | **Polaris REST Catalog** | `8181` | HTTP | Iceberg REST catalog API |
 | **Polaris Management** | `8182` | HTTP | Polaris health and management API |
 | **Polaris Console** | `8183` | HTTP | Web UI for Iceberg catalog & RBAC |

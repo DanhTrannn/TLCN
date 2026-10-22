@@ -98,6 +98,20 @@ docker compose --profile core --profile streaming up -d
 docker compose --profile streaming logs -f flink-jobmanager
 ```
 
+### MySQL Change Data Capture
+
+The `streaming` profile enables MySQL row binlog, provisions a dedicated
+replication account, registers Debezium, and submits the Flink CDC sink:
+
+```bash
+docker compose --profile core --profile batch --profile streaming up -d --build
+curl -fsS http://127.0.0.1:8086/connectors/mysql-ecommerce-cdc/status
+make verify-cdc
+```
+
+See [`../architecture/CDC_DASHBOARD_DATA_SPEC.md`](../architecture/CDC_DASHBOARD_DATA_SPEC.md)
+for event semantics and recovery rules.
+
 ---
 
 ## 4. Local Validation and CI Commands
@@ -128,6 +142,7 @@ npm --prefix apps/storefront run test:e2e
 ./scripts/lakehouse_smoke.sh
 ./scripts/verify_batch_pipeline.sh
 ./scripts/verify_streaming.sh
+./scripts/verify_cdc.sh
 
 # Or verify every demo path
 make verify-demo

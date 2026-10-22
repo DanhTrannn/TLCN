@@ -19,4 +19,9 @@ if [[ "${VERIFY_STREAMING_PIPELINE:-1}" == "1" ]]; then
   ./scripts/verify_streaming.sh
 fi
 
+if [[ "${VERIFY_CDC_PIPELINE:-1}" == "1" ]]; then
+  printf '%s\n' "Verifying MySQL binlog CDC path..."
+  ./scripts/verify_cdc.sh
+fi
+
 printf '%s\n' "All requested demo paths passed."

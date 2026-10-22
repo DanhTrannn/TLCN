@@ -126,6 +126,7 @@ wait_for_url "MinIO S3" "http://localhost:9000/minio/health/live" 20 || STARTUP_
 wait_for_url "Polaris Console" "http://localhost:8183" 20 || STARTUP_FAILED=1
 wait_for_url "Airflow Web UI" "http://localhost:8080/health" 30 || STARTUP_FAILED=1
 wait_for_url "Flink Dashboard" "http://localhost:8085/overview" 20 || STARTUP_FAILED=1
+wait_for_url "Debezium Connect" "http://127.0.0.1:${CDC_CONNECT_PORT:-8086}/connectors/mysql-ecommerce-cdc/status" 30 || STARTUP_FAILED=1
 
 if [[ "$STARTUP_FAILED" -ne 0 && "$ALLOW_DEGRADED" != "true" ]]; then
   echo -e "${YELLOW}[!] One or more required services failed readiness checks.${NC}" >&2
@@ -185,9 +186,11 @@ cat <<EOF
   MinIO S3 Storage Console        http://localhost:9001                minioadmin / password
   Apache Polaris REST Console     http://localhost:8183                admin / password (Realm: POLARIS)
   Apache Kafka Broker             localhost:9092, localhost:9094       PLAINTEXT
+  Debezium Connect API            http://127.0.0.1:${CDC_CONNECT_PORT:-8086}             Localhost only
 EOF
 
 echo -e "\n${BOLD}Useful Commands:${NC}"
 echo -e "  View running containers:        ${CYAN}make ps${NC}      or  ${CYAN}docker compose ps${NC}"
 echo -e "  View live logs:                 ${CYAN}make logs${NC}    or  ${CYAN}docker compose logs -f${NC}"
 echo -e "  Stop all services:              ${CYAN}make down${NC}    or  ${CYAN}./scripts/stop_all.sh${NC}\n"
+echo -e "  Verify MySQL CDC:               ${CYAN}make verify-cdc${NC}\n"

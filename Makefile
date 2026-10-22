@@ -1,4 +1,4 @@
-.PHONY: all up start down stop restart ps logs status seed test test-frontend test-e2e verify-demo typecheck help
+.PHONY: all up start down stop restart ps logs status seed test test-frontend test-e2e verify-demo verify-cdc typecheck help
 
 all: up
 
@@ -16,6 +16,7 @@ help:
 	@echo "  make test-frontend Run storefront unit tests"
 	@echo "  make test-e2e    Run storefront Playwright tests"
 	@echo "  make verify-demo Verify core, batch, and streaming paths"
+	@echo "  make verify-cdc  Verify MySQL binlog CDC through Iceberg"
 	@echo "  make typecheck   Run Next.js storefront TypeScript check"
 	@echo ""
 
@@ -55,6 +56,9 @@ test-e2e:
 
 verify-demo:
 	@./scripts/verify_demo.sh
+
+verify-cdc:
+	@./scripts/verify_cdc.sh
 
 typecheck:
 	@npm --prefix apps/storefront run typecheck

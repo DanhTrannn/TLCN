@@ -16,6 +16,7 @@ This directory contains the architecture specifications, data schemas, operation
 
 - [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 28 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-12), in-house logistics, 7-day returns, inventory ledger, MWA costing, lock ordering, race handling, and reconciliation rules.
 - [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Kafka + Flink streaming collection pipeline, privacy redactions, and S3 partition layouts.
+- [`architecture/CDC_DASHBOARD_DATA_SPEC.md`](architecture/CDC_DASHBOARD_DATA_SPEC.md): MySQL binlog CDC contract, Debezium/Flink/Iceberg path, verification, and recovery.
 - [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
 
 ### Operations and Deployment
@@ -34,6 +35,7 @@ This directory contains the architecture specifications, data schemas, operation
 | Polaris (Iceberg REST catalog) | Done | RBAC: `spark_writer`, `trino_reader`, `trino_admin` |
 | Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
 | Apache Kafka | Done | Distributed event bus for structured access logs |
+| Debezium MySQL CDC | Done | Row-binlog capture for 27 analytical tables into Kafka and Iceberg Bronze |
 | Apache Flink | Done | 1.19 Streaming engine ingesting Kafka events into Iceberg |
 | Trino (query engine) | Done | v483, distributed queries via Polaris and direct telemetry for BI Hub |
 | Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
@@ -47,6 +49,7 @@ This directory contains the architecture specifications, data schemas, operation
 |---|---|---|---|
 | `lakehouse_oltp_pipeline` | Done | 27 tables | Unified End-to-End OLTP DAG: Landing → Bronze → Silver → Gold |
 | `kafka_to_lakehouse_pure_streaming` | Done | Real-time | Streaming logs into Landing, Bronze, Silver, Gold |
+| `oltp_cdc_to_bronze` | Done | Real-time | MySQL binlog changes into immutable Iceberg Bronze |
 | `lakehouse_streaming_maintenance` | Done | 4 layers | Streaming logs healthcheck, Iceberg maintenance & Gold Marts rollup |
 
 ### Validation

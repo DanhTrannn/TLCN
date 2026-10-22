@@ -4,7 +4,7 @@ This document defines the technical scope, boundaries, and acceptance criteria f
 
 ## 1. System Goals
 
-The primary objective is to build a hybrid data lakehouse that extracts data from a MySQL OLTP database and streams structured access logs from an e-commerce API. This prevents analytical workloads from impacting operational performance while enabling low-latency operational reporting.
+The primary objective is to build a hybrid data lakehouse that batch-extracts and continuously captures changes from a MySQL OLTP database while streaming structured access logs from an e-commerce API. This prevents analytical workloads from impacting operational performance while enabling low-latency audit and reporting paths.
 
 Key capabilities include:
 - Incremental extraction using composite cursors `(cursor_field, pk)` with lookback overlap window.
@@ -21,7 +21,7 @@ Key capabilities include:
 ## 2. Data Sources and Boundaries
 
 The platform ingests data across a **Hybrid Batch & Streaming Architecture**:
-1. **Transactional Data (Batch Extraction)**: MySQL 8.4 transactional database with 28 tables (27 analytical tables extracted). No MySQL binlog/Debezium CDC pipeline is deployed.
+1. **Transactional Data (Batch + CDC)**: MySQL 8.4 transactional database with 28 tables. The 27 analytical tables are extracted by Spark batch and captured from row-based binlog by Debezium; `customer_credentials` is excluded.
 2. **Access & Clickstream Logs (Batch & Streaming)**: Real-time streaming events via Apache Kafka and Apache Flink into Apache Iceberg, with deterministic historical batch logs backfill.
 
 ### 2.1. MySQL OLTP Database
