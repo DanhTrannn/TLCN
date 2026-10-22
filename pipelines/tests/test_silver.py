@@ -165,7 +165,7 @@ def test_merge_preserves_unchanged_columns(spark, tmp_path):
 
     df_after = spark.read.parquet(target)
     row_after = df_after.filter("customer_id = 2").collect()[0]
-    assert row_after["email_normalized_pseudonymized"] == row_before["email_normalized_pseudonymized"]
+    assert row_after["email_pseudonymized"] == row_before["email_pseudonymized"]
 
 
 def test_merge_result_dataclass():
@@ -324,7 +324,7 @@ def test_full_oltp_pipeline_roundtrip(spark, tmp_path):
     df = spark.read.parquet(target)
     assert df.count() == 2
     alice = df.filter("customer_id = 1").collect()[0]
-    assert alice["email_normalized_pseudonymized"] is not None
+    assert alice["email_pseudonymized"] is not None
     assert alice["_source_bronze_run_id"] == "run-2"
 
 
