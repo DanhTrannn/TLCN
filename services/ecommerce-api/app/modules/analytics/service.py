@@ -2,6 +2,7 @@
 
 import logging
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session
@@ -478,7 +479,12 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
         if st:
             store_name = st.name
 
-    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    today_start = (
+        datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(UTC)
+        .replace(tzinfo=None)
+    )
     valid_store_statuses = ("paid", "shipping", "delivered", "completed")
 
     store_rev_today = 0
@@ -1130,31 +1136,15 @@ def get_marketing_metrics(
 
 
 def get_store_metrics(
-    first: int | Session | None = None,
-    second: int | Session | None = None,
-    store_id: int | None = None,
     db: Session | None = None,
+    store_id: int | None = None,
     trino_client: TrinoClient | None = None,
 ) -> StoreMetricsResponse:
+    if db is not None:
+        return _get_store_metrics_oltp(db, store_id).model_copy(update={"data_source": "oltp"})
+
     effective_store_id = store_id
-    effective_db = db
-
-    if isinstance(first, Session):
-        effective_db = first
-    elif isinstance(first, int):
-        effective_store_id = first
-
-    if isinstance(second, Session):
-        effective_db = second
-    elif isinstance(second, int):
-        effective_store_id = second
-
-    if effective_store_id is None and effective_db is not None:
-        first_st = effective_db.execute(
-            select(Store).where(Store.is_active == True).order_by(Store.store_id).limit(1)
-        ).scalar_one_or_none()
-        if first_st is not None:
-            effective_store_id = first_st.store_id
+    effective_db = None
 
     client = trino_client or default_trino_client
     if not client.is_healthy():

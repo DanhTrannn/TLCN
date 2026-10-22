@@ -217,6 +217,7 @@ from app.modules.analytics.service import (
     _get_sales_metrics_oltp,
     _get_store_metrics_oltp,
     get_role_metrics_data,
+    get_store_metrics,
 )
 from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.mysql import BIGINT
@@ -567,4 +568,43 @@ def test_get_role_metrics_data_router_with_enriched_cdc_signals(cdc_session):
     for role in ["marketing", "inventory", "operations", "store", "sales", "executive"]:
         resp = get_role_metrics_data(target_role=role, store_id=1, db=cdc_session, trino_client=mock_trino)
         assert resp.role == role
+
+
+def test_get_store_metrics_uses_oltp_and_skips_trino(cdc_session):
+    from unittest.mock import MagicMock
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    today_order = Order(
+        order_id=100,
+        order_number="ORD-OLTP-TODAY",
+        customer_id=1,
+        checkout_idempotency_key=f"chk-{uuid.uuid4().hex[:30]}",
+        store_id=1,
+        staff_id=1,
+        channel="pos",
+        status="completed",
+        subtotal_vnd=777000,
+        discount_amount_vnd=0,
+        shipping_fee_vnd=0,
+        total_vnd=777000,
+        receiver_name="Khách Hôm Nay",
+        receiver_phone="0901234567",
+        shipping_address_text="Tại quầy",
+        paid_at=now,
+        completed_at=now,
+        created_at=now,
+    )
+    cdc_session.add(today_order)
+    cdc_session.commit()
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+
+    result = get_store_metrics(db=cdc_session, store_id=1, trino_client=trino)
+
+    assert result.data_source == "oltp"
+    assert result.store_name == "Flagship Q1"
+    assert result.store_revenue_today_vnd >= 777000
+    assert result.store_orders_count >= 1
+    trino.execute_query.assert_not_called()
 
