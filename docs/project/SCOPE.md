@@ -122,9 +122,10 @@ The current repository does not generate ML features, train a model, or serve pr
 
 ### 7.1. Reconciliation Gates
 The pipeline enforces strict reconciliation checks at each layer transition:
-- **Pipeline Reconciliation Gate**: An automated quality gate task (`run_reconciliation_gate.py` / `reconciliation_gate` operator) executes in the Airflow OLTP pipeline immediately following the Silver layer. It audits row count and gross revenue parity between MySQL and Silver Iceberg tables. If variance exceeds 0.05%, the pipeline fails immediately, blocking Gold dimensional modeling and Mart publishing.
-- Source row counts must match Bronze accepted rows.
-- Source monetary totals must match Gold revenue facts within tolerance.
+- **Pre-Gold Reconciliation Gate**: `run_reconciliation_gate.py` executes immediately after Silver. It audits every configured MySQL→Silver row count and compares gross revenue, successful payments, and successful refunds using integer VND arithmetic. A zero-row source only passes a zero-row target. Failures block Gold publication.
+- **Post-Gold Quality Gate**: `run_gold_quality_gate.py` executes after facts, dimensions, and marts. It verifies Silver→Gold row counts and revenue, primary-key uniqueness/non-nullness, fact-to-dimension references, current-run freshness markers, and SHA-256 token format for customer/staff PII.
+- **Audit Evidence**: Both gates append pass/fail details, observed/expected values, severity, variance, and failed-row counts to `lakehouse.system.data_quality_results` before returning or failing.
+- **Semantic Quarantine**: Rejected rows retain all violation codes; direct identifiers are pseudonymized before JSON serialization. The maintenance DAG enforces a 30-day quarantine retention window.
 - Bronze distinct `request_id` counts must match Silver log deduplicated counts.
 
 
@@ -133,4 +134,5 @@ Airflow runs scheduled DAGs to maintain Iceberg table health:
 - Tracks small-file metrics, average file sizes, and snapshot counts.
 - Triggers compaction (data file rewrites) only when configurable thresholds are exceeded.
 - Removes orphan files and expires snapshots older than the required backfill window.
+- Passes an explicit `older_than` safety cutoff to orphan cleanup and deletes expired semantic-quarantine rows independently of Iceberg snapshot retention.
 - Guarantees that maintenance operations never alter logical row counts or checksums.

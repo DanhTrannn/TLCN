@@ -22,7 +22,14 @@ def main() -> None:
     spark = spark_session("oltp_reconciliation_gate")
 
     try:
-        summary = run_reconciliation_gate(spark, cfg, tolerance_pct=args.tolerance_pct)
+        summary = run_reconciliation_gate(
+            spark,
+            cfg,
+            tolerance_pct=args.tolerance_pct,
+            run_id=args.run_id,
+            batch_date=args.batch_date,
+            persist_results=True,
+        )
         print(f"RECONCILIATION GATE OK: passed {summary['passed_checks']}/{summary['total_checks']} checks.")
     except ReconciliationGateError as exc:
         print(f"RECONCILIATION GATE FAILURE: {exc}", file=sys.stderr)

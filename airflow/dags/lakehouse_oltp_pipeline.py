@@ -36,6 +36,7 @@ SPARK_APP_BRONZE = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_to_bronze.p
 SPARK_APP_SILVER = "/opt/project/pipelines/src/jobs/oltp/ingest_oltp_silver.py"
 SPARK_APP_RECONCILE = "/opt/project/pipelines/src/jobs/oltp/run_reconciliation_gate.py"
 SPARK_APP_GOLD = "/opt/project/pipelines/src/jobs/oltp/build_oltp_gold.py"
+SPARK_APP_GOLD_QUALITY = "/opt/project/pipelines/src/jobs/oltp/run_gold_quality_gate.py"
 
 DEFAULT_ARGS = {
     "owner": "lakehouse",
@@ -298,9 +299,21 @@ with DAG(
 
         [build_dimensions, build_facts] >> aggregate_marts
 
+    # 7. POST-GOLD QUALITY GATE
+    # Persists auditable results and verifies completeness, monetary parity,
+    # primary keys, references, freshness markers, and PII pseudonymization.
+    validate_gold_quality = SparkSubmitOperator(
+        task_id="validate_gold_data_quality",
+        application=SPARK_APP_GOLD_QUALITY,
+        application_args=[
+            "--run-id", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='run_id') }}",
+            "--batch-date", "{{ ti.xcom_pull(task_ids='check_pipeline_context', key='batch_date') }}",
+        ],
+    )
+
     # Sequential End-to-End Orchestration:
     # 1. Check Context -> 2. Landing Zone -> 3. Bronze Layer -> 4. Load Cursors ->
     # 5. Silver Layer -> 6. Reconciliation Gate -> 7. Gold Layer (Dimensions, Facts, Marts)
     # (Iceberg Table Maintenance is decoupled into dedicated off-peak DAG: lakehouse_oltp_maintenance)
-    check_context >> tg_landing >> tg_bronze >> load_cursors >> tg_silver >> validate_reconciliation >> tg_gold
+    check_context >> tg_landing >> tg_bronze >> load_cursors >> tg_silver >> validate_reconciliation >> tg_gold >> validate_gold_quality
 

@@ -26,6 +26,7 @@ def test_quarantine_ddl_exists():
     assert SILVER_QUARANTINE_DDL is not None
     assert "CREATE TABLE IF NOT EXISTS" in SILVER_QUARANTINE_DDL
     assert "lakehouse.quarantine.silver_oltp_violations" in SILVER_QUARANTINE_DDL
+    assert "violation_types                 ARRAY<STRING>" in SILVER_QUARANTINE_DDL
 
 
 def test_quarantine_table_constant():
@@ -44,6 +45,13 @@ def test_customers_has_pii_columns():
     assert "phone_pseudonymized" in ddl
     assert "full_name_pseudonymized" in ddl
     assert "_pii_pseudonymized_at" in ddl
+
+
+def test_orders_direct_identifiers_are_pseudonymized():
+    ddl = SILVER_TABLE_DDL["silver_orders"]
+    assert "receiver_name_pseudonymized" in ddl
+    assert "receiver_phone_pseudonymized" in ddl
+    assert "shipping_address_text_pseudonymized" in ddl
 
 
 def test_all_tables_have_updated_at():

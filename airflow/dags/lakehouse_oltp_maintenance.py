@@ -95,7 +95,16 @@ with DAG(
             ],
         )
 
-        compact_oltp >> expire_oltp >> remove_oltp_orphans
+        cleanup_quarantine = SparkSubmitOperator(
+            task_id="cleanup_expired_quarantine",
+            application=SPARK_APP_MAINTENANCE,
+            application_args=[
+                "--action", "quarantine",
+                "--quarantine-retention-days", "30",
+            ],
+        )
+
+        compact_oltp >> expire_oltp >> remove_oltp_orphans >> cleanup_quarantine
 
     # Orchestration Flow:
     # 1. Check Context -> 2. Iceberg Maintenance (Compaction -> Expire Snapshots -> Remove Orphans)

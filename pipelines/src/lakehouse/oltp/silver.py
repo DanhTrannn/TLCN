@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +22,12 @@ class MergeResult:
     quarantined: int = 0
 
 
+_PII_COLUMN_PATTERN = re.compile(
+    r"(^|_)(email|phone|full_name|display_name|receiver_name|receiver_phone|address)(_|$)",
+    re.IGNORECASE,
+)
+
+
 def _get_salt() -> str:
     salt = os.environ.get("SILVER_PSEUDONYMIZE_SALT", "").strip()
     if not salt:
@@ -30,6 +37,36 @@ def _get_salt() -> str:
             "to prevent dictionary and rainbow-table attacks on PII."
         )
     return salt
+
+
+def _pseudonymized_column_name(column_name: str) -> str:
+    """Return stable canonical names consumed by the Silver and Gold schemas."""
+    if column_name == "email_normalized":
+        return "email_pseudonymized"
+    return f"{column_name}_pseudonymized"
+
+
+def _pseudonymize(column: Any) -> Any:
+    """Create a deterministic, normalized token without retaining the raw PII value."""
+    normalized = F.lower(F.trim(column.cast("string")))
+    return F.when(
+        column.isNull(),
+        F.lit(None).cast("string"),
+    ).otherwise(
+        F.sha2(
+            F.concat(F.lit(_get_salt()), F.lit(":"), normalized),
+            256,
+        )
+    )
+
+
+def _redact_quarantine_pii(df: DataFrame) -> DataFrame:
+    """Pseudonymize direct identifiers before serializing rejected rows."""
+    redacted = df
+    for column_name in df.columns:
+        if _PII_COLUMN_PATTERN.search(column_name):
+            redacted = redacted.withColumn(column_name, _pseudonymize(F.col(column_name)))
+    return redacted
 
 
 
@@ -57,6 +94,34 @@ def _add_silver_metadata(df: DataFrame, run_id: str) -> DataFrame:
 def _validate_rows(df: DataFrame, table_name: str) -> tuple[DataFrame, DataFrame]:
     violations = []
 
+    if "_missing_primary_key" in df.columns:
+        violations.append(
+            F.when(F.col("_missing_primary_key").isNotNull(), F.lit("missing_primary_key"))
+        )
+
+    required_columns = {
+        "customers": ("role", "status"),
+        "categories": ("code", "name"),
+        "products": ("category_id", "name"),
+        "product_variants": ("product_id", "sku", "price_vnd"),
+        "orders": ("status", "subtotal_vnd", "total_vnd", "created_at"),
+        "order_items": ("order_id", "variant_id", "quantity", "unit_price_vnd", "line_total_vnd"),
+        "payments": ("order_id", "status", "amount_vnd"),
+        "refunds": ("payment_id", "status", "amount_vnd"),
+        "inventory": ("variant_id", "on_hand"),
+        "store_inventory": ("store_id", "variant_id", "on_hand"),
+        "shipments": ("order_id", "status"),
+        "return_requests": ("order_id", "customer_id", "action_type", "status"),
+        "return_items": ("return_id", "order_item_id", "variant_id", "quantity"),
+        "inbound_receipts": ("status", "total_items_count", "total_cost_vnd"),
+        "inbound_receipt_items": ("receipt_id", "variant_id", "quantity", "unit_cost_vnd", "total_cost_vnd"),
+    }
+    for column_name in required_columns.get(table_name, ()):
+        if column_name in df.columns:
+            violations.append(
+                F.when(F.col(column_name).isNull(), F.lit(f"missing_required_{column_name}"))
+            )
+
     if table_name == "product_variants":
         violations.append(F.when(F.col("price_vnd") < 0, F.lit("negative_price")))
     if table_name == "orders":
@@ -66,13 +131,50 @@ def _validate_rows(df: DataFrame, table_name: str) -> tuple[DataFrame, DataFrame
             "failed_delivery", "returned",
         }
         violations.append(F.when(~F.col("status").isin(*valid_statuses), F.lit("invalid_order_status")))
+        for amount_col in ("subtotal_vnd", "discount_amount_vnd", "shipping_fee_vnd", "total_vnd"):
+            if amount_col in df.columns:
+                violations.append(
+                    F.when(F.col(amount_col) < 0, F.lit(f"negative_{amount_col}"))
+                )
+        order_total_columns = {
+            "subtotal_vnd", "discount_amount_vnd", "shipping_fee_vnd", "total_vnd"
+        }
+        if order_total_columns.issubset(df.columns):
+            violations.append(
+                F.when(
+                    F.col("subtotal_vnd")
+                    - F.col("discount_amount_vnd")
+                    + F.col("shipping_fee_vnd")
+                    != F.col("total_vnd"),
+                    F.lit("order_total_mismatch"),
+                )
+            )
     if table_name in ("cart_items", "order_items"):
         violations.append(F.when(F.col("quantity") <= 0, F.lit("invalid_quantity")))
+    if table_name == "order_items":
+        for amount_col in ("unit_price_vnd", "cost_price_vnd", "line_total_vnd"):
+            if amount_col in df.columns:
+                violations.append(
+                    F.when(F.col(amount_col) < 0, F.lit(f"negative_{amount_col}"))
+                )
+        if {"quantity", "unit_price_vnd", "line_total_vnd"}.issubset(df.columns):
+            violations.append(
+                F.when(
+                    F.col("quantity") * F.col("unit_price_vnd") != F.col("line_total_vnd"),
+                    F.lit("order_item_total_mismatch"),
+                )
+            )
     if table_name == "payments":
         valid_payment_statuses = {"succeeded", "failed", "pending"}
         violations.append(F.when(~F.col("status").isin(*valid_payment_statuses), F.lit("invalid_payment_status")))
+        if "amount_vnd" in df.columns:
+            violations.append(F.when(F.col("amount_vnd") < 0, F.lit("negative_payment")))
     if table_name == "refunds":
         violations.append(F.when(F.col("amount_vnd") < 0, F.lit("negative_refund")))
+        if "status" in df.columns:
+            violations.append(
+                F.when(~F.col("status").isin("succeeded", "failed"), F.lit("invalid_refund_status"))
+            )
     if table_name == "coupons":
         violations.append(
             F.when(
@@ -105,15 +207,26 @@ def _validate_rows(df: DataFrame, table_name: str) -> tuple[DataFrame, DataFrame
         violations.append(F.when(F.col("quantity") <= 0, F.lit("invalid_quantity")))
         violations.append(F.when(F.col("unit_cost_vnd") < 0, F.lit("negative_unit_cost")))
         violations.append(F.when(F.col("total_cost_vnd") < 0, F.lit("negative_total_cost")))
+        if {"quantity", "unit_cost_vnd", "total_cost_vnd"}.issubset(df.columns):
+            violations.append(
+                F.when(
+                    F.col("quantity") * F.col("unit_cost_vnd") != F.col("total_cost_vnd"),
+                    F.lit("inbound_item_total_mismatch"),
+                )
+            )
 
     if not violations:
         return df, df.limit(0)
 
-    violation_expr = F.coalesce(*violations)
-
-    df_with_violation = df.withColumn("_violation_type", violation_expr)
-    violating = df_with_violation.filter(F.col("_violation_type").isNotNull())
-    valid = df_with_violation.filter(F.col("_violation_type").isNull()).drop("_violation_type")
+    violation_array = F.array_compact(F.array(*violations))
+    df_with_violation = (
+        df.withColumn("_violation_types", violation_array)
+        .withColumn("_violation_type", F.concat_ws("|", F.col("_violation_types")))
+    )
+    violating = df_with_violation.filter(F.size(F.col("_violation_types")) > 0)
+    valid = df_with_violation.filter(F.size(F.col("_violation_types")) == 0).drop(
+        "_violation_type", "_violation_types"
+    )
 
     return valid, violating
 
@@ -126,9 +239,11 @@ def write_quarantine(
     target_path: str | None = None,
     _write_format: str = "iceberg",
 ) -> int:
-    quarantined = violations_df.select(
+    safe_violations_df = _redact_quarantine_pii(violations_df)
+    quarantined = safe_violations_df.select(
         F.to_json(F.struct("*")).alias("record_data"),
         F.col("_violation_type").alias("violation_type"),
+        F.col("_violation_types").alias("violation_types"),
         F.lit(f"Business rule violation in {source_table}").alias("violation_detail"),
         F.lit(source_table).alias("source_table"),
         F.lit(run_id).alias("_run_id"),
@@ -161,7 +276,16 @@ def merge_oltp_table(
 
     deduped = _dedup_by_pk(bronze_df, table.pk, table.cursor_field)
 
+    # Treat a missing primary key as a quarantinable row-level violation.
+    if table.pk in deduped.columns:
+        deduped = deduped.withColumn(
+            "_missing_primary_key",
+            F.when(F.col(table.pk).isNull(), F.lit("missing_primary_key")),
+        )
+
     valid_df, violations_df = _validate_rows(deduped, table.name)
+    valid_df = valid_df.drop("_missing_primary_key")
+    violations_df = violations_df.drop("_missing_primary_key")
 
     if violations_df.head(1):
         quarantine_count = write_quarantine(
@@ -175,13 +299,13 @@ def merge_oltp_table(
         for col_name in table.pseudonymize:
             if col_name in valid_df.columns:
                 valid_df = valid_df.withColumn(
-                    f"{col_name}_pseudonymized",
-                    F.sha2(F.concat(F.col(col_name).cast("string"), F.lit(_get_salt())), 256),
+                    _pseudonymized_column_name(col_name),
+                    _pseudonymize(F.col(col_name)),
                 )
                 valid_df = valid_df.drop(col_name)
             else:
                 valid_df = valid_df.withColumn(
-                    f"{col_name}_pseudonymized",
+                    _pseudonymized_column_name(col_name),
                     F.lit(None).cast("string"),
                 )
         valid_df = valid_df.withColumn("_pii_pseudonymized_at", F.current_timestamp())

@@ -226,8 +226,8 @@ def build_dim_customer(
         F.col("cu.email_pseudonymized")
         if "email_pseudonymized" in silver_customers.columns
         else (
-            F.col("cu.email_normalized")
-            if "email_normalized" in silver_customers.columns
+            F.col("cu.email_normalized_pseudonymized")
+            if "email_normalized_pseudonymized" in silver_customers.columns
             else F.lit(None).cast("string")
         )
     )

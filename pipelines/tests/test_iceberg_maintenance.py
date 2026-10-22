@@ -71,6 +71,17 @@ def test_parse_args_maintenance_options():
     assert args.retain_snapshots == 15
 
 
+def test_parse_args_data_retention_options():
+    args = parse_args([
+        "--action", "quarantine",
+        "--older-than-days", "7",
+        "--quarantine-retention-days", "30",
+    ])
+    assert args.action == "quarantine"
+    assert args.older_than_days == 7
+    assert args.quarantine_retention_days == 30
+
+
 def test_fact_order_item_partitioning_and_properties():
     """fact_order_item DDL must be partitioned by order_date and have 128MB target file size."""
     ddl = GOLD_TABLE_DDL["fact_order_item"]

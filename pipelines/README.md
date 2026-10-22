@@ -78,7 +78,8 @@ pipelines/
   2. **Bronze Layer:** Append-only ingestion into Iceberg Bronze tables.
   3. **Silver Layer:** Deduplication, PII pseudonymization (SHA-256), business rule validation, quarantine routing, and ACID MERGE into Silver tables.
   4. **Gold Layer:** Modular, parallel execution via `[spark_build_gold_dimensions, spark_build_gold_facts] >> spark_build_gold_marts` with financial COGS and KPI rollups.
-  5. **Iceberg Maintenance:** Automated small-file compaction, rewrite manifests, snapshot expiration, and orphan cleanup.
+  5. **Quality Gates:** Pre-Gold reconciliation across all configured OLTP tables plus revenue/payment/refund totals; post-Gold key, reference, freshness, PII, row-count, and monetary checks. Evidence is appended to `lakehouse.system.data_quality_results`.
+  6. **Iceberg Maintenance:** Automated small-file compaction, rewrite manifests, snapshot expiration, orphan cleanup, and 30-day semantic-quarantine retention.
 
 ---
 
@@ -109,7 +110,7 @@ Silver → Gold Marts:                      Pass  (sales marts, inventory health
 
 ## 4. Running Pipeline Tests
 
-Run the pipeline unit and financial parity test suite (106 tests):
+Run the pipeline unit and financial parity test suite:
 
 ```bash
 uv run pytest pipelines/tests

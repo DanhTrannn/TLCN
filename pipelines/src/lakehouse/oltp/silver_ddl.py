@@ -196,9 +196,9 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_orders (
     coupon_code_snapshot            STRING,
     coupon_type_snapshot            STRING,
     coupon_value_snapshot           BIGINT,
-    receiver_name                   STRING,
-    receiver_phone                  STRING,
-    shipping_address_text           STRING,
+    receiver_name_pseudonymized     STRING,
+    receiver_phone_pseudonymized    STRING,
+    shipping_address_text_pseudonymized STRING,
     status                          STRING,
     payment_method                  STRING,
     store_id                        BIGINT,
@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_orders (
     cancelled_at                    TIMESTAMP,
     created_at                      TIMESTAMP,
     updated_at                      TIMESTAMP,
+    _pii_pseudonymized_at           TIMESTAMP,
     _silver_ingested_at             TIMESTAMP,
     _source_bronze_run_id           STRING
 )
@@ -684,6 +685,7 @@ SILVER_QUARANTINE_DDL = f"""
 CREATE TABLE IF NOT EXISTS {SILVER_QUARANTINE_TABLE} (
     record_data                     STRING,
     violation_type                  STRING,
+    violation_types                 ARRAY<STRING>,
     violation_detail                STRING,
     source_table                    STRING,
     _run_id                         STRING,
@@ -708,3 +710,20 @@ def ensure_silver_tables(spark: SparkSession) -> None:
     for ddl in SILVER_TABLE_DDL.values():
         spark.sql(ddl)
     spark.sql(SILVER_QUARANTINE_DDL)
+
+    # Existing local environments may have created the quarantine table before
+    # multi-violation reporting was introduced. Iceberg schema evolution keeps
+    # the migration idempotent while preserving historical records.
+    try:
+        quarantine_columns = {
+            field.name.lower() for field in spark.table(SILVER_QUARANTINE_TABLE).schema.fields
+        }
+        if "violation_types" not in quarantine_columns:
+            spark.sql(
+                f"ALTER TABLE {SILVER_QUARANTINE_TABLE} "
+                "ADD COLUMNS (violation_types ARRAY<STRING>)"
+            )
+    except Exception:
+        # Fresh catalogs are fully provisioned by SILVER_QUARANTINE_DDL. Let
+        # the subsequent write surface any real catalog/storage failure.
+        pass

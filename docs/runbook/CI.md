@@ -94,7 +94,8 @@ flowchart TD
 ### 2.6. Integration workflow
 
 - **Batch:** chạy catalog interoperability smoke test, trigger DAG Airflow và chỉ đạt khi
-  `fact_order` cùng `mart_sales_daily` có dữ liệu đọc được từ Trino.
+  `fact_order` cùng `mart_sales_daily` có dữ liệu đọc được từ Trino và batch audit mới nhất
+  của cả `pre_gold_reconciliation` lẫn `post_gold` không có check thất bại.
 - **Streaming:** phát request thật qua API và đối chiếu cùng `request_id` trong Kafka rồi
   `lakehouse.gold.fact_web_events` qua Trino.
 - Workflow thu log khi lỗi và luôn xóa stack/volume sau khi chạy.

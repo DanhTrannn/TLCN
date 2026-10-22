@@ -51,12 +51,18 @@ def test_every_table_has_pk(config):
         assert table.pk
 
 
-def test_pseudonymize_only_customers(config):
+def test_pseudonymize_direct_identifiers(config):
     for table in config.tables:
         if table.name == "customers":
             assert table.pseudonymize == ("display_name", "email_normalized", "phone", "full_name")
         elif table.name == "delivery_staff":
             assert table.pseudonymize == ("phone", "full_name")
+        elif table.name == "orders":
+            assert table.pseudonymize == (
+                "receiver_name",
+                "receiver_phone",
+                "shipping_address_text",
+            )
         else:
             assert table.pseudonymize == ()
 

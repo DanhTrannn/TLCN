@@ -52,6 +52,7 @@ tables:
     pk: order_id
     mutability: mutable
     silver_table: silver_orders
+    pseudonymize: [receiver_name, receiver_phone, shipping_address_text]
   - name: order_items
     cursor_field: created_at
     pk: order_item_id

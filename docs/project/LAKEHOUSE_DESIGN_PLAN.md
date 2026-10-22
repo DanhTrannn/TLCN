@@ -94,7 +94,7 @@ Spark builds Star Schema models and aggregated Data Marts from **25 OLTP source 
 - `is_boom = TRUE` when `status = 'failed_delivery'`
 - Revenue is recognized **only after `delivered`** status; returned orders are retroactively zeroed out.
 
-**Publication Gate:** Gold snapshots are only published if source-to-target reconciliation checks (exact row counts, exact revenue totals) pass.
+**Publication Gates:** Gold is built only after the pre-Gold gate reconciles MySQL and Silver row counts for every configured analytical table plus gross revenue, successful payments, and successful refunds. After publication, a second gate verifies Silver→Gold count and monetary parity, primary-key uniqueness, dimension references, current-run freshness markers, and PII token format. Both gates persist audit evidence in `lakehouse.system.data_quality_results`.
 
 ---
 
@@ -117,5 +117,6 @@ To maintain query performance and manage storage costs, Airflow schedules regula
   - `trino_reader`: Strictly read-only data & basic metadata inspection (`TABLE_READ_DATA`, `TABLE_FULL_METADATA`, `VIEW_FULL_METADATA`, `NAMESPACE_FULL_METADATA`, `CATALOG_READ_PROPERTIES`).
   - `spark_writer`: Dedicated batch processing writer with full read/write data and table/partition management rights (`CATALOG_MANAGE_CONTENT`).
 - **PII Protection:** Passwords, tokens, cookies, and raw IP addresses are stripped before ingestion. Customer PII is pseudonymized before entering Silver and Gold layers.
+- **Quarantine Safety:** Direct identifiers are pseudonymized before a rejected row is serialized. A row can retain all violation codes rather than only the first failure; semantic quarantine is purged after 30 days by the maintenance DAG.
 - **Credential Isolation:** MinIO and Polaris credentials are injected via runtime environment variables and Docker secrets.
 

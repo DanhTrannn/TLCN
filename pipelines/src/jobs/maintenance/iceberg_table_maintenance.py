@@ -10,6 +10,7 @@ Actions:
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 from lakehouse.spark import spark_session
@@ -93,9 +94,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--action",
-        choices=["all", "compact", "expire", "orphan"],
+        choices=["all", "compact", "expire", "orphan", "quarantine"],
         default="all",
         help="Maintenance action to perform (default: all)",
+    )
+    parser.add_argument(
+        "--quarantine-retention-days",
+        type=int,
+        default=30,
+        help="Delete quarantined records older than this many days (default: 30)",
     )
     return parser.parse_args(argv)
 
@@ -116,6 +123,21 @@ def main() -> None:
 
     spark = spark_session("iceberg_table_maintenance")
     try:
+        if args.action == "quarantine":
+            if args.quarantine_retention_days < 1:
+                raise ValueError("--quarantine-retention-days must be at least 1")
+            cutoff = datetime.now(timezone.utc) - timedelta(days=args.quarantine_retention_days)
+            cutoff_sql = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+            print(
+                "Deleting quarantined OLTP rows older than "
+                f"{args.quarantine_retention_days} days (before {cutoff_sql} UTC)..."
+            )
+            spark.sql(
+                "DELETE FROM lakehouse.quarantine.silver_oltp_violations "
+                f"WHERE _quarantined_at < TIMESTAMP '{cutoff_sql}'"
+            )
+            return
+
         print(f"=== Starting Iceberg Table Maintenance (Action: {args.action}, Target Tables: {len(tables)}) ===")
         success_count = 0
         error_count = 0
@@ -171,7 +193,16 @@ def main() -> None:
             if args.action in ("all", "orphan"):
                 print(f"[{full_tbl}] Running remove_orphan_files...")
                 try:
-                    orphan_res = spark.sql(f"CALL {catalog}.system.remove_orphan_files(table => '{full_tbl}')")
+                    if args.older_than_days < 1:
+                        raise ValueError("--older-than-days must be at least 1")
+                    orphan_cutoff = datetime.now(timezone.utc) - timedelta(days=args.older_than_days)
+                    orphan_cutoff_sql = orphan_cutoff.strftime("%Y-%m-%d %H:%M:%S")
+                    orphan_res = spark.sql(
+                        f"CALL {catalog}.system.remove_orphan_files("
+                        f"table => '{full_tbl}', "
+                        f"older_than => TIMESTAMP '{orphan_cutoff_sql}'"
+                        f")"
+                    )
                     orphan_res.show(truncate=False)
                 except Exception as exc:
                     print(f"[{full_tbl}] Error removing orphan files: {exc}")

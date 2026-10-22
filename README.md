@@ -194,6 +194,8 @@ See the [visual System Architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUA
 | **Query Engine** | Trino | 483 | Distributed SQL query engine reading Iceberg tables |
 | **Query UI** | LibreDB Studio | Latest | Web-based SQL IDE for MySQL, PostgreSQL, and Trino |
 
+The batch publication path uses two auditable quality gates. MySQL→Silver reconciliation covers all configured analytical tables and integer-VND financial totals; the post-Gold gate validates completeness, primary keys, dimension references, run freshness, and PII pseudonymization. Results are retained in the Iceberg table `lakehouse.system.data_quality_results`.
+
 ---
 
 ## Data Generation and Simulation

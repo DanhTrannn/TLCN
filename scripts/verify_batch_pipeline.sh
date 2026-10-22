@@ -50,4 +50,26 @@ docker compose exec -T trino trino --output-format TSV_HEADER --execute \
   "SELECT COUNT(*) AS mart_rows FROM lakehouse.gold.mart_sales_daily" \
   | python3 -c 'import csv,sys; rows=list(csv.DictReader(sys.stdin, delimiter="\t")); assert rows and int(rows[0]["mart_rows"]) > 0'
 
+docker compose exec -T trino trino --output-format TSV_HEADER --execute \
+  "WITH latest AS (
+     SELECT phase, MAX(checked_at) AS checked_at
+     FROM lakehouse.system.data_quality_results
+     GROUP BY phase
+   )
+   SELECT q.phase, COUNT(*) AS checks, count_if(q.status = 'FAILED') AS failed
+   FROM lakehouse.system.data_quality_results q
+   JOIN latest l ON q.phase = l.phase AND q.checked_at = l.checked_at
+   GROUP BY q.phase
+   ORDER BY q.phase" \
+  | python3 -c '
+import csv
+import sys
+
+rows = {row["phase"]: row for row in csv.DictReader(sys.stdin, delimiter="\t")}
+expected = {"pre_gold_reconciliation", "post_gold"}
+assert expected.issubset(rows), rows
+assert all(int(rows[phase]["checks"]) > 0 for phase in expected), rows
+assert all(int(rows[phase]["failed"]) == 0 for phase in expected), rows
+'
+
 printf '%s\n' "Batch MySQL → Landing → Bronze → Silver → Gold verification passed."

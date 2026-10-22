@@ -325,6 +325,7 @@ def test_oltp_pipeline_structural_integrity():
     assert "build_gold_dimensions" in dag.tasks
     assert "build_gold_facts" in dag.tasks
     assert "aggregate_gold_marts" in dag.tasks
+    assert "validate_gold_data_quality" in dag.tasks
 
 
 def test_oltp_maintenance_structural_integrity():
@@ -347,6 +348,7 @@ def test_oltp_maintenance_structural_integrity():
     assert "transform_compact_tables" in dag.tasks
     assert "cleanup_expired_snapshots" in dag.tasks
     assert "cleanup_orphan_files" in dag.tasks
+    assert "cleanup_expired_quarantine" in dag.tasks
 
 
 
