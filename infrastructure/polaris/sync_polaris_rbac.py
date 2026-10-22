@@ -32,15 +32,31 @@ logging.basicConfig(
 logger = logging.getLogger("polaris-rbac")
 
 TOP_LEVEL_PRIVILEGES = {
-    "CATALOG_MANAGE_CONTENT",
     "CATALOG_MANAGE_ACCESS",
+    "CATALOG_MANAGE_CONTENT",
     "CATALOG_MANAGE_METADATA",
     "CATALOG_READ_PROPERTIES",
+    "CATALOG_WRITE_PROPERTIES",
+    "NAMESPACE_CREATE",
+    "NAMESPACE_DROP",
+    "NAMESPACE_LIST",
+    "NAMESPACE_READ_PROPERTIES",
+    "NAMESPACE_WRITE_PROPERTIES",
+    "NAMESPACE_FULL_METADATA",
+    "TABLE_CREATE",
+    "TABLE_DROP",
+    "TABLE_LIST",
+    "TABLE_READ_PROPERTIES",
     "TABLE_READ_DATA",
     "TABLE_WRITE_DATA",
+    "TABLE_WRITE_PROPERTIES",
     "TABLE_FULL_METADATA",
+    "VIEW_CREATE",
+    "VIEW_DROP",
+    "VIEW_LIST",
+    "VIEW_READ_PROPERTIES",
+    "VIEW_WRITE_PROPERTIES",
     "VIEW_FULL_METADATA",
-    "NAMESPACE_FULL_METADATA",
 }
 
 SYSTEM_CATALOG_ROLES = {"catalog_admin"}
@@ -360,7 +376,7 @@ class PolarisRbacReconciler:
                     self.client.request(
                         "PUT",
                         f"/api/management/v1/catalogs/{self.catalog_name}/catalog-roles/{role_name}/grants",
-                        payload={"type": grant.get("type", "catalog"), "privilege": priv},
+                        payload={"grant": {"type": grant.get("type", "catalog"), "privilege": priv}},
                         expected_statuses=(200, 201, 409),
                     )
 
