@@ -666,7 +666,7 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
     ) or 0
 
     boom_orders = db.scalar(
-        select(func.count()).select_from(Order).where(Order.status == "failed_delivery")
+        select(func.count()).select_from(Shipment).where(Shipment.status == "failed")
     ) or 0
 
     return_requests = db.scalar(
@@ -1316,6 +1316,9 @@ def get_operations_metrics(
     db: Session | None = None,
     trino_client: TrinoClient | None = None,
 ) -> OperationsMetricsResponse:
+    if db is not None:
+        return _get_operations_metrics_oltp(db).model_copy(update={"data_source": "oltp"})
+
     client = trino_client or default_trino_client
     if not client.is_healthy():
         raise _trino_unavailable(client.base_url)

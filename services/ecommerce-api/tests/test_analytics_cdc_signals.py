@@ -217,6 +217,7 @@ from app.modules.analytics.service import (
     _get_sales_metrics_oltp,
     _get_store_metrics_oltp,
     get_inventory_metrics,
+    get_operations_metrics,
     get_role_metrics_data,
     get_store_metrics,
 )
@@ -690,4 +691,19 @@ def test_inventory_depletion_velocity_only_counts_last_hour(cdc_session):
     row = next((item for item in result.depletion_velocity if item.variant_id == 1), None)
     assert row is not None
     assert row.units_sold_last_hour == 4
+
+
+def test_get_operations_metrics_uses_oltp_and_failed_shipments(cdc_session):
+    from unittest.mock import MagicMock
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+
+    result = get_operations_metrics(db=cdc_session, trino_client=trino)
+
+    assert result.data_source == "oltp"
+    assert result.pending_fulfillment_count == 1
+    assert result.boom_orders_count == 1
+    assert result.shipping_sla_violations_count >= 1
+    trino.execute_query.assert_not_called()
 
