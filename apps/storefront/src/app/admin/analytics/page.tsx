@@ -2120,6 +2120,7 @@ function AnalyticsHubContent() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const inFlightRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const handleActionFeedback = useCallback((msg: string) => {
     setActionToast(msg);
@@ -2181,7 +2182,9 @@ function AnalyticsHubContent() {
       return;
     }
 
-    if (inFlightRef.current) return;
+    if (silent && inFlightRef.current) return;
+
+    const requestId = ++requestIdRef.current;
     inFlightRef.current = true;
     if (!silent) setLoading(true);
     setError(null);
@@ -2189,6 +2192,8 @@ function AnalyticsHubContent() {
     try {
       const storeParam = activeRole === "store" ? (isAdmin ? selectedStoreId : undefined) : undefined;
       const metricsData = await getAdminRoleMetrics<RoleMetricsResponse>(activeRole, storeParam);
+      if (requestId !== requestIdRef.current) return;
+
       setRoleMetrics(metricsData);
       setLastUpdatedAt(new Date());
 
@@ -2213,13 +2218,18 @@ function AnalyticsHubContent() {
       // If executive or sales, fetch trend data
       if (activeRole === "executive" || activeRole === "sales") {
         const trendData = await getAdminSalesTrend(trendDays);
+        if (requestId !== requestIdRef.current) return;
         setSalesTrend(trendData);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Không thể tải dữ liệu phân tích.");
+      if (requestId === requestIdRef.current) {
+        setError(err instanceof ApiError ? err.message : "Không thể tải dữ liệu phân tích.");
+      }
     } finally {
-      inFlightRef.current = false;
-      if (!silent) setLoading(false);
+      if (requestId === requestIdRef.current) {
+        inFlightRef.current = false;
+        if (!silent) setLoading(false);
+      }
     }
   }, [customer, initialized, activeRole, isAdmin, userCanonicalRole, selectedStoreId, trendDays]);
 
