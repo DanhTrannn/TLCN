@@ -839,12 +839,12 @@ def get_executive_metrics(
         sales_rows = client.execute_query("""
             SELECT
                 COALESCE(SUM(gross_revenue_vnd), 0) AS gmv_vnd,
-                COALESCE(SUM(gross_revenue_vnd), 0) AS net_revenue_vnd,
-                COALESCE(SUM(cogs_vnd), 0) AS cogs_vnd,
-                COALESCE(SUM(gross_profit_vnd), 0) AS gross_profit_vnd,
-                COALESCE(SUM(total_orders), 0) AS total_orders,
-                COALESCE(SUM(boom_orders), 0) AS boom_orders
-            FROM lakehouse.gold.mart_sales_daily
+                COALESCE(SUM(net_revenue_vnd), 0) AS net_revenue_vnd,
+                COALESCE(SUM(net_revenue_vnd - net_profit_vnd), 0) AS cogs_vnd,
+                COALESCE(SUM(net_profit_vnd), 0) AS gross_profit_vnd,
+                COUNT(DISTINCT order_id) AS total_orders,
+                COALESCE(SUM(CASE WHEN is_boom THEN 1 ELSE 0 END), 0) AS boom_orders
+            FROM lakehouse.gold.fact_order
         """)
         s_row = sales_rows[0] if sales_rows else {}
         gmv = int(s_row.get("gmv_vnd") or 0)
@@ -907,26 +907,18 @@ def get_sales_metrics(
         store_rows = client.execute_query("""
             SELECT
                 CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
-                    ELSE m.store_key
+                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 0
+                    ELSE fo.store_key
                 END AS effective_store_key,
                 CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
+                    WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 'Kênh Online Toàn Quốc'
+                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(fo.store_key AS VARCHAR)))
                 END AS channel_name,
-                COALESCE(SUM(m.gross_revenue_vnd), 0) AS revenue_vnd,
-                COALESCE(SUM(m.total_orders), 0) AS order_count
-            FROM lakehouse.gold.mart_sales_daily m
-            LEFT JOIN lakehouse.gold.dim_store ds ON m.store_key = ds.store_key AND m.store_key > 0
-            GROUP BY
-                CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 0
-                    ELSE m.store_key
-                END,
-                CASE
-                    WHEN m.channel = 'online' OR m.store_key = 0 THEN 'Kênh Online Toàn Quốc'
-                    ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(m.store_key AS VARCHAR)))
-                END
+                COALESCE(SUM(fo.gross_revenue_vnd), 0) AS revenue_vnd,
+                COUNT(DISTINCT order_id) AS order_count
+            FROM lakehouse.gold.fact_order fo
+            LEFT JOIN lakehouse.gold.dim_store ds ON fo.store_key = ds.store_key AND fo.store_key > 0
+            GROUP BY 1, 2
             ORDER BY revenue_vnd DESC
         """)
         contributions_map: dict[str, StoreContribution] = {}
@@ -963,7 +955,9 @@ def get_sales_metrics(
                 COALESCE(SUM(foi.quantity), 0) AS units_sold,
                 COALESCE(SUM(foi.item_total_vnd), 0) AS revenue_vnd
             FROM lakehouse.gold.fact_order_item foi
+            JOIN lakehouse.gold.fact_order fo ON foi.order_id = fo.order_id
             JOIN lakehouse.gold.dim_product dp ON foi.product_key = dp.product_key
+            WHERE fo.is_delivered = true
             GROUP BY dp.product_id, dp.product_name
             ORDER BY revenue_vnd DESC
             LIMIT 10

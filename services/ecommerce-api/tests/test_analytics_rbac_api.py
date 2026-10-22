@@ -58,6 +58,22 @@ def setup_analytics_db(monkeypatch):
         q = query.lower()
         if "dim_store" in q:
             return [{"store_key": 1, "store_name": "Cửa hàng Quận 1"}]
+        if "fact_order" in q and "effective_store_key" in q:
+            return [{
+                "effective_store_key": 1,
+                "channel_name": "Cửa hàng Quận 1",
+                "revenue_vnd": 10000000,
+                "order_count": 20,
+            }]
+        if "fact_order" in q and "gmv_vnd" in q:
+            return [{
+                "gmv_vnd": 20000000,
+                "net_revenue_vnd": 20000000,
+                "cogs_vnd": 10000000,
+                "gross_profit_vnd": 10000000,
+                "total_orders": 30,
+                "boom_orders": 2,
+            }]
         if "mart_sales_daily" in q and "effective_store_key" in q:
             return [{
                 "effective_store_key": 1,

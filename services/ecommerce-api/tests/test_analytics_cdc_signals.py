@@ -216,9 +216,11 @@ from app.modules.analytics.service import (
     _get_operations_metrics_oltp,
     _get_sales_metrics_oltp,
     _get_store_metrics_oltp,
+    get_executive_metrics,
     get_inventory_metrics,
     get_operations_metrics,
     get_role_metrics_data,
+    get_sales_metrics,
     get_store_metrics,
 )
 from sqlalchemy import create_engine, event
@@ -706,4 +708,63 @@ def test_get_operations_metrics_uses_oltp_and_failed_shipments(cdc_session):
     assert result.boom_orders_count == 1
     assert result.shipping_sla_violations_count >= 1
     trino.execute_query.assert_not_called()
+
+
+def test_executive_uses_fact_order_for_distinct_orders_and_net_revenue():
+    from unittest.mock import MagicMock
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+
+    def query(sql):
+        if "fact_order" in sql:
+            return [{
+                "gmv_vnd": 1000000,
+                "net_revenue_vnd": 800000,
+                "cogs_vnd": 500000,
+                "gross_profit_vnd": 300000,
+                "total_orders": 4,
+                "boom_orders": 1,
+            }]
+        if "mart_product_returns" in sql:
+            return [{"return_count": 2}]
+        return []
+
+    trino.execute_query.side_effect = query
+
+    result = get_executive_metrics(trino_client=trino)
+
+    assert result.net_revenue_vnd == 800000
+    assert result.gross_profit_vnd == 300000
+    assert result.total_orders == 4
+    assert result.boom_rate_percent == 25.0
+    assert "fact_order" in trino.execute_query.call_args_list[0][0][0]
+
+
+def test_sales_uses_fact_order_for_distinct_store_orders():
+    from unittest.mock import MagicMock
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+
+    def query(sql):
+        if "fact_order" in sql and "effective_store_key" in sql:
+            return [{
+                "effective_store_key": 0,
+                "channel_name": "Kênh Online Toàn Quốc",
+                "revenue_vnd": 1000000,
+                "order_count": 5,
+            }]
+        if "fact_order_item" in sql:
+            return [{"product_id": 1, "product_name": "Áo", "units_sold": 2, "revenue_vnd": 500000}]
+        if "mart_sales_daily" in sql:
+            return [{"category_id": 1, "category_name": "Áo", "revenue_vnd": 1000000}]
+        return []
+
+    trino.execute_query.side_effect = query
+
+    result = get_sales_metrics(trino_client=trino)
+
+    assert result.store_contributions[0].order_count == 5
+    assert "COUNT(DISTINCT order_id)" in trino.execute_query.call_args_list[0][0][0]
 
