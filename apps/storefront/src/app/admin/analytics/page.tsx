@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { EChart, type EChartsOption, BRAND_COLORS } from "@/components/ui/EChart";
@@ -42,6 +42,11 @@ import {
   type VoucherBurnRateSignal,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import {
+  AUTO_REFRESH_INTERVAL_MS,
+  formatLastUpdated,
+  shouldAutoRefreshRole,
+} from "@/lib/dashboard-refresh";
 
 interface TabItem {
   id: string;
@@ -1741,7 +1746,7 @@ function OperationsDashboard({
           href="/admin/returns"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted">Yêu cầu đổi trả cần duyệt</p>
+            <p className="text-xs font-medium text-muted">Tổng yêu cầu đổi trả</p>
           </div>
           <p className={`${metricValueClasses} ${metrics.return_requests_count > 0 ? "text-accent" : ""}`}>
             {metrics.return_requests_count}
@@ -1989,7 +1994,9 @@ function MarketingDashboard({
 
       {/* 4-Step Conversion Funnel Visualization */}
       <section className="admin-panel space-y-4">
-        <h3 className="text-lg font-semibold text-ink">Phễu chuyển đổi E-commerce (Conversion Funnel)</h3>
+        <h3 className="text-lg font-semibold text-ink">
+          Phễu chuyển đổi E-commerce ({metrics.funnel_window_days} ngày gần nhất)
+        </h3>
         <EChart height={320} option={funnelOption} />
       </section>
 
@@ -2110,7 +2117,9 @@ function AnalyticsHubContent() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
+  const inFlightRef = useRef(false);
 
   const handleActionFeedback = useCallback((msg: string) => {
     setActionToast(msg);
@@ -2163,7 +2172,7 @@ function AnalyticsHubContent() {
   }, [activeRole]);
 
   // Fetch metrics data whenever activeRole, selectedStoreId, or trendDays change
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!customer || !initialized || !activeRole) return;
 
     // RBAC check: non-admin can only access their authorized canonical role
@@ -2172,13 +2181,16 @@ function AnalyticsHubContent() {
       return;
     }
 
-    setLoading(true);
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
       const storeParam = activeRole === "store" ? (isAdmin ? selectedStoreId : undefined) : undefined;
       const metricsData = await getAdminRoleMetrics<RoleMetricsResponse>(activeRole, storeParam);
       setRoleMetrics(metricsData);
+      setLastUpdatedAt(new Date());
 
       if (activeRole === "store") {
         const storeMetrics = metricsData as StoreMetricsResponse;
@@ -2206,14 +2218,27 @@ function AnalyticsHubContent() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Không thể tải dữ liệu phân tích.");
     } finally {
-      setLoading(false);
+      inFlightRef.current = false;
+      if (!silent) setLoading(false);
     }
   }, [customer, initialized, activeRole, isAdmin, userCanonicalRole, selectedStoreId, trendDays]);
 
   useEffect(() => {
     if (initialized && activeRole) {
-      void fetchData();
+      void fetchData(false);
     }
+  }, [initialized, activeRole, fetchData]);
+
+  useEffect(() => {
+    if (!initialized || !activeRole || !shouldAutoRefreshRole(activeRole)) return;
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchData(true);
+      }
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
   }, [initialized, activeRole, fetchData]);
 
   if (authLoading || !initialized) {
@@ -2231,6 +2256,15 @@ function AnalyticsHubContent() {
 
   // Filter visible tabs based on RBAC
   const visibleTabs = isAdmin ? ALL_ROLES : ALL_ROLES.filter((t) => t.id === userCanonicalRole);
+  const autoRefreshEnabled = shouldAutoRefreshRole(activeRole);
+  const sourceLabel =
+    roleMetrics?.data_source === "oltp"
+      ? "OLTP trực tiếp"
+      : roleMetrics?.data_source === "oltp_fallback"
+        ? "OLTP fallback"
+        : activeRole === "marketing"
+          ? "Access-log stream"
+          : "Lakehouse (batch)";
 
   return (
     <section className="space-y-6">
@@ -2238,6 +2272,11 @@ function AnalyticsHubContent() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="admin-heading">Báo cáo BI Lakehouse</h1>
+          <p className="mt-1 text-xs text-muted">
+            Nguồn: {sourceLabel}
+            {autoRefreshEnabled ? " · Tự động cập nhật mỗi 60 giây" : " · Làm mới thủ công"}
+            {lastUpdatedAt ? ` · Cập nhật lúc ${formatLastUpdated(lastUpdatedAt)}` : ""}
+          </p>
         </div>
         {!isUnauthorizedRole && (
           <button
@@ -2259,7 +2298,8 @@ function AnalyticsHubContent() {
             <div>
               <p className="font-semibold">Chế độ dữ liệu vận hành</p>
               <p className="mt-1 text-xs leading-5 sm:text-sm">
-                Lakehouse tạm thời không khả dụng. Dashboard đang hiển thị số liệu OLTP mới nhất với phạm vi rút gọn.
+                {roleMetrics.degraded_reason ??
+                  "Lakehouse tạm thời không khả dụng. Dashboard đang hiển thị số liệu OLTP mới nhất với phạm vi rút gọn."}
               </p>
             </div>
           </div>
