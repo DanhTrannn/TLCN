@@ -84,6 +84,39 @@ def test_prune_revokes_extra_privilege_with_post_and_wrapper(tmp_path):
     }
 
 
+def test_prune_revokes_privilege_absent_from_old_top_level_set(tmp_path):
+    """Regression guard: CATALOG_WRITE_PROPERTIES is only covered by the completed TOP_LEVEL_PRIVILEGES set."""
+    role_path = "/api/management/v1/catalogs/lakehouse/catalog-roles/spark_writer_catalog_role"
+    client = FakePolarisClient({
+        ("GET", role_path): (200, {}),
+        ("GET", role_path + "/grants"): (200, {
+            "grants": [
+                {"type": "catalog", "privilege": "CATALOG_MANAGE_CONTENT"},
+                {"type": "catalog", "privilege": "CATALOG_WRITE_PROPERTIES"},
+            ]
+        }),
+    })
+    config = {
+        "catalog": {"name": "lakehouse"},
+        "prune_unmanaged_privileges": True,
+        "catalog_roles": {
+            "spark_writer_catalog_role": {
+                "grants": [{"type": "catalog", "privilege": "CATALOG_MANAGE_CONTENT"}]
+            }
+        },
+    }
+    reconciler = make_reconciler(client, config, tmp_path)
+    reconciler.reconcile_catalog_roles()
+
+    revoke = next(
+        call for call in client.calls
+        if call["method"] == "POST" and call["path"] == role_path + "/grants"
+    )
+    assert revoke["payload"] == {
+        "grant": {"type": "catalog", "privilege": "CATALOG_WRITE_PROPERTIES"}
+    }
+
+
 def test_purge_keeps_system_roles_and_removes_unmanaged_roles(tmp_path):
     client = FakePolarisClient({
         ("GET", "/api/management/v1/principal-roles"): (200, {
