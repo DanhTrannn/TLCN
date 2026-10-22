@@ -765,6 +765,124 @@ def test_sales_uses_fact_order_for_distinct_store_orders():
 
     result = get_sales_metrics(trino_client=trino)
 
+    sales_sql = trino.execute_query.call_args_list[0][0][0]
     assert result.store_contributions[0].order_count == 5
-    assert "COUNT(DISTINCT order_id)" in trino.execute_query.call_args_list[0][0][0]
+    assert "SUM(fo.net_revenue_vnd)" in sales_sql
+    assert "COUNT(DISTINCT CASE WHEN fo.net_revenue_vnd > 0 THEN fo.order_id END)" in sales_sql
+
+
+def test_store_today_uses_vietnam_calendar_day(cdc_session, monkeypatch):
+    from app.modules.analytics import service
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            fixed = datetime(2026, 10, 22, 17, 30, tzinfo=UTC)
+            return fixed.astimezone(tz) if tz is not None else fixed.replace(tzinfo=None)
+
+    monkeypatch.setattr(service, "datetime", FixedDatetime)
+
+    cdc_session.add(
+        Store(
+            store_id=2,
+            city_id=1,
+            code="STR-002",
+            name="Store Boundary",
+            address="Test",
+            phone="0901234567",
+            is_active=True,
+        )
+    )
+    for order_id, created_at, total in (
+        (301, datetime(2026, 10, 22, 16, 30), 500000),
+        (302, datetime(2026, 10, 22, 17, 30), 750000),
+    ):
+        cdc_session.add(
+            Order(
+                order_id=order_id,
+                order_number=f"ORD-BOUNDARY-{order_id}",
+                customer_id=1,
+                checkout_idempotency_key=f"chk-{uuid.uuid4().hex[:30]}",
+                store_id=2,
+                staff_id=1,
+                channel="pos",
+                payment_method="cash",
+                status="completed",
+                subtotal_vnd=total,
+                discount_amount_vnd=0,
+                shipping_fee_vnd=0,
+                total_vnd=total,
+                receiver_name="Khách Boundary",
+                receiver_phone="0901234567",
+                shipping_address_text="Tại quầy",
+                paid_at=created_at,
+                completed_at=created_at,
+                created_at=created_at,
+            )
+        )
+    cdc_session.commit()
+
+    result = get_store_metrics(db=cdc_session, store_id=2)
+
+    assert result.store_orders_count == 1
+    assert result.store_revenue_today_vnd == 750000
+
+
+def test_inventory_stockout_count_deduplicates_warehouse_and_store(cdc_session):
+    cdc_session.add(
+        StoreInventory(
+            store_inventory_id=2,
+            store_id=1,
+            variant_id=2,
+            on_hand=0,
+            opening_on_hand=10,
+        )
+    )
+    cdc_session.commit()
+
+    result = get_inventory_metrics(db=cdc_session)
+
+    assert result.stockout_count == 2
+
+
+def test_no_db_fallbacks_are_marked_degraded_and_do_not_fabricate_inbound():
+    from unittest.mock import MagicMock
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+    trino.execute_query.return_value = []
+
+    inventory = get_inventory_metrics(db=None, trino_client=trino)
+    operations = get_operations_metrics(db=None, trino_client=trino)
+
+    assert inventory.inbound_batches_count == 0
+    assert inventory.data_source == "lakehouse"
+    assert inventory.is_degraded is True
+    assert operations.data_source == "lakehouse"
+    assert operations.is_degraded is True
+
+
+def test_store_no_db_fallback_is_marked_degraded():
+    from unittest.mock import MagicMock
+
+    trino = MagicMock()
+    trino.is_healthy.return_value = True
+
+    def query(sql):
+        if "SELECT store_name" in sql:
+            return [{"store_name": "Store Fallback"}]
+        if "mart_sales_daily" in sql:
+            return [{"store_revenue_today_vnd": 1000000, "store_orders_count": 2}]
+        if "mart_inventory_health" in sql:
+            return [{"low_stock_count": 3}]
+        return []
+
+    trino.execute_query.side_effect = query
+
+    result = get_store_metrics(db=None, store_id=1, trino_client=trino)
+
+    assert result.data_source == "lakehouse"
+    assert result.is_degraded is True
+    assert result.degraded_reason
+    assert result.store_revenue_today_vnd == 1000000
 

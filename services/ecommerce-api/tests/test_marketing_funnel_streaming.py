@@ -5,6 +5,7 @@ import pytest
 from app.core.ids import uuid7
 from app.db.base import Base
 from app.models.customer import Customer
+from app.models.order import Order
 from app.modules.analytics.service import (
     _get_marketing_metrics_oltp,
     get_marketing_metrics,
@@ -89,32 +90,35 @@ def test_marketing_metrics_streaming_fact_web_events():
     assert "ecommerce_action IN ('product_detail', 'catalog_search')" in called_sql
 
 
-def test_marketing_metrics_streaming_fallback_to_mart():
-    """Verify fallback to mart_marketing_funnel_daily when fact_web_events is empty."""
+def test_marketing_metrics_empty_stream_uses_marked_oltp_fallback(in_memory_db: Session):
+    """An empty stream must not be replaced by an all-time mart presented as 30-day data."""
+    customer = Customer(
+        customer_id=902,
+        public_id=uuid7(),
+        display_name="Fallback Tester",
+        role="customer",
+        status="active",
+    )
+    in_memory_db.add(customer)
+    in_memory_db.commit()
+
     mock_trino = MagicMock(spec=TrinoClient)
     mock_trino.is_healthy.return_value = True
-    mock_trino.execute_query.side_effect = [
-        # fact_web_events returns 0
-        [{
-            "visitors_count": 0,
-            "add_to_cart_count": 0,
-            "checkouts_count": 0,
-            "purchases_count": 0,
-        }],
-        # mart_marketing_funnel_daily returns daily rolled-up mart
-        [{
-            "visitors_count": 500,
-            "add_to_cart_count": 150,
-            "checkouts_count": 75,
-            "purchases_count": 30,
-        }],
-    ]
+    mock_trino.execute_query.return_value = [{
+        "visitors_count": 0,
+        "add_to_cart_count": 0,
+        "checkouts_count": 0,
+        "purchases_count": 0,
+    }]
 
-    res = get_marketing_metrics(trino_client=mock_trino)
+    res = get_marketing_metrics(db=in_memory_db, trino_client=mock_trino)
 
-    assert res.total_visitors == 500
-    assert res.total_purchases == 30
-    assert res.conversion_rate_percent == 6.0
+    assert mock_trino.execute_query.call_count == 1
+    assert res.data_source == "oltp_fallback"
+    assert res.is_degraded is True
+    assert res.total_visitors == 1
+    assert res.total_purchases == 0
+    assert res.funnel_window_days == 30
 
 
 def test_get_marketing_metrics_oltp_no_fake_multiplier(in_memory_db: Session):
@@ -222,7 +226,7 @@ def test_marketing_funnel_uses_30_day_window():
     res = get_marketing_metrics(trino_client=mock_trino)
 
     called_sql = mock_trino.execute_query.call_args[0][0]
-    assert "event_date >= current_date - INTERVAL '30' DAY" in called_sql
+    assert "event_date >= current_date - INTERVAL '29' DAY" in called_sql
     assert res.funnel_window_days == 30
 
 
@@ -244,5 +248,58 @@ def test_marketing_metrics_marks_oltp_fallback_when_stream_empty(in_memory_db: S
     assert res.data_source == "oltp_fallback"
     assert res.is_degraded is True
     assert res.degraded_reason
+    assert res.funnel_window_days == 30
+
+
+def test_marketing_oltp_fallback_only_counts_last_30_days(in_memory_db: Session):
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    old_customer = Customer(
+        customer_id=903,
+        public_id=uuid7(),
+        display_name="Khách Cũ",
+        role="customer",
+        status="active",
+        created_at=now - timedelta(days=40),
+    )
+    recent_customer = Customer(
+        customer_id=904,
+        public_id=uuid7(),
+        display_name="Khách Mới",
+        role="customer",
+        status="active",
+        created_at=now - timedelta(days=1),
+    )
+    in_memory_db.add_all([old_customer, recent_customer])
+    in_memory_db.flush()
+
+    for order_id, customer_id, created_at in (
+        (201, 903, now - timedelta(days=40)),
+        (202, 904, now - timedelta(days=1)),
+    ):
+        in_memory_db.add(
+            Order(
+                order_id=order_id,
+                order_number=f"ORD-MKT-{order_id}",
+                customer_id=customer_id,
+                checkout_idempotency_key=f"chk-{uuid7()}",
+                status="completed",
+                subtotal_vnd=100000,
+                discount_amount_vnd=0,
+                shipping_fee_vnd=0,
+                total_vnd=100000,
+                receiver_name="Khách Marketing",
+                receiver_phone="0901234567",
+                shipping_address_text="Test",
+                created_at=created_at,
+            )
+        )
+    in_memory_db.commit()
+
+    res = _get_marketing_metrics_oltp(in_memory_db)
+
+    assert res.total_visitors == 1
+    assert res.total_purchases == 1
     assert res.funnel_window_days == 30
 

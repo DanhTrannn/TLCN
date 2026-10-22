@@ -380,13 +380,30 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
 
 
 def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
+    window_start = (
+        datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(UTC)
+        .replace(tzinfo=None)
+        - timedelta(days=MARKETING_FUNNEL_WINDOW_DAYS - 1)
+    )
     purchases_count = db.scalar(
-        select(func.count()).select_from(Order).where(Order.status != "cancelled")
+        select(func.count())
+        .select_from(Order)
+        .where(Order.status != "cancelled", Order.created_at >= window_start)
     ) or 0
-    checkouts_count = db.scalar(select(func.count()).select_from(Order)) or 0
-    cart_items_count = db.scalar(select(func.count()).select_from(CartItem)) or 0
+    checkouts_count = db.scalar(
+        select(func.count()).select_from(Order).where(Order.created_at >= window_start)
+    ) or 0
+    cart_items_count = db.scalar(
+        select(func.count())
+        .select_from(CartItem)
+        .where(CartItem.first_added_at >= window_start)
+    ) or 0
     add_to_cart_count = max(cart_items_count + checkouts_count, checkouts_count)
-    customer_count = db.scalar(select(func.count(Customer.customer_id)).select_from(Customer)) or 0
+    customer_count = db.scalar(
+        select(func.count(Customer.customer_id)).where(Customer.created_at >= window_start)
+    ) or 0
     visitors_count = max(add_to_cart_count, customer_count)
 
     conv_rate = round((purchases_count / visitors_count) * 100, 2) if visitors_count > 0 else 0.0
@@ -462,6 +479,7 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
         conversion_rate_percent=conv_rate,
         total_visitors=visitors_count,
         total_purchases=purchases_count,
+        funnel_window_days=MARKETING_FUNNEL_WINDOW_DAYS,
         voucher_burn_rate=voucher_burn_rate,
         negative_review_spikes=negative_review_spikes,
     )
@@ -916,8 +934,8 @@ def get_sales_metrics(
                     WHEN fo.channel = 'online' OR fo.store_key = 0 THEN 'Kênh Online Toàn Quốc'
                     ELSE COALESCE(ds.store_name, CONCAT('Cửa hàng #', CAST(fo.store_key AS VARCHAR)))
                 END AS channel_name,
-                COALESCE(SUM(fo.gross_revenue_vnd), 0) AS revenue_vnd,
-                COUNT(DISTINCT order_id) AS order_count
+                COALESCE(SUM(fo.net_revenue_vnd), 0) AS revenue_vnd,
+                COUNT(DISTINCT CASE WHEN fo.net_revenue_vnd > 0 THEN fo.order_id END) AS order_count
             FROM lakehouse.gold.fact_order fo
             LEFT JOIN lakehouse.gold.dim_store ds ON fo.store_key = ds.store_key AND fo.store_key > 0
             GROUP BY 1, 2
@@ -1056,10 +1074,10 @@ def get_marketing_metrics(
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('checkout_quote', 'checkout_submit') OR http_route LIKE '/api/v1/checkout%' THEN 1 ELSE 0 END), 0) AS checkouts_count,
                     COALESCE(SUM(CASE WHEN ecommerce_action IN ('order_complete', 'order_confirm_internal') OR (ecommerce_action = 'checkout_submit' AND is_success) THEN 1 ELSE 0 END), 0) AS purchases_count
                 FROM lakehouse.gold.fact_web_events
-                WHERE event_date >= current_date - INTERVAL '{MARKETING_FUNNEL_WINDOW_DAYS}' DAY
+                WHERE event_date >= current_date - INTERVAL '{MARKETING_FUNNEL_WINDOW_DAYS - 1}' DAY
             """)
         except Exception as stream_exc:
-            logger.info("Direct fact_web_events query not ready, checking mart_marketing_funnel_daily: %s", stream_exc)
+            logger.info("Direct fact_web_events query not ready: %s", stream_exc)
 
         f_row = funnel_rows[0] if funnel_rows else {}
         visitors = int(f_row.get("visitors_count") or 0)
@@ -1067,27 +1085,8 @@ def get_marketing_metrics(
         checkouts = int(f_row.get("checkouts_count") or 0)
         purchases = int(f_row.get("purchases_count") or 0)
 
-        # If fact_web_events had 0 records or failed, try mart_marketing_funnel_daily
-        if visitors == 0 and add_to_cart == 0 and checkouts == 0:
-            try:
-                mart_rows = client.execute_query("""
-                    SELECT
-                        COALESCE(SUM(product_views), 0) AS visitors_count,
-                        COALESCE(SUM(cart_additions), 0) AS add_to_cart_count,
-                        COALESCE(SUM(checkout_initiations), 0) AS checkouts_count,
-                        COALESCE(SUM(orders_completed), 0) AS purchases_count
-                    FROM lakehouse.gold.mart_marketing_funnel_daily
-                """)
-                if mart_rows:
-                    m_row = mart_rows[0]
-                    visitors = int(m_row.get("visitors_count") or 0)
-                    add_to_cart = int(m_row.get("add_to_cart_count") or 0)
-                    checkouts = int(m_row.get("checkouts_count") or 0)
-                    purchases = int(m_row.get("purchases_count") or 0)
-            except Exception as mart_exc:
-                logger.info("mart_marketing_funnel_daily query skipped: %s", mart_exc)
-
-        # If the access-log stream has no events, use OLTP but mark the response degraded.
+        # If the access-log stream has no events, use the windowed OLTP fallback
+        # and mark the response degraded. Never substitute an all-time mart here.
         if (
             visitors == 0
             and add_to_cart == 0
@@ -1167,7 +1166,6 @@ def get_store_metrics(
         return _get_store_metrics_oltp(db, store_id).model_copy(update={"data_source": "oltp"})
 
     effective_store_id = store_id
-    effective_db = None
 
     client = trino_client or default_trino_client
     if not client.is_healthy():
@@ -1195,17 +1193,13 @@ def get_store_metrics(
             """)
             if dim_rows and dim_rows[0].get("store_name"):
                 store_name = str(dim_rows[0].get("store_name"))
-            elif effective_db is not None:
-                st = effective_db.execute(
-                    select(Store).where(Store.store_id == effective_store_id)
-                ).scalar_one_or_none()
-                if st:
-                    store_name = st.name
             if not store_name:
                 store_name = f"Cửa hàng #{effective_store_id}"
 
         filter_clause = f"store_key = {effective_store_id}" if effective_store_id is not None else "1=1"
 
+        # Gold only exposes a UTC order_date, so this no-DB path cannot guarantee
+        # the Vietnam calendar-day boundary. The response is marked degraded.
         rows = client.execute_query(f"""
             SELECT
                 COALESCE(SUM(gross_revenue_vnd), 0) AS store_revenue_today_vnd,
@@ -1235,13 +1229,6 @@ def get_store_metrics(
 
         store_stockouts = []
         run_rate = None
-        if effective_db is not None:
-            try:
-                oltp_st = _get_store_metrics_oltp(effective_db, effective_store_id)
-                store_stockouts = oltp_st.store_stockouts
-                run_rate = oltp_st.run_rate
-            except Exception as e:
-                logger.warning("Could not enrich store operational signals: %s", e)
 
         return StoreMetricsResponse(
             role="store",
@@ -1253,6 +1240,14 @@ def get_store_metrics(
             low_stock_at_store_count=low_stock_count,
             store_stockouts=store_stockouts,
             run_rate=run_rate,
+        ).model_copy(
+            update={
+                "is_degraded": True,
+                "degraded_reason": (
+                    "Không có kết nối OLTP; đang hiển thị Gold batch. "
+                    "Doanh thu hôm nay có thể chưa chính xác theo ngày Việt Nam."
+                ),
+            }
         )
     except Exception as exc:
         logger.error("Trino store query failed: %s", exc)
@@ -1300,17 +1295,12 @@ def get_inventory_metrics(
         st_units = int(i_row.get("st_units") or 0)
         stockout_count = int(i_row.get("stockout_count") or 0)
 
-        inbound_batches = 3
+        # Gold does not expose inbound receipt rows, so a no-DB fallback cannot
+        # report a real inbound count. Do not fabricate a number.
+        inbound_batches = 0
 
         depletion_velocity = []
         critical_stockout_alerts = []
-        if db is not None:
-            try:
-                oltp_inv = _get_inventory_metrics_oltp(db)
-                depletion_velocity = oltp_inv.depletion_velocity
-                critical_stockout_alerts = oltp_inv.critical_stockout_alerts
-            except Exception as e:
-                logger.warning("Could not enrich inventory operational signals: %s", e)
 
         return InventoryMetricsResponse(
             role="inventory",
@@ -1321,6 +1311,14 @@ def get_inventory_metrics(
             stockout_count=stockout_count,
             depletion_velocity=depletion_velocity,
             critical_stockout_alerts=critical_stockout_alerts,
+        ).model_copy(
+            update={
+                "is_degraded": True,
+                "degraded_reason": (
+                    "Không có kết nối OLTP; đang hiển thị Gold batch. "
+                    "Số lô nhập kho không khả dụng ở chế độ này."
+                ),
+            }
         )
     except Exception as exc:
         logger.error("Trino inventory query failed: %s", exc)
@@ -1359,15 +1357,6 @@ def get_operations_metrics(
 
         regional_boom_rates = []
         fulfillment_bottleneck = None
-        if db is not None:
-            try:
-                oltp_op = _get_operations_metrics_oltp(db)
-                regional_boom_rates = oltp_op.regional_boom_rates
-                fulfillment_bottleneck = oltp_op.fulfillment_bottleneck
-                if sla_violations == 0 and oltp_op.shipping_sla_violations_count > 0:
-                    sla_violations = oltp_op.shipping_sla_violations_count
-            except Exception as e:
-                logger.warning("Could not enrich operations operational signals: %s", e)
 
         return OperationsMetricsResponse(
             role="operations",
@@ -1377,6 +1366,11 @@ def get_operations_metrics(
             return_requests_count=return_requests,
             regional_boom_rates=regional_boom_rates,
             fulfillment_bottleneck=fulfillment_bottleneck,
+        ).model_copy(
+            update={
+                "is_degraded": True,
+                "degraded_reason": "Không có kết nối OLTP; đang hiển thị Gold batch có thể chậm.",
+            }
         )
     except Exception as exc:
         logger.error("Trino operations query failed: %s", exc)
@@ -1511,7 +1505,7 @@ def get_role_metrics_data(
             update={
                 "data_source": "oltp_fallback",
                 "is_degraded": True,
-                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+                "degraded_reason": "Lakehouse tạm thời không khả dụng; đang hiển thị dữ liệu vận hành mới nhất.",
             }
         )
 
@@ -1530,7 +1524,7 @@ def get_sales_trend(
             update={
                 "data_source": "oltp_fallback",
                 "is_degraded": True,
-                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+                "degraded_reason": "Lakehouse tạm thời không khả dụng; đang hiển thị dữ liệu vận hành mới nhất.",
             }
         )
 
@@ -1567,7 +1561,7 @@ def get_sales_trend(
             update={
                 "data_source": "oltp_fallback",
                 "is_degraded": True,
-                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+                "degraded_reason": "Lakehouse tạm thời không khả dụng; đang hiển thị dữ liệu vận hành mới nhất.",
             }
         )
     except Exception as exc:
@@ -1579,7 +1573,7 @@ def get_sales_trend(
             update={
                 "data_source": "oltp_fallback",
                 "is_degraded": True,
-                "degraded_reason": "Lakehouse analytics is temporarily unavailable; showing fresh operational data.",
+                "degraded_reason": "Lakehouse tạm thời không khả dụng; đang hiển thị dữ liệu vận hành mới nhất.",
             }
         )
 

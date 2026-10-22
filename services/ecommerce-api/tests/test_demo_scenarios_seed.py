@@ -257,7 +257,7 @@ def test_seed_demo_data_analytics_dashboards_queryable(test_db, monkeypatch):
 
     def _mock_trino_query(query: str):
         q = query.lower()
-        if "dim_store" in q:
+        if "dim_store" in q and "fact_order" not in q:
             return [{"store_key": 1, "store_name": "Cửa hàng Quận 1"}]
         if "fact_order" in q and "effective_store_key" in q:
             return [{

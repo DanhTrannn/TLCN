@@ -56,7 +56,7 @@ def setup_analytics_db(monkeypatch):
     monkeypatch.setattr(app.db.uow, "SessionLocal", testing_session)
     def _mock_trino_query(query: str):
         q = query.lower()
-        if "dim_store" in q:
+        if "dim_store" in q and "fact_order" not in q:
             return [{"store_key": 1, "store_name": "Cửa hàng Quận 1"}]
         if "fact_order" in q and "effective_store_key" in q:
             return [{
@@ -380,6 +380,23 @@ def test_admin_can_access_all_roles(setup_analytics_db):
         assert data["role"] == expected_role, f"Expected role {expected_role} for {target_role}, got {data['role']}"
         for field in expected_fields:
             assert field in data, f"Field {field} missing from {target_role} response: {data}"
+        if target_role == "sales":
+            contribution = data["store_contributions"][0]
+            assert contribution["order_count"] == 20
+            assert contribution["revenue_vnd"] == 10000000
+
+
+def test_tactical_role_metrics_report_oltp_source(setup_analytics_db):
+    db = setup_analytics_db()
+    admin = db.execute(select(Customer).where(Customer.role == "admin")).scalar_one()
+    client = make_client_for_user(admin)
+
+    for target_role in ("store", "inventory", "operations"):
+        res = client.get(f"/api/v1/admin/analytics/role-metrics?target_role={target_role}")
+        assert res.status_code == 200, res.text
+        data = res.json()
+        assert data["data_source"] == "oltp", f"{target_role} did not report OLTP: {data}"
+        assert data["is_degraded"] is False
 
 
 def test_admin_can_access_any_store(setup_analytics_db):
