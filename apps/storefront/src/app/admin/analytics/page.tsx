@@ -2166,6 +2166,7 @@ function AnalyticsHubContent() {
   const handleRoleChange = useCallback((newRole: string) => {
     if (newRole !== activeRole) {
       setRoleMetrics(null);
+      setLastUpdatedAt(null);
       setLoading(true);
       setError(null);
       setActiveRole(newRole);
