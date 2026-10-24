@@ -1,6 +1,7 @@
 """Tests for the Polaris RBAC reconciler in infrastructure/polaris/sync_polaris_rbac.py."""
 
 import importlib.util
+import json
 import os
 import stat
 from pathlib import Path
@@ -124,6 +125,185 @@ def test_missing_principal_credential_fails_fast(tmp_path):
         assert "POLARIS_SPARK_CLIENT_SECRET" in str(exc)
     else:
         raise AssertionError("missing credential secret did not fail")
+
+
+def test_credential_output_replaces_symlink_without_touching_victim(tmp_path):
+    config = _credential_config(tmp_path)
+    spark_dir = tmp_path / "spark"
+    spark_dir.mkdir()
+    victim = tmp_path / "victim.env"
+    victim.write_text("do not touch")
+    (spark_dir / "clients.env").symlink_to(victim)
+
+    reconciler = rbac.PolarisRbacReconciler(
+        FakePolarisClient(), config, state_file=tmp_path / "state.env"
+    )
+    reconciler.output_creds = {
+        "POLARIS_SPARK_CLIENT_ID": "spark-id",
+        "POLARIS_SPARK_CLIENT_SECRET": "spark-secret",
+        "POLARIS_FLINK_CLIENT_ID": "flink-id",
+        "POLARIS_FLINK_CLIENT_SECRET": "flink-secret",
+    }
+
+    reconciler.write_credentials()
+
+    target = spark_dir / "clients.env"
+    assert not target.is_symlink()
+    assert victim.read_text() == "do not touch"
+    assert "POLARIS_SPARK_CLIENT_ID='spark-id'" in target.read_text()
+
+
+def test_predictable_temp_symlink_is_not_followed(tmp_path):
+    config = _credential_config(tmp_path)
+    spark_dir = tmp_path / "spark"
+    spark_dir.mkdir()
+    victim = tmp_path / "victim.env"
+    victim.write_text("do not touch")
+    (spark_dir / ".clients.env.tmp").symlink_to(victim)
+
+    reconciler = rbac.PolarisRbacReconciler(
+        FakePolarisClient(), config, state_file=tmp_path / "state.env"
+    )
+    reconciler.output_creds = {
+        "POLARIS_SPARK_CLIENT_ID": "spark-id",
+        "POLARIS_SPARK_CLIENT_SECRET": "spark-secret",
+        "POLARIS_FLINK_CLIENT_ID": "flink-id",
+        "POLARIS_FLINK_CLIENT_SECRET": "flink-secret",
+    }
+
+    reconciler.write_credentials()
+
+    assert victim.read_text() == "do not touch"
+    assert "POLARIS_SPARK_CLIENT_ID='spark-id'" in (spark_dir / "clients.env").read_text()
+
+
+def test_credential_outputs_apply_configured_ownership(tmp_path, monkeypatch):
+    config = _credential_config(tmp_path)
+    uid = 12345
+    gid = 54321
+    for output in config["credential_outputs"]:
+        output["uid"] = uid
+        output["gid"] = gid
+
+    reconciler = rbac.PolarisRbacReconciler(
+        FakePolarisClient(), config, state_file=tmp_path / "state.env"
+    )
+    reconciler.output_creds = {
+        "POLARIS_SPARK_CLIENT_ID": "spark-id",
+        "POLARIS_SPARK_CLIENT_SECRET": "spark-secret",
+        "POLARIS_FLINK_CLIENT_ID": "flink-id",
+        "POLARIS_FLINK_CLIENT_SECRET": "flink-secret",
+    }
+
+    fchown_calls = []
+    chown_calls = []
+
+    def fake_fchown(fd, owner, group):
+        fchown_calls.append((fd, owner, group))
+
+    def fake_chown(path, owner, group):
+        chown_calls.append((Path(path), owner, group))
+
+    monkeypatch.setattr(rbac.os, "fchown", fake_fchown)
+    monkeypatch.setattr(rbac.os, "chown", fake_chown)
+
+    reconciler.write_credentials()
+
+    assert len(fchown_calls) == 2
+    assert {(owner, group) for _, owner, group in fchown_calls} == {(uid, gid)}
+    assert chown_calls == [
+        (tmp_path / "spark", uid, gid),
+        (tmp_path / "flink", uid, gid),
+    ]
+
+
+def test_stale_credential_outputs_are_pruned_via_manifest(tmp_path):
+    config = _credential_config(tmp_path)
+    state_file = tmp_path / "state" / "credentials.env"
+    creds = {
+        "POLARIS_SPARK_CLIENT_ID": "spark-id",
+        "POLARIS_SPARK_CLIENT_SECRET": "spark-secret",
+        "POLARIS_FLINK_CLIENT_ID": "flink-id",
+        "POLARIS_FLINK_CLIENT_SECRET": "flink-secret",
+    }
+    reconciler = rbac.PolarisRbacReconciler(
+        FakePolarisClient(), config, state_file=state_file
+    )
+    reconciler.output_creds = dict(creds)
+    reconciler.write_credentials()
+
+    manifest = state_file.parent / "credential-outputs.json"
+    flink_file = tmp_path / "flink" / "clients.env"
+    assert flink_file.is_file()
+    assert stat.S_IMODE(manifest.stat().st_mode) == 0o600
+
+    pruned_config = _credential_config(tmp_path)
+    pruned_config["credential_outputs"] = pruned_config["credential_outputs"][:1]
+    pruned = rbac.PolarisRbacReconciler(
+        FakePolarisClient(), pruned_config, state_file=state_file
+    )
+    pruned.output_creds = dict(creds)
+    pruned.write_credentials()
+
+    assert not flink_file.exists()
+    assert json.loads(manifest.read_text()) == [str(tmp_path / "spark" / "clients.env")]
+
+
+def test_missing_or_empty_credentials_fail_before_any_write(tmp_path):
+    cases = [
+        ({}, "POLARIS_SPARK_CLIENT_ID"),
+        (
+            {
+                "POLARIS_SPARK_CLIENT_ID": "spark-id",
+                "POLARIS_SPARK_CLIENT_SECRET": "spark-secret",
+                "POLARIS_FLINK_CLIENT_ID": "flink-id",
+            },
+            "POLARIS_FLINK_CLIENT_SECRET",
+        ),
+    ]
+
+    for creds, expected in cases:
+        config = _credential_config(tmp_path)
+        state_file = tmp_path / "state" / "credentials.env"
+        reconciler = rbac.PolarisRbacReconciler(
+            FakePolarisClient(), config, state_file=state_file
+        )
+        reconciler.output_creds = creds
+
+        try:
+            reconciler.write_credentials()
+        except RuntimeError as exc:
+            assert expected in str(exc)
+        else:
+            raise AssertionError("missing credentials did not fail")
+
+        assert not state_file.exists()
+        assert not (tmp_path / "spark" / "clients.env").exists()
+
+
+def test_invalid_output_config_fails_before_state_write(tmp_path):
+    config = _credential_config(tmp_path)
+    config["principals"]["flink_writer"] = {"credentials_export": {}}
+    state_file = tmp_path / "state" / "credentials.env"
+    reconciler = rbac.PolarisRbacReconciler(
+        FakePolarisClient(), config, state_file=state_file
+    )
+    reconciler.output_creds = {
+        "POLARIS_SPARK_CLIENT_ID": "spark-id",
+        "POLARIS_SPARK_CLIENT_SECRET": "spark-secret",
+        "POLARIS_FLINK_CLIENT_ID": "flink-id",
+        "POLARIS_FLINK_CLIENT_SECRET": "flink-secret",
+    }
+
+    try:
+        reconciler.write_credentials()
+    except RuntimeError as exc:
+        assert "flink_writer" in str(exc)
+    else:
+        raise AssertionError("empty credentials_export did not fail")
+
+    assert not state_file.exists()
+    assert not (tmp_path / "spark" / "clients.env").exists()
 
 
 def test_add_grant_uses_grant_wrapper(tmp_path):
