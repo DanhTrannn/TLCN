@@ -4,6 +4,7 @@ This directory contains reference architecture documents, logical data schemas, 
 
 ## Table of Contents
 
+- [`../diagrams/README.md`](../diagrams/README.md): Sơ đồ kiến trúc dạng draw.io, ERD DBML 28 bảng và bộ UML cho tiểu luận.
 - [`SYSTEM_ARCHITECTURE_VISUAL.md`](SYSTEM_ARCHITECTURE_VISUAL.md): Sơ đồ trực quan system context, container architecture, batch/streaming data flow, request sequence, và deployment profiles.
 - [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md): Container boundaries, dependency rules, directory layout, Python workspace packages, and Docker runtime profiles.
 - [`OLTP_SCHEMA.md`](OLTP_SCHEMA.md): Logical schema for 28 MySQL tables, relational constraints, transaction boundaries, concurrency controls, archive logic, and indexing strategies (through migration 0020).

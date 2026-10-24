@@ -1,0 +1,47 @@
+@startuml
+title D&K E-Commerce — Use Case tổng quan website
+left to right direction
+skinparam backgroundColor #F7F4EE
+skinparam defaultFontName DejaVu Sans
+skinparam ArrowColor #315B4F
+skinparam actorBorderColor #315B4F
+skinparam usecaseBorderColor #315B4F
+skinparam usecaseBackgroundColor #FFFDF9
+skinparam rectangleBorderColor #DCD8CF
+skinparam rectangleBackgroundColor #ECE6DA
+
+actor "Khách hàng" as Customer
+actor "Nhân viên cửa hàng" as Staff
+actor "Quản trị viên" as Admin
+actor "Shipper nội bộ" as Shipper
+
+rectangle "Website thương mại điện tử D&K" {
+  usecase "Xem và tìm sản phẩm" as Browse
+  usecase "Quản lý giỏ hàng" as Cart
+  usecase "Đặt hàng online" as Checkout
+  usecase "Theo dõi đơn hàng" as Track
+  usecase "Yêu cầu trả hàng" as Return
+  usecase "Bán hàng tại quầy POS" as POS
+  usecase "Quản lý sản phẩm và kho" as Catalog
+  usecase "Điều phối đơn hàng" as Fulfil
+  usecase "Ghi nhận lần giao hàng" as Attempt
+  usecase "Xem dashboard quản trị" as Dashboard
+}
+
+Customer --> Browse
+Customer --> Cart
+Customer --> Checkout
+Customer --> Track
+Customer --> Return
+Staff --> POS
+Staff --> Catalog
+Admin --> Catalog
+Admin --> Fulfil
+Admin --> Dashboard
+Shipper --> Attempt
+
+note bottom of Checkout
+  COD hoặc VietQR; yêu cầu đăng nhập.
+  POS là luồng riêng tại cửa hàng.
+end note
+@enduml

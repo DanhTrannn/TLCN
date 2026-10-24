@@ -98,6 +98,8 @@ classDiagram
 
 ## 1.2 Use-Case Diagrams
 
+Bộ sơ đồ dùng để trình bày trong Chương 3: [Use Case tổng quan](../diagrams/usecase-web-overview.svg) và [Use Case phân rã checkout/POS](../diagrams/usecase-checkout-pos.svg). File PlantUML nguồn nằm trong [`docs/diagrams/`](../diagrams/README.md). Các sơ đồ Mermaid phía dưới giữ vai trò phân tích chức năng chi tiết ban đầu.
+
 ### 1.2.1 Phân hệ Khách hàng (Customer Domain)
 
 ```mermaid
@@ -297,7 +299,7 @@ graph LR
 | **Tác nhân (Actors)** | Khách hàng (Customer) |
 | **Mô tả tóm tắt** | Khách hàng hoàn tất việc mua các mặt hàng trong giỏ hàng |
 | **Tiền điều kiện** | Khách hàng đã đăng nhập, giỏ hàng không trống và các sản phẩm còn hàng |
-| **Hậu điều kiện** | Đơn hàng được tạo, thanh toán thành công, tồn kho được trừ tự động |
+| **Hậu điều kiện** | Đơn hàng được tạo và tồn kho được trừ; payment `succeeded` với VietQR hoặc `pending` với COD |
 | **Mức độ ưu tiên** | Cao (High) |
 | **Quy tắc kinh doanh** | Quá trình thanh toán phải đảm bảo tính nguyên tử (Atomic) - thực thi trong một giao dịch cơ sở dữ liệu duy nhất |
 
@@ -314,11 +316,11 @@ graph LR
 | 7 | - | Hệ thống | Hệ thống **tính toán** số tiền giảm giá **từ** mã khuyến mãi |
 | 8 | Khách hàng | Hệ thống | Khách hàng **xác nhận** đặt hàng **với** hệ thống |
 | 9 | - | Hệ thống | Hệ thống **tạo** bản ghi đơn hàng (orders) **trong** cơ sở dữ liệu MySQL |
-| 10 | - | Hệ thống | Hệ thống **tạo** các mục chi tiết đơn hàng (order_items) **trong** cơ sở dữ liệu MySQL |
-| 11 | - | Hệ thống | Hệ thống **tạo** bản ghi thanh toán (payments) **với** trạng thái thành công (succeeded) |
-| 12 | - | Hệ thống | Hệ thống **trừ** số lượng tồn kho **cho** các sản phẩm đã mua |
+| 10 | - | Hệ thống | Hệ thống **khóa và trừ** số lượng tồn kho, đồng thời **ghi** `inventory_transactions` |
+| 11 | - | Hệ thống | Hệ thống **tạo** các mục chi tiết đơn hàng (`order_items`) và bản ghi thanh toán (`payments`) với trạng thái `succeeded` (VietQR) hoặc `pending` (COD) |
+| 12 | - | Hệ thống | Hệ thống **ghi** lịch sử trạng thái đơn hàng (`order_status_history`) |
 | 13 | - | Hệ thống | Hệ thống **đánh dấu** giỏ hàng **ở trạng thái** đã thanh toán (checked_out) |
-| 14 | - | Hệ thống | Hệ thống **ghi nhật ký** chi tiết giao dịch **vào** luồng sự kiện truy cập |
+| 14 | - | Hệ thống | Middleware **ghi nhận** sự kiện truy cập đã lược bỏ dữ liệu nhạy cảm **vào** Kafka |
 
 #### Luồng ngoại lệ
 
@@ -799,50 +801,9 @@ flowchart TD
 
 ### 1.4.5 UC5: Sơ đồ hoạt động Thanh toán (Checkout)
 
-```mermaid
-flowchart TD
-    Start([Bắt đầu]) --> A[Hiển thị tóm tắt giỏ hàng]
-    A --> B{Tất cả sản phẩm còn hàng?}
-    
-    B -->|Không| C[Hiển thị cảnh báo sản phẩm hết hàng]
-    C --> D[Khách hàng xóa bỏ các mặt hàng hết kho]
-    D --> E{Giỏ hàng rỗng?}
-    E -->|Có| F[Quay về trang mua sắm]
-    E -->|Không| A
-    
-    B -->|Có| G[Tính tổng giá trị hàng hóa]
-    G --> H[Áp dụng mã giảm giá và tính phí vận chuyển]
-    H --> I[Hiển thị thông tin tổng kết đơn hàng]
-    
-    I --> J[Khách hàng nhập địa chỉ giao hàng chi tiết]
-    J --> K[Kiểm tra tính hợp lệ của địa chỉ]
-    K --> L{Địa chỉ hợp lệ?}
-    L -->|Không| M[Hiển thị thông báo lỗi biểu mẫu]
-    M --> J
-    L -->|Có| N[Khách hàng chọn phương thức thanh toán]
-    
-    N --> O[Khách hàng xác nhận đặt hàng]
-    O --> P[Bắt đầu giao dịch cơ sở dữ liệu (Transaction)]
-    P --> Q[Tạo bản ghi đơn hàng (orders)]
-    Q --> R[Tạo danh sách chi tiết đơn hàng (order_items)]
-    R --> S[Khóa và trừ số lượng tồn kho]
-    S --> T[Xác nhận giao dịch (Commit transaction)]
-    
-    T --> U[Xử lý giao dịch thanh toán]
-    U --> V{Thanh toán thành công?}
-    
-    V -->|Không| W[Bắt đầu giao dịch hoàn tác (Rollback)]
-    W --> X[Đánh dấu đơn hàng thất bại/hủy]
-    X --> Y[Hoàn trả số lượng tồn kho]
-    Y --> Z[Xác nhận hoàn tác (Commit rollback)]
-    Z --> AA[Hiển thị thông báo lỗi thanh toán]
-    AA --> N
-    
-    V -->|Có| AB[Cập nhật trạng thái đơn hàng sang ĐÃ THANH TOÁN]
-    AB --> AC[Gửi email xác nhận đơn hàng]
-    AC --> AD[Ghi nhật ký vào luồng sự kiện truy cập]
-    AD --> End([Kết thúc: Hoàn tất thanh toán])
-```
+![Activity checkout online hiện hành](../diagrams/activity-checkout.svg)
+
+Nguồn có thể chỉnh sửa: [`activity-checkout.puml`](../diagrams/activity-checkout.puml). Sơ đồ bám vào `POST /api/v1/checkout`: kiểm tra giỏ hàng và tồn kho trong transaction; VietQR tạo payment `succeeded`, COD tạo payment `pending`.
 
 ### 1.4.6 UC6: Sơ đồ hoạt động Theo dõi đơn hàng (Track Orders)
 
@@ -1281,36 +1242,9 @@ sequenceDiagram
 
 ### 1.5.5 UC5: Sơ đồ tuần tự Thanh toán (Checkout Sequence)
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant C as Khách hàng (Customer)
-    participant FE as Giao diện Storefront (Next.js)
-    participant API as Máy chủ API (FastAPI)
-    participant DB as Cơ sở dữ liệu MySQL
-    
-    C->>FE: Tiến hành thanh toán
-    FE->>API: GET /cart/[cartId]
-    API->>DB: SELECT cart_items JOIN products
-    DB-->>API: cartItems[]
-    API-->>FE: CartResponse
-    FE-->>C: Hiển thị tóm tắt giỏ hàng
-    
-    C->>FE: Nhập địa chỉ chi tiết (tỉnh/thành, phường/xã, địa chỉ cụ thể)
-    C->>FE: Nhấn xác nhận đặt hàng
-    FE->>API: POST /orders/checkout
-    Note over API,DB: Bắt đầu giao dịch (Begin Transaction)
-    API->>DB: INSERT orders (lưu địa chỉ và thông tin người nhận)
-    API->>DB: INSERT order_items (lưu snapshot thông tin sản phẩm)
-    API->>DB: INSERT payments (status=succeeded)
-    API->>DB: UPDATE inventory (trừ tồn kho)
-    API->>DB: UPDATE carts SET status=checked_out
-    DB-->>API: Giao dịch xác nhận thành công (Transaction committed)
-    
-    API->>API: Ghi log giao dịch vào luồng sự kiện truy cập
-    API-->>FE: OrderConfirmation
-    FE-->>C: Hiển thị màn hình đặt hàng thành công
-```
+![Sequence checkout online hiện hành](../diagrams/sequence-checkout.svg)
+
+Nguồn có thể chỉnh sửa: [`sequence-checkout.puml`](../diagrams/sequence-checkout.puml). Đường dẫn API và trạng thái thanh toán được đối chiếu với `checkout/router.py` và `checkout/service.py`.
 
 ### 1.5.6 UC6: Sơ đồ tuần tự Theo dõi đơn hàng (Track Orders Sequence)
 

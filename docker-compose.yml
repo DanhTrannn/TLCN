@@ -666,7 +666,7 @@ services:
       - polaris-client-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
-      debezium-init:
+      debiezium-init:
         condition: service_completed_successfully
       flink-jobmanager:
         condition: service_healthy

@@ -6,6 +6,7 @@ This directory contains the architecture specifications, data schemas, operation
 
 ### Architecture and Specifications
 
+- [`diagrams/README.md`](diagrams/README.md): Editable architecture, full 28-table ERD, and UML sources with SVG exports for the thesis.
 - [`project/SCOPE.md`](project/SCOPE.md): System boundaries, data source allowlists, analytical constraints, and acceptance criteria.
 - [`architecture/PROJECT_STRUCTURE.md`](architecture/PROJECT_STRUCTURE.md): Monorepo organization, service boundaries, and dependency rules.
 - [`architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md): 7-Role Management Information System (MIS) specification, Trino distributed SQL engine, and Apache ECharts BI Hub.
