@@ -27,6 +27,8 @@ namespaces:
 # Policy on principals not defined in this file (except 'root')
 # If true, any principal existing in Polaris that is not defined below will be purged.
 purge_unmanaged_principals: true
+purge_unmanaged_roles: true
+prune_unmanaged_privileges: true
 
 # Catalog roles and their privileges on the catalog
 catalog_roles:
@@ -38,15 +40,26 @@ catalog_roles:
   trino_reader_catalog_role:
     grants:
       - type: catalog
+        privilege: CATALOG_READ_PROPERTIES
+      - type: catalog
+        privilege: NAMESPACE_LIST
+      - type: catalog
+        privilege: NAMESPACE_READ_PROPERTIES
+      - type: catalog
+        privilege: TABLE_LIST
+      - type: catalog
+        privilege: TABLE_READ_PROPERTIES
+      - type: catalog
         privilege: TABLE_READ_DATA
       - type: catalog
-        privilege: TABLE_FULL_METADATA
+        privilege: VIEW_LIST
       - type: catalog
-        privilege: VIEW_FULL_METADATA
+        privilege: VIEW_READ_PROPERTIES
+
+  flink_writer_catalog_role:
+    grants:
       - type: catalog
-        privilege: NAMESPACE_FULL_METADATA
-      - type: catalog
-        privilege: CATALOG_READ_PROPERTIES
+        privilege: CATALOG_MANAGE_CONTENT
 
   trino_admin_catalog_role:
     grants:
@@ -67,6 +80,10 @@ principal_roles:
     catalog_roles:
       - trino_reader_catalog_role
 
+  flink_writer_role:
+    catalog_roles:
+      - flink_writer_catalog_role
+
   trino_admin_role:
     catalog_roles:
       - trino_admin_catalog_role
@@ -83,7 +100,7 @@ principals:
 
   flink_writer:
     principal_roles:
-      - spark_writer_role
+      - flink_writer_role
     credentials_export:
       client_id_var: POLARIS_FLINK_CLIENT_ID
       client_secret_var: POLARIS_FLINK_CLIENT_SECRET
@@ -101,3 +118,25 @@ principals:
     credentials_export:
       client_id_var: POLARIS_TRINO_ADMIN_CLIENT_ID
       client_secret_var: POLARIS_TRINO_ADMIN_CLIENT_SECRET
+
+credential_outputs:
+  - principal: spark_writer
+    directory: /run/polaris-output/spark-client
+    uid: 185
+    gid: 185
+  - principal: spark_writer
+    directory: /run/polaris-output/spark-airflow
+    uid: 50000
+    gid: 0
+  - principal: flink_writer
+    directory: /run/polaris-output/flink
+    uid: 9999
+    gid: 9999
+  - principal: trino_reader
+    directory: /run/polaris-output/trino-reader
+    uid: 1000
+    gid: 1000
+  - principal: trino_admin
+    directory: /run/polaris-output/trino-admin
+    uid: 1000
+    gid: 1000
