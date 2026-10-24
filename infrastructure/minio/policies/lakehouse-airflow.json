@@ -1,0 +1,47 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation"],
+      "Resource": ["arn:aws:s3:::__MINIO_BUCKET__"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::__MINIO_BUCKET__"],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["landing/*", "state/*"]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucketMultipartUploads"],
+      "Resource": ["arn:aws:s3:::__MINIO_BUCKET__"],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["state/*"]
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": [
+        "arn:aws:s3:::__MINIO_BUCKET__/landing/*",
+        "arn:aws:s3:::__MINIO_BUCKET__/state/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": ["arn:aws:s3:::__MINIO_BUCKET__/state/*"]
+    }
+  ]
+}
