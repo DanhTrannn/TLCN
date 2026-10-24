@@ -25,7 +25,7 @@ docker compose --profile batch run --rm --no-deps \
   minio-init \
   -c '
     set -eu
-    mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+    mc alias set local http://minio:9000 "$MINIO_UPLOADER_ACCESS_KEY" "$MINIO_UPLOADER_SECRET_KEY"
     mc mirror --overwrite /generated-logs "local/$MINIO_LAKEHOUSE_BUCKET/landing/logs"
   '
 

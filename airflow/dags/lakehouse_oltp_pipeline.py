@@ -121,16 +121,11 @@ def capture_high_watermarks() -> dict:
 
 
 def _s3_conn():
-    """Construct S3/MinIO client using environment variables.
-
-    Credentials default to local development values ('minioadmin', 'password').
-    In production environments, configure via MINIO_ACCESS_KEY, MINIO_SECRET_KEY,
-    or Airflow Connections / Secret backend.
-    """
+    """Construct the Airflow S3/MinIO client with its dedicated reader/writer identity."""
     return s3_client(
         os.environ.get("MINIO_ENDPOINT", "http://minio:9000"),
-        os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
-        os.environ.get("MINIO_SECRET_KEY", "password"),
+        os.environ["MINIO_AIRFLOW_ACCESS_KEY"],
+        os.environ["MINIO_AIRFLOW_SECRET_KEY"],
     )
 
 
