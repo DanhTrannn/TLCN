@@ -18,16 +18,6 @@
     },
     {
       "Effect": "Allow",
-      "Action": ["s3:ListBucketMultipartUploads"],
-      "Resource": ["arn:aws:s3:::__MINIO_BUCKET__"],
-      "Condition": {
-        "StringLike": {
-          "s3:prefix": ["state/*"]
-        }
-      }
-    },
-    {
-      "Effect": "Allow",
       "Action": ["s3:GetObject"],
       "Resource": [
         "arn:aws:s3:::__MINIO_BUCKET__/landing/*",
