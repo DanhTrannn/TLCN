@@ -15,7 +15,7 @@ Running `docker compose up -d` without flags brings up the core **Storage, Metad
 | `mysql` | Boots MySQL 8.4.5 LTS (`utf8mb4_0900_ai_ci`, UTC). Creates the `ecommerce` database and `ecommerce_app` user. |
 | `postgres` | Boots PostgreSQL 16.8 → Runs `01-create-multiple-databases.sh` to initialize isolated metadata databases for `polaris` and `airflow`. |
 | `minio` | Starts MinIO S3 server (`:9000`) and web console (`:9001`). |
-| `minio-init` | One-shot: Configures `mc` alias → Idempotently creates `lakehouse` bucket → Disables anonymous public access. |
+| `minio-init` | One-shot: Configures `mc` alias → Idempotently creates `lakehouse` bucket → Disables anonymous public access → Converges the seven `lakehouse-*` service users, each attached to exactly one matching policy — the script handles the whole `lakehouse-*` prefix (stale entries included) while never touching anything outside it, so a `lakehouse-*` user or policy that is no longer managed disappears → Verifies the final identity state. |
 
 ### 1.2. Apache Polaris REST Catalog
 
@@ -23,15 +23,21 @@ Running `docker compose up -d` without flags brings up the core **Storage, Metad
 |---|---|
 | `polaris-bootstrap` | One-shot: Executes `polaris-admin-tool bootstrap` to create the default realm (`POLARIS`) and root client credentials in PostgreSQL. |
 | `polaris` | Waits for `postgres`, `polaris-bootstrap`, and `minio-init` → Starts Polaris REST catalog (`:8181`) and management server (`:8182`). |
-| `polaris-init` | One-shot: Executes `sync_polaris_rbac.py` to declaratively reconcile Polaris RBAC from `infrastructure/polaris/rbac.yml` (catalog, namespaces, roles, privileges, principals) → Exports OAuth credentials to `/run/polaris/clients.env`. |
+| `polaris-init` | One-shot: Executes `sync_polaris_rbac.py` to declaratively reconcile Polaris RBAC from `infrastructure/polaris/rbac.yml` (catalog, namespaces, roles, privileges, principals) → Writes one private `clients.env` per consumer (`0600`) under `/run/polaris-output/*/clients.env` (spark-client, spark-airflow, flink, trino-reader, trino-admin) and caches principal credentials in a root-only state file under `/run/polaris-state/`. |
 | `polaris-console` | Waits for `polaris-init` → Launches the catalog management web UI on port 8183. |
 
 ### 1.3. Query Engine & SQL Editor
 
 | Service | Startup Behavior |
 |---|---|
-| `trino` | Waits for `polaris-init` credentials → Starts Trino (port 8084) configured with the `lakehouse` Iceberg REST catalog. |
+| `trino` | Waits for `polaris-init` credentials → Starts Trino (port 8084, read-only `trino_reader` principal) configured with the `lakehouse` Iceberg REST catalog. |
 | `libredb-studio` | Waits for `mysql`, `postgres`, `trino` health checks → Launches LibreDB Studio SQL IDE on port 3001. |
+
+#### Optional: `trino-admin` (not started by default)
+
+| Service | Startup Behavior |
+|---|---|
+| `trino-admin` | (*Profile `trino-admin`*, optional) Starts a second administrative Trino engine on port 8087 using the `trino_admin` principal (`polaris-trino-admin-credentials` volume). This container is **not part of the default startup**; the read-only `trino` engine remains the default query engine. |
 
 ---
 
@@ -77,6 +83,9 @@ mysql (independent)
 [When --profile batch is enabled]
 spark-master ──▶ spark-worker
 postgres ──▶ airflow-init ──▶ (airflow-webserver, airflow-scheduler)
+
+[When --profile trino-admin is enabled (optional)]
+polaris-init ──▶ trino-admin
 
 [When --profile core is enabled]
 mysql ──▶ ecommerce-api ──▶ storefront

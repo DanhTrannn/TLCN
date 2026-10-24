@@ -26,8 +26,8 @@ def _polaris_credentials() -> tuple[str, str]:
 
 def configure_s3a(builder):
     endpoint = os.environ["MINIO_ENDPOINT"]
-    access_key = os.environ["MINIO_ACCESS_KEY"]
-    secret_key = os.environ["MINIO_SECRET_KEY"]
+    access_key = os.environ["MINIO_SPARK_ACCESS_KEY"]
+    secret_key = os.environ["MINIO_SPARK_SECRET_KEY"]
     return (
         builder
         .config("spark.hadoop.fs.s3a.endpoint", endpoint)
@@ -42,6 +42,12 @@ def configure_s3a(builder):
         .config("spark.hadoop.fs.s3.secret.key", secret_key)
         .config("spark.hadoop.fs.s3.path.style.access", "true")
         .config("spark.hadoop.fs.s3.connection.ssl.enabled", "false")
+        .config("spark.sql.catalog.lakehouse.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
+        .config("spark.sql.catalog.lakehouse.s3.endpoint", endpoint)
+        .config("spark.sql.catalog.lakehouse.s3.access-key-id", access_key)
+        .config("spark.sql.catalog.lakehouse.s3.secret-access-key", secret_key)
+        .config("spark.sql.catalog.lakehouse.s3.path-style-access", "true")
+        .config("spark.sql.catalog.lakehouse.s3.region", os.environ.get("AWS_REGION", "us-east-1"))
     )
 
 
@@ -60,7 +66,6 @@ def spark_session(job_name: str):
         .config("spark.sql.catalog.lakehouse.rest.auth.type", "oauth2") \
         .config("spark.sql.catalog.lakehouse.credential", f"{client_id}:{secret}") \
         .config("spark.sql.catalog.lakehouse.header.Polaris-Realm", REALM) \
-        .config("spark.sql.catalog.lakehouse.header.X-Iceberg-Access-Delegation", "vended-credentials") \
         .config("spark.sql.catalog.lakehouse.token-refresh-enabled", "true") \
         .config("spark.sql.session.timeZone", "UTC") \
         .config("spark.sql.catalogImplementation", "in-memory") \

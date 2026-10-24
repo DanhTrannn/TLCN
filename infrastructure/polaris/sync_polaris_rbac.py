@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -32,15 +33,31 @@ logging.basicConfig(
 logger = logging.getLogger("polaris-rbac")
 
 TOP_LEVEL_PRIVILEGES = {
-    "CATALOG_MANAGE_CONTENT",
     "CATALOG_MANAGE_ACCESS",
+    "CATALOG_MANAGE_CONTENT",
     "CATALOG_MANAGE_METADATA",
     "CATALOG_READ_PROPERTIES",
+    "CATALOG_WRITE_PROPERTIES",
+    "NAMESPACE_CREATE",
+    "NAMESPACE_DROP",
+    "NAMESPACE_LIST",
+    "NAMESPACE_READ_PROPERTIES",
+    "NAMESPACE_WRITE_PROPERTIES",
+    "NAMESPACE_FULL_METADATA",
+    "TABLE_CREATE",
+    "TABLE_DROP",
+    "TABLE_LIST",
+    "TABLE_READ_PROPERTIES",
     "TABLE_READ_DATA",
     "TABLE_WRITE_DATA",
+    "TABLE_WRITE_PROPERTIES",
     "TABLE_FULL_METADATA",
+    "VIEW_CREATE",
+    "VIEW_DROP",
+    "VIEW_LIST",
+    "VIEW_READ_PROPERTIES",
+    "VIEW_WRITE_PROPERTIES",
     "VIEW_FULL_METADATA",
-    "NAMESPACE_FULL_METADATA",
 }
 
 SYSTEM_CATALOG_ROLES = {"catalog_admin"}
@@ -197,13 +214,20 @@ def load_saved_credentials(cred_file: Path) -> Dict[str, str]:
 class PolarisRbacReconciler:
     """Orchestrates reconciliation of the Polaris RBAC model from config."""
 
-    def __init__(self, client: PolarisClient, config: Dict[str, Any], cred_file: Path):
+    def __init__(
+        self,
+        client: PolarisClient,
+        config: Dict[str, Any],
+        *,
+        state_file: Path,
+    ):
         self.client = client
         self.config = expand_env(config)
-        self.cred_file = cred_file
+        self.state_file = state_file
         self.catalog_name: str = self.config["catalog"]["name"]
-        self.saved_creds = load_saved_credentials(cred_file)
+        self.saved_creds = load_saved_credentials(state_file)
         self.output_creds: Dict[str, str] = dict(self.saved_creds)
+        self.credential_outputs: List[Dict[str, Any]] = self.config.get("credential_outputs", [])
 
     def reconcile_catalog(self) -> None:
         """Ensure catalog exists and has correct storage configuration."""
@@ -360,7 +384,7 @@ class PolarisRbacReconciler:
                     self.client.request(
                         "PUT",
                         f"/api/management/v1/catalogs/{self.catalog_name}/catalog-roles/{role_name}/grants",
-                        payload={"type": grant.get("type", "catalog"), "privilege": priv},
+                        payload={"grant": {"type": grant.get("type", "catalog"), "privilege": priv}},
                         expected_statuses=(200, 201, 409),
                     )
 
@@ -544,31 +568,162 @@ class PolarisRbacReconciler:
                     expected_statuses=(200, 204, 404),
                 )
 
-    def write_credential_file(self) -> None:
-        """Write out clients.env containing exported principal credentials."""
-        managed_keys: Set[str] = set()
+    def _managed_keys(self) -> Set[str]:
+        managed: Set[str] = set()
         for p_def in self.config.get("principals", {}).values():
             export_spec = p_def.get("credentials_export", {})
-            if export_spec.get("client_id_var"):
-                managed_keys.add(export_spec["client_id_var"])
-            if export_spec.get("client_secret_var"):
-                managed_keys.add(export_spec["client_secret_var"])
+            for key in (export_spec.get("client_id_var"), export_spec.get("client_secret_var")):
+                if key:
+                    managed.add(key)
+        return managed
 
-        self.cred_file.parent.mkdir(parents=True, exist_ok=True)
-        content_lines = [
-            f"# Generated automatically by sync_polaris_rbac.py at {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}",
+    def _validate_credentials(self, keys: List[str], label: str) -> None:
+        missing = [key for key in keys if key not in self.output_creds]
+        if missing:
+            raise RuntimeError(
+                f"Missing credentials for {label}: {', '.join(sorted(missing))}"
+            )
+
+    def _validated_outputs(self) -> List[Tuple[Path, List[str], Optional[int], Optional[int]]]:
+        validated: List[Tuple[Path, List[str], Optional[int], Optional[int]]] = []
+        for output in self.credential_outputs:
+            principal = output.get("principal")
+            p_def = self.config.get("principals", {}).get(principal)
+            if not p_def:
+                raise RuntimeError(f"Unknown principal in credential_outputs: {principal}")
+
+            export_spec = p_def.get("credentials_export", {})
+            keys = [
+                key
+                for key in (export_spec.get("client_id_var"), export_spec.get("client_secret_var"))
+                if key
+            ]
+            if not keys:
+                raise RuntimeError(
+                    f"Principal '{principal}' has no credentials_export variables"
+                )
+
+            path = Path(output["directory"]) / "clients.env"
+            self._validate_credentials(keys, str(path))
+            validated.append((path, keys, output.get("uid"), output.get("gid")))
+        return validated
+
+    def _write_private_file(
+        self,
+        path: Path,
+        content: str,
+        *,
+        uid: Optional[int] = None,
+        gid: Optional[int] = None,
+    ) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(path.parent, 0o700)
+
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
+        tmp_file = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(content)
+                handle.flush()
+                os.fchmod(handle.fileno(), 0o600)
+                if uid is not None or gid is not None:
+                    os.fchown(
+                        handle.fileno(),
+                        uid if uid is not None else -1,
+                        gid if gid is not None else -1,
+                    )
+            os.replace(tmp_file, path)
+            if uid is not None or gid is not None:
+                os.chown(
+                    path.parent,
+                    uid if uid is not None else -1,
+                    gid if gid is not None else -1,
+                )
+        except Exception:
+            tmp_file.unlink(missing_ok=True)
+            raise
+
+    def _write_private_env(
+        self,
+        path: Path,
+        keys: List[str],
+        *,
+        uid: Optional[int] = None,
+        gid: Optional[int] = None,
+    ) -> None:
+        self._validate_credentials(keys, str(path))
+
+        lines = [
+            f"# Generated automatically by sync_polaris_rbac.py at "
+            f"{time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}"
         ]
-        for key in sorted(self.output_creds.keys()):
-            if key in managed_keys:
-                val = self.output_creds[key]
-                content_lines.append(f"{key}='{val}'")
-        content_lines.append("")
+        lines.extend(f"{key}='{self.output_creds[key]}'" for key in sorted(keys))
+        lines.append("")
 
-        tmp_file = self.cred_file.with_suffix(".tmp")
-        tmp_file.write_text("\n".join(content_lines), encoding="utf-8")
-        os.chmod(tmp_file, 0o644)
-        tmp_file.replace(self.cred_file)
-        logger.info("Saved credentials to '%s'.", self.cred_file)
+        self._write_private_file(path, "\n".join(lines), uid=uid, gid=gid)
+        logger.info("Wrote private credentials to '%s'.", path)
+
+    def _manifest_path(self) -> Path:
+        return self.state_file.parent / "credential-outputs.json"
+
+    def _load_output_manifest(self) -> List[Path]:
+        manifest = self._manifest_path()
+        if not manifest.is_file():
+            return []
+        try:
+            raw = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Ignoring unreadable credential output manifest '%s': %s", manifest, exc)
+            return []
+        if not isinstance(raw, list):
+            logger.warning("Ignoring malformed credential output manifest '%s'.", manifest)
+            return []
+        return [Path(item) for item in raw if isinstance(item, str)]
+
+    def _prune_stale_outputs(self, configured: List[Path]) -> None:
+        configured_paths = {os.path.abspath(str(path)) for path in configured}
+        for path in self._load_output_manifest():
+            if os.path.abspath(str(path)) in configured_paths:
+                continue
+            if path.name != "clients.env":
+                logger.warning("Ignoring unexpected credential output manifest entry '%s'.", path)
+                continue
+            try:
+                path.unlink()
+                logger.info("Removed stale credentials file '%s'.", path)
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                logger.warning("Could not remove stale credentials file '%s': %s", path, exc)
+
+    def _write_output_manifest(self, paths: List[Path]) -> None:
+        content = json.dumps([str(path) for path in paths], indent=2) + "\n"
+        self._write_private_file(self._manifest_path(), content)
+
+    def _write_validated_outputs(
+        self,
+        validated: List[Tuple[Path, List[str], Optional[int], Optional[int]]],
+    ) -> None:
+        for path, keys, uid, gid in validated:
+            self._write_private_env(path, keys, uid=uid, gid=gid)
+
+    def write_credential_state(self) -> None:
+        managed_keys = sorted(self._managed_keys())
+        self._write_private_env(self.state_file, managed_keys)
+
+    def write_credential_outputs(self) -> None:
+        self._write_validated_outputs(self._validated_outputs())
+
+    def write_credentials(self) -> None:
+        managed_keys = sorted(self._managed_keys())
+        self._validate_credentials(managed_keys, str(self.state_file))
+        validated = self._validated_outputs()
+        configured_paths = [path for path, _, _, _ in validated]
+
+        self._prune_stale_outputs(configured_paths)
+        self.write_credential_state()
+        self._write_validated_outputs(validated)
+        self._write_output_manifest(configured_paths)
 
     def reconcile_namespaces(self) -> None:
         """Ensure all required namespaces exist in the catalog."""
@@ -596,7 +751,7 @@ class PolarisRbacReconciler:
         self.reconcile_catalog_roles()
         self.reconcile_principal_roles()
         self.reconcile_principals()
-        self.write_credential_file()
+        self.write_credentials()
         self.reconcile_namespaces()
         logger.info("Polaris RBAC reconciliation completed successfully.")
 
@@ -630,13 +785,15 @@ def main() -> None:
         help="Polaris root client secret",
     )
     parser.add_argument(
-        "--credential-file",
-        default=os.environ.get("POLARIS_CREDENTIAL_FILE", "/run/polaris/clients.env"),
-        help="Path to output credentials file (clients.env)",
+        "--credential-state-file",
+        default=os.environ.get(
+            "POLARIS_CREDENTIAL_STATE_FILE", "/run/polaris-state/clients.env"
+        ),
+        help="Root-only state file used to reuse existing principal credentials",
     )
     parser.add_argument(
         "--ready-file",
-        default="/run/polaris/ready",
+        default="/run/polaris-state/ready",
         help="Path to touched ready file",
     )
 
@@ -666,7 +823,7 @@ def main() -> None:
     reconciler = PolarisRbacReconciler(
         client=client,
         config=config,
-        cred_file=Path(args.credential_file),
+        state_file=Path(args.credential_state_file),
     )
 
     reconciler.reconcile()

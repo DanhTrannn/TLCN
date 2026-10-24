@@ -26,8 +26,6 @@ state.checkpoints.dir: file:///opt/flink/checkpoints
 # S3 FileSystem connector configuration for MinIO
 s3.endpoint: http://minio:9000
 s3.path.style.access: true
-s3.access-key: minioadmin
-s3.secret-key: password
 
 # Java 17 reflection open modules for Kryo serialization
 env.java.opts.all: --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED
