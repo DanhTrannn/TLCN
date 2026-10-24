@@ -20,8 +20,10 @@ x-airflow-common: &airflow-common
     PYTHONPATH: /opt/project/pipelines/src
     MYSQL_ECOMMERCE_READER_URL: mysql+pymysql://${MYSQL_USER:-ecommerce_app}:${MYSQL_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-ecommerce}
     MINIO_ENDPOINT: http://minio:9000
-    MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-    MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-password}
+    MINIO_AIRFLOW_ACCESS_KEY: ${MINIO_AIRFLOW_ACCESS_KEY:?set MINIO_AIRFLOW_ACCESS_KEY}
+    MINIO_AIRFLOW_SECRET_KEY: ${MINIO_AIRFLOW_SECRET_KEY:?set MINIO_AIRFLOW_SECRET_KEY}
+    MINIO_SPARK_ACCESS_KEY: ${MINIO_SPARK_ACCESS_KEY:?set MINIO_SPARK_ACCESS_KEY}
+    MINIO_SPARK_SECRET_KEY: ${MINIO_SPARK_SECRET_KEY:?set MINIO_SPARK_SECRET_KEY}
     MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
     SILVER_PSEUDONYMIZE_SALT: ${SILVER_PSEUDONYMIZE_SALT:-ecommerce_lakehouse_pii_salt_2026_nd13_secure}
     POLARIS_CATALOG_URI: http://polaris:8181/api/catalog
@@ -35,7 +37,7 @@ x-airflow-common: &airflow-common
     - ./pipelines:/opt/project/pipelines:ro
     - airflow-logs:/opt/airflow/logs
     - pipeline-run-data:/data/pipeline-runs
-    - polaris-client-credentials:/run/polaris:ro
+    - polaris-spark-airflow-credentials:/run/polaris:ro
   networks: ["lakehouse-network"]
   depends_on:
     postgres:
@@ -66,8 +68,8 @@ x-flink-common: &flink-common
     POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
     POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
     AWS_REGION: ${AWS_REGION:-us-east-1}
-    AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-    AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
+    MINIO_FLINK_ACCESS_KEY: ${MINIO_FLINK_ACCESS_KEY:?set MINIO_FLINK_ACCESS_KEY}
+    MINIO_FLINK_SECRET_KEY: ${MINIO_FLINK_SECRET_KEY:?set MINIO_FLINK_SECRET_KEY}
     MINIO_ENDPOINT: http://minio:9000
     KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     CDC_TOPIC_PREFIX: ${CDC_TOPIC_PREFIX:-ecommerce}
@@ -191,11 +193,11 @@ services:
     command: server /data --console-address ":9001"
     profiles: ["core", "batch", "streaming"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${MINIO_BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_BIND_ADDRESS:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
     healthcheck:
@@ -208,17 +210,28 @@ services:
   minio-init:
     image: cgr.dev/chainguard/minio-client:latest-dev
     profiles: ["core", "batch", "streaming"]
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >-
-        mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-        mc mb --ignore-existing local/$${MINIO_LAKEHOUSE_BUCKET} &&
-        mc anonymous set none local/$${MINIO_LAKEHOUSE_BUCKET} &&
-        mc ls local
+    entrypoint: ["/bin/sh", "/bootstrap/init.sh"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-password}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
       MINIO_LAKEHOUSE_BUCKET: ${MINIO_LAKEHOUSE_BUCKET:-lakehouse}
+      MINIO_POLARIS_ACCESS_KEY: ${MINIO_POLARIS_ACCESS_KEY:?set MINIO_POLARIS_ACCESS_KEY}
+      MINIO_POLARIS_SECRET_KEY: ${MINIO_POLARIS_SECRET_KEY:?set MINIO_POLARIS_SECRET_KEY}
+      MINIO_SPARK_ACCESS_KEY: ${MINIO_SPARK_ACCESS_KEY:?set MINIO_SPARK_ACCESS_KEY}
+      MINIO_SPARK_SECRET_KEY: ${MINIO_SPARK_SECRET_KEY:?set MINIO_SPARK_SECRET_KEY}
+      MINIO_FLINK_ACCESS_KEY: ${MINIO_FLINK_ACCESS_KEY:?set MINIO_FLINK_ACCESS_KEY}
+      MINIO_FLINK_SECRET_KEY: ${MINIO_FLINK_SECRET_KEY:?set MINIO_FLINK_SECRET_KEY}
+      MINIO_AIRFLOW_ACCESS_KEY: ${MINIO_AIRFLOW_ACCESS_KEY:?set MINIO_AIRFLOW_ACCESS_KEY}
+      MINIO_AIRFLOW_SECRET_KEY: ${MINIO_AIRFLOW_SECRET_KEY:?set MINIO_AIRFLOW_SECRET_KEY}
+      MINIO_TRINO_ACCESS_KEY: ${MINIO_TRINO_ACCESS_KEY:?set MINIO_TRINO_ACCESS_KEY}
+      MINIO_TRINO_SECRET_KEY: ${MINIO_TRINO_SECRET_KEY:?set MINIO_TRINO_SECRET_KEY}
+      MINIO_TRINO_ADMIN_ACCESS_KEY: ${MINIO_TRINO_ADMIN_ACCESS_KEY:?set MINIO_TRINO_ADMIN_ACCESS_KEY}
+      MINIO_TRINO_ADMIN_SECRET_KEY: ${MINIO_TRINO_ADMIN_SECRET_KEY:?set MINIO_TRINO_ADMIN_SECRET_KEY}
+      MINIO_UPLOADER_ACCESS_KEY: ${MINIO_UPLOADER_ACCESS_KEY:?set MINIO_UPLOADER_ACCESS_KEY}
+      MINIO_UPLOADER_SECRET_KEY: ${MINIO_UPLOADER_SECRET_KEY:?set MINIO_UPLOADER_SECRET_KEY}
+    volumes:
+      - ./infrastructure/minio:/bootstrap:ro
     depends_on:
       minio:
         condition: service_healthy
@@ -287,16 +300,16 @@ services:
       POLARIS_PERSISTENCE_RELATIONAL_JDBC_MAX_DURATION_IN_MS: 5000
       POLARIS_REALM_CONTEXT_REALMS: ${POLARIS_REALM:-POLARIS}
       AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-password}
+      AWS_ACCESS_KEY_ID: ${MINIO_POLARIS_ACCESS_KEY:?set MINIO_POLARIS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_POLARIS_SECRET_KEY:?set MINIO_POLARIS_SECRET_KEY}
       QUARKUS_OTEL_SDK_DISABLED: "true"
       QUARKUS_HTTP_CORS_ENABLED: "true"
       QUARKUS_HTTP_CORS_ORIGINS: ${POLARIS_CONSOLE_ORIGIN:-http://localhost:8183}
       QUARKUS_HTTP_CORS_METHODS: GET,POST,PUT,DELETE,PATCH,OPTIONS
       QUARKUS_HTTP_CORS_HEADERS: Content-Type,Authorization,Polaris-Realm,X-Request-ID
     ports:
-      - "${POLARIS_API_PORT:-8181}:8181"
-      - "${POLARIS_MANAGEMENT_PORT:-8182}:8182"
+      - "${POLARIS_BIND_ADDRESS:-127.0.0.1}:${POLARIS_API_PORT:-8181}:8181"
+      - "${POLARIS_BIND_ADDRESS:-127.0.0.1}:${POLARIS_MANAGEMENT_PORT:-8182}:8182"
     depends_on:
       minio-init:
         condition: service_completed_successfully
@@ -324,12 +337,17 @@ services:
       POLARIS_S3_ENDPOINT: http://minio:9000
       POLARIS_S3_ENDPOINT_INTERNAL: http://minio:9000
       AWS_REGION: ${AWS_REGION:-us-east-1}
-      POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
+      POLARIS_CREDENTIAL_STATE_FILE: /run/polaris-state/clients.env
       POLARIS_RBAC_CONFIG: /bootstrap/rbac.yml
     entrypoint: ["/bin/sh", "/bootstrap/bootstrap.sh"]
     volumes:
       - ./infrastructure/polaris:/bootstrap:ro
-      - polaris-client-credentials:/run/polaris
+      - polaris-credential-state:/run/polaris-state
+      - polaris-spark-client-credentials:/run/polaris-output/spark-client
+      - polaris-spark-airflow-credentials:/run/polaris-output/spark-airflow
+      - polaris-flink-credentials:/run/polaris-output/flink
+      - polaris-trino-reader-credentials:/run/polaris-output/trino-reader
+      - polaris-trino-admin-credentials:/run/polaris-output/trino-admin
     depends_on:
       polaris:
         condition: service_healthy
@@ -348,7 +366,7 @@ services:
       VITE_POLARIS_PRINCIPAL_SCOPE: PRINCIPAL_ROLE:ALL
       VITE_POLARIS_REALM_HEADER_NAME: Polaris-Realm
     ports:
-      - "${POLARIS_CONSOLE_PORT:-8183}:8080"
+      - "${POLARIS_BIND_ADDRESS:-127.0.0.1}:${POLARIS_CONSOLE_PORT:-8183}:8080"
     depends_on:
       polaris-init:
         condition: service_completed_successfully
@@ -386,6 +404,13 @@ services:
     <<: *spark-common
     profiles: ["lakehouse-tools"]
     entrypoint: ["/opt/project/spark/with-polaris-credentials.sh"]
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_SPARK_ACCESS_KEY: ${MINIO_SPARK_ACCESS_KEY:?set MINIO_SPARK_ACCESS_KEY}
+      MINIO_SPARK_SECRET_KEY: ${MINIO_SPARK_SECRET_KEY:?set MINIO_SPARK_SECRET_KEY}
+      POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+      POLARIS_CATALOG_URI: http://polaris:8181/api/catalog
+      POLARIS_CATALOG_NAME: ${POLARIS_CATALOG_NAME:-lakehouse}
     command:
       - /opt/spark/bin/spark-sql
       - --master
@@ -397,7 +422,7 @@ services:
       - -f
       - /opt/project/spark/sql/smoke.sql
     volumes:
-      - polaris-client-credentials:/run/polaris:ro
+      - polaris-spark-client-credentials:/run/polaris:ro
     depends_on:
       polaris-init:
         condition: service_completed_successfully
@@ -460,14 +485,15 @@ services:
     environment:
       POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
       POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
-      TRINO_POLARIS_ROLE: ${TRINO_POLARIS_ROLE:-reader}
+      MINIO_TRINO_ACCESS_KEY: ${MINIO_TRINO_ACCESS_KEY:?set MINIO_TRINO_ACCESS_KEY}
+      MINIO_TRINO_SECRET_KEY: ${MINIO_TRINO_SECRET_KEY:?set MINIO_TRINO_SECRET_KEY}
     ports:
-      - "${TRINO_PORT:-8084}:8080"
+      - "${TRINO_BIND_ADDRESS:-127.0.0.1}:${TRINO_PORT:-8084}:8080"
     volumes:
       - ./infrastructure/trino/start.sh:/opt/trino/start.sh:ro
       - ./infrastructure/trino/config.properties:/etc/trino/config.properties:ro
       - ./infrastructure/trino/catalog:/etc/trino/catalog:ro
-      - polaris-client-credentials:/run/polaris:ro
+      - polaris-trino-reader-credentials:/run/polaris:ro
     depends_on:
       polaris-init:
         condition: service_completed_successfully
@@ -477,6 +503,27 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
+    networks: ["lakehouse-network"]
+
+  trino-admin:
+    image: trinodb/trino:483
+    profiles: ["trino-admin"]
+    entrypoint: ["/bin/sh", "/opt/trino/start.sh"]
+    environment:
+      POLARIS_CREDENTIAL_FILE: /run/polaris/clients.env
+      POLARIS_REALM: ${POLARIS_REALM:-POLARIS}
+      MINIO_TRINO_ACCESS_KEY: ${MINIO_TRINO_ADMIN_ACCESS_KEY:?set MINIO_TRINO_ADMIN_ACCESS_KEY}
+      MINIO_TRINO_SECRET_KEY: ${MINIO_TRINO_ADMIN_SECRET_KEY:?set MINIO_TRINO_ADMIN_SECRET_KEY}
+    ports:
+      - "${TRINO_BIND_ADDRESS:-127.0.0.1}:${TRINO_ADMIN_PORT:-8087}:8080"
+    volumes:
+      - ./infrastructure/trino/start.sh:/opt/trino/start.sh:ro
+      - ./infrastructure/trino/config.properties:/etc/trino/config.properties:ro
+      - ./infrastructure/trino/catalog:/etc/trino/catalog:ro
+      - polaris-trino-admin-credentials:/run/polaris:ro
+    depends_on:
+      polaris-init:
+        condition: service_completed_successfully
     networks: ["lakehouse-network"]
 
   libredb-studio:
@@ -603,7 +650,7 @@ services:
       - ./infrastructure/flink/conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
       - ./pipelines:/opt/project/pipelines:ro
-      - polaris-client-credentials:/run/polaris:ro
+      - polaris-flink-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8081/overview || exit 1"]
@@ -629,7 +676,7 @@ services:
       - ./infrastructure/flink/conf/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
       - ./pipelines:/opt/project/pipelines:ro
-      - polaris-client-credentials:/run/polaris:ro
+      - polaris-flink-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
       flink-jobmanager:
@@ -642,7 +689,7 @@ services:
     volumes:
       - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
       - ./pipelines:/opt/project/pipelines:ro
-      - polaris-client-credentials:/run/polaris:ro
+      - polaris-flink-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
       kafka-init:
@@ -663,7 +710,7 @@ services:
     volumes:
       - ./infrastructure/flink/bin:/opt/project/flink/bin:ro
       - ./pipelines:/opt/project/pipelines:ro
-      - polaris-client-credentials:/run/polaris:ro
+      - polaris-flink-credentials:/run/polaris:ro
       - flink-checkpoints:/opt/flink/checkpoints
     depends_on:
       debezium-init:
@@ -683,7 +730,12 @@ volumes:
   minio-data:
   spark-work:
   postgres-data:
-  polaris-client-credentials:
+  polaris-spark-client-credentials:
+  polaris-spark-airflow-credentials:
+  polaris-flink-credentials:
+  polaris-trino-reader-credentials:
+  polaris-trino-admin-credentials:
+  polaris-credential-state:
   airflow-logs:
   pipeline-run-data:
   kafka-data:
