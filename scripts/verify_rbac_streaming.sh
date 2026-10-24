@@ -24,6 +24,28 @@ expect_failure() {
   printf '[ok] %s denied\n' "$label"
 }
 
+# A MinIO denial only counts when mc reports an access-denied response. A
+# non-zero exit alone is not enough: bad credentials, a missing bucket, or a
+# network error must fail the check instead of looking like a denial.
+expect_minio_denied() {
+  local label="$1"
+  shift
+  local output status=0
+  output="$("$@" 2>&1)" || status=$?
+  if [[ "$status" -eq 0 ]]; then
+    fail "$label unexpectedly succeeded"
+  fi
+  if [[ "$status" -eq 2 ]]; then
+    printf '%s\n' "$output" >&2
+    fail "$label could not set up the MinIO probe client"
+  fi
+  if ! printf '%s' "$output" | grep -Eiq 'AccessDenied|Access Denied|Insufficient permissions'; then
+    printf '%s\n' "$output" >&2
+    fail "$label failed without an access-denied response"
+  fi
+  printf '[ok] %s denied\n' "$label"
+}
+
 read -r -d '' POLARIS_DENIAL_SCRIPT <<'SH' || true
 set -eu
 . /run/polaris/clients.env
@@ -74,7 +96,10 @@ minio_put() {
       set -eu
       eval "key=\${$MC_KEY_VAR}"
       eval "secret=\${$MC_SECRET_VAR}"
-      mc alias set probe http://minio:9000 "$key" "$secret" --api S3v4 >/dev/null
+      if ! mc alias set probe http://minio:9000 "$key" "$secret" --api S3v4 >/dev/null; then
+        printf 'MinIO probe client setup failed\n' >&2
+        exit 2
+      fi
       printf rbac-probe | mc pipe "probe/${MINIO_LAKEHOUSE_BUCKET:-lakehouse}/$MC_OBJECT" >/dev/null
     '
 }
@@ -120,10 +145,13 @@ clean_probe_object() {
 
 trap cleanup_objects EXIT
 
-# 1. Flink carries only its own Polaris principal.
-compose exec -T flink-jobmanager sh -c \
-  'test -z "${POLARIS_SPARK_CLIENT_ID:-}" && test -n "${POLARIS_FLINK_CLIENT_ID:-}"' \
-  || fail "Flink jobmanager does not isolate the Flink Polaris principal"
+# 1. Flink carries only its own Polaris principal. Docker exec inherits the
+#    container's configured environment, not variables exported by PID 1, so
+#    source the per-consumer credential file inside the exec before testing.
+compose exec -T flink-jobmanager sh -c '
+  . /run/polaris/clients.env
+  test -z "${POLARIS_SPARK_CLIENT_ID:-}" && test -n "${POLARIS_FLINK_CLIENT_ID:-}"
+' || fail "Flink jobmanager does not isolate the Flink Polaris principal"
 printf '[ok] Flink has only its own Polaris principal\n'
 
 # 2. Flink cannot administer Polaris.
@@ -134,7 +162,7 @@ stamp="$(date +%s)"
 # 3. Flink MinIO user cannot write Spark's landing prefix.
 flink_denied="landing/rbac-probe/flink-${stamp}"
 track_object "$flink_denied"
-expect_failure "Flink PutObject landing/rbac-probe" \
+expect_minio_denied "Flink PutObject landing/rbac-probe" \
   minio_put MINIO_FLINK_ACCESS_KEY MINIO_FLINK_SECRET_KEY "$flink_denied"
 untrack_object "$flink_denied"
 
@@ -145,9 +173,13 @@ expect_success "Flink PutObject warehouse/rbac-probe" \
   minio_put MINIO_FLINK_ACCESS_KEY MINIO_FLINK_SECRET_KEY "$flink_allowed"
 clean_probe_object "$flink_allowed"
 
-# 5. The default Trino service has no admin Polaris credential.
-compose exec -T trino sh -c 'test -z "${POLARIS_TRINO_ADMIN_CLIENT_ID:-}"' \
-  || fail "Default Trino exposes POLARIS_TRINO_ADMIN_CLIENT_ID"
+# 5. The default Trino service has no admin Polaris credential. Trino reads its
+#    credential from the per-consumer file, not from configured env, so source
+#    the file and assert the admin variable is absent while the reader is set.
+compose exec -T trino sh -c '
+  . /run/polaris/clients.env
+  test -z "${POLARIS_TRINO_ADMIN_CLIENT_ID:-}" && test -n "${POLARIS_TRINO_CLIENT_ID:-}"
+' || fail "Default Trino exposes POLARIS_TRINO_ADMIN_CLIENT_ID or lacks POLARIS_TRINO_CLIENT_ID"
 printf '[ok] Default Trino has no admin Polaris credential\n'
 
 # 6. The default Trino service has no admin MinIO key.

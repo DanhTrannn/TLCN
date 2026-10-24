@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Live negative authorization checks for the batch profile.
 #
-# Every check fails closed: a denial only passes when the service explicitly
-# reports that the operation is not permitted, and an unexpected success fails
-# the script (cleaning up anything it created first).
+# Every check fails closed: Polaris denials must return exactly HTTP 403 and
+# MinIO denials must include an access-denied response from mc. Any other
+# failure (bad credentials, network error, missing bucket) is a setup error, and
+# an unexpected success fails the script after cleaning up anything it created.
 set -euo pipefail
 
 COMPOSE_PROFILES=(--profile core --profile batch --profile lakehouse-tools)
@@ -22,6 +23,28 @@ expect_failure() {
   local label="$1"
   shift
   if "$@" >/dev/null 2>&1; then fail "$label unexpectedly succeeded"; fi
+  printf '[ok] %s denied\n' "$label"
+}
+
+# A MinIO denial only counts when mc reports an access-denied response. A
+# non-zero exit alone is not enough: bad credentials, a missing bucket, or a
+# network error must fail the check instead of looking like a denial.
+expect_minio_denied() {
+  local label="$1"
+  shift
+  local output status=0
+  output="$("$@" 2>&1)" || status=$?
+  if [[ "$status" -eq 0 ]]; then
+    fail "$label unexpectedly succeeded"
+  fi
+  if [[ "$status" -eq 2 ]]; then
+    printf '%s\n' "$output" >&2
+    fail "$label could not set up the MinIO probe client"
+  fi
+  if ! printf '%s' "$output" | grep -Eiq 'AccessDenied|Access Denied|Insufficient permissions'; then
+    printf '%s\n' "$output" >&2
+    fail "$label failed without an access-denied response"
+  fi
   printf '[ok] %s denied\n' "$label"
 }
 
@@ -106,7 +129,10 @@ minio_put() {
       set -eu
       eval "key=\${$MC_KEY_VAR}"
       eval "secret=\${$MC_SECRET_VAR}"
-      mc alias set probe http://minio:9000 "$key" "$secret" --api S3v4 >/dev/null
+      if ! mc alias set probe http://minio:9000 "$key" "$secret" --api S3v4 >/dev/null; then
+        printf 'MinIO probe client setup failed\n' >&2
+        exit 2
+      fi
       printf rbac-probe | mc pipe "probe/${MINIO_LAKEHOUSE_BUCKET:-lakehouse}/$MC_OBJECT" >/dev/null
     '
 }
@@ -218,19 +244,27 @@ clean_probe_object "$spark_landing"
 
 flink_denied="landing/rbac-probe/flink-${stamp}"
 track_object "$flink_denied"
-expect_failure "Flink PutObject landing/rbac-probe" \
+expect_minio_denied "Flink PutObject landing/rbac-probe" \
   minio_put MINIO_FLINK_ACCESS_KEY MINIO_FLINK_SECRET_KEY "$flink_denied"
 untrack_object "$flink_denied"
 
+# Pair the denial with an allowed write so the Flink MinIO identity is proven
+# valid before its landing denial is trusted.
+flink_allowed="warehouse/rbac-probe/flink-${stamp}"
+track_object "$flink_allowed"
+expect_success "Flink PutObject warehouse/rbac-probe" \
+  minio_put MINIO_FLINK_ACCESS_KEY MINIO_FLINK_SECRET_KEY "$flink_allowed"
+clean_probe_object "$flink_allowed"
+
 trino_denied="warehouse/rbac-probe/trino-${stamp}"
 track_object "$trino_denied"
-expect_failure "Trino reader PutObject warehouse/rbac-probe" \
+expect_minio_denied "Trino reader PutObject warehouse/rbac-probe" \
   minio_put MINIO_TRINO_ACCESS_KEY MINIO_TRINO_SECRET_KEY "$trino_denied"
 untrack_object "$trino_denied"
 
 airflow_denied="warehouse/rbac-probe/airflow-${stamp}"
 track_object "$airflow_denied"
-expect_failure "Airflow PutObject warehouse/rbac-probe" \
+expect_minio_denied "Airflow PutObject warehouse/rbac-probe" \
   minio_put MINIO_AIRFLOW_ACCESS_KEY MINIO_AIRFLOW_SECRET_KEY "$airflow_denied"
 untrack_object "$airflow_denied"
 
