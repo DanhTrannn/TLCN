@@ -48,11 +48,11 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 
 ### Automated Bootstrap Workflow
 
-1. `minio-init` creates the private `lakehouse` bucket if not present.
+1. `minio-init` creates the private `lakehouse` bucket if not present, then converges MinIO identities: it creates **seven service users** (`lakehouse-polaris`, `lakehouse-spark`, `lakehouse-flink`, `lakehouse-airflow`, `lakehouse-trino`, `lakehouse-trino-admin`, `lakehouse-uploader`), each attached to **exactly one of the seven matching policies**. All `lakehouse-*` users and policies are recreated on every run, so stale `lakehouse-*` entries that are no longer managed disappear, while anything outside that prefix (including `root`) is never touched. Access keys come from the `MINIO_*_ACCESS_KEY` / `MINIO_*_SECRET_KEY` variables in `.env`.
 2. `postgres` provisions isolated databases for `polaris` and `airflow`.
 3. `polaris-bootstrap` initializes the JDBC metadata store and default `POLARIS` realm.
-4. `polaris-init` creates the `lakehouse` catalog mapped to `s3://lakehouse/warehouse` and registers the namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
-5. `polaris-init` provisions 3 dedicated service principals (`trino_admin` with full administrative rights, `spark_writer` with read/write `CATALOG_MANAGE_CONTENT`, and `trino_reader` with least-privilege read access), persisting credentials to the `polaris-client-credentials` Docker volume.
+4. `polaris-init` creates the `lakehouse` catalog mapped to `s3://lakehouse/warehouse` and registers the namespaces (`landing`, `bronze`, `silver`, `gold`, `quarantine`, `system`).
+5. `polaris-init` provisions **four dedicated service principals** (`spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`) from `infrastructure/polaris/rbac.yml`. Each consumer receives its **own private `clients.env`** written to `polaris-spark-client-credentials`, `polaris-spark-airflow-credentials`, `polaris-flink-credentials`, `polaris-trino-reader-credentials`, or `polaris-trino-admin-credentials` (per-consumer Docker volumes, `0600` files). Principal credentials are also cached in a **root-only state file** under `polaris-credential-state` (`/run/polaris-state/`) so restarts reuse existing credentials without rotating them. There is no shared credential volume anymore.
 6. `mysql-cdc-init` provisions the dedicated replication account; `debezium-init` idempotently registers the MySQL connector.
 7. `flink-cdc-submit` starts the continuous Kafka-to-Iceberg Bronze CDC job alongside access-log streaming.
 
@@ -69,9 +69,20 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 | **Airflow UI** | `http://localhost:8080` | 8080 | DAG orchestration UI (`airflow` / `password`) |
 | **Spark Master UI** | `http://localhost:8082` | 8082 | Compute cluster status |
 | **Trino Web UI** | `http://localhost:8084` | 8084 | Query execution status |
-| **Polaris Console** | `http://localhost:8183` | 8183 | Catalog & RBAC UI (Realm: `POLARIS`) |
-| **MinIO Console** | `http://localhost:9001` | 9001 | S3 Object browser (`minioadmin` / `password`) |
+| **Polaris Console** | `http://localhost:8183` | 8183 | Catalog & RBAC UI (`root` / value of `POLARIS_ROOT_CLIENT_SECRET` in `.env`; Realm: `POLARIS`) |
+| **MinIO Console** | `http://localhost:9001` | 9001 | S3 Object browser (`minio-root` / the value of `MINIO_ROOT_PASSWORD` in `.env`) |
+| **Trino Admin (optional)** | `http://localhost:8087` | 8087 | Administrative Trino engine (profile `trino-admin`, not started by default) |
 | **Debezium Connect** | `http://127.0.0.1:8086` | 8086 | CDC connector lifecycle/status API |
+
+### Starting the Optional Trino Admin Engine
+
+The default startup provisions `trino` with the read-only `trino_reader` principal. An administrative Trino engine using the `trino_admin` principal (full catalog management) can be started on demand — it is **not** part of the default startup:
+
+```bash
+docker compose --profile batch up -d trino-admin
+```
+
+It serves on host port `8087` (`http://localhost:8087`). The read-only `trino` reader engine remains the default query engine.
 
 ---
 
@@ -102,6 +113,22 @@ docker compose exec trino trino --execute "SHOW SCHEMAS FROM lakehouse;"
 docker compose exec trino trino --execute "SELECT * FROM lakehouse.system.stack_smoke;"
 ```
 
+### RBAC Authorization Verification
+
+Beyond the smoke test, three scripts prove the least-privilege identity matrix with fail-closed checks (expected denials must return Polaris HTTP 403 / MinIO access-denied responses):
+
+```bash
+# Negative checks for the batch identity matrix (spark_writer, trino_reader, lakehouse-spark, ...)
+./scripts/verify_rbac_batch.sh
+
+# Negative checks for the streaming identity matrix (flink_writer, lakehouse-flink, ...)
+# — run ./scripts/verify_streaming.sh first so the positive write path is established
+./scripts/verify_rbac_streaming.sh
+
+# Proves that RBAC convergence applies a temporary probe config and prunes it again (self-cleaning)
+./scripts/verify_rbac_convergence.sh
+```
+
 ---
 
 ## 6. Polaris RBAC as Code (`rbac.yml`)
@@ -110,11 +137,17 @@ The platform manages Polaris access control declaratively using `infrastructure/
 
 ### Configuration Structure (`infrastructure/polaris/rbac.yml`)
 - **`catalog`**: Defines catalog settings, S3 endpoints, and default warehouse locations.
-- **`namespaces`**: Pre-created Iceberg namespaces (`bronze`, `silver`, `gold`, `quarantine`, `system`).
+- **`namespaces`**: Pre-created Iceberg namespaces (`landing`, `bronze`, `silver`, `gold`, `quarantine`, `system`).
 - **`catalog_roles`**: Defines catalog-level roles and their granted privileges (e.g. `CATALOG_MANAGE_CONTENT`, `TABLE_READ_DATA`).
 - **`principal_roles`**: Maps principal roles to catalog roles (e.g., binding `spark_writer_role` to `spark_writer_catalog_role`).
-- **`principals`**: Defines principals (`spark_writer`, `trino_reader`, `trino_admin`), their role bindings, and target environment variables in `/run/polaris/clients.env`.
-- **`purge_unmanaged_principals`**: When `true`, automatically removes any unmanaged principals (excluding `root`).
+- **`principals`**: Defines exactly four principals (`spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`), their role bindings, and target environment variable names in their `clients.env`.
+- **`credential_outputs`**: Maps each principal to its private output directory under `/run/polaris-output/` (one per consumer: `spark-client`, `spark-airflow`, `flink`, `trino-reader`, `trino-admin`) with the owning UID/GID. Each consumer mounts **only** its own `clients.env` — never another consumer's credentials.
+- **Reader least privilege**: `trino_reader_catalog_role` gets only metadata/listing and data read privileges (`CATALOG_READ_PROPERTIES`, `NAMESPACE_LIST`, `NAMESPACE_READ_PROPERTIES`, `TABLE_LIST`, `TABLE_READ_PROPERTIES`, `TABLE_READ_DATA`, `VIEW_LIST`, `VIEW_READ_PROPERTIES`) — no write, drop, or management privileges.
+- **`purge_unmanaged_principals: true`**: Automatically removes any unmanaged principals (excluding `root`).
+- **`purge_unmanaged_roles: true`**: Automatically removes any unmanaged principal roles and catalog roles.
+- **`prune_unmanaged_privileges: true`**: Revokes any privilege granted outside this file.
+
+`rbac.yml` is authoritative: if you manually create a principal or role in Polaris, the next `polaris-init` run removes it.
 
 ### Applying RBAC Changes on Demand
 Whenever you add, modify, or remove roles, privileges, or principals in `rbac.yml`, apply the changes immediately with:
@@ -126,9 +159,9 @@ docker compose run --rm polaris-init
 The reconciler:
 1. Re-authenticates as Polaris `root`.
 2. Verifies and applies changes to catalog, catalog roles, grants, and principal roles.
-3. Preserves existing valid credentials in `/run/polaris/clients.env` without rotating unnecessarily.
-4. Generates credentials for new principals and updates the credentials file.
-5. Purges any unmanaged entities if enabled.
+3. Preserves existing valid credentials in the per-consumer `clients.env` files and the root-only state file without rotating unnecessarily.
+4. Generates credentials for new principals, writes each consumer's private `clients.env` (`0600`, owned by the consumer UID from `credential_outputs`), and updates the root-only state file.
+5. Purges any unmanaged principals/roles and prunes unmanaged privileges if enabled.
 
 ---
 
@@ -153,8 +186,9 @@ docker compose logs --tail=200 trino
 ### Common Issues
 
 - **CORS Errors in Polaris Console:** Ensure `POLARIS_CONSOLE_ORIGIN` matches the exact browser URL origin.
-- **Authentication Failures in Spark/Trino:** Check that `polaris-init` exited with code 0 and `/run/polaris/clients.env` is mounted from `polaris-client-credentials`.
-- **S3 Connectivity Errors:** Ensure container network connectivity to `http://minio:9000`.
+- **Authentication Failures in Spark/Trino:** Check that `polaris-init` exited with code 0 and that your consumer mounts its own private credential volume (`polaris-spark-client-credentials`, `polaris-spark-airflow-credentials`, `polaris-flink-credentials`, `polaris-trino-reader-credentials`, or `polaris-trino-admin-credentials`) — there is no shared credential volume. Each `clients.env` is written `0600` and owned by the consumer UID; a service that cannot read its file **fails startup** rather than falling back, so a startup failure usually means a UID/permission mismatch, not missing data.
+- **Upgrading an Existing Deployment (Polaris root secret):** The Polaris `root` client secret is baked into the Polaris metadata database at first bootstrap. On an existing `postgres-data` volume, keep your current `POLARIS_ROOT_CLIENT_SECRET` in `.env` even if `.env.example` now ships a new default — `polaris-init` does not auto-rotate the root secret, and using the new default against an existing realm fails `root` authentication and blocks startup. Only brand-new installs (no `postgres-data` volume) pick up the `.env.example` value.
+- **S3 Connectivity Errors:** Ensure container network connectivity to `http://minio:9000`. Each consumer must use its own dedicated MinIO service user (`lakehouse-*`); MinIO root credentials are not mounted into any workload.
 
 ---
 

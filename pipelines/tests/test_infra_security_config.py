@@ -108,6 +108,19 @@ def test_trino_admin_is_optional():
     assert COMPOSE["services"]["trino-admin"]["profiles"] == ["trino-admin"]
 
 
+def test_docs_do_not_reference_removed_shared_credentials():
+    for relative in (
+        "README.md",
+        "docs/runbook/README.md",
+        "docs/runbook/SETUP.md",
+        "docs/runbook/STARTUP_FLOW.md",
+        "scripts/start_all.sh",
+    ):
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        assert "minioadmin" not in text, relative
+        assert "polaris-client-credentials" not in text, relative
+
+
 def test_example_does_not_use_password_defaults():
     text = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert "MINIO_ROOT_PASSWORD=password" not in text
