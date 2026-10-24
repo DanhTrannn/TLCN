@@ -25,6 +25,9 @@ jobs:
       - name: Create local integration environment
         run: cp .env.example .env
 
+      - name: Install convergence probe dependency
+        run: python3 -m pip install --user pyyaml==6.0.2
+
       - name: Start batch integration services
         run: >-
           docker compose --profile core --profile batch --profile lakehouse-tools
@@ -34,6 +37,9 @@ jobs:
 
       - name: Verify catalog and query interoperability
         run: ./scripts/lakehouse_smoke.sh
+
+      - name: Verify RBAC boundaries (batch)
+        run: ./scripts/verify_rbac_batch.sh
 
       - name: Verify full OLTP batch pipeline
         run: ./scripts/verify_batch_pipeline.sh
@@ -65,6 +71,9 @@ jobs:
 
       - name: Verify API to Kafka to Flink to Iceberg Gold
         run: ./scripts/verify_streaming.sh
+
+      - name: Verify RBAC boundaries (streaming)
+        run: ./scripts/verify_rbac_streaming.sh
 
       - name: Collect service logs after failure
         if: failure()
