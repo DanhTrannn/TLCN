@@ -43,9 +43,14 @@ After starting the `core` profile, access the applications at:
 
 - **LibreDB Studio (SQL IDE):** `http://localhost:3001`
 - **Apache Airflow (Orchestration):** `http://localhost:8080` (Default: `airflow` / `airflow`)
-- **Apache Polaris Web Console:** `http://localhost:8183`
-- **MinIO Object Storage Console:** `http://localhost:9001` (Default: `minioadmin` / `password`)
+- **Apache Polaris Web Console:** `http://localhost:8183` (`root` / value of `POLARIS_ROOT_CLIENT_SECRET` in `.env`, Realm: `POLARIS`)
+- **MinIO Object Storage Console:** `http://localhost:9001` (`minio-root` / value of `MINIO_ROOT_PASSWORD` in `.env`)
 - **Spark Master UI:** `http://localhost:8082`
+- **Trino Admin Engine (optional, profile `trino-admin`):** `http://localhost:8087` — not part of the default startup
+
+### Service Identities
+
+Every storage consumer runs with its own least-privilege identity; no workload uses the MinIO root account or a shared credential file. MinIO bootstraps seven service users (`lakehouse-polaris`, `lakehouse-spark`, `lakehouse-flink`, `lakehouse-airflow`, `lakehouse-trino`, `lakehouse-trino-admin`, `lakehouse-uploader`), and Polaris provisions four principals (`spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`), each writing credentials to its own private `clients.env` volume — see [`SETUP.md`](SETUP.md) for the full identity matrix.
 
 *Note: Database migrations and default admin seeding occur automatically during backend startup.*
 
@@ -143,6 +148,9 @@ npm --prefix apps/storefront run test:e2e
 ./scripts/verify_batch_pipeline.sh
 ./scripts/verify_streaming.sh
 ./scripts/verify_cdc.sh
+./scripts/verify_rbac_batch.sh
+./scripts/verify_rbac_streaming.sh
+./scripts/verify_rbac_convergence.sh
 
 # Or verify every demo path
 make verify-demo

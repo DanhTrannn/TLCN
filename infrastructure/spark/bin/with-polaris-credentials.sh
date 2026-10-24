@@ -23,6 +23,15 @@ printf 'spark.sql.catalog.lakehouse.credential %s:%s\n' \
   >>"$conf_dir/spark-defaults.conf"
 printf 'spark.sql.catalog.lakehouse.header.Polaris-Realm %s\n' \
   "${POLARIS_REALM:-POLARIS}" >>"$conf_dir/spark-defaults.conf"
+printf 'spark.sql.catalog.lakehouse.s3.endpoint %s\n' \
+  "${MINIO_ENDPOINT:?MINIO_ENDPOINT is required}" >>"$conf_dir/spark-defaults.conf"
+printf 'spark.sql.catalog.lakehouse.s3.access-key-id %s\n' \
+  "${MINIO_SPARK_ACCESS_KEY:?MINIO_SPARK_ACCESS_KEY is required}" >>"$conf_dir/spark-defaults.conf"
+printf 'spark.sql.catalog.lakehouse.s3.secret-access-key %s\n' \
+  "${MINIO_SPARK_SECRET_KEY:?MINIO_SPARK_SECRET_KEY is required}" >>"$conf_dir/spark-defaults.conf"
+printf 'spark.sql.catalog.lakehouse.s3.path-style-access true\n' >>"$conf_dir/spark-defaults.conf"
+printf 'spark.sql.catalog.lakehouse.s3.region %s\n' \
+  "${AWS_REGION:-us-east-1}" >>"$conf_dir/spark-defaults.conf"
 export SPARK_CONF_DIR="$conf_dir"
 
 exec "$@"

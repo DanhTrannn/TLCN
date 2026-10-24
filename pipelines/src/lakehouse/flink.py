@@ -238,8 +238,8 @@ def register_polaris_catalog(
     realm = os.environ.get("POLARIS_REALM", DEFAULT_REALM)
     polaris_uri = os.environ.get("POLARIS_CATALOG_URI", "http://polaris:8181/api/catalog")
     minio_endpoint = os.environ.get("MINIO_ENDPOINT", "http://minio:9000")
-    s3_access_key = os.environ.get("AWS_ACCESS_KEY_ID", os.environ.get("MINIO_ACCESS_KEY", "minioadmin"))
-    s3_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", os.environ.get("MINIO_SECRET_KEY", "password"))
+    s3_access_key = os.environ["MINIO_FLINK_ACCESS_KEY"]
+    s3_secret_key = os.environ["MINIO_FLINK_SECRET_KEY"]
 
     t_env.execute_sql(f"""
         CREATE CATALOG {catalog_name} WITH (

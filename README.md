@@ -124,14 +124,19 @@ Once the services are running, access the following dashboards and endpoints:
 | **POS (Point of Sale)** | 3000 | `http://localhost:3000/admin/pos` | `store.manager@dk.local` / `Admin@12345` |
 | **Backend API Docs** | 8000 | `http://localhost:8000/docs` | (Public Swagger UI) |
 | **LibreDB Studio (SQL IDE)** | 3001 | `http://localhost:3001` | (Web SQL Studio) |
-| **MinIO S3 Console** | 9001 | `http://localhost:9001` | `minioadmin` / `password` |
-| **Polaris Catalog Console** | 8183 | `http://localhost:8183` | `admin` / `password` (Realm: `POLARIS`) |
+| **MinIO S3 Console** | 9001 | `http://localhost:9001` | `minio-root` / `(see .env` → `MINIO_ROOT_PASSWORD`) |
+| **Polaris Catalog Console** | 8183 | `http://localhost:8183` | `root` / `(see .env` → `POLARIS_ROOT_CLIENT_SECRET`; Realm: `POLARIS`) |
 | **Airflow Web UI** | 8080 | `http://localhost:8080` | `airflow` / `password` |
 | **Spark Master UI** | 8082 | `http://localhost:8082` | (Web UI) |
 | **Trino Query Engine** | 8084 | `http://localhost:8084` | `trino` |
 | **Flink Dashboard** | 8085 | `http://localhost:8085` | (Web UI) |
 | **Kafka Broker** | 9092, 9094 | `localhost:9092` | PLAINTEXT |
 | **Debezium Connect API** | 8086 | `http://127.0.0.1:8086` | Localhost only |
+| **Trino Admin UI (optional)** | 8087 | `http://localhost:8087` | `trino` (profile `trino-admin`, not started by default) |
+
+### Service Identities
+
+Every storage consumer uses its own least-privilege identity — never the MinIO root account or a shared credential file. MinIO bootstraps seven scoped service users (`lakehouse-polaris`, `lakehouse-spark`, `lakehouse-flink`, `lakehouse-airflow`, `lakehouse-trino`, `lakehouse-trino-admin`, `lakehouse-uploader`), and Polaris provisions four principals (`spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`) whose credentials are written to individual private volumes (one per consumer, not one shared volume). The full identity matrix including the optional `trino-admin` profile is documented in [docs/runbook/SETUP.md](docs/runbook/SETUP.md).
 
 ---
 

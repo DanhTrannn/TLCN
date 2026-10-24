@@ -183,8 +183,8 @@ cat <<EOF
   Trino Query Engine              http://localhost:8084                trino
   Airflow Web UI                  http://localhost:8080                airflow / password
   Flink Streaming Dashboard       http://localhost:8085                Web UI
-  MinIO S3 Storage Console        http://localhost:9001                minioadmin / password
-  Apache Polaris REST Console     http://localhost:8183                admin / password (Realm: POLARIS)
+  MinIO S3 Storage Console        http://localhost:9001                minio-root / (see .env)
+  Apache Polaris REST Console     http://localhost:8183                root / (see .env; Realm: POLARIS)
   Apache Kafka Broker             localhost:9092, localhost:9094       PLAINTEXT
   Debezium Connect API            http://127.0.0.1:${CDC_CONNECT_PORT:-8086}             Localhost only
 EOF
