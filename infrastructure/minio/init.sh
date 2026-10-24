@@ -7,8 +7,8 @@ set -eu
 
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://minio:9000}"
 BUCKET="${MINIO_LAKEHOUSE_BUCKET:-lakehouse}"
-POLICY_DIR="/bootstrap/policies"
-POLICY_TMP="/tmp/lakehouse-policies"
+POLICY_DIR="${POLICY_DIR:-/bootstrap/policies}"
+POLICY_TMP="${POLICY_TMP:-/tmp/lakehouse-policies}"
 MANAGED_USERS="lakehouse-polaris lakehouse-spark lakehouse-flink lakehouse-airflow lakehouse-trino lakehouse-trino-admin lakehouse-uploader"
 MANAGED_POLICIES="lakehouse-polaris lakehouse-spark lakehouse-flink lakehouse-airflow lakehouse-trino lakehouse-trino-admin lakehouse-uploader"
 IDENTITIES='lakehouse-polaris MINIO_POLARIS_ACCESS_KEY MINIO_POLARIS_SECRET_KEY
@@ -43,6 +43,35 @@ list_policy_names() {
   printf '%s\n' "$raw" | sed -n 's/.*"policy":"\([^"]*\)".*/\1/p'
 }
 
+# Prove MinIO accepts every policy document before the convergence phase
+# deletes anything. Temporary copies are created under the managed namespace and
+# removed immediately; only policies whose create succeeded are cleaned up.
+preflight_policies() {
+  preflight_names=""
+  for policy in $MANAGED_POLICIES; do
+    name="lakehouse-preflight-$policy-$$"
+    if ! mc admin policy create local "$name" "$POLICY_TMP/$policy.json" >/dev/null; then
+      echo "Policy preflight failed for $policy" >&2
+      cleanup_preflight
+      exit 1
+    fi
+    preflight_names="$preflight_names $name"
+    if ! mc admin policy info local "$name" >/dev/null; then
+      echo "Policy preflight could not read back $policy" >&2
+      cleanup_preflight
+      exit 1
+    fi
+  done
+  cleanup_preflight
+}
+
+cleanup_preflight() {
+  for name in $preflight_names; do
+    mc admin policy remove local "$name" >/dev/null
+  done
+  preflight_names=""
+}
+
 if [ -z "${MINIO_ROOT_USER:-}" ] || [ -z "${MINIO_ROOT_PASSWORD:-}" ]; then
   echo "MINIO_ROOT_USER and MINIO_ROOT_PASSWORD must be set" >&2
   exit 1
@@ -65,25 +94,36 @@ while read -r policy key_var secret_var; do
     echo "Missing $key_var or $secret_var" >&2
     exit 1
   fi
-  case "$key" in
-    lakehouse-*) ;;
-    *)
-      echo "Access key for $policy must use the managed lakehouse-* prefix" >&2
-      exit 1
-      ;;
-  esac
+  if [ "$key" != "$policy" ]; then
+    echo "Access key for $policy must be '$policy', got '$key'" >&2
+    exit 1
+  fi
+  if [ "${#secret}" -lt 8 ]; then
+    echo "Secret for $policy must be at least 8 characters" >&2
+    exit 1
+  fi
 done <<EOF
 $IDENTITIES
 EOF
 
+mkdir -p "$POLICY_TMP"
 for policy in $MANAGED_POLICIES; do
   if [ ! -f "$POLICY_DIR/$policy.json" ]; then
     echo "Missing policy file: $POLICY_DIR/$policy.json" >&2
     exit 1
   fi
+  sed "s|__MINIO_BUCKET__|${BUCKET}|g" \
+    "$POLICY_DIR/$policy.json" > "$POLICY_TMP/$policy.json"
+  if grep -q '__MINIO_BUCKET__' "$POLICY_TMP/$policy.json"; then
+    echo "Policy placeholder was not substituted: $policy.json" >&2
+    exit 1
+  fi
 done
 
-mc alias set local "$MINIO_ENDPOINT" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
+# --api S3v4 stores the credentials without probing the endpoint, so this
+# succeeds while MinIO is still starting and the readiness loop below can wait
+# the full 60 seconds instead of aborting on connection refused.
+mc alias set local "$MINIO_ENDPOINT" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" --api S3v4 >/dev/null
 
 attempt=0
 until mc admin info local >/dev/null 2>&1; do
@@ -94,6 +134,8 @@ until mc admin info local >/dev/null 2>&1; do
   fi
   sleep 1
 done
+
+preflight_policies
 
 mc mb --ignore-existing "local/$BUCKET"
 mc anonymous set none "local/$BUCKET"
@@ -122,14 +164,7 @@ for policy in $policies; do
   esac
 done
 
-mkdir -p "$POLICY_TMP"
 for policy in $MANAGED_POLICIES; do
-  sed "s|__MINIO_BUCKET__|${BUCKET}|g" \
-    "$POLICY_DIR/$policy.json" > "$POLICY_TMP/$policy.json"
-  if grep -q '__MINIO_BUCKET__' "$POLICY_TMP/$policy.json"; then
-    echo "Policy placeholder was not substituted: $policy.json" >&2
-    exit 1
-  fi
   mc admin policy create local "$policy" "$POLICY_TMP/$policy.json"
   mc admin policy info local "$policy" >/dev/null
 done
@@ -154,6 +189,28 @@ while read -r policy key_var secret_var; do
 done <<EOF
 $IDENTITIES
 EOF
+
+# Verify the converged state per expected principal, not just that no
+# unexpected rows exist: every managed user must exist with exactly its matching
+# policy, and every managed policy must exist.
+for user in $MANAGED_USERS; do
+  user_json="$(mc admin user info local "$user" --json)" || {
+    echo "Managed user is missing: $user" >&2
+    exit 1
+  }
+  attached_policy="$(printf '%s\n' "$user_json" | sed -n 's/.*"policyName":"\([^"]*\)".*/\1/p')"
+  if [ "$attached_policy" != "$user" ]; then
+    echo "Expected exactly policy $user on $user, found '${attached_policy}'" >&2
+    exit 1
+  fi
+done
+
+for policy in $MANAGED_POLICIES; do
+  mc admin policy info local "$policy" >/dev/null || {
+    echo "Managed policy is missing: $policy" >&2
+    exit 1
+  }
+done
 
 users="$(list_user_keys)" || {
   echo "Unable to list MinIO users" >&2
