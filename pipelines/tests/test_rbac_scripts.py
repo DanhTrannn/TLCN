@@ -102,11 +102,19 @@ def test_convergence_script_probes_and_prunes_rbac():
 
 def test_streaming_exec_checks_source_credential_file():
     text = (ROOT / "scripts/verify_rbac_streaming.sh").read_text(encoding="utf-8")
-    assert ". /run/polaris/clients.env" in text
-    for needle in (
-        "POLARIS_SPARK_CLIENT_ID",
-        "POLARIS_FLINK_CLIENT_ID",
-        "POLARIS_TRINO_ADMIN_CLIENT_ID",
-        "POLARIS_TRINO_CLIENT_ID",
-    ):
-        assert needle in text, needle
+
+    def exec_check(service):
+        marker = f"compose exec -T {service} sh -c '"
+        start = text.index(marker)
+        end = text.index("\n'", start)
+        return text[start:end]
+
+    flink_check = exec_check("flink-jobmanager")
+    assert ". /run/polaris/clients.env" in flink_check
+    assert 'test -z "${POLARIS_SPARK_CLIENT_ID:-}"' in flink_check
+    assert 'test -n "${POLARIS_FLINK_CLIENT_ID:-}"' in flink_check
+
+    trino_check = exec_check("trino")
+    assert ". /run/polaris/clients.env" in trino_check
+    assert 'test -z "${POLARIS_TRINO_ADMIN_CLIENT_ID:-}"' in trino_check
+    assert 'test -n "${POLARIS_TRINO_CLIENT_ID:-}"' in trino_check
