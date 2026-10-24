@@ -130,7 +130,7 @@ minio_put() {
       eval "key=\${$MC_KEY_VAR}"
       eval "secret=\${$MC_SECRET_VAR}"
       if ! mc alias set probe http://minio:9000 "$key" "$secret" --api S3v4 >/dev/null; then
-        printf 'MinIO probe client setup failed\n' >&2
+        printf "MinIO probe client setup failed\n" >&2
         exit 2
       fi
       printf rbac-probe | mc pipe "probe/${MINIO_LAKEHOUSE_BUCKET:-lakehouse}/$MC_OBJECT" >/dev/null

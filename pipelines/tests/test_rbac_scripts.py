@@ -100,6 +100,45 @@ def test_convergence_script_probes_and_prunes_rbac():
     assert "rbac_probe" in text
 
 
+def _extract_function(text, name):
+    start = text.index(f"{name}() {{")
+    end = text.index("\n}\n", start) + len("\n}\n")
+    return text[start:end]
+
+
+def test_minio_put_embedded_script_parses():
+    for script in (
+        ROOT / "scripts/verify_rbac_batch.sh",
+        ROOT / "scripts/verify_rbac_streaming.sh",
+    ):
+        function = _extract_function(script.read_text(encoding="utf-8"), "minio_put")
+        wrapper = (
+            "set -euo pipefail\n"
+            "compose() {\n"
+            "  local take_payload=0\n"
+            "  local arg\n"
+            '  for arg in "$@"; do\n'
+            "    if (( take_payload )); then\n"
+            "      printf '%s' \"$arg\"\n"
+            "      return 0\n"
+            "    fi\n"
+            '    if [[ "$arg" == -c ]]; then take_payload=1; fi\n'
+            "  done\n"
+            "  return 1\n"
+            "}\n"
+            f"{function}\n"
+            "minio_put KEY SECRET object\n"
+        )
+        captured = subprocess.run(
+            ["bash", "-c", wrapper], capture_output=True, text=True
+        )
+        assert captured.returncode == 0, (script, captured.stderr)
+        parsed = subprocess.run(
+            ["sh", "-n"], input=captured.stdout, capture_output=True, text=True
+        )
+        assert parsed.returncode == 0, (script, parsed.stderr, captured.stdout)
+
+
 def test_streaming_exec_checks_source_credential_file():
     text = (ROOT / "scripts/verify_rbac_streaming.sh").read_text(encoding="utf-8")
 
