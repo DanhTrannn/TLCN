@@ -12,6 +12,7 @@ Bộ tài liệu lấy phần Data Engineering làm trọng tâm. Kiến trúc, 
 | [METRICS_CATALOG](architecture/METRICS_CATALOG.md) | Công thức, grain, nguồn, cửa sổ thời gian và giới hạn chỉ số |
 | [MANAGEMENT_INFO_TECHNICAL_SPEC](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | Vai trò dashboard, nguồn SQL, RBAC và trạng thái dữ liệu |
 | [OLTP_SCHEMA](architecture/OLTP_SCHEMA.md) | 28 bảng MySQL, quan hệ, ràng buộc và giao dịch |
+| [schema.sql](../database/schema.sql) | File DDL vật lý duy nhất để khởi tạo MySQL trống |
 | [ACCESS_LOG_DESIGN](architecture/ACCESS_LOG_DESIGN.md) | JSON contract, quyền riêng tư và xử lý log |
 | [CDC_DASHBOARD_DATA_SPEC](architecture/CDC_DASHBOARD_DATA_SPEC.md) | Binlog, Debezium, Kafka, Bronze CDC và phục hồi |
 | [PROJECT_STRUCTURE](architecture/PROJECT_STRUCTURE.md) | Thư mục và điểm vào của mã nguồn |

@@ -5,7 +5,7 @@ This directory contains operational runbooks and development workflows for the D
 ## Runbook Guides
 
 - [`SETUP.md`](SETUP.md): Step-by-step Lakehouse deployment, Polaris REST Catalog RBAC bootstrapping, catalog inspection, and troubleshooting for the Iceberg-Spark-Trino stack.
-- [`STARTUP_FLOW.md`](STARTUP_FLOW.md): Detailed initialization sequence, Docker Compose profiles, one-shot init containers, database migrations, and health checks.
+- [`STARTUP_FLOW.md`](STARTUP_FLOW.md): Initialization sequence, Docker Compose profiles, SQL schema bootstrap, one-shot init containers, and health checks.
 - [`CI.md`](CI.md): GitHub Actions CI workflow, static code analysis, frontend build, and local development commands.
 
 ---
@@ -49,7 +49,7 @@ After starting the `core` profile, access the applications at:
 
 Every storage consumer runs with its own least-privilege identity; no workload uses the MinIO root account or a shared credential file. MinIO bootstraps seven service users (`lakehouse-polaris`, `lakehouse-spark`, `lakehouse-flink`, `lakehouse-airflow`, `lakehouse-trino`, `lakehouse-trino-admin`, `lakehouse-uploader`), and Polaris provisions four principals (`spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`), each writing credentials to its own private `clients.env` volume — see [`SETUP.md`](SETUP.md) for the full identity matrix.
 
-*Note: Database migrations and default admin seeding occur automatically during backend startup.*
+*Note: A new MySQL volume imports `database/schema.sql` before the API starts. The API initializes the catalog/admin. Existing volumes retain their schema and data; see the [database guide](../../database/README.md).*
 
 ---
 

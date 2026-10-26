@@ -22,4 +22,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         --refresh-package ecommerce-api \
         --package ecommerce-api
 EXPOSE 8000
-CMD ["sh", "-c", "alembic -c database/alembic.ini upgrade head && python -m database.seeds.seed_catalog && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log"]
+CMD ["sh", "-c", "python -m database.seeds.seed_catalog && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log"]

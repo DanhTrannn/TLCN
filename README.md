@@ -63,7 +63,7 @@ make up
 ./scripts/start_all.sh
 ```
 
-Use `./scripts/start_all.sh --build` when rebuilding images. Startup initializes the application catalog and bootstrap admin; transactional history and populated Gold results require data ingestion and a pipeline run.
+Use `./scripts/start_all.sh --build` when rebuilding images. On a new MySQL volume, `database/schema.sql` creates all 28 source tables. The API initializes the catalog/admin; transactional history and populated Gold results require ingestion and a pipeline run. Existing volumes keep their schema and data; see the [database guide](database/README.md).
 
 To stop the platform:
 
@@ -303,6 +303,7 @@ CI runs Compose validation, DAG compilation, Ruff, frontend dependency installat
 | **Metric Definitions** | [METRICS_CATALOG.md](docs/architecture/METRICS_CATALOG.md) | Formulas, sources, windows, and interpretation limits |
 | **BI Serving** | [MANAGEMENT_INFO_TECHNICAL_SPEC.md](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | Roles, analytics endpoints, API filtering, and fallback |
 | **OLTP Schema** | [OLTP_SCHEMA.md](docs/architecture/OLTP_SCHEMA.md) | 28 source tables, relationships, and invariants |
+| **Physical SQL Schema** | [database/schema.sql](database/schema.sql) | MySQL table definitions for empty-database initialization |
 | **CDC** | [CDC_DASHBOARD_DATA_SPEC.md](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Capture contract, replay metadata, and recovery |
 | **Access Logs** | [ACCESS_LOG_DESIGN.md](docs/architecture/ACCESS_LOG_DESIGN.md) | Event contract, privacy rules, and streaming/raw-file boundaries |
 | **Data Generator** | [generator/README.md](generator/README.md) | Synthetic SQL/log generation and live traffic |

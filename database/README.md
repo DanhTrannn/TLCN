@@ -1,74 +1,74 @@
-# Database Migrations and Seed Data
+# Schema MySQL và dữ liệu khởi tạo
 
-This directory contains the database schema definitions, Alembic migrations (revisions `0001` through `0020`), and deterministic seed assets for MySQL 8.4 OLTP (28 tables).
+`database/schema.sql` là file DDL vật lý duy nhất của hệ thống nguồn, dành cho MySQL 8.4. File tạo 28 bảng cùng khóa chính, khóa ngoại, index, CHECK, cột sinh tự động và timestamp mặc định/`ON UPDATE`.
 
-## Directory Structure
+Schema chỉ chứa định nghĩa cấu trúc. Catalog/admin do seed tạo; lịch sử giao dịch tổng hợp do generator nạp.
 
-| Directory | Content | Responsibility |
-|---|---|---|
-| `migrations/` | Alembic migration scripts | Version-controlled schema migrations for all 28 OLTP tables (`0001` - `0020`) |
-| `seeds/` | Python catalog seed scripts | Catalog, opening inventory and bootstrap admin |
+## Cấu trúc thư mục
 
----
+| Đường dẫn | Vai trò |
+|---|---|
+| [schema.sql](schema.sql) | Tạo schema cuối cùng trên database trống |
+| [seeds/](seeds/) | Catalog, tồn mở đầu và bootstrap admin |
+| [OLTP_SCHEMA.md](../docs/architecture/OLTP_SCHEMA.md) | Tham chiếu cột, quan hệ và quy tắc nghiệp vụ |
+| [ORM models](../services/ecommerce-api/app/models/) | Ánh xạ SQLAlchemy dùng trong API |
 
-## Migration History
+## Khởi tạo bằng Docker Compose
 
-| Revision | File | Summary |
-|---|---|---|
-| `0001` | `0001_initial_schema.py` | Initial OLTP schema (customers, credentials, catalog, inventory, carts, orders, payments, status history) |
-| `0002` | `0002_admin_console.py` | Admin customer role and admin order transition source |
-| `0003` | `0003_wishlist.py` | Customer wishlist items with soft presence tracking |
-| `0004` | `0004_simplify_checkout_payment.py` | Simplification of checkout payment fields |
-| `0005` | `0005_order_lifecycle_promotions_reviews.py` | Order lifecycle milestones, coupons, refunds, and verified product reviews |
-| `0006` | `0006_rebrand_product_master.py` | Rebrand product master data to D&K |
-| `0007` | `0007_standardize_product_image.py` | Standardize product image URLs |
-| `0008` | `0008_archive_catalog_promotions.py` | Terminal archive metadata and audit constraints for products and coupons |
-| `0009` | `0009_reviews_publish_immediately.py` | Immediate product review publication and post-moderation checks |
-| `0010` | `0010_multi_city_stores_inventory.py` | Multi-city stores and store-level inventory (`cities`, `stores`, `store_inventory`) |
-| `0011` | `0011_pos_order_channel.py` | POS order channel and physical store linkage (`channel`, `store_id`, `staff_id`) |
-| `0012` | `0012_pos_search_index.py` | Fulltext & composite index optimizations for POS barcode and SKU search |
-| `0013` | `0013_make_cart_id_nullable.py` | Make `cart_id` nullable on `orders` for POS counter orders |
-| `0014` | `0014_logistics_returns_inbound_cogs.py` | Logistics and returns (`delivery_staff`, `shipments`, `return_requests`, `return_items`, `inventory_transactions`), boom COD handling, and variant `cost_price_vnd` |
-| `0015` | `0015_inbound_production_and_refund_updated_at.py` | Workshop inbound production batches (`inbound_receipts`, `inbound_receipt_items`), MWA costing, and `refunds.updated_at` |
-| `0016` | `0016_update_order_status_history_transition_sources.py` | Add explicit administrative order transition sources |
-| `0017` | `0017_allow_pending_payment_status.py` | Allow `pending` payment status for COD orders in `ck_payments_status` and failure code check constraint |
-| `0018` | `0018_align_pos_and_order_lifecycle.py` | Align POS payment methods and customer-owned completion lifecycle |
-| `0019` | `0019_pos_customer_shipment_attempts_and_invariants.py` | Separate POS customer/staff identity, normalize delivery attempts, and add COD audit fields |
-| `0020` | `0020_strengthen_inventory_and_pos_invariants.py` | Enforce inventory ledger location/direction and POS/online ownership invariants |
-
----
-
-## Migration Workflows
-
-### Apply Pending Migrations
+Từ thư mục gốc repo, trong lần cài đặt đầu tiên:
 
 ```bash
-uv run --package ecommerce-api alembic -c database/alembic.ini upgrade head
+cp .env.example .env
+docker compose --profile core up -d --wait mysql
 ```
 
-### Create a New Migration
+Compose mount file SQL read-only tại:
+
+```text
+database/schema.sql
+  → /docker-entrypoint-initdb.d/10-ecommerce-schema.sql
+```
+
+MySQL tự tạo database/user theo `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, rồi chạy SQL khi data directory trống. File không cố định tên database bằng lệnh `USE`.
+
+Sau khi MySQL sẵn sàng, API chạy `database.seeds.seed_catalog` rồi khởi động FastAPI. Seed có thể chạy lại bằng:
 
 ```bash
-uv run --package ecommerce-api alembic -c database/alembic.ini revision --autogenerate -m "describe_change"
+make seed
 ```
 
----
+`make seed` không tạo bảng. Schema phải tồn tại trước khi chạy seed.
 
-## Seed Data
+## Nạp SQL thủ công
 
-### 1. Master Catalog Seed
-Populate the foundational product catalog without synthetic customer transactions:
+Chỉ dùng với database trống đã được tạo. Với MySQL chạy trong Compose:
 
 ```bash
-uv run --package ecommerce-api python database/seeds/seed_catalog.py
+docker compose exec -T mysql sh -c \
+  'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --user="$MYSQL_USER" --database="$MYSQL_DATABASE"' \
+  < database/schema.sql
 ```
 
-Historical transactional data is produced by the [generator](../generator/README.md) and imported into MySQL before batch extraction. Staff accounts are managed through the application.
+File dùng `CREATE TABLE` và không có `DROP TABLE` hoặc dữ liệu mẫu. Nó tạm tắt kiểm tra FK trong session để tạo các bảng có tham chiếu vòng, rồi khôi phục cấu hình FK.
 
----
+## Database đang có dữ liệu
 
-## Analytical Extraction Boundary
+- Docker chỉ chạy thư mục init khi data directory trống. Restart container hoặc sửa file SQL không tự cập nhật volume đã có.
+- Database đã khớp schema hiện tại tiếp tục dùng được; dữ liệu và bảng quản lý phiên bản cũ, nếu có, được giữ nguyên.
+- Với database khác cấu trúc, so sánh `SHOW CREATE TABLE` với file SQL và áp dụng các câu `ALTER TABLE` phù hợp.
+- API không tự nâng cấp schema. Không import file bootstrap lên database đã có bảng.
 
-The Lakehouse batch pipeline extracts from **27 allowed analytical tables** (out of 28 tables in MySQL). The table `customer_credentials` is strictly excluded from Data Engineering extraction to protect authentication credentials.
+## Khi thay đổi schema
 
-For full schema details, relational constraints, and transaction boundaries, refer to [`../docs/architecture/OLTP_SCHEMA.md`](../docs/architecture/OLTP_SCHEMA.md).
+1. Cập nhật `database/schema.sql`.
+2. Cập nhật các SQLAlchemy model tương ứng.
+3. Áp dụng `ALTER TABLE` riêng cho database hiện có cần thay đổi.
+4. Cập nhật tài liệu schema và ERD.
+
+DDL vật lý hiện giữ nguyên cấu trúc database trước khi đơn giản hóa. DBML được sinh từ ORM; quan hệ `orders.staff_id → customers.customer_id` hiện là quan hệ trong ORM, chưa được cưỡng chế bởi FK trong SQL.
+
+## Biên giới Data Engineering
+
+Batch/CDC lấy 27 trong 28 bảng; `customer_credentials` bị loại vì chứa thông tin xác thực. Các bảng fact/dimension/mart nằm ở Iceberg, không được tạo bởi file MySQL này.
+
+Metadata của Airflow và Polaris nằm ở PostgreSQL và vẫn do các dịch vụ tương ứng quản lý.

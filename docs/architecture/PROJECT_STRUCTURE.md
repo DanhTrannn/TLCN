@@ -8,7 +8,7 @@
 |---|---|
 | `apps/storefront/` | Next.js: Storefront/POS/Admin/BI Hub |
 | `services/ecommerce-api/app/` | FastAPI, model OLTP, nghiệp vụ, auth, logging, analytics |
-| `database/migrations/` | Alembic migrations, đến revision 0020 |
+| `database/schema.sql` | DDL MySQL cuối cùng: 28 bảng, index, khóa và CHECK |
 | `database/seeds/` | Catalog, tồn mở đầu và bootstrap admin |
 | `generator/src/generator/` | Sinh dữ liệu SQL và access log theo cấu hình |
 | `generator/configs/` | Quy mô và phân phối dataset |

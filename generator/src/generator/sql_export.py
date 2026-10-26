@@ -782,7 +782,7 @@ def _write_header(
         f"-- anchor_time: {config.anchor_time.isoformat()}\n"
         "-- synthetic_archive_policy: every 20th sampled product at anchor time; "
         "expired campaign/midnight coupons at ends_at.\n"
-        "-- Prerequisite: run all Alembic migrations with alembic upgrade head.\n"
+        "-- Prerequisite: initialize the MySQL database with database/schema.sql.\n"
         "-- Import is fail-fast; importing the same dataset twice is rejected by unique keys.\n\n"
         "SET NAMES utf8mb4;\n"
         "SET time_zone = '+00:00';\n"

@@ -37,7 +37,7 @@
 
 > **Phạm vi:** Hệ thống thương mại điện tử trực tuyến  
 > **Tác nhân (Actors):** Customer (Khách hàng), Admin (Quản trị viên), Store Manager (Quản lý cửa hàng)  
-> **Ngăn xếp công nghệ (Stack):** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy, Alembic
+> **Ngăn xếp công nghệ (Stack):** Next.js 15, FastAPI, MySQL 8.4, SQLAlchemy; khởi tạo DDL từ `database/schema.sql`
 
 ---
 

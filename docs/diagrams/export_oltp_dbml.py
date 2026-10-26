@@ -1,6 +1,6 @@
 """Export the current SQLAlchemy OLTP model as a reviewable DBML diagram.
 
-The DBML is a visualization artifact, not a migration or SQL source of truth.
+The DBML is a visualization artifact; database/schema.sql defines the physical DDL.
 Run from the repository root with: .venv/bin/python docs/diagrams/export_oltp_dbml.py
 """
 
@@ -124,8 +124,8 @@ def render() -> str:
     lines = [
         "// D&K E-Commerce OLTP — 28 tables, generated from app.models SQLAlchemy metadata.",
         "// Regenerate: .venv/bin/python docs/diagrams/export_oltp_dbml.py",
-        "// Source of truth: database/migrations/versions/ and services/ecommerce-api/app/models/.",
-        "// Visualization only: defaults, CHECK expressions, and server-side behavior remain in migrations.",
+        "// Physical DDL: database/schema.sql; ORM mapping: services/ecommerce-api/app/models/.",
+        "// Visualization only: defaults, CHECK expressions, and server-side behavior are defined in schema.sql.",
         "// customer_credentials contains authentication data and is excluded from Lakehouse extraction.",
         "",
     ]

@@ -12,7 +12,7 @@ The services below form the shared storage/catalog foundation. `.env.example` se
 
 | Service | Startup Behavior |
 |---|---|
-| `mysql` | Boots MySQL 8.4.5 LTS (`utf8mb4_0900_ai_ci`, UTC). Creates the `ecommerce` database and `ecommerce_app` user. |
+| `mysql` | Boots MySQL 8.4.5 (`utf8mb4_0900_ai_ci`, UTC). On an empty volume, creates the database/user configured by `MYSQL_*` and imports `database/schema.sql` from `/docker-entrypoint-initdb.d/10-ecommerce-schema.sql`. Existing volumes are not reinitialized. |
 | `postgres` | Boots PostgreSQL 16.8 → Runs `01-create-multiple-databases.sh` to initialize isolated metadata databases for `polaris` and `airflow`. |
 | `minio` | Starts MinIO S3 server (`:9000`) and web console (`:9001`). |
 | `minio-init` | One-shot: Configures `mc` alias → Idempotently creates `lakehouse` bucket → Disables anonymous public access → Converges the seven `lakehouse-*` service users, each attached to exactly one matching policy — the script handles the whole `lakehouse-*` prefix (stale entries included) while never touching anything outside it, so a `lakehouse-*` user or policy that is no longer managed disappears → Verifies the final identity state. |
@@ -67,7 +67,7 @@ Brings up the transactional e-commerce application:
 
 | Service | Startup Behavior |
 |---|---|
-| `ecommerce-api` | Waits for `mysql` health check → Runs Alembic migrations (`alembic upgrade head`) → Seeds initial product catalog if empty → Bootstraps default admin user (`admin@web.local`) → Starts FastAPI server on port 8000. |
+| `ecommerce-api` | Waits for `mysql` health check → Seeds catalog/admin if needed → Starts FastAPI on port 8000. It expects the SQL schema to exist and does not apply schema upgrades. |
 | `storefront` | Waits for `ecommerce-api` readiness (`/health/ready`) → Starts Next.js standalone web server on port 3000. |
 
 ---

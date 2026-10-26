@@ -36,7 +36,7 @@ The output file is written to `data/generator/small.sql`.
 
 ### 2. Import into MySQL
 
-Once MySQL is running and Alembic migrations have completed (through revision `0020`):
+Once MySQL is running and its 28-table schema has been initialized from `database/schema.sql`:
 
 ```bash
 ./scripts/import_generated_sql.sh data/generator/small.sql

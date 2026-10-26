@@ -7,9 +7,9 @@ Kết hợp thiết kế logic, column-level reference, transaction catalog và 
 
 ## 1. Phạm vi và quy tắc thiết kế
 
-Schema tuân theo `skills/oltp-design/SKILL.md`: grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
+DDL vật lý được định nghĩa trong [`database/schema.sql`](../../database/schema.sql): grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
 
-Hệ thống có **28 bảng nghiệp vụ** (schema hiện hành đến migration `0020_strengthen_inventory_and_pos_invariants.py`). Pipeline Lakehouse DE trích xuất **27 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
+Hệ thống có **28 bảng nghiệp vụ**, khởi tạo từ file SQL duy nhất. Pipeline Lakehouse DE trích xuất **27 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
 
 ### Quy tắc thiết kế cốt lõi
 
@@ -589,7 +589,7 @@ stores 1───n inventory_transactions (nullable store_id cho store transfers
 | `cancelled_at` | `DATETIME(6)` | NULLABLE | Thời điểm hủy |
 | `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE | Cửa hàng liên kết (allocation hoặc POS) |
 | `channel` | `VARCHAR(16)` | NOT NULL, DEFAULT `'online'` | Kênh bán: `online` hoặc `pos` |
-| `staff_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE | Nhân viên thu ngân/bán hàng (POS) |
+| `staff_id` | `BIGINT UNSIGNED` | NULLABLE; tham chiếu `customers.customer_id` trong ORM, chưa có FK vật lý | Nhân viên thu ngân/bán hàng (POS) |
 
 **Check constraints**:
 - `status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'failed_delivery', 'returned')`

@@ -14,7 +14,9 @@ Các sơ đồ nguồn trong thư mục này bám theo code hiện hành. Bộ m
 
 ## Cập nhật khi code đổi
 
-ERD đầy đủ được sinh từ `services/ecommerce-api/app/models` qua [`export_oltp_dbml.py`](export_oltp_dbml.py). Migration Alembic vẫn là nguồn quyết định DDL; DBML dùng để đọc và thuyết minh, không dùng để tạo migration.
+ERD đầy đủ được sinh từ `services/ecommerce-api/app/models` qua [`export_oltp_dbml.py`](export_oltp_dbml.py). [`database/schema.sql`](../../database/schema.sql) là nguồn quyết định DDL vật lý; DBML dùng để đọc và thuyết minh.
+
+DBML có 51 quan hệ theo ORM; DDL vật lý hiện có 50 khóa ngoại. Quan hệ `orders.staff_id → customers.customer_id` hiện chỉ được khai báo trong ORM. File SQL giữ cấu trúc database hiện hành, không tự bổ sung ràng buộc mới.
 
 ```bash
 .venv/bin/python docs/diagrams/export_oltp_dbml.py
@@ -37,7 +39,7 @@ Sơ đồ `.drawio` là file XML có thể chỉnh sửa từng ô và đường
 
 ## Giới hạn biểu diễn
 
-- ERD DBML phản ánh cấu trúc trong SQLAlchemy metadata, bao gồm cột, PK, FK, unique/index và nullability. Các CHECK, default phức tạp, transaction và state machine được mô tả trong [`OLTP_SCHEMA.md`](../architecture/OLTP_SCHEMA.md) và migration.
+- ERD DBML phản ánh SQLAlchemy metadata, bao gồm cột, PK, quan hệ, unique/index và nullability. DDL vật lý nằm trong `database/schema.sql`; các quy tắc nghiệp vụ và state machine được mô tả trong [`OLTP_SCHEMA.md`](../architecture/OLTP_SCHEMA.md).
 - Use Case tổng quan chỉ thể hiện tương tác website; các đường dữ liệu nội bộ nằm ở sơ đồ kiến trúc.
 - Checkout hiện tại xử lý VietQR và COD trong transaction MySQL. `payments.status` là `succeeded` hoặc `pending` tương ứng; sơ đồ không giả định có cổng thanh toán ngoài hay email xác nhận trong luồng này.
 - Phần ML nằm ngoài phạm vi các sơ đồ triển khai hiện tại.

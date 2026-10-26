@@ -111,6 +111,7 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/10-ecommerce-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping --protocol=tcp -h 127.0.0.1 -P 3306 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --connect-timeout=2 --silent"]
       interval: 10s

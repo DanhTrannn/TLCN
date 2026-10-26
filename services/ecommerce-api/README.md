@@ -25,11 +25,11 @@ docker compose --profile core up -d --build ecommerce-api
 ```
 
 The container performs the following sequence on startup:
-1. Waits for MySQL to pass health checks.
-2. Applies pending Alembic database migrations (`alembic upgrade head`).
-3. Seeds initial catalog categories and products if empty.
-4. Bootstraps the default administrator account (`admin@web.local`).
-5. Starts the Uvicorn ASGI server on port 8000.
+1. Waits for MySQL to pass health checks; a new MySQL volume is initialized from `database/schema.sql`.
+2. Runs the repeatable catalog/admin seed.
+3. Starts the Uvicorn ASGI server on port 8000.
+
+Existing MySQL volumes retain their schema and data. The API does not automatically alter them. See the [database guide](../../database/README.md) for empty-database initialization and schema changes.
 
 ### Local Development with `uv`
 
@@ -38,8 +38,11 @@ The container performs the following sequence on startup:
 export API_DATABASE_URL="mysql+pymysql://ecommerce_app:password@localhost:3306/ecommerce"
 export API_SECRET_KEY="local-development-secret-key-at-least-32-characters"
 
-# Run migrations and start server
-uv run --package ecommerce-api alembic -c database/alembic.ini upgrade head
+# Start MySQL first; a fresh volume imports database/schema.sql
+docker compose --profile core up -d --wait mysql
+
+# Initialize catalog/admin and start the API on the host
+uv run --locked --package ecommerce-api -- python -m database.seeds.seed_catalog
 uv run --package ecommerce-api uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
