@@ -45,7 +45,8 @@ jobs:
 
       - name: Validate Docker Compose (all active profiles)
         run: >-
-          docker compose --profile core --profile batch --profile streaming --profile lakehouse-tools
+          docker compose --env-file .env.example
+          --profile core --profile batch --profile streaming --profile lakehouse-tools
           config --quiet
 
       - name: Verify Airflow DAG Python compilation

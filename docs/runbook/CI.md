@@ -69,7 +69,7 @@ flowchart TD
 - **Tối ưu tài nguyên:** Khi commit chỉ chỉnh sửa tài liệu (`docs/**`, `**.md`, `.gitignore`, `LICENSE`), GitHub Actions sẽ **tự động bỏ qua** thực thi CI để tiết kiệm thời gian và hạn ngạch runner.
 
 ### 2.2. Kiểm tra tĩnh & Tính tương thích Hạ tầng (`repository-validation`)
-1. **Docker Compose Validation:** Chạy `docker compose config --quiet` trên toàn bộ 4 profile hoạt động thực tế (`core`, `batch`, `streaming`, `lakehouse-tools`). Đảm bảo không có xung đột cổng, lỗi cú pháp YAML hoặc biến môi trường thiếu.
+1. **Docker Compose Validation:** Chạy `docker compose --env-file .env.example config --quiet` trên toàn bộ 4 profile hoạt động thực tế (`core`, `batch`, `streaming`, `lakehouse-tools`) để kiểm tra cấu trúc Compose và nội suy biến. Job đọc trực tiếp cấu hình dev trong `.env.example`, vì `.env` không được lưu trong Git; các credential MinIO bắt buộc vẫn được giữ nguyên trong Compose.
 2. **Kiểm tra biên dịch Airflow DAG:** Chạy `python3 -m compileall -q airflow/dags/` để phát hiện ngay lập tức bất kỳ lỗi cú pháp Python nào trong các định nghĩa pipeline.
 3. **Ruff Linter:** Chạy `uvx ruff check .` cho toàn bộ ruleset đã cấu hình của repository.
 
@@ -113,7 +113,7 @@ make typecheck
 
 # Cách 2: Chạy chi tiết từng bộ kiểm thử
 # 1. Kiểm tra cú pháp Compose toàn bộ profiles
-docker compose --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
+docker compose --env-file .env.example --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
 
 # 2. Kiểm tra cú pháp DAGs & Linter
 python3 -m compileall -q airflow/dags/
