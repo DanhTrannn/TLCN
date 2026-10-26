@@ -1,6 +1,6 @@
 # Local Lakehouse Setup
 
-This runbook covers the local deployment, RBAC bootstrapping, catalog inspection, and troubleshooting for the Polaris-Iceberg-Spark-Trino lakehouse stack.
+This runbook covers local startup dependencies, data operations, RBAC bootstrapping, catalog inspection, and troubleshooting. Run commands from the repository root. See the [root README](../../README.md#development-commands) for development commands and CI.
 
 ## 1. Component Boundaries
 
@@ -34,7 +34,16 @@ If exposing services beyond `localhost`, update the following variables to avoid
 
 ## 3. Startup Sequence
 
-Launch the services selected by `.env` (the example environment enables core, batch and streaming):
+The recommended launcher starts `core`, `batch`, and `streaming`, waits for readiness, and initializes missing Gold schemas:
+
+```bash
+./scripts/start_all.sh --build
+make ps
+```
+
+Schema initialization does not populate analytical results. Source history must be loaded and the batch pipeline run separately.
+
+Alternatively, launch Compose services directly using the profiles selected by `.env` (the example environment enables core, batch and streaming):
 
 ```bash
 docker compose up -d --build
@@ -46,6 +55,14 @@ To run the complete system including batch processing, real-time streaming, and 
 docker compose --profile core --profile batch --profile streaming up -d --build
 ```
 
+Explicit `--profile` flags add to `COMPOSE_PROFILES`; they do not restrict the environment selection to a single profile. Direct Compose startup does not perform the launcher's additional Gold-schema check.
+
+### MySQL Initialization
+
+On an empty MySQL volume, the official entrypoint creates the configured database/user and imports [`database/schema.sql`](../../database/schema.sql) from `/docker-entrypoint-initdb.d/10-ecommerce-schema.sql`. The database uses `utf8mb4_0900_ai_ci` and UTC. Existing volumes keep their schema and records; see the [database guide](../../database/README.md).
+
+After MySQL becomes healthy, `ecommerce-api` initializes the catalog/admin if needed and starts FastAPI. The API expects the schema to exist and does not apply schema upgrades. `storefront` waits for API readiness at `/health/ready`.
+
 ### Automated Bootstrap Workflow
 
 1. `minio-init` creates the private `lakehouse` bucket if not present, then converges MinIO identities: it creates **seven service users** (`lakehouse-polaris`, `lakehouse-spark`, `lakehouse-flink`, `lakehouse-airflow`, `lakehouse-trino`, `lakehouse-trino-admin`, `lakehouse-uploader`), each attached to **exactly one of the seven matching policies**. All `lakehouse-*` users and policies are recreated on every run, so stale `lakehouse-*` entries that are no longer managed disappear, while anything outside that prefix (including `root`) is never touched. Access keys come from the `MINIO_*_ACCESS_KEY` / `MINIO_*_SECRET_KEY` variables in `.env`.
@@ -56,6 +73,24 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 6. `mysql-cdc-init` provisions the dedicated replication account; `debezium-init` idempotently registers the MySQL connector.
 7. `flink-cdc-submit` starts the continuous Kafka-to-Iceberg Bronze CDC job alongside access-log streaming.
 
+### Service Dependencies and Profiles
+
+Compose waits for health checks or successful completion of initialization jobs where configured. The main dependencies are:
+
+| Group / profile | Startup dependencies |
+|---|---|
+| Shared storage/catalog (`batch`, `streaming`) | Healthy `postgres` → `polaris-bootstrap`; healthy `minio` → `minio-init`; successful bootstrap/init jobs → `polaris` → `polaris-init` |
+| Query tools (`batch`, `streaming`) | Successful `polaris-init` → `trino` and `polaris-console`; healthy MySQL/PostgreSQL/Trino → `libredb-studio` |
+| Spark (`batch`, `streaming`) | `spark-master` → `spark-worker`; jobs use dedicated Polaris credentials |
+| Airflow (`batch`, `streaming`) | Healthy `postgres` → `airflow-init` (metadata migration, admin user and `spark_default` connection) → webserver/scheduler using `LocalExecutor` |
+| Web (`core`) | Healthy `mysql` → `ecommerce-api` → `storefront`; when Kafka is enabled, the API also waits for Kafka health |
+| CDC (`streaming`) | Healthy MySQL → `mysql-cdc-init`; healthy Kafka plus successful MySQL CDC init → `debezium-connect` → `debezium-init` |
+| Flink (`streaming`) | Healthy Kafka/Polaris plus successful `polaris-init` → JobManager → TaskManager; access-log submission waits for `kafka-init`, CDC submission for `debezium-init`; both wait for JobManager health and TaskManager startup |
+| Spark SQL (`lakehouse-tools`) | Successful `polaris-init` → utility `spark-client`, using its own credential volume |
+| Administrative SQL (`trino-admin`, optional) | Successful `polaris-init` → `trino-admin` with a separate administrative principal |
+
+`minio` and `mysql` are also available to `core`. Exact profile membership and dependency conditions are defined in [`docker-compose.yml`](../../docker-compose.yml).
+
 ---
 
 ## 4. Local Service Endpoints
@@ -63,12 +98,13 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 | Service | Local URL | Port | Description |
 |---|---|---|---|
 | **Storefront** | `http://localhost:3000` | 3000 | Consumer shopping UI |
-| **Admin Console** | `http://localhost:3000/admin` | 3000 | Store operations (`admin@web.local` / `Admin@12345`) |
+| **Admin Console** | `http://localhost:3000/admin` | 3000 | Store operations; bootstrap account from `API_BOOTSTRAP_ADMIN_*` |
 | **Ecommerce API** | `http://localhost:8000/docs` | 8000 | Backend Swagger UI |
 | **LibreDB Studio (SQL IDE)** | `http://localhost:3001` | 3001 | Web-based SQL editor for MySQL, PostgreSQL, and Trino |
-| **Airflow UI** | `http://localhost:8080` | 8080 | DAG orchestration UI (`airflow` / `password`) |
+| **Airflow UI** | `http://localhost:8080` | 8080 | DAG orchestration UI (`AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD`) |
 | **Spark Master UI** | `http://localhost:8082` | 8082 | Compute cluster status |
 | **Trino Web UI** | `http://localhost:8084` | 8084 | Query execution status |
+| **Flink Dashboard** | `http://localhost:8085` | 8085 | Streaming jobs and task status |
 | **Polaris Console** | `http://localhost:8183` | 8183 | Catalog & RBAC UI (`root` / value of `POLARIS_ROOT_CLIENT_SECRET` in `.env`; Realm: `POLARIS`) |
 | **MinIO Console** | `http://localhost:9001` | 9001 | S3 Object browser (`minio-root` / the value of `MINIO_ROOT_PASSWORD` in `.env`) |
 | **Trino Admin (optional)** | `http://localhost:8087` | 8087 | Administrative Trino engine (profile `trino-admin`, not started by default) |
@@ -96,6 +132,28 @@ docker compose exec trino trino --execute "SHOW TABLES FROM lakehouse.gold;"
 ```
 
 LibreDB Studio at `http://localhost:3001` also provides a SQL interface. Airflow and Flink dashboards show the state of batch and streaming jobs.
+
+### Load Source History and Run Batch
+
+The [root README](../../README.md#historical-data-backfill) contains automated and manual SQL/log backfill commands; the [generator guide](../../generator/README.md) describes dataset configuration and account mapping. Uploaded historical JSONL files remain raw Landing assets because the current Flink job reads Kafka.
+
+After loading source data, unpause and trigger the OLTP DAG (DAGs start paused by default):
+
+```bash
+docker compose exec -T airflow-scheduler airflow dags unpause lakehouse_oltp_pipeline
+docker compose exec -T airflow-scheduler airflow dags trigger lakehouse_oltp_pipeline
+```
+
+### Inspect Streaming and CDC
+
+With `core` and `streaming` enabled, live API traffic feeds the access-log pipeline. Check Flink and the CDC connector:
+
+```bash
+docker compose --profile streaming logs --tail=200 flink-jobmanager
+curl -fsS http://127.0.0.1:8086/connectors/mysql-ecommerce-cdc/status
+```
+
+CDC currently appends events to Bronze; Silver/Gold still use Spark batch. See the [CDC specification](../architecture/CDC_DASHBOARD_DATA_SPEC.md) for event semantics, inspection SQL, and recovery rules, and the [access-log design](../architecture/ACCESS_LOG_DESIGN.md) for log contracts and processing boundaries.
 
 ---
 

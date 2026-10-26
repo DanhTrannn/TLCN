@@ -7,16 +7,16 @@ Bộ tài liệu lấy phần Data Engineering làm trọng tâm. Kiến trúc, 
 | Tài liệu | Nội dung |
 |---|---|
 | [SCOPE](project/SCOPE.md) | Mục tiêu, nguồn dữ liệu, phạm vi batch/CDC/log và giới hạn |
-| [SYSTEM_ARCHITECTURE_VISUAL](architecture/SYSTEM_ARCHITECTURE_VISUAL.md) | Thành phần, ba luồng dữ liệu, serving, lịch chạy và triển khai |
+| [SYSTEM_ARCHITECTURE_VISUAL](architecture/SYSTEM_ARCHITECTURE_VISUAL.md) | Thành phần, ba luồng dữ liệu, vai trò/API dashboard, RBAC, lịch chạy và triển khai |
 | [LAKEHOUSE_DESIGN_PLAN](project/LAKEHOUSE_DESIGN_PLAN.md) | Namespace, lưu trữ, dimension/fact/mart và nhóm log |
 | [METRICS_CATALOG](architecture/METRICS_CATALOG.md) | Công thức, grain, nguồn, cửa sổ thời gian và giới hạn chỉ số |
-| [MANAGEMENT_INFO_TECHNICAL_SPEC](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | Vai trò dashboard, nguồn SQL, RBAC và trạng thái dữ liệu |
 | [OLTP_SCHEMA](architecture/OLTP_SCHEMA.md) | 28 bảng MySQL, quan hệ, ràng buộc và giao dịch |
 | [schema.sql](../database/schema.sql) | File DDL vật lý duy nhất để khởi tạo MySQL trống |
 | [ACCESS_LOG_DESIGN](architecture/ACCESS_LOG_DESIGN.md) | JSON contract, quyền riêng tư và xử lý log |
 | [CDC_DASHBOARD_DATA_SPEC](architecture/CDC_DASHBOARD_DATA_SPEC.md) | Binlog, Debezium, Kafka, Bronze CDC và phục hồi |
 | [PROJECT_STRUCTURE](architecture/PROJECT_STRUCTURE.md) | Thư mục và điểm vào của mã nguồn |
-| [Runbook](runbook/README.md) | Cài đặt, khởi động, sinh dữ liệu và vận hành |
+| [SETUP](runbook/SETUP.md) | Cài đặt, thứ tự khởi động, vận hành batch/streaming, quyền truy cập và xử lý lỗi |
+| [Phát triển và CI](../README.md#development-commands) | Lệnh kiểm tra cục bộ và các job GitHub Actions |
 | [Diagrams](diagrams/README.md) | Draw.io, ERD DBML, Use Case, Activity và Sequence |
 | [Access log schema](contracts/ecommerce-access-v1.schema.json) | JSON Schema cho hợp đồng dữ liệu |
 

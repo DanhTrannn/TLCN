@@ -63,11 +63,40 @@ Checkpoint và chu kỳ tải lại UI không phải cam kết latency end-to-en
 
 ## 5. Serving và phân quyền
 
-API kiểm tra vai trò/phạm vi cửa hàng, đọc SQL, rồi trả dữ liệu cho BI Hub cùng `data_source`, `is_degraded`, `degraded_reason`.
+BI Hub `/admin/analytics` gọi FastAPI; API xác thực vai trò và cửa hàng, đọc Trino/MySQL rồi trả JSON cho ECharts. Trino đọc Iceberg qua Polaris/MinIO; MySQL cung cấp trạng thái vận hành hiện tại. Frontend không gọi các engine xử lý dữ liệu trực tiếp.
 
-Executive/sales/system chủ yếu đọc Gold. Marketing đọc `fact_web_events` trong 30 ngày. Store/inventory/operations dùng MySQL cho tình trạng hiện tại. Khi nguồn chính không khả dụng, API có thể trả OLTP fallback có đánh dấu.
+### Vai trò và nguồn dữ liệu
 
-MinIO có bảy identity theo workload. Polaris có `spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`; credential tách theo consumer. Code batch chỉ đọc OLTP, nhưng Compose mặc định dùng `MYSQL_USER` của ứng dụng; chưa tách MySQL user chỉ có quyền SELECT.
+| Vai trò hiển thị | Vai trò tài khoản | Nguồn chính / nội dung |
+|---|---|---|
+| Executive | `admin` | Gold fact_order và mart trả hàng; doanh thu, cost/profit, đơn; bổ sung COD đang giao từ OLTP |
+| Sales | `sales_manager` | Gold fact_order/fact_order_item/mart_sales_daily; doanh thu kênh, cửa hàng, sản phẩm |
+| Marketing | `marketing_manager` | Gold fact_web_events trong 30 ngày; bổ sung coupon/review từ OLTP |
+| Store | `store_manager` | MySQL theo cửa hàng; doanh thu hôm nay, số đơn, stockout |
+| Inventory | `inventory_manager` | MySQL; lượng/giá trị tồn, inbound, depletion |
+| Operations | `operations_manager` | MySQL; đơn chờ, shipment, COD lỗi, return |
+| System | `system_admin` | Gold freshness và đối soát count/tiền với MySQL |
+
+Admin có quyền truy cập các dashboard; các vai trò khác bị giới hạn bởi `validate_role_access`. Store manager bị cố định theo cửa hàng được gán bằng `resolve_effective_store_id`. Đây là lọc ở ứng dụng/API, không phải row-level security tự động trong Trino.
+
+### API và trạng thái nguồn
+
+| Endpoint | Mục đích |
+|---|---|
+| `GET /api/v1/admin/analytics/role-metrics` | Chỉ số theo vai trò và store hợp lệ |
+| `GET /api/v1/admin/analytics/stores` | Danh sách cửa hàng theo quyền |
+| `GET /api/v1/admin/analytics/sales-trend` | Biểu đồ theo ngày, quyền admin/sales_manager |
+| `GET /api/v1/admin/analytics/overview` | Tổng quan OLTP, quyền admin |
+
+Response chỉ số có `data_source`, `is_degraded`, `degraded_reason`. Trino lỗi có thể dẫn đến OLTP fallback; marketing không có event trong cửa sổ cũng có thể fallback. Công thức fallback có thể khác Gold, nên UI cần hiển thị nguồn. [Metrics Catalog](METRICS_CATALOG.md) định nghĩa công thức, grain và giới hạn diễn giải; dữ liệu generator vẫn là dữ liệu tổng hợp sau khi xử lý qua pipeline.
+
+Store/inventory/operations ưu tiên OLTP ngay cả khi Trino đang hoạt động. Marketing/store/inventory/operations tự tải lại 60 giây khi trang hoạt động; việc reload không khiến batch Gold tự chạy.
+
+Nguồn serving: [router](../../services/ecommerce-api/app/modules/analytics/router.py), [service](../../services/ecommerce-api/app/modules/analytics/service.py), [schemas](../../services/ecommerce-api/app/modules/analytics/schemas.py), [BI Hub](../../apps/storefront/src/app/admin/analytics/page.tsx).
+
+### Quyền truy cập storage và catalog
+
+MinIO có bảy identity theo workload. Polaris có `spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`; credential tách theo consumer. Code batch chỉ đọc OLTP, nhưng Compose mặc định dùng `MYSQL_USER` của ứng dụng; chưa tách MySQL user chỉ có quyền SELECT. Cách bootstrap và áp dụng RBAC nằm trong [SETUP](../runbook/SETUP.md).
 
 ## 6. Triển khai cục bộ
 

@@ -52,4 +52,4 @@ Các dịch vụ storage/catalog dùng chung và được kết nối qua Docker
 - Trino phục vụ SQL; không thay thế OLTP.
 - Generator tạo dữ liệu nguồn, không chèn số liệu dựng sẵn trực tiếp vào Gold.
 
-CI và các lệnh phát triển hiện tại được mô tả tại [CI runbook](../runbook/CI.md).
+CI và các lệnh phát triển hiện tại được mô tả tại [README tổng](../../README.md#development-commands).

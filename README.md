@@ -94,7 +94,7 @@ docker compose --profile core --profile batch --profile streaming ps
 curl -fsS http://localhost:8000/health/ready
 ```
 
-This path starts Compose services directly. See the [startup runbook](docs/runbook/STARTUP_FLOW.md) for initialization dependencies and the [setup guide](docs/runbook/SETUP.md) for catalog operation.
+This path starts Compose services directly. See the [setup guide](docs/runbook/SETUP.md) for initialization dependencies, catalog operation, and troubleshooting.
 
 #### 3. Service Access Endpoints
 
@@ -287,7 +287,16 @@ make typecheck
 npm --prefix apps/storefront run build
 ```
 
-CI runs Compose validation, DAG compilation, Ruff, frontend dependency installation, lint, typecheck, and build. The current workflow is described in the [CI runbook](docs/runbook/CI.md).
+### Continuous Integration
+
+The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `dev`, `main`, or `master`, pull requests, and manual dispatch. Pushes and pull requests that only change `docs/**`, `**.md`, `.gitignore`, or `LICENSE` are skipped.
+
+| Job | Checks |
+|---|---|
+| **Repository validation** | Validate Compose with `.env.example` and the four profiles shown above; compile Airflow DAG Python files; run Ruff |
+| **Storefront** | Install dependencies with `npm ci`; run lint, TypeScript typecheck, and the Next.js production build |
+
+CI uses `--env-file .env.example` because `.env` is not committed and Compose requires the service-account credentials. `uv lock --check` is an additional local check in the commands above.
 
 ---
 
@@ -301,7 +310,6 @@ CI runs Compose validation, DAG compilation, Ruff, frontend dependency installat
 | **Repository Layout** | [PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md) | Source directories and pipeline entry points |
 | **Lakehouse Model** | [LAKEHOUSE_DESIGN_PLAN.md](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Storage layout and dimension/fact/mart grains |
 | **Metric Definitions** | [METRICS_CATALOG.md](docs/architecture/METRICS_CATALOG.md) | Formulas, sources, windows, and interpretation limits |
-| **BI Serving** | [MANAGEMENT_INFO_TECHNICAL_SPEC.md](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | Roles, analytics endpoints, API filtering, and fallback |
 | **OLTP Schema** | [OLTP_SCHEMA.md](docs/architecture/OLTP_SCHEMA.md) | 28 source tables, relationships, and invariants |
 | **Physical SQL Schema** | [database/schema.sql](database/schema.sql) | MySQL table definitions for empty-database initialization |
 | **CDC** | [CDC_DASHBOARD_DATA_SPEC.md](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Capture contract, replay metadata, and recovery |
@@ -312,5 +320,4 @@ CI runs Compose validation, DAG compilation, Ruff, frontend dependency installat
 | **Business Requirements (C)** | [BUSINESS_REQUIREMENTS.md](docs/project/BUSINESS_REQUIREMENTS.md) | Retail, POS, inventory, delivery, and returns |
 | **Object-Oriented Analysis (A)** | [OOSAD_ANALYSIS.md](docs/design-analysis/OOSAD_ANALYSIS.md) | Actors, Use Cases, Activity, and Sequence analysis |
 | **Web Design (D)** | [WEB_DESIGN_PLAN.md](docs/project/WEB_DESIGN_PLAN.md) | Source application design |
-| **Local Setup** | [SETUP.md](docs/runbook/SETUP.md) | Deployment, identities, catalog inspection, and troubleshooting |
-| **CI & DataOps** | [CI.md](docs/runbook/CI.md) | Current static checks and frontend build |
+| **Local Setup** | [SETUP.md](docs/runbook/SETUP.md) | Startup dependencies, identities, data operations, catalog inspection, and troubleshooting |

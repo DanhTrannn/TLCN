@@ -6,7 +6,6 @@ Các sơ đồ nguồn trong thư mục này bám theo code hiện hành. Bộ m
 |---|---|---|
 | Kiến trúc Web và Lakehouse | [`system-architecture.drawio`](system-architecture.drawio) | Mở bằng [draw.io](https://app.diagrams.net/) để kéo sửa; một trang với năm cột thành phần và khoảng cách rộng giữa các khối. |
 | 3.2 — Thiết kế dữ liệu OLTP | [`erd-oltp-28-tables.dbml`](erd-oltp-28-tables.dbml) | Mở bằng [dbdiagram](https://dbdiagram.io/) hoặc VS Code DBML; đủ 28 bảng và 51 khóa ngoại. |
-| 3.2 — ERD luồng đặt hàng mẫu | [`erd-order-flow.html`](erd-order-flow.html) | Mở trực tiếp bằng trình duyệt; 6 bảng cốt lõi. |
 | 3.3.1 — Use Case tổng quan | [`usecase-web-overview.puml`](usecase-web-overview.puml) | [`SVG`](usecase-web-overview.svg) |
 | 3.3.2 — Use Case phân rã bán hàng | [`usecase-checkout-pos.puml`](usecase-checkout-pos.puml) | [`SVG`](usecase-checkout-pos.svg) |
 | 3.3.3 — Activity checkout | [`activity-checkout.puml`](activity-checkout.puml) | [`SVG`](activity-checkout.svg) |
@@ -35,7 +34,7 @@ Các file `.puml` là nguồn của bốn file SVG. PlantUML hỗ trợ kết xu
 plantuml -tsvg docs/diagrams/*.puml
 ```
 
-Sơ đồ `.drawio` là file XML có thể chỉnh sửa từng ô và đường nối. Plugin draw.io cho Codex có thể tạo và cập nhật loại file này bằng `/drawio:drawio` trong phiên Codex mới; ảnh PNG/SVG/PDF từ plugin cần cài draw.io Desktop. Sơ đồ HTML 6 bảng dùng skill `diagram-design` cùng profile TLCN trong `.diagram-design` ở gốc repo.
+Sơ đồ `.drawio` là file XML có thể chỉnh sửa từng ô và đường nối. Mở bằng draw.io để chỉnh sửa hoặc xuất PNG/SVG/PDF. Khi dùng Codex có plugin draw.io, có thể cập nhật file bằng `/drawio:drawio`.
 
 ## Giới hạn biểu diễn
 

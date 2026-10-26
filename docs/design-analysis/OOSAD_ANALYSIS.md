@@ -15,9 +15,9 @@
 1. [Xác định Actors](#11-xác-định-actors)
 2. [Sơ đồ Use-Case (Use-Case Diagrams)](#12-use-case-diagrams)
 3. [Mô tả chi tiết Use-Case (Đặc tả SVDPI)](#13-detailed-use-case-descriptions)
-4. [Sơ đồ hoạt động (Activity Diagrams)](#14-activity-diagrams)
-5. [Sơ đồ tuần tự hệ thống (System Sequence Diagrams)](#15-system-sequence-diagrams)
-6. [Sơ đồ lớp (Class Diagrams)](#16-class-diagrams)
+4. [Sơ đồ hoạt động (Activity Diagrams)](#14-sơ-đồ-hoạt-động-activity-diagrams)
+5. [Sơ đồ tuần tự hệ thống (System Sequence Diagrams)](#15-sơ-đồ-tuần-tự-hệ-thống-system-sequence-diagrams)
+6. [Sơ đồ lớp (Class Diagrams)](#16-sơ-đồ-lớp-class-diagrams)
 
 ### PHẦN II: NỀN TẢNG DATA LAKEHOUSE (Kỹ sư Dữ liệu / Chuyên viên Phân tích)
 1. [Xác định Actors](#21-xác-định-actors)
@@ -28,8 +28,8 @@
 6. [Sơ đồ tuần tự (Sequence Diagrams)](#26-sequence-diagrams)
 
 ### PHẦN III: KIỂM TRA TÍNH NHẤT QUÁN
-1. [Ma trận cân bằng (Balancing Matrix)](#31-balancing-matrix)
-2. [Kiểm tra độ bao phủ (Coverage Verification)](#32-coverage-verification)
+1. [Ma trận cân bằng (Balancing Matrix)](#31-ma-trận-cân-bằng-balancing-matrix)
+2. [Kiểm tra độ bao phủ (Coverage Verification)](#32-kiểm-tra-độ-bao-phủ-coverage-verification)
 
 ---
 

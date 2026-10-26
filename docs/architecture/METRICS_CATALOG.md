@@ -4,6 +4,8 @@ Tài liệu mô tả công thức trong pipeline và API hiện tại. Đây là
 
 Nguồn chính: [Gold OLTP](../../pipelines/src/lakehouse/oltp/gold.py), [Gold logs](../../pipelines/src/lakehouse/logs/gold.py), [analytics service](../../services/ecommerce-api/app/modules/analytics/service.py).
 
+Vai trò dashboard, API và phạm vi truy cập được mô tả trong [kiến trúc serving](SYSTEM_ARCHITECTURE_VISUAL.md#5-serving-và-phân-quyền).
+
 ## 1. Quy ước đọc số liệu
 
 - Tiền là số nguyên VND. Lợi nhuận trong Gold là doanh thu trừ giá vốn, chưa trừ đầy đủ chi phí vận hành, thuế và quảng cáo.
@@ -54,6 +56,8 @@ OLTP fallback executive dùng tiền thanh toán thành công trừ hoàn tiền
 | Đánh giá xấu gần đây | Đếm rating <= 2 trong 45 phút, nhóm theo product |
 
 Mục tiêu 15 triệu/ngày, các mốc doanh thu chia sẵn theo giờ, biên lợi nhuận nội suy, tỷ lệ chia tiền cho nhà vận chuyển và nhãn “viral” áp cứng đã được bỏ. `target_achievement_percent`, run-rate, margin-erosion và channel-growth không có dữ liệu khi chưa có cách tính từ nguồn phù hợp; UI ẩn các biểu đồ tương ứng.
+
+Một số trường API vẫn optional để tương thích giao diện. Khi thiếu dữ liệu, API trả `null` hoặc danh sách rỗng; target là `null` và UI ẩn phần chỉ tiêu. Các trường SLA/COD cần được diễn giải theo công thức trong tài liệu này, không chỉ theo tên trường.
 
 ## 4. Access log và hành vi web
 
