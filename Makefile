@@ -1,4 +1,4 @@
-.PHONY: all up start down stop restart ps logs status seed test test-frontend test-e2e verify-demo verify-cdc typecheck help
+.PHONY: all up start down stop restart ps logs status seed typecheck help
 
 all: up
 
@@ -12,11 +12,6 @@ help:
 	@echo "  make ps          Show container status"
 	@echo "  make logs        Follow container logs in real time"
 	@echo "  make seed        Seed multi-domain demo scenarios into MySQL"
-	@echo "  make test        Run all tests across backend and pipelines"
-	@echo "  make test-frontend Run storefront unit tests"
-	@echo "  make test-e2e    Run storefront Playwright tests"
-	@echo "  make verify-demo Verify core, batch, and streaming paths"
-	@echo "  make verify-cdc  Verify MySQL binlog CDC through Iceberg"
 	@echo "  make typecheck   Run Next.js storefront TypeScript check"
 	@echo ""
 
@@ -42,23 +37,6 @@ logs:
 
 seed:
 	@uv run --locked --package ecommerce-api -- python database/seeds/seed_demo_scenarios.py
-
-test:
-	@uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
-	@PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
-	@npm --prefix apps/storefront test
-
-test-frontend:
-	@npm --prefix apps/storefront test
-
-test-e2e:
-	@npm --prefix apps/storefront run test:e2e
-
-verify-demo:
-	@./scripts/verify_demo.sh
-
-verify-cdc:
-	@./scripts/verify_cdc.sh
 
 typecheck:
 	@npm --prefix apps/storefront run typecheck

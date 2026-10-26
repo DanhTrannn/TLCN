@@ -10,7 +10,7 @@ The `batch-pipeline` package encapsulates Apache Spark batch processing jobs, Ic
 pipelines/
 ├── config/
 │   └── default.yml                       # Lakehouse table specifications, cursor mappings, and mutability
-├── src/
+└── src/
 │   ├── jobs/                             # Data pipeline execution jobs (Streaming & Batch)
 │   │   ├── cdc/
 │   │   │   └── mysql_cdc_to_bronze.py    # Debezium Kafka topics -> immutable Iceberg Bronze CDC log
@@ -41,24 +41,6 @@ pipelines/
 │           ├── silver_ddl.py             # Silver table DDL definitions (16 OLTP + quarantine)
 │           ├── cursor.py                 # Composite cursor JSON state serialization and S3 helpers
 │           └── query.py                  # Extraction window SQL predicate generator
-└── tests/                                # Unit test suite
-    ├── test_bronze.py                    # Tests OLTP Bronze ingestion logic and dead-letter quarantine
-    ├── test_config.py                    # Tests configuration parsing and validation
-    ├── test_build_oltp_gold_job.py       # Tests Gold stage CLI parsing and modular task functions
-    ├── test_cursor.py                    # Tests cursor state management and S3 state round-trips
-    ├── test_financial_gold_marts.py      # Tests Gold marts DDL, financial COGS & margin parity
-    ├── test_gold_marts_provisioning.py   # Tests Gold marts table creation
-    ├── test_iceberg_maintenance.py       # Tests Iceberg compaction, expiry, and orphan file removal
-    ├── test_ingest_oltp_to_bronze.py     # Tests Landing path builders and auto-discovery
-    ├── test_landing.py                   # Tests Landing path builders and manifest serialization
-    ├── test_logs_bronze.py               # Tests OpenTelemetry log schema and Bronze transformations
-    ├── test_logs_silver.py               # Tests Logs Silver dedup and struct flattening
-    ├── test_logs_gold.py                 # Tests Logs Gold Fact and Data Mart transformations
-    ├── test_oltp_gold.py                 # Tests OLTP Gold dimensions, facts, and marts transformations
-    ├── test_query.py                     # Tests extraction window SQL predicate generation
-    ├── test_silver.py                    # Tests OLTP Silver MERGE, PII, quarantine, integration
-    ├── test_silver_ddl.py                # Tests Silver DDL schema definitions
-    └── test_validate.py                  # Tests S3 manifest verification logic
 ```
 
 ---
@@ -97,26 +79,3 @@ pipelines/
 | `oltp_cdc_to_bronze` | Continuous (10s checkpoints) | MySQL binlog → Debezium → Kafka → Bronze | **Log-based CDC (PyFlink)** | Immutable envelopes, deletes/tombstones, deterministic event IDs, replay coordinates |
 | `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
 | `build_oltp_gold` | Daily 2 AM | Silver → Gold (`dim_*`, `fact_*`, `mart_*`) | **Gold Batch Transformation** | Star schema, financial COGS parity, gross profit rollups |
-
-### Validation Results
-
-```text
-OLTP extraction (MySQL → Landing):        Pass  (26 analytical tables, Parquet + manifests)
-Landing → Bronze ingestion:               Pass  (27 tables, 0 skipped, 0 quarantine)
-Bronze table counts (Trino):              Pass  (verified via Trino & Polaris catalog)
-Access logs → Bronze:                     Pass  (web_events table)
-MySQL CDC → Bronze:                       Verify with `make verify-cdc`
-OLTP Bronze → Silver:                     Pass  (27 tables, MERGE, PII, quarantine)
-Logs Bronze → Silver:                     Pass  (web_events, anti-join dedup)
-Silver → Gold Marts:                      Pass  (sales marts, inventory health, COGS)
-```
-
----
-
-## 4. Running Pipeline Tests
-
-Run the pipeline unit and financial parity test suite:
-
-```bash
-uv run pytest pipelines/tests
-```

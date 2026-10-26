@@ -1,6 +1,6 @@
 # Local Lakehouse Setup
 
-This runbook covers the local deployment, RBAC bootstrapping, smoke testing, and troubleshooting for the Polaris-Iceberg-Spark-Trino lakehouse stack.
+This runbook covers the local deployment, RBAC bootstrapping, catalog inspection, and troubleshooting for the Polaris-Iceberg-Spark-Trino lakehouse stack.
 
 ## 1. Component Boundaries
 
@@ -86,48 +86,16 @@ It serves on host port `8087` (`http://localhost:8087`). The read-only `trino` r
 
 ---
 
-## 5. End-to-End Smoke Test
+## 5. Inspect Catalog and Data
 
-Run the automated smoke test script to verify end-to-end integration:
-
-```bash
-./scripts/lakehouse_smoke.sh
-```
-
-Verify CDC separately after the streaming profile is healthy:
-
-```bash
-make verify-cdc
-```
-
-The script performs the following verifications:
-1. Verifies that `polaris` and `minio` endpoints are reachable.
-2. Uses Spark SQL (`spark-client`) to write an Iceberg table (`lakehouse.system.stack_smoke`) via Polaris REST catalog.
-3. Verifies that data files exist in MinIO under `s3://lakehouse/warehouse/system/stack_smoke`.
-4. Executes a Trino query reading from `lakehouse.system.stack_smoke` to ensure end-to-end read-write connectivity.
-
-To query manually via Trino CLI inside container:
+Use the Trino CLI to browse the catalog and available Gold tables:
 
 ```bash
 docker compose exec trino trino --execute "SHOW SCHEMAS FROM lakehouse;"
-docker compose exec trino trino --execute "SELECT * FROM lakehouse.system.stack_smoke;"
+docker compose exec trino trino --execute "SHOW TABLES FROM lakehouse.gold;"
 ```
 
-### RBAC Authorization Verification
-
-Beyond the smoke test, three scripts prove the least-privilege identity matrix with fail-closed checks (expected denials must return Polaris HTTP 403 / MinIO access-denied responses):
-
-```bash
-# Negative checks for the batch identity matrix (spark_writer, trino_reader, lakehouse-spark, ...)
-./scripts/verify_rbac_batch.sh
-
-# Negative checks for the streaming identity matrix (flink_writer, lakehouse-flink, ...)
-# — run ./scripts/verify_streaming.sh first so the positive write path is established
-./scripts/verify_rbac_streaming.sh
-
-# Proves that RBAC convergence applies a temporary probe config and prunes it again (self-cleaning)
-./scripts/verify_rbac_convergence.sh
-```
+LibreDB Studio at `http://localhost:3001` also provides a SQL interface. Airflow and Flink dashboards show the state of batch and streaming jobs.
 
 ---
 

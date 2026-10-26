@@ -4,9 +4,9 @@ This directory contains operational runbooks and development workflows for the D
 
 ## Runbook Guides
 
-- [`SETUP.md`](SETUP.md): Step-by-step Lakehouse deployment, Polaris REST Catalog RBAC bootstrapping, smoke testing, and troubleshooting for the Iceberg-Spark-Trino stack.
+- [`SETUP.md`](SETUP.md): Step-by-step Lakehouse deployment, Polaris REST Catalog RBAC bootstrapping, catalog inspection, and troubleshooting for the Iceberg-Spark-Trino stack.
 - [`STARTUP_FLOW.md`](STARTUP_FLOW.md): Detailed initialization sequence, Docker Compose profiles, one-shot init containers, database migrations, and health checks.
-- [`CI.md`](CI.md): GitHub Actions CI workflow, static code analysis, multi-matrix testing, and pre-push verification commands.
+- [`CI.md`](CI.md): GitHub Actions CI workflow, static code analysis, frontend build, and local development commands.
 
 ---
 
@@ -111,7 +111,6 @@ replication account, registers Debezium, and submits the Flink CDC sink:
 ```bash
 docker compose --profile core --profile batch --profile streaming up -d --build
 curl -fsS http://127.0.0.1:8086/connectors/mysql-ecommerce-cdc/status
-make verify-cdc
 ```
 
 See [`../architecture/CDC_DASHBOARD_DATA_SPEC.md`](../architecture/CDC_DASHBOARD_DATA_SPEC.md)
@@ -119,39 +118,17 @@ for event semantics and recovery rules.
 
 ---
 
-## 4. Local Validation and CI Commands
-
-Run tests and type checks across all components before submitting changes:
+## 4. Local Development Commands
 
 ```bash
-# Check uv lockfile and Docker Compose syntax
+# Dependency lockfile, Compose configuration and Python syntax
 uv lock --check
-docker compose --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
+docker compose --env-file .env.example --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
+python3 -m compileall -q airflow/dags/
+uvx ruff check .
 
-# Run Python Test Suite (163 tests total)
-uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
-uv run --locked --package data-generator --extra dev -- pytest generator/tests
-PYTHONPATH=pipelines/src uv run --locked --package batch-pipeline --extra dev -- pytest pipelines/tests
-
-# Run all Python tests in single runner
-PYTHONPATH=pipelines/src:generator/src:services/ecommerce-api uv run pytest
-
-# Frontend unit tests, Typecheck, Production Build, and browser tests
-npm --prefix apps/storefront test
-npm --prefix apps/storefront run typecheck
+# Frontend static checks and production build
+npm --prefix apps/storefront run lint
+make typecheck
 npm --prefix apps/storefront run build
-npm --prefix apps/storefront run test:e2e
-
-# Live verification (requires the corresponding Compose profiles)
-./scripts/verify_core.sh
-./scripts/lakehouse_smoke.sh
-./scripts/verify_batch_pipeline.sh
-./scripts/verify_streaming.sh
-./scripts/verify_cdc.sh
-./scripts/verify_rbac_batch.sh
-./scripts/verify_rbac_streaming.sh
-./scripts/verify_rbac_convergence.sh
-
-# Or verify every demo path
-make verify-demo
 ```

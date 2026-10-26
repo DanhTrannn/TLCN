@@ -17,7 +17,7 @@
 
 :star: If you find this project useful, consider giving it a star!
 
-[Overview](#overview) • [Features](#features) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Testing](#testing-and-verification) • [Documentation](#documentation-index)
+[Overview](#overview) • [Features](#features) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Development](#development-commands) • [Documentation](#documentation-index)
 
 </div>
 
@@ -275,29 +275,16 @@ While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts, 
 
 ---
 
-## Testing and Verification
-
-Run each suite in its declared environment. Test counts are intentionally not hard-coded because collection changes with features and optional Spark dependencies.
+## Development Commands
 
 ```bash
-# Backend API tests
-uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
+# Validate Compose configuration
+docker compose --env-file .env.example --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
 
-# Data Generator tests (55 passed: distributions, synthetic seed, export validation)
-uv run --locked --package data-generator --extra dev -- pytest generator/tests
-
-# Batch Pipeline tests (Java/PySpark required for Spark cases)
-uv run pytest pipelines/tests
-
-# Run all Python tests in workspace
-PYTHONPATH=pipelines/src:generator/src:services/ecommerce-api uv run pytest
-
-# Frontend type check and production build
-npm --prefix apps/storefront run typecheck
+# Frontend static checks and production build
+npm --prefix apps/storefront run lint
+make typecheck
 npm --prefix apps/storefront run build
-
-# Lakehouse cluster smoke test
-./scripts/lakehouse_smoke.sh
 ```
 
 
@@ -325,7 +312,7 @@ Explore the detailed architecture and planning documents:
 | **Silver Ingestion (OLTP)** | [`docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md`](docs/pipelines/batch/INGEST_OLTP_BRONZE_TO_SILVER.md) | Spark ingestion of OLTP data from Bronze to Silver with MERGE |
 | **Silver Ingestion (Logs)** | [`docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md`](docs/pipelines/batch/INGEST_LOGS_BRONZE_TO_SILVER.md) | Spark ingestion of Access Logs from Bronze to Silver (`silver_logs`) |
 | **Gold Ingestion (Logs)** | [`docs/pipelines/batch/BUILD_LOGS_GOLD.md`](docs/pipelines/batch/BUILD_LOGS_GOLD.md) | Spark transformation of Silver logs to Gold Fact and Data Marts |
-| **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and smoke testing |
-| **CI & DataOps** | [`docs/runbook/CI.md`](docs/runbook/CI.md) | GitHub Actions CI workflow, multi-matrix testing, and static quality checks |
+| **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and troubleshooting |
+| **CI & DataOps** | [`docs/runbook/CI.md`](docs/runbook/CI.md) | GitHub Actions CI workflow, static code checks, and frontend build |
 | **Startup Sequence** | [`docs/runbook/STARTUP_FLOW.md`](docs/runbook/STARTUP_FLOW.md) | Service bootstrap sequence, migrations, and health checks |
 | **Runbook Index** | [`docs/runbook/README.md`](docs/runbook/README.md) | Central index for operational tasks, commands, and validation |

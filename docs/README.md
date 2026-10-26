@@ -23,7 +23,7 @@ This directory contains the architecture specifications, data schemas, operation
 ### Operations and Deployment
 
 - [`runbook/README.md`](runbook/README.md): Index of operational workflows, quick start commands, and validation.
-- [`runbook/SETUP.md`](runbook/SETUP.md): Local cluster setup, Polaris RBAC bootstrap, and end-to-end smoke testing.
+- [`runbook/SETUP.md`](runbook/SETUP.md): Local cluster setup, Polaris RBAC bootstrap, and catalog inspection.
 - [`runbook/STARTUP_FLOW.md`](runbook/STARTUP_FLOW.md): Container startup sequence, database migrations, and health verification.
 
 ## Progress
@@ -53,20 +53,6 @@ This directory contains the architecture specifications, data schemas, operation
 | `oltp_cdc_to_bronze` | Done | Real-time | MySQL binlog changes into immutable Iceberg Bronze |
 | `lakehouse_streaming_maintenance` | Done | 4 layers | Streaming logs healthcheck, Iceberg maintenance & Gold Marts rollup |
 
-### Validation
-
-| Check | Status | Result |
-|---|---|---|
-| OLTP extraction (MySQL → Landing) | Pass | 27 tables, Parquet + MD5 manifests |
-| Landing → Bronze ingestion | Pass | 27 tables, 0 skipped, 0 quarantine |
-| Bronze table counts (Trino) | Pass | Matches source |
-| Polaris catalog + RBAC | Pass | Spark write, Trino read-only |
-| Access logs → Bronze | Pass | `web_events` table (streaming + batch) |
-| OLTP Bronze → Silver | Pass | 27 tables, MERGE, PII pseudonymization, quarantine |
-| OLTP Silver → Gold | Pass | 6 dims, 5 facts, 4 marts built and verified via Trino (with COGS & margins) |
-| Logs Bronze → Silver | Pass | `silver_logs` window dedup, struct flattening |
-| Logs Silver → Gold | Pass | `fact_web_events`, `mart_hourly_route_metrics`, `mart_daily_product_demand` |
-
 
 ---
 
@@ -77,4 +63,4 @@ This directory contains the architecture specifications, data schemas, operation
 | [`project/`](project/) | Specification | Scope, Lakehouse Medallion roadmap, and Web Design plans |
 | [`architecture/`](architecture/) | Reference | System structure, OLTP schema, and access log contracts |
 | [`contracts/`](contracts/) | Schema | JSON Schema definitions for telemetry contracts |
-| [`runbook/`](runbook/) | How-To | Local deployment, startup, CI, and end-to-end verification |
+| [`runbook/`](runbook/) | How-To | Local deployment, startup, CI, and catalog inspection |

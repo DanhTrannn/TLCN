@@ -50,7 +50,7 @@ Brings up log collection, Spark cluster, and Airflow orchestration:
 |---|---|
 | `spark-master` | Starts Spark standalone cluster master (`:7077`, Web UI: `:8082`). |
 | `spark-worker` | Registers worker with `spark-master` (Web UI: `:8083`). |
-| `spark-client` | (*Profile `lakehouse-tools`*) One-shot smoke runner injecting Polaris OAuth credentials and executing test table commits. |
+| `spark-client` | (*Profile `lakehouse-tools`*) Spark SQL utility using its private Polaris OAuth credentials; lists catalog namespaces by default and accepts custom SQL commands. |
 
 ### 2.2. Apache Airflow Orchestration
 | Service | Startup Behavior |

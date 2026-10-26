@@ -73,13 +73,7 @@ uv run --package ecommerce-api uvicorn app.main:app --host 0.0.0.0 --port 8000 -
 
 ---
 
-## Testing
-
-Run the test suite using `pytest` (200 tests):
-
-```bash
-uv run --locked --package ecommerce-api --extra dev -- pytest services/ecommerce-api/tests
-```
+## References
 
 All transactional rules and schema constraints are documented in [`../../docs/architecture/OLTP_SCHEMA.md`](../../docs/architecture/OLTP_SCHEMA.md).
 Structured access log contracts are documented in [`../../docs/architecture/ACCESS_LOG_DESIGN.md`](../../docs/architecture/ACCESS_LOG_DESIGN.md).

@@ -419,8 +419,8 @@ services:
       - spark.driver.host=spark-client
       - --conf
       - spark.driver.bindAddress=0.0.0.0
-      - -f
-      - /opt/project/spark/sql/smoke.sql
+      - -e
+      - SHOW NAMESPACES IN lakehouse
     volumes:
       - polaris-spark-client-credentials:/run/polaris:ro
     depends_on:

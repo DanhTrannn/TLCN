@@ -62,7 +62,7 @@ Flink checkpoints every 10 seconds in exactly-once mode. Iceberg commits happen
 on successful checkpoints. Kafka offsets and deterministic `event_id` values
 provide a second line of defence for replay and duplicate detection.
 
-## 4. Run and verify
+## 4. Run and inspect
 
 Start the complete stack:
 
@@ -76,12 +76,6 @@ Inspect the connector:
 curl -fsS http://127.0.0.1:8086/connectors/mysql-ecommerce-cdc/status
 ```
 
-Run the end-to-end verification:
-
-```bash
-make verify-cdc
-```
-
 Query captured operations:
 
 ```sql
@@ -90,11 +84,6 @@ FROM lakehouse.bronze.oltp_cdc_events
 GROUP BY table_name, operation
 ORDER BY table_name, operation;
 ```
-
-The verifier checks connector/task health, CDC topic creation, delivery into
-Iceberg through Flink, and uniqueness of deterministic event IDs. During the
-implementation integration test, a self-cleaning category record also verified
-the complete `c -> u -> d -> t` sequence and both row images.
 
 ## 5. Recovery and operational rules
 

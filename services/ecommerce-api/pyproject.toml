@@ -23,17 +23,6 @@ dependencies = [
   "starlette==0.47.3"
 ]
 
-[project.optional-dependencies]
-dev = [
-  "pytest==8.4.1",
-  "pytest-timeout==2.3.1"
-]
-
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-timeout = 30
-

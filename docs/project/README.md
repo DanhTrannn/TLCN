@@ -11,4 +11,4 @@ This directory contains the foundational specifications, technical scope boundar
 
 ## Scope Governance
 
-Any changes to project scope, domain entities, or analytical boundaries must first be reflected in [`SCOPE.md`](SCOPE.md), followed by corresponding updates to schemas, migrations, pipelines, and test suites.
+Any changes to project scope, domain entities, or analytical boundaries must first be reflected in [`SCOPE.md`](SCOPE.md), followed by corresponding updates to schemas, migrations, pipelines, and documentation.

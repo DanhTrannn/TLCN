@@ -71,13 +71,11 @@ flowchart LR
 │   └── seeds/                            # Master catalog and multi-role demo scenarios seeds
 ├── generator/
 │   ├── configs/                          # Dataset scale scenarios (small, medium, large)
-│   ├── src/generator/                    # Deterministic data generator CLI package (v0.6.0)
-│   └── tests/                            # Generator distribution & SQL tests (55 tests)
+│   └── src/generator/                    # Deterministic data generator CLI package (v0.6.0)
 ├── pipelines/
 │   ├── config/                           # Lakehouse table configurations (default.yml - 27 tables)
 │   ├── src/jobs/                         # Spark batch jobs organized by domain (jobs/logs/, jobs/oltp/)
-│   ├── src/lakehouse/                    # Core library and domain logic (lakehouse/logs/, lakehouse/oltp/, common)
-│   └── tests/                            # Pipeline, Bronze, Silver & Gold tests
+│   └── src/lakehouse/                    # Core library and domain logic (lakehouse/logs/, lakehouse/oltp/, common)
 ├── airflow/
 │   ├── dags/                             # Airflow DAGs (lakehouse_logs_pipeline.py, ingest_oltp_batch.py, ingest_oltp_landing_to_bronze.py, ingest_oltp_silver.py)
 │   └── logs/                             # Airflow operational logs
@@ -95,7 +93,6 @@ flowchart LR
 │   ├── project/                          # Scope, Lakehouse design plan, Web design plan
 │   └── runbook/                          # Setup, startup flow, and operational runbooks
 ├── scripts/                              # Utility shell scripts and traffic simulator
-├── tests/                                # Monorepo cross-component testing guides
 ├── docker-compose.yml                    # Multi-profile Docker compose stack
 ├── pyproject.toml                        # Workspace root pyproject configuration
 └── uv.lock                               # Pinned dependencies lockfile
@@ -108,8 +105,8 @@ flowchart LR
 The monorepo uses [`uv`](https://docs.astral.sh/uv/) as the package manager and workspace orchestrator. The workspace consists of three packages sharing a single `uv.lock` file:
 
 - **`ecommerce-api`** (`services/ecommerce-api`): FastAPI, SQLAlchemy 2.0, Alembic, PyMySQL, Argon2, PyJWT.
-- **`data-generator`** (`generator`): Faker, PyYAML, Argon2, HTTPX (55 tests).
-- **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3, PyArrow and PySpark.
+- **`data-generator`** (`generator`): Faker, PyYAML, Argon2, HTTPX.
+- **`batch-pipeline`** (`pipelines`): PyYAML, PyMySQL, Boto3 and PyArrow; Spark runs in the Docker processing images.
 
 Infrastructure components (Trino, LibreDB Studio, Polaris, MinIO, Spark, Kafka, Flink) are pinned via standard container images or custom Dockerfiles and do not interact with the Python host workspace.
 
@@ -125,7 +122,7 @@ The platform uses Docker Compose profiles to isolate service lifecycles:
 | `batch` | `spark-master`, `spark-worker`, `spark-client`, `airflow-init`, `airflow-webserver`, `airflow-scheduler` | Log collection, Spark standalone compute cluster, and Airflow workflow orchestration |
 | `streaming` | `kafka`, `debezium-connect`, `flink-jobmanager`, `flink-taskmanager` | MySQL CDC, distributed event streaming, and real-time Iceberg ingestion |
 | `core` | `ecommerce-api`, `storefront` | Operational e-commerce web application, POS, and customer storefront |
-| `lakehouse-tools` | `spark-client` | Ad-hoc Spark CLI verification and SQL smoke tests |
+| `lakehouse-tools` | `spark-client` | Ad-hoc Spark SQL and catalog browsing |
 
 ### Service Port Allocations
 

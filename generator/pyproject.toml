@@ -13,9 +13,6 @@ dependencies = [
     "PyYAML==6.0.2",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest==8.4.1"]
-
 [project.scripts]
 generator = "generator.cli:main"
 

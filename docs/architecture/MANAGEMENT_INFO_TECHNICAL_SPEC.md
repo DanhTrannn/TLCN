@@ -546,7 +546,7 @@ gantt
     Xây dựng Dashboard Giám sát Thanh toán & SLA cho Người Giám sát   :2026-11-10, 14d
     Tích hợp Cảnh báo Tự động qua kênh Slack #data-quality-alerts     :2026-11-17, 14d
     section GIAI ĐOẠN 4: Đánh giá Toàn diện & Nghiệm thu
-    Kiểm thử Tải Truy vấn & Tối ưu Trino / Cache                      :2026-12-01, 14d
+    Tối ưu Truy vấn Trino / Cache                                   :2026-12-01, 14d
     UAT với 3 Nhóm Quản trị (CEO, Quản lý Cửa hàng, Giám sát Hệ thống):2026-12-08, 14d
     Nghiệm thu Chính thức & Đóng băng Kiến trúc Production            :2026-12-15, 7d
 ```
