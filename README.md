@@ -4,7 +4,7 @@
 # D&K E-Commerce Data Platform
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Node.js](https://img.shields.io/badge/Node.js->=22-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 [![MySQL](https://img.shields.io/badge/MySQL-8.4-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://mysql.com)
 [![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-3.8-231F20?style=flat-square&logo=apachekafka&logoColor=white)](https://kafka.apache.org)
 [![Apache Flink](https://img.shields.io/badge/Apache_Flink-1.19-E6526F?style=flat-square&logo=apacheflink&logoColor=white)](https://flink.apache.org)
@@ -21,48 +21,41 @@
 
 </div>
 
-The **D&K E-Commerce Data Platform** is an enterprise-grade hybrid lakehouse monorepo combining high-throughput transactional processing, real-time event streaming, and analytical data lakehouse architecture. It operates an operational MySQL 8.4 database with 28 relational tables (27 analytical tables ingested into Lakehouse), a FastAPI e-commerce backend, and a modern Next.js 15 storefront. The data platform combines Apache Kafka + Apache Flink for real-time streaming ingestion alongside Apache Spark for Medallion batch processing (Bronze, Silver, Gold) on Apache Iceberg with Polaris catalog. FastAPI applies RBAC before serving Apache Trino analytics to Apache ECharts in the Admin BI Hub (`/admin/analytics`).
+The **D&K E-Commerce Data Platform** is a local Data Engineering project combining an e-commerce source application, batch data processing, MySQL change capture, and access-log streaming. MySQL contains 28 OLTP tables; 27 are configured for analytical ingestion. Data is stored in Apache Iceberg on MinIO, cataloged by Polaris, and queried through Trino. A Next.js/FastAPI application provides Storefront, POS, administration, and ECharts dashboards.
 
 > [!NOTE]
-> The platform implements a **Hybrid Batch, CDC & Streaming Architecture**: Debezium captures MySQL row changes into Kafka, Apache Flink persists the immutable CDC log and real-time clickstream into Iceberg, and Apache Spark orchestrates reconciled Bronze, Silver, and Gold batch transformations.
+> The platform has three data paths: **OLTP batch**, **MySQL binlog CDC**, and **access-log streaming**. CDC currently writes an append-only Bronze event log; OLTP Silver/Gold tables are built by Spark batch jobs.
 
 ## Overview
 
-Building an analytical environment for an operational e-commerce database can place a high load on production systems. This platform provides a robust data lakehouse pattern to offload historical analytical queries and track access patterns without impacting operational processing. Machine learning is intentionally reserved for a later phase.
+The project covers data collection, incremental extraction, Medallion transformations, data quality, reconciliation, and SQL analytics. The website and POS provide transactional source data; the generator supplies configurable synthetic datasets and simulated API traffic.
 
-The repository includes everything needed to run the data platform locally, including a modern Next.js 15 storefront, a FastAPI backend, a MySQL database with 28 relational business tables (27 analytical tables), a deterministic synthetic data generator, and the complete Medallion lakehouse processing stack.
+Historical analytics use Trino over Iceberg. Current store, inventory, and logistics indicators use MySQL through FastAPI. Responses identify their data source and any fallback. Machine learning training and scoring remain outside the implemented scope.
 
 ## Features
 
-- **Inbound Production & MWA Costing:** Internal workshop garment batches, Moving Weighted Average (MWA) inventory costing recalculation, and snapshot COGS at checkout for real-time gross margin tracking.
-- **Full Order & Logistics Lifecycle:** End-to-end shipper dispatch, boom COD handling (3-attempt threshold and automatic COD blocking), customer 7-day return/refund management, and customer-confirmed order completion (`delivered -> completed`).
-- **7-Role Interactive BI Analytics Hub (`/admin/analytics`):** Tailored operational views for Executive (CEO), Sales, Store Managers (with Application/API-level Row Filtering scoped by `store_id`), Inventory, Operations & Logistics, Marketing Funnel, and System Admin with reconciliation audits, integrated with Apache ECharts and Apache Trino distributed query engine.
-
-- **Log-based MySQL CDC:** MySQL row binlog → Debezium/Kafka Connect → Kafka → Flink → append-only Iceberg Bronze with snapshot, create, update, delete, tombstone, binlog, and Kafka replay metadata.
-- **Hybrid Streaming & Batch Processing:** Real-time CDC and access-log streaming via Apache Kafka and Apache Flink alongside scheduled Apache Spark Medallion batch ETL and reconciliation.
-- **Operational Analytics:** Query historical order, product, inventory, and customer metrics without placing analytical load on the production MySQL database.
-- **Access Log Analysis:** Inspect traffic patterns, latency distributions, error rates, and search keywords aggregated into hourly and daily summary tables.
-- **ML Roadmap (not implemented):** Point-in-time repurchase features, training, and scoring are deferred to a later phase.
-- **Deterministic Data Generator:** Generate 12 months of realistic Vietnamese e-commerce transactions and matching 30-day access logs using calibrated market distributions.
-- **Idempotent Ingestion:** Multi-threaded Spark extractor with composite cursor tracking `(cursor_field, pk)` and cryptographic manifest validation.
-- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions with store inventory deduction.
-- **Multi-City Inventory:** Store-level inventory tracking across 5 cities and 6 stores, with city-based product availability.
-- **Role-Based UI:** Strict RBAC panels for Admin (`/admin`), Store Manager (`/store`), and 7 Business Roles (`/admin/analytics`).
-- **Structured Checkout:** Address form with 34 Vietnamese provinces (post-1/7/2025 merger), wards, and street fields.
+- **Hybrid Ingestion:** Spark batch extraction, Debezium MySQL CDC, and Kafka/Flink access-log processing.
+- **Incremental Batch:** Composite cursors `(cursor_field, pk)`, lookback windows, high watermarks, Parquet files, and manifests.
+- **Medallion Processing:** Bronze source history, Silver typing/deduplication/MERGE and PII pseudonymization, and Gold dimensions/facts/marts.
+- **Data Quality and Reconciliation:** Source-to-Silver reconciliation and post-Gold checks, with audit results in `lakehouse.system.data_quality_results`.
+- **Open Lakehouse Storage:** MinIO object storage, Iceberg tables/snapshots, Polaris catalog, and scheduled maintenance.
+- **Role-Based Analytics:** Seven dashboard views with API-level role and store filtering, Trino historical queries, and explicitly marked OLTP fallback.
+- **Access-Log Analytics:** Request volume, duration percentiles, error rates, product interactions, and event-based marketing funnels.
+- **Synthetic Data Generation:** Version 0.7 generates deterministic SQL history and historical access logs from YAML configurations; live API traffic can feed the Kafka stream.
+- **Operational Source Application:** Storefront, cart/checkout, POS, store inventory, in-house delivery, COD failure tracking, returns/refunds, and product reviews.
+- **Inventory Costing:** Inbound receipts, Moving Weighted Average costs, and order-item cost snapshots for analytical COGS calculations.
 
 ## Quick Start
 
 ### Prerequisites
 
-You need the following tools to run this platform locally:
+- [Docker Engine](https://docs.docker.com/engine/install/) with Docker Compose v2 and BuildKit support.
+- [Python 3.11](https://www.python.org/downloads/) and [uv](https://docs.astral.sh/uv/) for host-side data generation and Python development.
+- [Node.js 22.x](https://nodejs.org/) and npm 10+ for host-side frontend development.
 
-- [Docker Engine](https://docs.docker.com/engine/install/) 24+ and Docker Compose v2.20+
-- [Python 3.11](https://www.python.org/downloads/) with [`uv`](https://docs.astral.sh/uv/) package manager
-- [Node.js](https://nodejs.org/) 22+ (for host storefront development)
+### Quick Start (One Command)
 
-### Quick Start (One Command - Fastest)
-
-Start the entire platform stack (Core Web, MySQL, Polaris, Trino, Spark, Airflow, Kafka, Flink) with health verification and Gold Marts initialization in a single command:
+The launcher creates `.env` from `.env.example` if needed, starts the `core`, `batch`, and `streaming` profiles, waits for service readiness, and initializes missing Gold schemas:
 
 ```bash
 make up
@@ -70,7 +63,9 @@ make up
 ./scripts/start_all.sh
 ```
 
-To stop all services:
+Use `./scripts/start_all.sh --build` when rebuilding images. Startup initializes the application catalog and bootstrap admin; transactional history and populated Gold results require data ingestion and a pipeline run.
+
+To stop the platform:
 
 ```bash
 make down
@@ -80,141 +75,130 @@ make down
 
 ---
 
-### Step-by-Step Profile Startup (Alternative)
+### Step-by-Step Startup (Alternative)
 
-#### 1. Start Core Services
-
-Clone the repository and launch the core operational stack (MySQL, FastAPI Backend, Next.js Storefront, and MinIO S3):
+#### 1. Prepare the Environment
 
 ```bash
 cp .env.example .env
-docker compose --profile core up -d --build
 ```
 
-Verify service readiness:
+The example sets `COMPOSE_PROFILES=core,batch,streaming`. Profiles supplied with `--profile` add to the environment selection; they do not restrict it to a single profile.
+
+#### 2. Start and Inspect the Services
 
 ```bash
-docker compose --profile core ps
+docker compose --profile core --profile batch --profile streaming up -d --build
+
+docker compose --profile core --profile batch --profile streaming ps
 curl -fsS http://localhost:8000/health/ready
 ```
 
-### 2. Start Data Platform Services
+This path starts Compose services directly. See the [startup runbook](docs/runbook/STARTUP_FLOW.md) for initialization dependencies and the [setup guide](docs/runbook/SETUP.md) for catalog operation.
 
-Launch the Lakehouse processing and query services (Polaris Catalog, Spark Master/Worker, Airflow Scheduler/Webserver, and Trino):
+#### 3. Service Access Endpoints
 
-```bash
-docker compose --profile batch up -d
-```
+Ports and credentials below follow the default configuration; environment overrides may change them.
 
-To start the real-time streaming pipeline (Kafka + Apache Flink):
-
-```bash
-docker compose --profile streaming up -d
-```
-
-### 3. Service Access Endpoints
-
-Once the services are running, access the following dashboards and endpoints:
-
-| Service | Port | URL | Default Credentials |
+| Service | Port | URL | Credentials / Notes |
 |---|---|---|---|
-| **Storefront** | 3000 | `http://localhost:3000` | (Public) |
-| **Admin Console** | 3000 | `http://localhost:3000/admin` | `admin@web.local` / `Admin@12345` |
-| **BI Analytics Hub (7 Roles)** | 3000 | `http://localhost:3000/admin/analytics` | `admin@web.local` / `Admin@12345` |
-| **POS (Point of Sale)** | 3000 | `http://localhost:3000/admin/pos` | `store.manager@dk.local` / `Admin@12345` |
-| **Backend API Docs** | 8000 | `http://localhost:8000/docs` | (Public Swagger UI) |
-| **LibreDB Studio (SQL IDE)** | 3001 | `http://localhost:3001` | (Web SQL Studio) |
-| **MinIO S3 Console** | 9001 | `http://localhost:9001` | `minio-root` / `(see .env` → `MINIO_ROOT_PASSWORD`) |
-| **Polaris Catalog Console** | 8183 | `http://localhost:8183` | `root` / `(see .env` → `POLARIS_ROOT_CLIENT_SECRET`; Realm: `POLARIS`) |
-| **Airflow Web UI** | 8080 | `http://localhost:8080` | `airflow` / `password` |
-| **Spark Master UI** | 8082 | `http://localhost:8082` | (Web UI) |
-| **Trino Query Engine** | 8084 | `http://localhost:8084` | `trino` |
-| **Flink Dashboard** | 8085 | `http://localhost:8085` | (Web UI) |
-| **Kafka Broker** | 9092, 9094 | `localhost:9092` | PLAINTEXT |
-| **Debezium Connect API** | 8086 | `http://127.0.0.1:8086` | Localhost only |
-| **Trino Admin UI (optional)** | 8087 | `http://localhost:8087` | `trino` (profile `trino-admin`, not started by default) |
+| **Storefront** | 3000 | `http://localhost:3000` | Public browsing |
+| **Admin Console** | 3000 | `http://localhost:3000/admin` | Bootstrap admin from `API_BOOTSTRAP_ADMIN_*` |
+| **BI Analytics Hub** | 3000 | `http://localhost:3000/admin/analytics` | Staff role or admin |
+| **POS** | 3000 | `http://localhost:3000/admin/pos` | Authorized staff with store assignment |
+| **Backend API Docs** | 8000 | `http://localhost:8000/docs` | Swagger UI |
+| **LibreDB Studio** | 3001 | `http://localhost:3001` | `LIBREDB_ADMIN_EMAIL` / `LIBREDB_ADMIN_PASSWORD` |
+| **MinIO Console** | 9001 | `http://localhost:9001` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
+| **Polaris Console** | 8183 | `http://localhost:8183` | `POLARIS_ROOT_CLIENT_ID` / `POLARIS_ROOT_CLIENT_SECRET`; realm `POLARIS` |
+| **Airflow UI** | 8080 | `http://localhost:8080` | `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD` |
+| **Spark Master UI** | 8082 | `http://localhost:8082` | Cluster status |
+| **Trino** | 8084 | `http://localhost:8084` | Query engine / Web UI |
+| **Flink Dashboard** | 8085 | `http://localhost:8085` | Job status |
+| **Kafka** | 9092, 9094 | `localhost:9094` | External listener; Docker clients use `kafka:9092` |
+| **Debezium Connect** | 8086 | `http://127.0.0.1:8086` | Connector lifecycle/status |
+| **Trino Admin (optional)** | 8087 | `http://localhost:8087` | Separate `trino-admin` profile |
+
+Additional staff accounts and store assignments are managed through the application.
 
 ### Service Identities
 
-Every storage consumer uses its own least-privilege identity — never the MinIO root account or a shared credential file. MinIO bootstraps seven scoped service users (`lakehouse-polaris`, `lakehouse-spark`, `lakehouse-flink`, `lakehouse-airflow`, `lakehouse-trino`, `lakehouse-trino-admin`, `lakehouse-uploader`), and Polaris provisions four principals (`spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`) whose credentials are written to individual private volumes (one per consumer, not one shared volume). The full identity matrix including the optional `trino-admin` profile is documented in [docs/runbook/SETUP.md](docs/runbook/SETUP.md).
+Storage workloads use seven scoped MinIO identities and four Polaris principals: `spark_writer`, `flink_writer`, `trino_reader`, and `trino_admin`. Each consumer mounts its own credential file. MinIO initialization uses the root identity to provision accounts; regular workloads use their assigned identities. Details are in the [setup guide](docs/runbook/SETUP.md).
 
 ---
 
 ## Architecture
 
-The system processes 27 analytical tables from the 28-table MySQL OLTP schema through both a reconciled Spark batch path and a Debezium row-binlog CDC path. Structured access logs emitted by FastAPI use a separate Kafka + Flink stream.
-
-See the [visual System Architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) for system context, container boundaries, batch/streaming flows, request sequences, and deployment profiles.
+`customer_credentials` is excluded from both the 27-table batch configuration and CDC capture. The three ingestion paths have different processing and serving boundaries:
 
 ```text
-                        Customer / Admin Traffic
-                                    │
-                                    ▼
-                      Next.js Storefront (Port 3000)
-                                    │
-                               HTTP / JSON
-                                    │
-                                    ▼
-                       FastAPI API (Port 8000)
-                       /                 \
-             Short TX /                   \ Event Streaming
-                     ▼                     ▼
-                MySQL 8.4             Apache Kafka
-             (27 OLTP tables)          (Event Bus)
-                  │  │                    ▲  │
-          Batch ──┘  └─ Binlog → Debezium ┘  ▼
-                  │                   Apache Flink
-                  │             (CDC + Access Logs)
-                  └──────────────┬───────────┘
-                                   ▼
-                         MinIO S3 / Apache Iceberg
-                        s3://lakehouse/ (Polaris REST)
-                                  │
-                             Apache Spark
-                      (Medallion ETL Pipeline)
-                                  │
-                       Apache Iceberg + Polaris
-                      (Bronze → Silver → Gold)
-                                  │
-                         Trino SQL Engine
-                        /                \
-                       ▼                  ▼
-                LibreDB Studio       Admin BI Hub (ECharts)
-                   (Port 3001)          (/admin/analytics)
+                    Customer / Staff / Admin
+                              |
+                       Next.js Storefront
+                              |
+                           FastAPI
+                              |
+                       MySQL (28 tables)
+
+OLTP batch:
+  MySQL -> Spark -> Landing Parquet -> Bronze -> Silver -> Gold
+
+MySQL CDC:
+  MySQL binlog -> Debezium -> Kafka -> Flink -> Bronze CDC events
+
+Access logs:
+  FastAPI middleware -> Kafka -> Flink -> Iceberg log tables
+                                        (Landing / Bronze / Silver / Gold)
+
+Storage / catalog:
+  Iceberg data and metadata files on MinIO + Polaris REST catalog
+
+Serving:
+  Iceberg -> Trino -> FastAPI analytics -> Admin BI Hub / ECharts
+  MySQL -----------> FastAPI operational metrics
+  Trino -----------> LibreDB Studio
 ```
+
+See the [system architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) and [editable draw.io diagram](docs/diagrams/system-architecture.drawio) for component boundaries.
 
 ### Technology Stack
 
-| Layer | Component | Version | Responsibility |
+| Layer | Component | Version / Image Tag | Responsibility |
 |---|---|---|---|
-| **Presentation** | Next.js / React | 15.5 / 19.1 | Customer storefront, POS, and 7-Role BI Hub |
-| **Visual Analytics** | Apache ECharts | 6.1 | Interactive role-based charts and Trino live telemetry |
-| **Application** | FastAPI / SQLAlchemy | 0.116 / 2.0 | Transactional business logic (28 tables, 16 modules) |
-| **Operational DB** | MySQL | 8.4 LTS | Primary relational database (28 tables, 27 analytical) |
-| **Change Data Capture** | Debezium MySQL Connector | 3.0.8 | MySQL row-binlog snapshot and continuous change capture |
-| **Event Streaming** | Apache Kafka | 3.8 | Distributed CDC and access-log streaming backbone |
-| **Stream Processing** | Apache Flink | 1.19 | CDC/access-event consumption and Iceberg streaming ingest |
-| **Object Storage** | MinIO | Latest | S3-compatible Lakehouse storage (`lakehouse` bucket) |
-| **Table Catalog** | Apache Polaris | 1.6.0 | REST catalog managing Iceberg namespaces and RBAC |
-| **Processing** | Apache Spark | 3.5.9 | Batch ingestion, data quality checks, Iceberg writes |
-| **Orchestration** | Apache Airflow | 2.10.5 | DAG scheduling and job orchestration |
-| **Query Engine** | Trino | 483 | Distributed SQL query engine reading Iceberg tables |
-| **Query UI** | LibreDB Studio | Latest | Web-based SQL IDE for MySQL, PostgreSQL, and Trino |
+| **Presentation** | Next.js / React | 15.5.21 / 19.1.8 | Storefront, POS, administration, BI Hub |
+| **Visualization** | Apache ECharts | 6.1.0 | Dashboard charts |
+| **Application** | FastAPI / SQLAlchemy | 0.116.1 / 2.0.41 | Transactions, auth/RBAC, logging, analytics API |
+| **Operational DB** | MySQL | 8.4.5 | 28 OLTP tables; 27 analytical source tables |
+| **Change Capture** | Debezium | 3.0.8 | Initial snapshot and row-binlog capture |
+| **Event Streaming** | Apache Kafka | 3.8.0 | CDC and access-log topics |
+| **Stream Processing** | Apache Flink | 1.19 | Access-log tables and Bronze CDC ingestion |
+| **Object Storage** | MinIO | `latest-dev` | Landing, Iceberg files, and processing state |
+| **Table Format** | Apache Iceberg | 1.10.1 | Tables, snapshots, and commits |
+| **Catalog** | Apache Polaris | 1.6.0 | REST catalog and access control |
+| **Batch Processing** | Apache Spark | 3.5.9 | Extraction, transformations, gates, maintenance |
+| **Orchestration** | Apache Airflow | 2.10.5 | Batch and maintenance DAGs |
+| **Metadata DB** | PostgreSQL | 16.8 | Polaris and Airflow metadata |
+| **Query Engine** | Trino | 483 | SQL over Iceberg |
+| **SQL UI** | LibreDB Studio | `latest` | Database/query interface |
 
-The batch publication path uses two auditable quality gates. MySQL→Silver reconciliation covers all configured analytical tables and integer-VND financial totals; the post-Gold gate validates completeness, primary keys, dimension references, run freshness, and PII pseudonymization. Results are retained in the Iceberg table `lakehouse.system.data_quality_results`.
+The OLTP Gold model defines **6 dimensions, 5 facts, and 4 marts**. The log model defines **1 fact and 3 marts**. Row counts depend on the loaded dataset and completed pipeline runs.
+
+The OLTP batch DAG is scheduled daily at 02:00 Asia/Ho_Chi_Minh; OLTP maintenance runs at 03:00 and streaming maintenance every two hours. Flink runs continuously with a configured 10-second checkpoint interval. That interval is not a measured end-to-end latency guarantee.
+
+Source–Silver reconciliation runs before Gold processing; a second gate checks Gold counts, monetary parity, keys, references, lineage, and PII tokens. Failures mark the task/DAG unsuccessful and results are recorded in `lakehouse.system.data_quality_results`. These runtime gates remain part of data processing.
 
 ---
 
 ## Data Generation and Simulation
 
-The repository provides two traffic generation mechanisms: real-time simulation against live services and deterministic historical backfill.
+Data generation is configurable through `generator/configs/`. For example, `small.yml` specifies 500 customers, 60 products, 240 variants, 3,000 orders, and 12 months of history. Dates are anchored by `anchor_time` in the configuration.
 
 ### Real-Time Traffic Simulation
 
-Run concurrent virtual users executing browsing, search, cart, checkout, and review actions against the live API:
+Import the matching SQL dataset first, then run virtual users against the API to produce live access-log events:
 
 ```bash
-uv run --package data-generator -- python scripts/simulate_web_traffic.py \
+uv run --locked --package data-generator -- python scripts/simulate_web_traffic.py \
+  --config generator/configs/small.yml \
   --duration 60 \
   --concurrency 5 \
   --error-rate 0.05
@@ -222,29 +206,29 @@ uv run --package data-generator -- python scripts/simulate_web_traffic.py \
 
 ### Historical Data Backfill
 
-Generate and ingest 12 months of deterministic OLTP transactions and 30 days of matching access logs.
+#### Automated Backfill
 
-#### Automated Backfill (Recommended — auto-cleanup with no temporary files left on host):
+The helper generates data in a temporary directory, imports/uploads it, and removes temporary files:
 
 ```bash
-# Backfill both OLTP MySQL transactions and MinIO Access Logs
+# Import OLTP history and upload raw historical access logs
 ./scripts/backfill_data.sh
 
-# Or backfill individually
-./scripts/backfill_data.sh --mode oltp  # MySQL database only
-./scripts/backfill_data.sh --mode logs  # MinIO Landing Zone only
+# Select one source
+./scripts/backfill_data.sh --mode oltp
+./scripts/backfill_data.sh --mode logs
 ```
 
-#### Manual Step-by-Step Backfill:
+#### Manual Step-by-Step Backfill
 
 ```bash
-# 1. Export SQL transaction history & import into MySQL
+# 1. Export and import OLTP history
 uv run --locked --package data-generator -- generator export-sql \
   --config generator/configs/small.yml \
   --output data/generator/small.sql
 ./scripts/import_generated_sql.sh data/generator/small.sql
 
-# 2. Export operational access logs & upload to MinIO S3 Landing Zone
+# 2. Export historical log files and upload them to raw Landing
 uv run --locked --package data-generator -- generator export-logs \
   --config generator/configs/small.yml \
   --output-directory data/generator/access-logs \
@@ -252,60 +236,80 @@ uv run --locked --package data-generator -- generator export-logs \
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
 
+Uploaded JSONL files remain raw Landing assets: the current Flink job reads Kafka, so uploading files does not automatically process them into Gold. Live API traffic feeds the streaming path. Generated data is synthetic; it is not evidence of real customer behavior or production performance.
+
+### Run the OLTP Batch Pipeline
+
+DAGs start paused by default. After importing source data:
+
+```bash
+docker compose exec -T airflow-scheduler airflow dags unpause lakehouse_oltp_pipeline
+docker compose exec -T airflow-scheduler airflow dags trigger lakehouse_oltp_pipeline
+```
+
+Importing the same SQL dataset twice is rejected by unique keys. See the [generator guide](generator/README.md) for configuration and account mapping.
+
 ---
 
-### Real-Time Operational Signals & Instant Action Controls
+### Operational Signals and Analytical Metrics
 
-While the Medallion Lakehouse (Iceberg/Trino) aggregates historical data marts, operational managers also need fresh intra-day indicators. The BI Hub obtains actionable operational signals through bounded FastAPI queries against MySQL OLTP. Independently, Debezium and Flink retain the MySQL change log in Iceberg Bronze for low-latency audit/replay; typed Silver/Gold marts remain Spark-managed and reconciled.
+The BI Hub combines historical Trino queries with current MySQL indicators. API responses expose `data_source`, `is_degraded`, and `degraded_reason` so the UI can identify OLTP fallback or incomplete data.
 
-| Role | Operational Signal | Threshold / Detection Logic | Instant Action Control |
+| Role | Implemented Indicators | Primary Source | Interpretation |
 |---|---|---|---|
-| **Executive (CEO)** | **Margin Erosion Alert** | Intra-day gross margin drops < 20% due to aggressive coupon stacking | *"Hạ mức chiết khấu tối nay"* (Throttles voucher discounts) |
-| | **Floating Cash in Transit** | Sum of unpaid COD orders held by couriers (GHN/GHTK) | *"Lên lịch đối soát 17h00"* (Triggers courier reconciliation) |
-| **Sales Manager** | **Viral Product Spike** | Sudden sales velocity increase ≥ 3x compared to 3-day baseline | *"Đưa lên Banner"* (Pins viral item to homepage banner) |
-| | **Channel Pace Divergence** | Online growth velocity diverges from Store retail growth | *"Voucher Pick-up"* (Activates Click & Collect foot-traffic promo) |
-| **Store Manager** | **Counter Local Stockout** | Physical counter shelf inventory reaches 0 while warehouse has stock | *"Ship từ Kho Tổng"* (Dispatches stock transfer from central warehouse) |
-| | **Hourly Run-Rate Pace** | Hourly cumulative revenue vs. linear trajectory for 15M target | *"Gợi ý Upsell ca tối"* (Pushes evening cross-sell prompt to POS) |
-| **Inventory Manager** | **Depletion Runway Alert** | Depletion rate per minute calculates runway to 0 stock < 60 mins | *"Phát lệnh may gấp"* (Sends emergency production work order to workshop) |
-| | **Overselling Prevention** | Stock reaches threshold (≤ 5 units); real-time checkout lock | *"Đã đồng bộ Web"* (Live confirmation of storefront inventory lock) |
-| **Operations Manager** | **Regional Boom Rate Spike** | COD return/refusal rate in a specific district exceeds ≥ 25% (e.g. Bình Tân 38%) | *"Tạm dừng xuất đơn"* (Restricts COD payment, requires MoMo/SePay) |
-| | **Fulfillment Bottleneck** | Paid orders waiting in packaging queue > 2 hours | *"Điều động nhân sự"* (Reallocates returns staff to packing line) |
-| **Marketing Manager** | **Voucher Burn Rate** | Flash sale coupon budget consumption rate (e.g. `SALE50K` reaches 85%) | *"Đóng mã sớm / Bơm ngân sách"* (Adjusts cap or injects marketing budget) |
-| | **Negative Review Spikes** | Sudden burst of 1–2 star product reviews within 60 minutes | *"Tạm dừng Ads"* (Pauses Meta/Google ads targeting defective batch) |
+| **Executive** | Order totals, revenue, COGS, profit, AOV, COD in transit | Gold + MySQL enrichment | Gold and OLTP fallback have different revenue rules |
+| **Sales** | Store/channel contributions, top products, category shares | Gold facts and sales mart | Order counts across categories are not additive |
+| **Store** | Today's revenue/orders, low stock, stockout SKUs | MySQL, restricted by store | Today's boundary uses Asia/Ho_Chi_Minh |
+| **Inventory** | On-hand units/value, inbound batches, depletion signals | MySQL | Current inventory state |
+| **Operations** | Pending orders, waiting time, failed shipments, COD failure by region, returns | MySQL | Field names and detection formulas are documented separately |
+| **Marketing** | 30-day event funnel, coupon usage, recent negative reviews | Gold events + MySQL | Funnel counts events, not unique people or linked sessions |
+| **System** | Gold freshness, order-count and monetary variance | Gold compared with MySQL | UI freshness thresholds differ from the daily batch schedule |
+
+Refreshing a dashboard does not refresh batch Gold. Definitions, windows, denominators, and current limitations are detailed in the [Metrics Catalog](docs/architecture/METRICS_CATALOG.md).
 
 ---
 
 ## Development Commands
 
 ```bash
-# Validate Compose configuration
+# Validate all active Compose profiles with the example environment
 docker compose --env-file .env.example --profile core --profile batch --profile streaming --profile lakehouse-tools config --quiet
 
+# Python static checks
+uv lock --check
+python3 -m compileall -q airflow/dags/
+uvx ruff check .
+
 # Frontend static checks and production build
+npm --prefix apps/storefront ci
 npm --prefix apps/storefront run lint
 make typecheck
 npm --prefix apps/storefront run build
 ```
 
+CI runs Compose validation, DAG compilation, Ruff, frontend dependency installation, lint, typecheck, and build. The current workflow is described in the [CI runbook](docs/runbook/CI.md).
 
 ---
 
 ## Documentation Index
 
-Explore the detailed architecture and planning documents:
-
 | Topic | Document | Purpose |
 |---|---|---|
-| **System Scope** | [`docs/project/SCOPE.md`](docs/project/SCOPE.md) | Technical requirements, data boundaries, and acceptance criteria |
-| **Business Requirements** | [`docs/project/BUSINESS_REQUIREMENTS.md`](docs/project/BUSINESS_REQUIREMENTS.md) | Full e-commerce operations, POS, Lakehouse mapping & extensions |
-| **Architecture Layout** | [`docs/architecture/PROJECT_STRUCTURE.md`](docs/architecture/PROJECT_STRUCTURE.md) | Monorepo layout, container isolation, and dependency rules |
-| **OLTP Schema** | [`docs/architecture/OLTP_SCHEMA.md`](docs/architecture/OLTP_SCHEMA.md) | Relational tables, foreign keys, transaction boundaries, and invariants |
-| **Management Specs** | [`docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | 7-Role BI Hub, Trino query engine, and analytical reporting |
-| **CDC Architecture & Operations** | [`docs/architecture/CDC_DASHBOARD_DATA_SPEC.md`](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | MySQL binlog capture contract, replay metadata, verification, and current Silver/Gold boundary |
-| **Access Logs** | [`docs/architecture/ACCESS_LOG_DESIGN.md`](docs/architecture/ACCESS_LOG_DESIGN.md) | Event schema contract, privacy rules, Kafka + Flink streaming pipeline, S3 layout |
-| **Lakehouse Plan** | [`docs/project/LAKEHOUSE_DESIGN_PLAN.md`](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Medallion architecture (Bronze/Silver/Gold), Iceberg schemas, and DQ rules |
-| **Web Design Plan** | [`docs/project/WEB_DESIGN_PLAN.md`](docs/project/WEB_DESIGN_PLAN.md) | E-commerce application structure, endpoints, and transaction models |
-| **Local Runbook** | [`docs/runbook/SETUP.md`](docs/runbook/SETUP.md) | Step-by-step Lakehouse startup, RBAC setup, and troubleshooting |
-| **CI & DataOps** | [`docs/runbook/CI.md`](docs/runbook/CI.md) | GitHub Actions CI workflow, static code checks, and frontend build |
-| **Startup Sequence** | [`docs/runbook/STARTUP_FLOW.md`](docs/runbook/STARTUP_FLOW.md) | Service bootstrap sequence, migrations, and health checks |
-| **Runbook Index** | [`docs/runbook/README.md`](docs/runbook/README.md) | Central index for operational tasks, commands, and validation |
+| **Documentation Map** | [docs/README.md](docs/README.md) | Current implementation references and retained thesis documents |
+| **System Scope** | [SCOPE.md](docs/project/SCOPE.md) | DE goals, data boundaries, and implementation limits |
+| **System Architecture** | [SYSTEM_ARCHITECTURE_VISUAL.md](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) | Components, batch/CDC/log flows, serving, and deployment |
+| **Repository Layout** | [PROJECT_STRUCTURE.md](docs/architecture/PROJECT_STRUCTURE.md) | Source directories and pipeline entry points |
+| **Lakehouse Model** | [LAKEHOUSE_DESIGN_PLAN.md](docs/project/LAKEHOUSE_DESIGN_PLAN.md) | Storage layout and dimension/fact/mart grains |
+| **Metric Definitions** | [METRICS_CATALOG.md](docs/architecture/METRICS_CATALOG.md) | Formulas, sources, windows, and interpretation limits |
+| **BI Serving** | [MANAGEMENT_INFO_TECHNICAL_SPEC.md](docs/architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | Roles, analytics endpoints, API filtering, and fallback |
+| **OLTP Schema** | [OLTP_SCHEMA.md](docs/architecture/OLTP_SCHEMA.md) | 28 source tables, relationships, and invariants |
+| **CDC** | [CDC_DASHBOARD_DATA_SPEC.md](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Capture contract, replay metadata, and recovery |
+| **Access Logs** | [ACCESS_LOG_DESIGN.md](docs/architecture/ACCESS_LOG_DESIGN.md) | Event contract, privacy rules, and streaming/raw-file boundaries |
+| **Data Generator** | [generator/README.md](generator/README.md) | Synthetic SQL/log generation and live traffic |
+| **Diagrams** | [docs/diagrams/README.md](docs/diagrams/README.md) | Editable architecture, ERD, and UML sources |
+| **Business Analysis (B)** | [BUSINESS_DOMAIN.md](docs/architecture/BUSINESS_DOMAIN.md) | Extended business questions and KPI needs |
+| **Business Requirements (C)** | [BUSINESS_REQUIREMENTS.md](docs/project/BUSINESS_REQUIREMENTS.md) | Retail, POS, inventory, delivery, and returns |
+| **Object-Oriented Analysis (A)** | [OOSAD_ANALYSIS.md](docs/design-analysis/OOSAD_ANALYSIS.md) | Actors, Use Cases, Activity, and Sequence analysis |
+| **Web Design (D)** | [WEB_DESIGN_PLAN.md](docs/project/WEB_DESIGN_PLAN.md) | Source application design |
+| **Local Setup** | [SETUP.md](docs/runbook/SETUP.md) | Deployment, identities, catalog inspection, and troubleshooting |
+| **CI & DataOps** | [CI.md](docs/runbook/CI.md) | Current static checks and frontend build |
