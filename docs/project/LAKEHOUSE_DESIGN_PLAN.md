@@ -1,122 +1,92 @@
-# Lakehouse Architecture Plan
+# Mô hình Data Lakehouse hiện tại
 
-This document outlines the architecture, storage formats, compute engines, and table designs for the D&K E-Commerce Data Lakehouse.
+Tài liệu mô tả bảng và luồng có trong mã nguồn. Kiến trúc tổng thể ở [System Architecture](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md), công thức ở [Metrics Catalog](../architecture/METRICS_CATALOG.md).
 
-## 1. Core Architecture Decisions
+## 1. Catalog và storage
 
-The platform employs a decoupled storage and compute architecture:
+Polaris quản lý catalog `lakehouse` với sáu namespace: `landing`, `bronze`, `silver`, `gold`, `quarantine`, `system`. MinIO lưu file; Iceberg quản lý bảng/snapshot. PostgreSQL lưu metadata dịch vụ Polaris/Airflow.
 
-- **Storage:** MinIO object storage (`lakehouse` bucket) holds all Landing files and Iceberg data/metadata files.
-- **Table Format:** Apache Iceberg (v1.10.1) is the exclusive table format for Bronze, Silver, and Gold layers.
-- **Catalog:** Apache Polaris (v1.6.0) acts as the REST catalog, managing namespaces, tables, and RBAC policies.
-- **Processing (Writer):** Apache Spark (v3.5.9) handles all extraction, parsing, transformation, data quality checks, and Iceberg table commits.
-- **Serving (Reader):** Trino (v483) serves SQL queries directly from Iceberg tables via Polaris REST catalog.
-- **Query UI:** LibreDB Studio provides a web-based SQL IDE for MySQL, PostgreSQL, and Trino.
-- **Orchestration:** Apache Airflow (v2.10.5) manages all pipeline dependencies, schedules, and retries.
+| Vùng | Nội dung |
+|---|---|
+| `landing/oltp/<table>/...` | Parquet và manifest của từng lần trích xuất MySQL |
+| `landing/logs/...` | JSONL.gz lịch sử đã upload; chưa có job tự đọc file thô vào Gold |
+| `warehouse/` | Iceberg data/metadata theo vị trí do catalog quản lý |
+| State/checkpoint prefixes | Cursor batch, checkpoint Flink và trạng thái tác vụ |
+| `quarantine` | Dữ liệu lỗi schema/nghiệp vụ đã xử lý PII theo quy tắc |
+| `system.data_quality_results` | Bằng chứng kiểm tra chất lượng và đối soát |
 
-> [!IMPORTANT]  
-> Spark is the only engine permitted to write to Iceberg tables. Trino has read-only access. Transactional web APIs must not communicate directly with Spark or Trino.
+Prefix raw Landing là vị trí file. Namespace `lakehouse.landing` còn chứa bảng Iceberg streaming access log; đây là hai dạng lưu trữ khác nhau.
 
----
+## 2. Batch OLTP
 
-## 2. Namespace and Storage Layout
+Nguồn là 27 bảng trong [default.yml](../../pipelines/config/default.yml), loại `customer_credentials` khỏi 28 bảng OLTP.
 
-### 2.1. Polaris Namespaces
-The `lakehouse` catalog contains five logical namespaces:
-- `lakehouse.bronze`
-- `lakehouse.silver`
-- `lakehouse.gold`
-- `lakehouse.quarantine`
-- `lakehouse.system`
+- **Extract:** Spark dùng cursor `(cursor_field, pk)`, lookback mặc định 10 phút, giới hạn high watermark và ghi manifest.
+- **Bronze:** Đọc Landing, giữ lịch sử/lineage, kiểm tra bản ghi hỏng và đưa dữ liệu lỗi vào quarantine.
+- **Silver:** Chuẩn hóa kiểu, khử trùng, MERGE dữ liệu mutable, xử lý PII và kiểm tra ràng buộc.
+- **Gold:** Xây dimension/fact/mart từ Silver và gắn `_gold_ingested_at`, `_source_run_id`.
+- **Gates:** Đối soát MySQL–Silver trước Gold và parity/khóa/lineage sau Gold. Vi phạm làm tác vụ thất bại và được ghi vào bảng audit.
 
-### 2.2. Object Storage (MinIO) Layout
-Data is physically organized in UTC-based partition paths within the `lakehouse` bucket:
-- **Landing Zone:** Immutable raw data `s3://lakehouse/landing/`
-  - OLTP: `landing/oltp/<table>/extract_date=YYYY-MM-DD/run_id=<run_id>/...`
-  - Access Logs: `landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz`
-- **Warehouse:** Managed Iceberg tables `s3://lakehouse/warehouse/<namespace>/<table>/`
-- **State:** Checkpoints, committed cursors, and run metadata `s3://lakehouse/state/cursor/<table>.json`
+Cursor không tự phát hiện mọi hard delete ở nguồn. Bronze CDC có lưu delete/tombstone riêng; việc áp dụng chúng vào Silver/Gold chưa tự động hóa.
 
----
+## 3. Gold OLTP: 15 bảng
 
-## 3. Data Processing Flow
+Nguồn DDL: [gold_ddl.py](../../pipelines/src/lakehouse/oltp/gold_ddl.py). Nguồn biến đổi: [gold.py](../../pipelines/src/lakehouse/oltp/gold.py).
 
-### 3.1. Landing Zone
-- **OLTP Ingestion:** Airflow triggers a Spark batch job (`extract_oltp.py`) to extract incremental MySQL rows using read-only accounts and composite cursors `(cursor_field, pk)`. Data is written as Parquet files with cryptographic MD5 manifests (`manifest.json`).
-- **Access Logs:** The API publishes JSON logs to Apache Kafka; Apache Flink streams events into Apache Iceberg in real-time. Historical logs are backfilled as gzip-compressed JSON directly to the Landing zone.
+### Sáu dimension
 
-### 3.2. Bronze Layer
-Spark reads Landing files and performs append-only commits to Bronze Iceberg tables using a **Dead-Letter (Guarded)** strategy:
-- Preserves the raw source representation exactly as extracted using Spark `PERMISSIVE` read mode.
-- Appends three lineage metadata columns to every row: `_run_id` (Airflow DAG Run ID, enables idempotent reruns), `_source_file` (absolute S3 path for auditability), `_ingested_at_utc` (ingest timestamp for incremental Silver processing).
-- **Circuit Breaker:** If the fraction of corrupt records in a batch exceeds the error threshold (default 1%), the job raises `RuntimeError` and fails fast. This prevents silent, catastrophic schema changes from propagating.
-- **Decentralized Quarantine:** Corrupt records below the threshold are routed to a per-table quarantine namespace (`lakehouse.quarantine.<table_name>_errors`), not a shared sink. This isolates replay scope and prevents cross-domain resource contention.
-- Replay of quarantined records is done via ad-hoc jobs that write directly to the Bronze table; the Silver MERGE handles late arrival without ordering issues.
+| Bảng | Grain / nội dung |
+|---|---|
+| `dim_date` | Một ngày; thuộc tính lịch |
+| `dim_customer` | Một customer; thuộc tính đã pseudonymize |
+| `dim_product` | Một product, kèm danh mục |
+| `dim_variant` | Một SKU/variant |
+| `dim_store` | Một cửa hàng, kèm city |
+| `dim_delivery_staff` | Một nhân viên giao vận |
 
-### 3.3. Silver Layer
-Spark transforms Bronze data into typed, deduplicated tables.
-- **OLTP:** Standardizes timestamps to UTC, deduplicates by source identity, and applies `MERGE` (UPSERT) operations for mutable tables. Validates primary and foreign keys.
-- **Logs:** Parses JSON, deduplicates by `request_id`, normalizes routes, and hashes actor keys.
-- **Semantic Quarantine:** Routes records violating business constraints to `lakehouse.quarantine.silver_data_quarantine`.
+### Năm fact
 
-### 3.4. Gold Layer
-Spark builds Star Schema models and aggregated Data Marts from **25 OLTP source tables** (24 extracted to Landing, `customer_credentials` excluded).
+| Bảng | Grain / nội dung |
+|---|---|
+| `fact_order` | Một đơn; order totals, giá vốn, trạng thái và revenue flags |
+| `fact_order_item` | Một chi tiết đơn; số lượng, giá bán và cost snapshot |
+| `fact_shipment` | Một shipment; trạng thái, mốc giao hàng và COD |
+| `fact_return_exchange` | Một return item; request cha, variant, action và refund |
+| `fact_inventory_daily_snapshot` | Ngày snapshot × variant × địa điểm kho/cửa hàng |
 
-#### Dimensions (6 tables)
-| Table | Description | Row Count (current) |
-|-------|-------------|---------------------|
-| `dim_date` | Calendar dimension (3-year spine) | 1,095 |
-| `dim_customer` | Customer profiles (pseudonymized PII) | 501 |
-| `dim_product` | Product + category hierarchy | 60 |
-| `dim_variant` | Product variant (size × color × SKU) | 240 |
-| `dim_store` | Store + city metadata | 6 |
-| `dim_delivery_staff` | In-house shipper registry | 10 |
+Tên bảng snapshot không chứng minh đang có đầy đủ lịch sử mọi ngày. Cần kiểm tra dữ liệu thực tế và cách ghi của lần chạy trước khi diễn giải chuỗi thời gian.
 
-#### Facts (5 tables)
-| Table | Description | Row Count (current) |
-|-------|-------------|---------------------|
-| `fact_order` | One row per order; revenue recognition, COD boom flag | 3,000 |
-| `fact_order_item` | Line-item grain; unit economics, COGS | 4,938 |
-| `fact_shipment` | Shipment lifecycle per order; delivery performance | 2,518 |
-| `fact_return_exchange` | Return/exchange requests; net revenue adjustments | 92 |
-| `fact_inventory_daily_snapshot` | Daily on-hand quantity per variant per store | 240 |
+### Bốn mart
 
-#### Data Marts (4 tables)
-| Table | Primary Use Case | Row Count (current) |
-|-------|-----------------|---------------------|
-| `mart_sales_daily` | Revenue trend, AOV, order funnel by day | 1,556 |
-| `mart_logistics_performance` | Shipper KPIs, delivery rate, boom rate | 1,459 |
-| `mart_product_returns` | Return rate by product/reason/size | 92 |
-| `mart_inventory_health` | Stockout alerts, slow-moving stock, reorder signals | 8 |
+| Bảng | Grain chính |
+|---|---|
+| `mart_sales_daily` | Ngày × kênh × cửa hàng × danh mục |
+| `mart_logistics_performance` | Ngày shipment × nhân viên giao vận |
+| `mart_product_returns` | Ngày trả × variant × action × reason |
+| `mart_inventory_health` | Ngày snapshot × loại địa điểm × địa điểm × danh mục |
 
-#### Revenue Recognition Rules
-- `net_revenue_vnd = 0` when `status IN ('failed_delivery', 'returned', 'cancelled', 'payment_failed')`
-- `is_boom = TRUE` when `status = 'failed_delivery'`
-- Revenue is recognized **only after `delivered`** status; returned orders are retroactively zeroed out.
+Order count ở mart sales không được cộng qua các danh mục để suy ra số đơn distinct. Công thức revenue order-level và item-level có khác biệt; xem Metrics Catalog.
 
-**Publication Gates:** Gold is built only after the pre-Gold gate reconciles MySQL and Silver row counts for every configured analytical table plus gross revenue, successful payments, and successful refunds. After publication, a second gate verifies Silver→Gold count and monetary parity, primary-key uniqueness, dimension references, current-run freshness markers, and PII token format. Both gates persist audit evidence in `lakehouse.system.data_quality_results`.
+## 4. Access logs và CDC
 
----
+| Nhóm | Bảng / cách xử lý |
+|---|---|
+| Log Landing | `landing.access_logs`, nguồn streaming Kafka |
+| Log Bronze | `bronze.web_events` |
+| Log Silver | `silver.silver_logs` |
+| Log Gold fact | `gold.fact_web_events` |
+| Log Gold marts | `mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_marketing_funnel_daily` |
+| CDC Bronze | `bronze.oltp_cdc_events`; envelope, operation, before/after, event_id và replay coordinates |
 
-## 4. Iceberg Maintenance Strategy
+Job Flink access log sử dụng StatementSet để ghi các tầng của log. Spark `build_logs_gold` thực hiện rollup mart; DAG streaming maintenance chạy mỗi hai giờ.
 
-To maintain query performance and manage storage costs, Airflow schedules regular Iceberg maintenance tasks:
+CDC log có thể chứa nhiều thay đổi của cùng khóa nguồn. Đếm sự kiện không tương đương đếm bản ghi hiện tại. CDC chưa nối trực tiếp vào các Silver/Gold OLTP ở mục 3.
 
-- **Metrics-Driven Compaction:** Rewrites small data files into optimal size chunks only when thresholds are breached.
-- **Snapshot Expiration:** Expires snapshots older than the required backfill window, ensuring active ML jobs are not disrupted.
-- **Orphan Cleanup:** Removes unreferenced data files after a safety window.
-- **Logical Invariants:** Compaction and maintenance operations must strictly preserve logical row counts and checksums.
+## 5. Bảo trì và quyền
 
----
+DAG OLTP maintenance chạy 03:00 hằng ngày; streaming maintenance chạy hai giờ/lần. Các tác vụ gồm compaction, snapshot expiration, orphan cleanup và retention quarantine 30 ngày theo cấu hình.
 
-## 5. Security and Access Control
+Polaris dùng bốn principal tách biệt; MinIO có bảy identity theo workload. `trino_reader` phục vụ truy vấn đọc, `trino_admin` dùng khi cần quản trị. Credential mỗi consumer nằm trong volume riêng.
 
-- **Service Isolation:** Extractors use read-only MySQL accounts scoped strictly to the **26 allowed analytical tables** (excludes `customer_credentials`).
-- **Polaris Catalog RBAC (3 Principals):**
-  - `trino_admin`: Full administrative rights on catalog `lakehouse` (assigned `catalog_admin` role, `CATALOG_MANAGE_CONTENT`, `CATALOG_MANAGE_ACCESS`, `CATALOG_MANAGE_METADATA`).
-  - `trino_reader`: Strictly read-only data & basic metadata inspection (`TABLE_READ_DATA`, `TABLE_FULL_METADATA`, `VIEW_FULL_METADATA`, `NAMESPACE_FULL_METADATA`, `CATALOG_READ_PROPERTIES`).
-  - `spark_writer`: Dedicated batch processing writer with full read/write data and table/partition management rights (`CATALOG_MANAGE_CONTENT`).
-- **PII Protection:** Passwords, tokens, cookies, and raw IP addresses are stripped before ingestion. Customer PII is pseudonymized before entering Silver and Gold layers.
-- **Quarantine Safety:** Direct identifiers are pseudonymized before a rejected row is serialized. A row can retain all violation codes rather than only the first failure; semantic quarantine is purged after 30 days by the maintenance DAG.
-- **Credential Isolation:** MinIO and Polaris credentials are injected via runtime environment variables and Docker secrets.
+Số dòng từng bảng và hiệu năng không được cố định trong tài liệu thiết kế. Khi báo cáo, truy vấn snapshot/run cụ thể và ghi lại môi trường thực thi.
 

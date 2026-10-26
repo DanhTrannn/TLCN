@@ -24,7 +24,7 @@ from generator.config import (
     TetWindow,
 )
 
-DEMO_PASSWORD = "Demo@12345"
+SYNTHETIC_CUSTOMER_PASSWORD = "Synthetic@12345"
 PRODUCT_IMAGE_URL = "https://sixdo.vn/modules/uniform/assets/image/aotruoc.webp"
 FEMALE_CUSTOMER_SHARE = 0.80
 STREET_NAMES = (
@@ -319,8 +319,6 @@ REVIEW_REJECTION_REASONS = (
 class DatasetSummary:
     sql_path: Path
     generation_run_id: str
-    demo_email: str
-    demo_password: str
     customers: int
     products: int
     variants: int
@@ -409,9 +407,9 @@ def _identifier_uuid(namespace: uuid.UUID, identifier: str, index: int = 0) -> s
 
 
 def _deterministic_password_hash(logical_identity: str) -> str:
-    salt = hashlib.sha256(f"{logical_identity}:demo-password".encode()).digest()[:16]
+    salt = hashlib.sha256(f"{logical_identity}:synthetic-password".encode()).digest()[:16]
     return hash_secret(
-        secret=DEMO_PASSWORD.encode(),
+        secret=SYNTHETIC_CUSTOMER_PASSWORD.encode(),
         salt=salt,
         time_cost=3,
         memory_cost=65536,
@@ -477,32 +475,25 @@ def _class_assignment(
     for class_, count in zip(classes, counts):
         assignment.extend([class_.name] * count)
     randomizer.shuffle(assignment)
-    if "loyal" in assignment and assignment[0] != "loyal":
-        loyal_index = assignment.index("loyal")
-        assignment[0], assignment[loyal_index] = assignment[loyal_index], assignment[0]
     return assignment
 
 
 def _order_targets(
     assignment: Sequence[str],
     class_by_name: dict[str, CustomerClass],
-    demo_target: int,
     total_orders: int,
     randomizer: random.Random,
 ) -> list[int]:
-    if len(assignment) == 1:
-        return [total_orders]
-    demo = min(demo_target, total_orders)
-    remaining = total_orders - demo
     raw = []
-    for name in assignment[1:]:
+    for name in assignment:
         class_ = class_by_name[name]
         raw.append(randomizer.randint(class_.orders_min, class_.orders_max))
-    if remaining == 0:
-        return [demo] + [0] * len(raw)
     raw_sum = sum(raw)
-    scaled = [value * remaining / raw_sum for value in raw]
-    return [demo] + _largest_remainder(scaled, remaining)
+    if raw_sum == 0:
+        raw = [1] * len(assignment)
+        raw_sum = len(raw)
+    scaled = [value * total_orders / raw_sum for value in raw]
+    return _largest_remainder(scaled, total_orders)
 
 
 def _nth_weekday(year: int, month: int, weekday: int, week_index: int) -> date:
@@ -778,7 +769,7 @@ def _pick_category(randomizer: random.Random, categories: Sequence[tuple[str, fl
 
 
 def _write_header(
-    stream: TextIO, config: GeneratorConfig, generation_run_id: str, demo_email: str
+    stream: TextIO, config: GeneratorConfig, generation_run_id: str
 ) -> None:
     stream.write(
         "-- TLCN deterministic MySQL dataset\n"
@@ -791,7 +782,6 @@ def _write_header(
         f"-- anchor_time: {config.anchor_time.isoformat()}\n"
         "-- synthetic_archive_policy: every 20th sampled product at anchor time; "
         "expired campaign/midnight coupons at ends_at.\n"
-        f"-- demo_login: {demo_email} / {DEMO_PASSWORD}\n"
         "-- Prerequisite: run all Alembic migrations with alembic upgrade head.\n"
         "-- Import is fail-fast; importing the same dataset twice is rejected by unique keys.\n\n"
         "SET NAMES utf8mb4;\n"
@@ -812,7 +802,6 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     review_randomizer = random.Random(f"{config.seed}-reviews")
     namespace = uuid.UUID(config.logical_identity)
     generation_run_id = config.generation_run_id
-    demo_email = f"demo.{config.logical_identity[:8]}@web.local"
     history_end = config.anchor_time.astimezone(UTC)
     history_start = history_end - timedelta(days=max(1, config.history_months) * 30)
     distribution = config.distributions
@@ -896,9 +885,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     credential_rows: list[Sequence[SqlValue]] = [
         (
             customer_ids[customer_index],
-            demo_email
-            if customer_index == 0
-            else f"customer.{customer_index + 1:04d}.{config.logical_identity[:8]}@web.local",
+            f"customer.{customer_index + 1:04d}.{config.logical_identity[:8]}@web.local",
             password_hash,
             True,
             history_start,
@@ -1100,7 +1087,7 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
 
     temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
     with temporary_path.open("w", encoding="utf-8", newline="\n") as stream:
-        _write_header(stream, config, generation_run_id, demo_email)
+        _write_header(stream, config, generation_run_id)
         _write_batched(
             stream,
             "customers",
@@ -1270,7 +1257,6 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         shipment_index = 0
         shipment_attempt_index = 0
         return_index = 0
-        demo_order_target = min(24, order_count)
 
         cart_rows: list[Sequence[SqlValue]] = []
         cart_item_rows: list[Sequence[SqlValue]] = []
@@ -1428,7 +1414,6 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
         targets = _order_targets(
             assignment,
             class_by_name,
-            demo_order_target,
             order_count,
             randomizer,
         )
@@ -1439,61 +1424,43 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
             customer_id = customer_ids[customer_index]
             customer_class = assignment[customer_index]
             class_ = class_by_name[customer_class]
-            if customer_index == 0:
-                span_seconds = max(
-                    1, int((history_end - history_start).total_seconds())
+            base_times = [
+                _pick_base_datetime(
+                    randomizer,
+                    history_start,
+                    history_end,
+                    days,
+                    day_weights,
+                    distribution,
                 )
-                base_times = [
-                    _shape_hour(
-                        randomizer,
-                        history_start
-                        + timedelta(
-                            seconds=span_seconds
-                            * (position + 1)
-                            // (order_target + 1)
-                        ),
-                        distribution,
-                    )
-                    for position in range(order_target)
-                ]
-            else:
-                base_times = [
-                    _pick_base_datetime(
-                        randomizer,
-                        history_start,
-                        history_end,
-                        days,
-                        day_weights,
-                        distribution,
-                    )
-                ]
-                for position in range(1, order_target):
-                    remaining_orders = order_target - position
-                    available_days = max(0, (history_end - base_times[-1]).days)
-                    interval_cap = available_days // max(1, remaining_orders)
-                    interval = randomizer.randint(
-                        class_.interval_min or 1,
-                        class_.interval_max or 1,
-                    )
-                    next_base = min(
-                        base_times[-1]
-                        + timedelta(days=min(interval, interval_cap)),
-                        history_end,
-                    )
-                    base_times.append(
-                        min(
-                            _snap_to_campaign(
-                                randomizer,
-                                next_base,
-                                base_times[-1],
-                                history_end,
-                                campaign_days,
-                                class_.campaign_affinity,
-                                distribution,
-                            ),
+            ]
+            for position in range(1, order_target):
+                remaining_orders = order_target - position
+                available_days = max(0, (history_end - base_times[-1]).days)
+                interval_cap = available_days // max(1, remaining_orders)
+                interval = randomizer.randint(
+                    class_.interval_min or 1,
+                    class_.interval_max or 1,
+                )
+                next_base = min(
+                    base_times[-1]
+                    + timedelta(days=min(interval, interval_cap)),
+                    history_end,
+                )
+                base_times.append(
+                    min(
+                        _snap_to_campaign(
+                            randomizer,
+                            next_base,
+                            base_times[-1],
                             history_end,
-                        )
+                            campaign_days,
+                            class_.campaign_affinity,
+                            distribution,
+                        ),
+                        history_end,
                     )
+                )
 
             for customer_order_position, base_time in enumerate(base_times):
                 order_time = base_time
@@ -2302,8 +2269,6 @@ def export_sql(config: GeneratorConfig, output_path: Path) -> DatasetSummary:
     return DatasetSummary(
         sql_path=output_path,
         generation_run_id=generation_run_id,
-        demo_email=demo_email,
-        demo_password=DEMO_PASSWORD,
         customers=customer_count,
         products=product_count,
         variants=variant_count,

@@ -4,9 +4,9 @@ This document describes the initialization sequence and behavior of each service
 
 ---
 
-## 1. Default Services (`docker compose up -d`)
+## 1. Shared Storage and Catalog Services
 
-Running `docker compose up -d` without flags brings up the core **Storage, Metadata, Catalog, and Query Foundation**:
+The services below form the shared storage/catalog foundation. `.env.example` sets `COMPOSE_PROFILES=core,batch,streaming`, so a plain `docker compose up -d` with that environment also starts the three active profiles.
 
 ### 1.1. Databases & Object Storage
 

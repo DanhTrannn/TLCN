@@ -140,37 +140,35 @@ To comply with data privacy policies, the following fields are strictly excluded
 
 ## Ingestion and Landing Layout
 
-### Real-Time Streaming Ingestion & Historical Backfill Mechanism
+### Streaming and historical files
 
-- **Real-Time Streaming:** The FastAPI middleware publishes HTTP access log events directly to Apache Kafka (`ecommerce.access_logs`). Apache Flink consumes Kafka records continuously and commits streaming Parquet files into Apache Iceberg `landing.access_logs` with a 10-second checkpoint interval.
-- **Historical Backfill:** Deterministic synthetic logs are backfilled as compressed `.jsonl.gz` files directly into MinIO Landing (`s3://lakehouse/landing/logs/`) via `./scripts/backfill_data.sh`.
-- **Immutability:** Streaming commits and landing files are immutable. Idempotent checkpoints and lineage tracking guarantee exactly-once processing semantics.
+FastAPI publishes HTTP events to Kafka `ecommerce.access_logs`. The continuous Flink job writes `landing.access_logs`, `bronze.web_events`, `silver.silver_logs` and `gold.fact_web_events` through a StatementSet, with a configured 10-second checkpoint interval.
 
-### S3 Storage Layout
+The checkpoint interval is not an end-to-end latency guarantee. Delivery and replay behavior must be interpreted with the Kafka offsets, Flink checkpoints and table commits of the running job.
 
-All access log files follow Hive-style partitioning:
+The generator can also upload historical `.jsonl.gz` files to:
 
 ```text
 s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
 ```
 
-- **File Format:** Gzip-compressed newline-delimited JSON (`.jsonl.gz`).
-- **Retention Buffer:** Operational landing files are staged with a 30-day retention window.
+These files are raw Landing assets. The current Flink job reads Kafka and does not automatically ingest the uploaded JSONL files. A generated 30-day log window is a dataset setting, not proof that object-storage retention is configured to delete files after 30 days.
+
+## Medallion mapping
+
+| Layer | Current tables / processing |
+|---|---|
+| Landing | Iceberg `landing.access_logs` for the stream; historical JSONL files are a separate raw path |
+| Bronze | `bronze.web_events`, source event representation and lineage |
+| Silver | `silver.silver_logs`, typed fields and request-key processing |
+| Gold fact | `gold.fact_web_events`, event-grain HTTP/business facts |
+| Gold marts | `mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_marketing_funnel_daily`; Spark rollups |
+
+See [Metrics Catalog](METRICS_CATALOG.md) for request duration, error rate, product demand and event-based funnel definitions. Source metadata alone does not prove that a log was produced by real users; record the generator/traffic configuration when reporting synthetic data.
 
 ---
 
-## Medallion Architecture Mapping
-
-| Layer | Responsibility | Primary Deduplication Key |
-|---|---|---|
-| **Landing** | Streaming Iceberg landing table or immutable gzip files from historical generator. | S3 Key |
-| **Bronze** | Raw Iceberg table preserving full lineage, file path, line numbers, and ingestion timestamps. Retains source duplicates. | `(_source_file, _source_line_number)` |
-| **Silver** | Typed Iceberg table with JSON parsing, schema validation, actor pseudonymization, user-agent parsing, and deduplication. Bad records are routed to `quarantine.access_logs_quarantine`. | `request_id` |
-| **Gold** | Curated dimensional facts and aggregate marts: `fact_web_requests`, `mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_daily_search_keywords`. | Composite dimensional grain |
-
----
-
-## Local Verification Commands
+## Observe the Pipeline
 
 ### Check Live Streaming Logs
 

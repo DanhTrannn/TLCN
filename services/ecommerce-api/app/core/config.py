@@ -32,9 +32,8 @@ class Settings(BaseSettings):
     cookie_samesite: str = "lax"
     cookie_domain: str | None = None
 
-    # Internal / demo
+    # Internal endpoints
     internal_secret: str = "change-me-internal-secret"
-    demo_mode: bool = True
 
     # Money / catalog
     currency_code: str = "VND"

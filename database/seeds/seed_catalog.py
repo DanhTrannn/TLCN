@@ -1,4 +1,4 @@
-"""Seed catalogue, opening inventory, bootstrap admin, and demo coupon.
+"""Seed catalogue, opening inventory, bootstrap admin, and welcome coupon.
 
 Idempotent (skips when categories already exist) and deterministic (public_id
 derived via uuid5) so seed/scenario/manifest stay reproducible. Seed only holds

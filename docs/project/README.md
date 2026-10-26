@@ -1,14 +1,8 @@
-# Project Planning and Specifications
+# Phạm vi và thiết kế đồ án
 
-This directory contains the foundational specifications, technical scope boundaries, and design plans for the D&K E-Commerce Data Platform.
+- [SCOPE](SCOPE.md): Phạm vi triển khai DE, nguồn dữ liệu và giới hạn.
+- [LAKEHOUSE_DESIGN_PLAN](LAKEHOUSE_DESIGN_PLAN.md): Mô hình bảng, grain, lưu trữ và xử lý hiện tại.
+- [BUSINESS_REQUIREMENTS](BUSINESS_REQUIREMENTS.md): Tài liệu C, giữ để phân tích nghiệp vụ và viết tiểu luận.
+- [WEB_DESIGN_PLAN](WEB_DESIGN_PLAN.md): Tài liệu D, giữ cho thiết kế hệ thống website nguồn.
 
-## Documents
-
-- [`SCOPE.md`](SCOPE.md): System goals, 27-table analytical allowlist, privacy rules, KPI metrics, and the deferred ML roadmap.
-- [`BUSINESS_REQUIREMENTS.md`](BUSINESS_REQUIREMENTS.md): Comprehensive business requirements specification (both existing e-commerce / POS / Lakehouse operations and proposed logistics, COD, RMA, and procurement extensions).
-- [`LAKEHOUSE_DESIGN_PLAN.md`](LAKEHOUSE_DESIGN_PLAN.md): Medallion architecture roadmap (Bronze, Silver, Gold), Apache Iceberg storage layout, Polaris namespaces, Spark batch ETL flow, and maintenance strategies.
-- [`WEB_DESIGN_PLAN.md`](WEB_DESIGN_PLAN.md): E-commerce storefront and FastAPI backend architectural specifications, transaction constraints, and access log telemetry contracts.
-
-## Scope Governance
-
-Any changes to project scope, domain entities, or analytical boundaries must first be reflected in [`SCOPE.md`](SCOPE.md), followed by corresponding updates to schemas, migrations, pipelines, and documentation.
+[Kiến trúc hệ thống](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md) và [Metrics Catalog](../architecture/METRICS_CATALOG.md) là tham chiếu cho các thành phần/công thức đang có trong mã nguồn. Các nhu cầu mở rộng trong tài liệu nghiệp vụ không mặc nhiên đã được triển khai.

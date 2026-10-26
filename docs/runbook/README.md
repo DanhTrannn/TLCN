@@ -12,20 +12,17 @@ This directory contains operational runbooks and development workflows for the D
 
 ## 1. Quick Start (Base Commands)
 
-Launch services using Docker Compose profiles:
+Launch the profiles configured in `.env` (the example enables core, batch and streaming):
 
 ```bash
 # 1. Prepare environment configuration
 cp .env.example .env
 
-# 2. Start Default Storage, Catalog & Query UI (MySQL, Postgres, MinIO, Polaris, Trino, LibreDB Studio)
-docker compose up -d --build
+# 2. Start the platform and wait for readiness
+./scripts/start_all.sh --build
 
-# 3. Start Batch Processing (Spark Cluster, Airflow)
-docker compose --profile batch up -d --build
-
-# 4. Start Storefront & FastAPI Web Application (Optional)
-docker compose --profile core up -d --build
+# 3. Inspect service state
+make ps
 ```
 
 ---
@@ -42,7 +39,7 @@ After starting the `core` profile, access the applications at:
 ### Data Platform & Analytics Endpoints
 
 - **LibreDB Studio (SQL IDE):** `http://localhost:3001`
-- **Apache Airflow (Orchestration):** `http://localhost:8080` (Default: `airflow` / `airflow`)
+- **Apache Airflow (Orchestration):** `http://localhost:8080` (Default: `airflow` / `password`; configurable in `.env`)
 - **Apache Polaris Web Console:** `http://localhost:8183` (`root` / value of `POLARIS_ROOT_CLIENT_SECRET` in `.env`, Realm: `POLARIS`)
 - **MinIO Object Storage Console:** `http://localhost:9001` (`minio-root` / value of `MINIO_ROOT_PASSWORD` in `.env`)
 - **Spark Master UI:** `http://localhost:8082`
@@ -63,7 +60,7 @@ Every storage consumer runs with its own least-privilege identity; no workload u
 To backfill data using temporary directories with automatic cleanup:
 
 ```bash
-# Backfill both OLTP MySQL dataset and MinIO Access Logs
+# Load the OLTP dataset and upload raw historical logs to MinIO
 ./scripts/backfill_data.sh
 
 # Or backfill individually
@@ -93,6 +90,8 @@ uv run --locked --package data-generator -- generator export-logs \
 
 ./scripts/upload_generated_logs.sh data/generator/access-logs
 ```
+
+Uploaded JSONL files remain raw Landing assets. The current Flink job reads Kafka; these files are not automatically transformed into Gold. Use live API traffic to feed the streaming pipeline.
 
 ### Live Access Logging
 

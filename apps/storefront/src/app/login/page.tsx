@@ -9,16 +9,6 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { getRoleLabel, resolvePostLoginRedirect } from "@/lib/role-routes";
 
-const DEMO_ACCOUNTS = [
-  { role: "CEO / Admin", email: "admin@fashion.local", label: "CEO" },
-  { role: "Kinh doanh", email: "sales@fashion.local", label: "Sales" },
-  { role: "Marketing", email: "marketing@fashion.local", label: "Marketing" },
-  { role: "Quản lý Store", email: "store_mgr@fashion.local", label: "Store" },
-  { role: "Kho & COGS", email: "inventory@fashion.local", label: "Kho" },
-  { role: "Vận hành", email: "operations@fashion.local", label: "Vận hành" },
-  { role: "Kỹ thuật", email: "sysadmin@fashion.local", label: "SysAdmin" },
-];
-
 function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
@@ -30,12 +20,6 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  function fillDemoAccount(demoEmail: string) {
-    setEmail(demoEmail);
-    setPassword("Password123!");
-    setError(null);
-  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -71,28 +55,6 @@ function LoginForm() {
         <p className="eyebrow">Tài khoản</p>
         <h2 className="mt-3 font-serif text-4xl tracking-[-0.035em]">Đăng nhập</h2>
         <p className="mt-3 text-sm leading-6 text-muted">Chào mừng bạn quay lại D&K Fashion.</p>
-
-        {/* Demo Fast Login Pills */}
-        <div className="mt-6 rounded-2xl border border-line bg-paper/60 p-4">
-          <p className="text-xs font-semibold text-muted">Đăng nhập nhanh tài khoản mẫu theo vai trò:</p>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
-                  email === acc.email
-                    ? "border-accent bg-accent text-white shadow-sm"
-                    : "border-line bg-surface text-ink hover:border-accent/40 hover:bg-paper"
-                }`}
-                key={acc.email}
-                onClick={() => fillDemoAccount(acc.email)}
-                title={`${acc.role} (${acc.email})`}
-                type="button"
-              >
-                {acc.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <label className="field-label" htmlFor="login-email">

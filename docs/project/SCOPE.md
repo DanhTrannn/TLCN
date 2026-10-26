@@ -1,138 +1,51 @@
-# System Scope and Specifications
+# Phạm vi đồ án
 
-This document defines the technical scope, boundaries, and acceptance criteria for the D&K E-Commerce Data Platform. The platform is a modern Hybrid (Batch & Streaming) Data Lakehouse for operational transactions, continuous web access logs, and Business Intelligence (BI). Machine learning is deferred to a later phase.
+## 1. Mục tiêu
 
-## 1. System Goals
+Xây dựng Data Lakehouse cho thương mại điện tử: thu thập, lưu trữ, chuẩn hóa, đối soát và cung cấp dữ liệu phân tích. Website/POS tạo nguồn giao dịch và access log; phần DE là trọng tâm.
 
-The primary objective is to build a hybrid data lakehouse that batch-extracts and continuously captures changes from a MySQL OLTP database while streaming structured access logs from an e-commerce API. This prevents analytical workloads from impacting operational performance while enabling low-latency audit and reporting paths.
+## 2. Nguồn dữ liệu
 
-Key capabilities include:
-- Incremental extraction using composite cursors `(cursor_field, pk)` with lookback overlap window.
-- Real-time continuous streaming ingestion via Apache Kafka and Apache Flink with upsert deduplication into Apache Iceberg.
-- Medallion architecture (Bronze, Silver, Gold) using Apache Iceberg format v2.
-- Strict data quality, quarantine, and automated pipeline Reconciliation Gates before Gold publishing.
-- Idempotent pipelines supporting safe rerun, replay, and deterministic backfill via Airflow data intervals.
-- Dimensional modeling for multi-role analytical dashboards and BI via Trino & Apache ECharts.
-- A documented roadmap for point-in-time customer repurchase prediction; no ML implementation is in the current scope.
+| Nguồn | Nội dung và biên giới |
+|---|---|
+| MySQL | 28 bảng ứng dụng; batch/CDC lấy 27 bảng, loại `customer_credentials` |
+| Access log FastAPI | HTTP events theo JSON contract; không ghi password/token/cookie/raw IP |
+| Generator | Dữ liệu giao dịch và log tổng hợp theo cấu hình |
+| Website/API | Giao dịch và access log phát sinh khi sử dụng hệ thống |
 
+Dữ liệu tổng hợp cần được ghi nhận là dữ liệu tổng hợp khi trình bày kết quả. Số dòng và tốc độ xử lý phải lấy từ lần chạy thực tế.
 
----
+## 3. Phần đã có trong mã nguồn
 
-## 2. Data Sources and Boundaries
+- Batch MySQL → Landing → Bronze → Silver → Gold bằng Spark/Airflow.
+- Incremental cursor `(cursor_field, pk)`, lookback và manifest.
+- Chuẩn hóa, khử trùng, MERGE, pseudonymization và quarantine.
+- Đối soát MySQL/Silver và kiểm tra Gold; lưu quality results.
+- Binlog → Debezium → Kafka → Flink → Bronze CDC.
+- Access log → Kafka → Flink → các tầng Iceberg; Spark rollup mart.
+- Trino SQL và BI Hub; RBAC và phạm vi cửa hàng tại API.
+- Bảo trì Iceberg, snapshot/file và retention quarantine.
+- CLI sinh dữ liệu nguồn; CI kiểm tra cấu hình, lint, typecheck và build.
 
-The platform ingests data across a **Hybrid Batch & Streaming Architecture**:
-1. **Transactional Data (Batch + CDC)**: MySQL 8.4 transactional database with 28 tables. The 27 analytical tables are extracted by Spark batch and captured from row-based binlog by Debezium; `customer_credentials` is excluded.
-2. **Access & Clickstream Logs (Batch & Streaming)**: Real-time streaming events via Apache Kafka and Apache Flink into Apache Iceberg, with deterministic historical batch logs backfill.
+## 4. Đầu ra phân tích
 
-### 2.1. MySQL OLTP Database
-The system extracts data from **27 operational tables** (out of 28 tables total in MySQL, strictly excluding `customer_credentials` for security and privacy):
+Gold OLTP gồm 6 dimension, 5 fact, 4 mart. Nhóm log gồm 1 fact, 3 mart. Bronze CDC là log sự kiện riêng, không phải bảng trạng thái hiện tại.
 
-**Core e-commerce tables (19):**
-- `customers`, `categories`, `products`, `product_variants`
-- `carts`, `cart_items`, `wishlist_items`
-- `orders`, `order_items`, `order_status_history`
-- `payments`, `refunds`
-- `inventory`, `coupons`, `coupon_redemptions`, `product_reviews`
-- `cities`, `stores`, `store_inventory`
+Chi tiết grain ở [Lakehouse Design](LAKEHOUSE_DESIGN_PLAN.md). Công thức và khác biệt Gold/OLTP ở [Metrics Catalog](../architecture/METRICS_CATALOG.md).
 
-**Omnichannel & Logistics tables (6) — added in migrations 0014 and 0019:**
-- `delivery_staff` — In-house shipper registry (D&K internal logistics team)
-- `shipments` — Shipment lifecycle tracking per order
-- `shipment_attempts` — Normalized, idempotent delivery-attempt audit history
-- `return_requests` — Customer return/refund headers (`exchange` remains schema-reserved for a future phase)
-- `return_items` — Line-item detail for each return/refund request
-- `inventory_transactions` — Full inbound/outbound ledger for the central warehouse
+## 5. Giới hạn
 
-**Inbound Production & Inventory Costing tables (2) — added in migration 0015:**
-- `inbound_receipts` — Internal production batch headers from company workshops
-- `inbound_receipt_items` — Line-item variant details, unit costs, and Moving Weighted Average (MWA) cost updates
+- CDC chưa tự cập nhật Silver/Gold OLTP theo sự kiện.
+- Cursor batch chưa thay thế toàn bộ bài toán đồng bộ hard delete.
+- Upload JSONL vào MinIO chưa có job tự động đọc file thô sang Gold.
+- KPI mở rộng trong tài liệu A–D không mặc nhiên là tính năng đã triển khai.
+- Chưa có bảng cấu hình mục tiêu doanh số; target/run-rate để không có dữ liệu thay vì dùng số minh họa.
+- Chưa có benchmark end-to-end hoặc cam kết latency/throughput production.
+- HTTPS và secret manager production chưa được đóng gói đầy đủ.
+- Machine Learning/RAG/fine-tuning ngoài phạm vi hiện tại.
 
-**Strict Exclusion:** The `customer_credentials` table is strictly excluded to prevent password hashes and authentication secrets from entering the analytical environment.
+## 6. Bằng chứng trình bày
 
+Dùng log DAG/Flink, snapshot Iceberg, Trino SQL và `system.data_quality_results` của lần chạy cụ thể. Ghi kèm dataset, thời điểm, số dòng từng tầng và môi trường thực thi.
 
-### 2.2. Structured Access Logs
-The backend API emits structured JSON logs on container stdout for every completed HTTP request.
-- **Included Fields:** `request_id`, `timestamp`, `service`, `event.duration_ns`, `http.method`, `http.route`, `http.status_code`, `actor.type`, `actor.key`, `client.user_agent`, `ecommerce.action`, and sanitized `ecommerce.search_query`.
-- **Ingestion Pattern:** Real-time HTTP request logs and clickstream events are published to Apache Kafka and ingested continuously into Apache Iceberg by Apache Flink. Historical logs are backfilled as gzip-compressed JSON directly to the Landing zone.
-- **Privacy Rules:** Plaintext passwords, tokens, cookies, authorization headers, and raw IP addresses are stripped before ingestion.
-
----
-
-## 3. Architecture Principles
-
-1. **Source of Truth:** MySQL is the system of record for business transactions. Access logs and Kafka streams are the system of record for HTTP request and user clickstream behavior.
-2. **Read-Only Extraction:** The extraction process uses read-only accounts and short transaction cutoffs.
-3. **Immutable Landing:** Landing zone files and Bronze tables are append-only.
-4. **Idempotency:** Silver layer pipelines handle deduplication and state merging. Rerunning a pipeline with the same input yields the exact same logical state.
-5. **Quality Gates:** Data is only published to the Gold layer after passing exact-match reconciliation checks (e.g., row counts, monetary amounts, COGS parity).
-6. **Separation of Compute:** Spark and Flink handle Iceberg writes. Trino handles all read queries from LibreDB Studio and the Storefront Admin BI Hub (`/admin/analytics`). Transactional web APIs never communicate directly with Spark or Polaris write paths.
-
----
-
-## 4. Lakehouse Design (Medallion Architecture)
-
-### 4.1. Bronze Layer
-- Acts as an immutable historical archive.
-- Appends raw rows and log entries exactly as extracted from Landing.
-- Enriches every row with technical lineage metadata: `_run_id`, `_source_file`, `_source_checksum`, `_ingested_at_utc`.
-- Routes corrupt or unparseable files into a technical quarantine namespace.
-
-### 4.2. Silver Layer
-- Parses, types, and standardizes timestamps to UTC.
-- Deduplicates rows based on primary keys or `request_id`.
-- Performs UPSERT (`MERGE`) operations for mutable OLTP tables (27 tables).
-- Pseudonymizes customer identifiers and sensitive attributes.
-- Isolates records violating business logic into semantic quarantine tables (`lakehouse.quarantine`).
-
-### 4.3. Gold Layer
-- Implements Star Schema dimensional modeling (Dimensions, Facts, and Marts).
-- **Dimensions (6):** `dim_date`, `dim_customer`, `dim_product`, `dim_variant`, `dim_store`, `dim_delivery_staff`
-- **Facts (5):** `fact_order`, `fact_order_item`, `fact_shipment`, `fact_return_exchange`, `fact_inventory_daily_snapshot`
-- **Marts (4):** `mart_sales_daily`, `mart_logistics_performance`, `mart_product_returns`, `mart_inventory_health`
-
----
-
-## 5. Key Performance Indicators (KPIs)
-
-The BI dashboards report the following core metrics directly from the Gold layer and Trino:
-
-- **Financial & Profitability Metrics:** Cost of Goods Sold (COGS) via Moving Weighted Average, Gross Profit ($\text{Net Revenue} - \text{COGS}$), Gross Margin %, and inventory valuation.
-- **Revenue Metrics:** Gross revenue, net revenue (after boom/returns), average order value (AOV), refund amounts.
-- **Order Metrics:** Order counts by status (`paid`, `confirmed`, `shipping`, `delivered`, `completed`, `failed_delivery`, `returned`, `cancelled`), units sold per category. Customer confirmation required for `completed` status.
-- **Logistics Metrics:** Delivery success rate by shipper, average delivery time, COD boom rate by region, 3-attempt boom threshold.
-- **Returns Metrics:** Return rate by product/size/reason, net revenue impact of returns, 7-day return policy.
-- **Customer Metrics:** New customer acquisition, conversion rates, and historical repurchase rates.
-- **Inventory Metrics:** Current on-hand quantity per variant per store, low-stock alerts, slow-moving items, days-of-inventory.
-- **Traffic Metrics:** Total request volume, latency percentiles (p50/p95/p99), error rates (4xx/5xx), and top product search keywords.
-
-
----
-
-## 6. Machine Learning (Repurchase Prediction) — Deferred
-
-The current repository does not generate ML features, train a model, or serve predictions. The bullets below record the agreed design for a later phase only.
-
-- **Data Boundaries:** The model only uses features derived from the OLTP Gold layer. Access logs are excluded from the primary model to avoid identity resolution bias.
-- **Features:** RFM (Recency, Frequency, Monetary), average basket value, category diversity, customer tenure, and wishlist/cart engagement.
-- **Point-in-Time Correctness:** Features are strictly computed using data available at or before the cutoff timestamp (`as_of_time`) to eliminate target leakage.
-
----
-
-## 7. Operations and Maintenance
-
-### 7.1. Reconciliation Gates
-The pipeline enforces strict reconciliation checks at each layer transition:
-- **Pre-Gold Reconciliation Gate**: `run_reconciliation_gate.py` executes immediately after Silver. It audits every configured MySQL→Silver row count and compares gross revenue, successful payments, and successful refunds using integer VND arithmetic. A zero-row source only passes a zero-row target. Failures block Gold publication.
-- **Post-Gold Quality Gate**: `run_gold_quality_gate.py` executes after facts, dimensions, and marts. It verifies Silver→Gold row counts and revenue, primary-key uniqueness/non-nullness, fact-to-dimension references, current-run freshness markers, and SHA-256 token format for customer/staff PII.
-- **Audit Evidence**: Both gates append pass/fail details, observed/expected values, severity, variance, and failed-row counts to `lakehouse.system.data_quality_results` before returning or failing.
-- **Semantic Quarantine**: Rejected rows retain all violation codes; direct identifiers are pseudonymized before JSON serialization. The maintenance DAG enforces a 30-day quarantine retention window.
-- Bronze distinct `request_id` counts must match Silver log deduplicated counts.
-
-
-### 7.2. Table Maintenance
-Airflow runs scheduled DAGs to maintain Iceberg table health:
-- Tracks small-file metrics, average file sizes, and snapshot counts.
-- Triggers compaction (data file rewrites) only when configurable thresholds are exceeded.
-- Removes orphan files and expires snapshots older than the required backfill window.
-- Passes an explicit `older_than` safety cutoff to orphan cleanup and deletes expired semantic-quarantine rows independently of Iceberg snapshot retention.
-- Guarantees that maintenance operations never alter logical row counts or checksums.
+[Kiến trúc hệ thống](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md) là tham chiếu triển khai. A–D được giữ để phân tích nghiệp vụ và viết tiểu luận.

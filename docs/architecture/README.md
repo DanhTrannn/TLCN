@@ -1,16 +1,12 @@
-# Architecture Documents
+# Tài liệu kiến trúc
 
-This directory contains reference architecture documents, logical data schemas, and access logging designs for the D&K E-Commerce Data Platform.
-
-## Table of Contents
-
-- [`../diagrams/README.md`](../diagrams/README.md): Sơ đồ kiến trúc dạng draw.io, ERD DBML 28 bảng và bộ UML cho tiểu luận.
-- [`SYSTEM_ARCHITECTURE_VISUAL.md`](SYSTEM_ARCHITECTURE_VISUAL.md): Sơ đồ trực quan system context, container architecture, batch/streaming data flow, request sequence, và deployment profiles.
-- [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md): Container boundaries, dependency rules, directory layout, Python workspace packages, and Docker runtime profiles.
-- [`OLTP_SCHEMA.md`](OLTP_SCHEMA.md): Logical schema for 28 MySQL tables, relational constraints, transaction boundaries, concurrency controls, archive logic, and indexing strategies (through migration 0020).
-- [`ACCESS_LOG_DESIGN.md`](ACCESS_LOG_DESIGN.md): Structured JSON request log contract, Apache Kafka + Apache Flink streaming pipeline, S3 Landing Zone layout, privacy redactions, and Medallion mapping.
-- [`MANAGEMENT_INFO_TECHNICAL_SPEC.md`](MANAGEMENT_INFO_TECHNICAL_SPEC.md): Comprehensive System Analysis & Design (SAD) technical specification for the Management Information System (MIS), dimensional modeling, standardized metrics, and governance rules.
-- [`CDC_DASHBOARD_DATA_SPEC.md`](CDC_DASHBOARD_DATA_SPEC.md): Implemented MySQL binlog CDC path, event contract, recovery, verification, and downstream boundary.
-- [`../contracts/ecommerce-access-v1.schema.json`](../contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
-
-Architecture diagrams, deployment topologies, and sequence flows are linked directly within each document.
+- [SYSTEM_ARCHITECTURE_VISUAL](SYSTEM_ARCHITECTURE_VISUAL.md): Thành phần, ba luồng dữ liệu, lịch chạy, serving và giới hạn triển khai.
+- [METRICS_CATALOG](METRICS_CATALOG.md): Công thức, grain, nguồn, kỳ đo và giới hạn diễn giải chỉ số.
+- [MANAGEMENT_INFO_TECHNICAL_SPEC](MANAGEMENT_INFO_TECHNICAL_SPEC.md): API analytics, vai trò, RBAC và fallback.
+- [PROJECT_STRUCTURE](PROJECT_STRUCTURE.md): Cấu trúc mã nguồn và điểm vào pipeline.
+- [OLTP_SCHEMA](OLTP_SCHEMA.md): 28 bảng nguồn, quan hệ và ràng buộc.
+- [ACCESS_LOG_DESIGN](ACCESS_LOG_DESIGN.md): JSON contract và pipeline log.
+- [CDC_DASHBOARD_DATA_SPEC](CDC_DASHBOARD_DATA_SPEC.md): Binlog → Kafka → Bronze CDC, replay và phục hồi.
+- [Lakehouse Design](../project/LAKEHOUSE_DESIGN_PLAN.md): Namespace, storage và bảng Gold thực tế.
+- [BUSINESS_DOMAIN](BUSINESS_DOMAIN.md): Tài liệu B được giữ để phân tích nghiệp vụ/KPI mở rộng.
+- [Diagrams](../diagrams/README.md): Draw.io, ERD và UML cho tiểu luận.

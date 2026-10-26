@@ -19,7 +19,6 @@ NC='\033[0m' # No Color
 WAIT_FOR_HEALTH=true
 BUILD_IMAGES=false
 ALLOW_DEGRADED=false
-SEED_DEMO=false
 
 usage() {
   cat <<EOF
@@ -29,14 +28,12 @@ ${BOLD}Options:${NC}
   -b, --build       Rebuild container images before starting
   --no-wait         Start services in background without waiting for health checks
   --allow-degraded  Continue when a service or Gold initialization check fails
-  --seed-demo       Idempotently load the seven-role demo scenario after startup
   -h, --help        Show this help message
 
 ${BOLD}Examples:${NC}
   $0                # Fast startup of all services with health checks
   $0 --build        # Rebuild updated images and start full stack
   $0 --no-wait      # Instant background startup without waiting
-  $0 --seed-demo    # Start and prepare deterministic demo accounts/data
 EOF
   exit 0
 }
@@ -53,10 +50,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --allow-degraded)
       ALLOW_DEGRADED=true
-      shift
-      ;;
-    --seed-demo)
-      SEED_DEMO=true
       shift
       ;;
     -h|--help)
@@ -160,12 +153,6 @@ else
   echo -e "    ${GREEN}[✔] Gold Marts already present in catalog.${NC}"
 fi
 
-if [[ "$SEED_DEMO" == "true" ]]; then
-  echo -e "\n${BLUE}[*] Loading deterministic demo scenarios...${NC}"
-  docker compose exec -T ecommerce-api python -m database.seeds.seed_demo_scenarios >/dev/null
-  echo -e "    ${GREEN}[✔] Demo data is ready.${NC}"
-fi
-
 # 5. Print Service Directory Table
 echo -e "\n${GREEN}${BOLD}=================================================================${NC}"
 echo -e "${GREEN}${BOLD}               PLATFORM SERVICES READY TO USE                    ${NC}"
@@ -177,7 +164,7 @@ cat <<EOF
   Customer Storefront             http://localhost:3000                Public Web
   Admin Management                http://localhost:3000/admin          admin@web.local / Admin@12345
   BI Analytics Hub (7 Roles)      http://localhost:3000/admin/analytics
-  POS Counter (Point of Sale)     http://localhost:3000/admin/pos      store.manager@dk.local / Admin@12345
+  POS Counter (Point of Sale)     http://localhost:3000/admin/pos      Staff account with store assignment
   FastAPI Documentation           http://localhost:8000/docs           Swagger UI
   LibreDB Studio (SQL IDE)        http://localhost:3001                Web SQL Interface
   Trino Query Engine              http://localhost:8084                trino

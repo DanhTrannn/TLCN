@@ -966,7 +966,7 @@ export interface StoreMetricsResponse extends AnalyticsDataStatus {
   store_name: string | null;
   store_revenue_today_vnd: number;
   store_orders_count: number;
-  target_achievement_percent: number;
+  target_achievement_percent: number | null;
   low_stock_at_store_count: number;
   store_stockouts?: StoreStockoutSignal[];
   run_rate?: StoreRunRateSignal | null;

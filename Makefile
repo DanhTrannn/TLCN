@@ -11,7 +11,7 @@ help:
 	@echo "  make restart     Restart all platform containers"
 	@echo "  make ps          Show container status"
 	@echo "  make logs        Follow container logs in real time"
-	@echo "  make seed        Seed multi-domain demo scenarios into MySQL"
+	@echo "  make seed        Initialize catalog and bootstrap admin in MySQL"
 	@echo "  make typecheck   Run Next.js storefront TypeScript check"
 	@echo ""
 
@@ -36,7 +36,7 @@ logs:
 	@docker compose --profile core --profile batch --profile streaming logs -f
 
 seed:
-	@uv run --locked --package ecommerce-api -- python database/seeds/seed_demo_scenarios.py
+	@uv run --locked --package ecommerce-api -- python database/seeds/seed_catalog.py
 
 typecheck:
 	@npm --prefix apps/storefront run typecheck

@@ -7,7 +7,7 @@ This directory contains the database schema definitions, Alembic migrations (rev
 | Directory | Content | Responsibility |
 |---|---|---|
 | `migrations/` | Alembic migration scripts | Version-controlled schema migrations for all 28 OLTP tables (`0001` - `0020`) |
-| `seeds/` | Python catalog and scenario seed scripts | Master catalog seed data and multi-role demo scenarios |
+| `seeds/` | Python catalog seed scripts | Catalog, opening inventory and bootstrap admin |
 
 ---
 
@@ -63,12 +63,7 @@ Populate the foundational product catalog without synthetic customer transaction
 uv run --package ecommerce-api python database/seeds/seed_catalog.py
 ```
 
-### 2. Multi-Role Demo Scenarios Seed
-Populate realistic demo records across all 7 business domains (staff accounts, inbound batches with MWA costing, delivered online & POS orders with snapshotted COGS, boom deliveries, returns/refunds, coupons, reviews):
-
-```bash
-uv run --package ecommerce-api python database/seeds/seed_demo_scenarios.py
-```
+Historical transactional data is produced by the [generator](../generator/README.md) and imported into MySQL before batch extraction. Staff accounts are managed through the application.
 
 ---
 

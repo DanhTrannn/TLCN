@@ -1,12 +1,12 @@
 # OLTP & Access Log Data Generator
 
-The Data Generator (`data-generator` package, v0.6.0) creates deterministic synthetic datasets calibrated to realistic Vietnamese e-commerce behavior. It exports full relational SQL inserts for MySQL OLTP and operational HTTP access logs formatted identically to production runtime logs.
+The Data Generator (`data-generator` package, v0.7.0) creates deterministic synthetic datasets calibrated to realistic Vietnamese e-commerce behavior. It exports relational SQL inserts for MySQL OLTP and synthetic HTTP access logs using the runtime log contract.
 
 ---
 
 ## Automated Backfill (Zero-Footprint on Host)
 
-To backfill data without leaving temporary SQL or log files on your host filesystem, use [`scripts/backfill_data.sh`](../../scripts/backfill_data.sh):
+To backfill data without leaving temporary SQL or log files on your host filesystem, use [`scripts/backfill_data.sh`](../scripts/backfill_data.sh):
 
 ```bash
 # Backfill both OLTP SQL into MySQL and Access Logs to MinIO S3
@@ -36,7 +36,7 @@ The output file is written to `data/generator/small.sql`.
 
 ### 2. Import into MySQL
 
-Once MySQL is running and Alembic migrations have completed (`0001` through `0009`):
+Once MySQL is running and Alembic migrations have completed (through revision `0020`):
 
 ```bash
 ./scripts/import_generated_sql.sh data/generator/small.sql
@@ -45,8 +45,12 @@ Once MySQL is running and Alembic migrations have completed (`0001` through `000
 > [!IMPORTANT]
 > The generated SQL runs within a single atomic transaction without disabling foreign key checks. Do not import the same SQL file twice into the same database.
 
-### Demo Customer Credentials
-After export, the CLI prints a demo customer account. The demo email uses the first 8 characters of `logical_identity`, and the local password is fixed to `Demo@12345`.
+### Synthetic Customer Accounts
+Generated active accounts use `customer.<index>.<logical-prefix>@web.local` and the synthetic-data password `Synthetic@12345`. The traffic generator uses the same mapping. No featured customer receives a reserved order quota or a special timeline; order allocation follows the configured customer classes.
+
+These are development data-source accounts. SQL and access logs are generated data, not measurements of real customer activity.
+
+Version 0.7 changes the generator logical identity, so the revised account mapping and order distribution belong to a new dataset namespace. Generate/import the matching SQL before running the traffic generator for that configuration.
 
 ---
 
@@ -110,3 +114,14 @@ The generator models realistic retail consumption patterns:
 - **Surrogate PKs:** Uses `BIGINT UNSIGNED` keys for internal joins and performant bulk imports.
 - **Public Identifiers:** Uses deterministic UUIDv5 for `public_id`, `logical_identity`, `generation_run_id`, and transaction idempotency keys.
 - **Business Keys:** Keeps human-readable `order_number`, SKU, slug, and coupon code identifiers.
+
+## Live Access Log Source
+
+After importing the matching SQL dataset, create API traffic with:
+
+```bash
+uv run --locked --package data-generator -- python scripts/simulate_web_traffic.py \
+  --config generator/configs/small.yml --duration 300 --concurrency 5
+```
+
+The API publishes these access events to Kafka for the Flink stream. Historical `.jsonl.gz` files uploaded to MinIO remain raw Landing files; the current Flink job reads Kafka and does not automatically process those uploaded files into Gold.

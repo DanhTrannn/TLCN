@@ -164,8 +164,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-    volumes:
-      - ./demo:/app/demo:ro
     networks: ["lakehouse-network"]
 
   storefront:

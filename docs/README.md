@@ -1,66 +1,33 @@
-# Documentation Index
+# Mục lục tài liệu đồ án
 
-This directory contains the architecture specifications, data schemas, operations guides, and development workflows for the D&K E-Commerce Data Platform.
+Bộ tài liệu lấy phần Data Engineering làm trọng tâm. Kiến trúc, bảng dữ liệu và công thức được đối chiếu với mã nguồn; số dòng và hiệu năng thực tế cần lấy từ môi trường đang chạy.
 
-## Guides by Category
+## Tài liệu triển khai hiện tại
 
-### Architecture and Specifications
+| Tài liệu | Nội dung |
+|---|---|
+| [SCOPE](project/SCOPE.md) | Mục tiêu, nguồn dữ liệu, phạm vi batch/CDC/log và giới hạn |
+| [SYSTEM_ARCHITECTURE_VISUAL](architecture/SYSTEM_ARCHITECTURE_VISUAL.md) | Thành phần, ba luồng dữ liệu, serving, lịch chạy và triển khai |
+| [LAKEHOUSE_DESIGN_PLAN](project/LAKEHOUSE_DESIGN_PLAN.md) | Namespace, lưu trữ, dimension/fact/mart và nhóm log |
+| [METRICS_CATALOG](architecture/METRICS_CATALOG.md) | Công thức, grain, nguồn, cửa sổ thời gian và giới hạn chỉ số |
+| [MANAGEMENT_INFO_TECHNICAL_SPEC](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md) | Vai trò dashboard, nguồn SQL, RBAC và trạng thái dữ liệu |
+| [OLTP_SCHEMA](architecture/OLTP_SCHEMA.md) | 28 bảng MySQL, quan hệ, ràng buộc và giao dịch |
+| [ACCESS_LOG_DESIGN](architecture/ACCESS_LOG_DESIGN.md) | JSON contract, quyền riêng tư và xử lý log |
+| [CDC_DASHBOARD_DATA_SPEC](architecture/CDC_DASHBOARD_DATA_SPEC.md) | Binlog, Debezium, Kafka, Bronze CDC và phục hồi |
+| [PROJECT_STRUCTURE](architecture/PROJECT_STRUCTURE.md) | Thư mục và điểm vào của mã nguồn |
+| [Runbook](runbook/README.md) | Cài đặt, khởi động, sinh dữ liệu và vận hành |
+| [Diagrams](diagrams/README.md) | Draw.io, ERD DBML, Use Case, Activity và Sequence |
+| [Access log schema](contracts/ecommerce-access-v1.schema.json) | JSON Schema cho hợp đồng dữ liệu |
 
-- [`diagrams/README.md`](diagrams/README.md): Editable architecture, full 28-table ERD, and UML sources with SVG exports for the thesis.
-- [`project/SCOPE.md`](project/SCOPE.md): System boundaries, data source allowlists, analytical constraints, and acceptance criteria.
-- [`architecture/PROJECT_STRUCTURE.md`](architecture/PROJECT_STRUCTURE.md): Monorepo organization, service boundaries, and dependency rules.
-- [`architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md`](architecture/MANAGEMENT_INFO_TECHNICAL_SPEC.md): 7-Role Management Information System (MIS) specification, Trino distributed SQL engine, and Apache ECharts BI Hub.
-- [`project/LAKEHOUSE_DESIGN_PLAN.md`](project/LAKEHOUSE_DESIGN_PLAN.md): Medallion architecture (Bronze, Silver, Gold), Iceberg table schemas, and data quality gates.
-- [`project/WEB_DESIGN_PLAN.md`](project/WEB_DESIGN_PLAN.md): E-commerce storefront and API design specification.
+## Tài liệu giữ để phân tích và viết tiểu luận
 
-### Data Contracts and Schemas
+Các tài liệu A–D được giữ theo lựa chọn của tác giả. Chúng mô tả nghiệp vụ và thiết kế mở rộng; khi xác định tính năng/công thức đang triển khai, dùng nhóm tài liệu ở trên và mã nguồn.
 
-- [`architecture/OLTP_SCHEMA.md`](architecture/OLTP_SCHEMA.md): Complete OLTP schema reference — 28 MySQL tables with column-level definitions, check constraints, indexes, transaction catalogue (TX-01–TX-12), in-house logistics, 7-day returns, inventory ledger, MWA costing, lock ordering, race handling, and reconciliation rules.
-- [`architecture/ACCESS_LOG_DESIGN.md`](architecture/ACCESS_LOG_DESIGN.md): JSON event schema, Kafka + Flink streaming collection pipeline, privacy redactions, and S3 partition layouts.
-- [`architecture/CDC_DASHBOARD_DATA_SPEC.md`](architecture/CDC_DASHBOARD_DATA_SPEC.md): MySQL binlog CDC contract, Debezium/Flink/Iceberg path, verification, and recovery.
-- [`contracts/ecommerce-access-v1.schema.json`](contracts/ecommerce-access-v1.schema.json): Formal JSON Schema definition for access log records.
-
-### Operations and Deployment
-
-- [`runbook/README.md`](runbook/README.md): Index of operational workflows, quick start commands, and validation.
-- [`runbook/SETUP.md`](runbook/SETUP.md): Local cluster setup, Polaris RBAC bootstrap, and catalog inspection.
-- [`runbook/STARTUP_FLOW.md`](runbook/STARTUP_FLOW.md): Container startup sequence, database migrations, and health verification.
-
-## Progress
-
-### Infrastructure
-
-| Component | Status | Notes |
+| Mã | Tài liệu | Nội dung |
 |---|---|---|
-| MinIO (S3 storage) | Done | `lakehouse` bucket, Landing + Warehouse paths |
-| Polaris (Iceberg REST catalog) | Done | RBAC: `spark_writer`, `trino_reader`, `trino_admin` |
-| Spark (compute) | Done | 3.5.9 + Iceberg 1.10.1, standalone cluster |
-| Apache Kafka | Done | Distributed event bus for structured access logs |
-| Debezium MySQL CDC | Done | Row-binlog capture for 27 analytical tables into Kafka and Iceberg Bronze |
-| Apache Flink | Done | 1.19 Streaming engine ingesting Kafka events into Iceberg |
-| Trino (query engine) | Done | v483, distributed queries via Polaris and direct telemetry for BI Hub |
-| Airflow (orchestration) | Done | v2.10.5, LocalExecutor |
-| MySQL (OLTP source) | Done | 28 tables, synthetic data via generator & demo scenarios seed |
-| LibreDB Studio (SQL IDE) | Done | Connected to MySQL, PostgreSQL, Trino |
-| E-Commerce API + Storefront | Done | FastAPI + Next.js (32 page routes at this revision) |
+| A | [OOSAD_ANALYSIS](design-analysis/OOSAD_ANALYSIS.md) | Actors, Use Case, Activity, Sequence và phân tích Web/Lakehouse |
+| B | [BUSINESS_DOMAIN](architecture/BUSINESS_DOMAIN.md) | Bảy vai trò quản lý, câu hỏi kinh doanh và KPI mong muốn |
+| C | [BUSINESS_REQUIREMENTS](project/BUSINESS_REQUIREMENTS.md) | Mua hàng, POS, kho, giao vận, COD và đổi trả |
+| D | [WEB_DESIGN_PLAN](project/WEB_DESIGN_PLAN.md) | Thiết kế website nguồn, API và giao dịch |
 
-### Lakehouse Pipelines
-
-| DAG / Pipeline | Status | Tables | Notes |
-|---|---|---|---|
-| `lakehouse_oltp_pipeline` | Done | 27 tables | Unified End-to-End OLTP DAG: Landing → Bronze → Silver → Gold |
-| `kafka_to_lakehouse_pure_streaming` | Done | Real-time | Streaming logs into Landing, Bronze, Silver, Gold |
-| `oltp_cdc_to_bronze` | Done | Real-time | MySQL binlog changes into immutable Iceberg Bronze |
-| `lakehouse_streaming_maintenance` | Done | 4 layers | Streaming logs healthcheck, Iceberg maintenance & Gold Marts rollup |
-
-
----
-
-## Directory Structure
-
-| Directory | Content Type | Focus Area |
-|---|---|---|
-| [`project/`](project/) | Specification | Scope, Lakehouse Medallion roadmap, and Web Design plans |
-| [`architecture/`](architecture/) | Reference | System structure, OLTP schema, and access log contracts |
-| [`contracts/`](contracts/) | Schema | JSON Schema definitions for telemetry contracts |
-| [`runbook/`](runbook/) | How-To | Local deployment, startup, CI, and catalog inspection |
+Bản `BUSINESS_DOMAIN.md` tại `design-analysis/` trùng nội dung đã được gộp về bản B.

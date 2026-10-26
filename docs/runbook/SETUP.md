@@ -8,7 +8,7 @@ The local stack implements the decoupled architecture defined in the lakehouse p
 
 - **MinIO S3:** Stores Landing zone files, Iceberg metadata, and Parquet data files under bucket `lakehouse`.
 - **Apache Polaris (v1.6.0):** Acts as the Iceberg REST Catalog, backed by PostgreSQL 16.8 for realm and RBAC metadata.
-- **Apache Spark (v3.5.9 + Iceberg v1.10.1):** The exclusive writer engine responsible for ETL and table commits.
+- **Apache Spark (v3.5.9 + Iceberg v1.10.1):** The batch writer engine responsible for ETL and table commits; Flink independently handles streaming writes.
 - **Trino (v483):** The distributed SQL query engine for read-only serving.
 - **LibreDB Studio (vlatest):** Web-based SQL IDE for MySQL, PostgreSQL, and Trino (`:3001`).
 - **Debezium Connect (v3.0.8):** Captures committed changes from the MySQL row binlog and publishes per-table Kafka topics (`:8086`, localhost only).
@@ -34,7 +34,7 @@ If exposing services beyond `localhost`, update the following variables to avoid
 
 ## 3. Startup Sequence
 
-Launch the default catalog, storage, Trino, and LibreDB Studio:
+Launch the services selected by `.env` (the example environment enables core, batch and streaming):
 
 ```bash
 docker compose up -d --build
@@ -79,7 +79,7 @@ docker compose --profile core --profile batch --profile streaming up -d --build
 The default startup provisions `trino` with the read-only `trino_reader` principal. An administrative Trino engine using the `trino_admin` principal (full catalog management) can be started on demand — it is **not** part of the default startup:
 
 ```bash
-docker compose --profile batch up -d trino-admin
+docker compose --profile trino-admin up -d trino-admin
 ```
 
 It serves on host port `8087` (`http://localhost:8087`). The read-only `trino` reader engine remains the default query engine.

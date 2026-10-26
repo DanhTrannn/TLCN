@@ -220,7 +220,7 @@ class StoreMetricsResponse(AnalyticsDataStatus):
     store_name: str | None = None
     store_revenue_today_vnd: int = 0
     store_orders_count: int = 0
-    target_achievement_percent: float = 0.0
+    target_achievement_percent: float | None = None
     low_stock_at_store_count: int = 0
     store_stockouts: list[StoreStockoutSignal] = Field(default_factory=list)
     run_rate: StoreRunRateSignal | None = None

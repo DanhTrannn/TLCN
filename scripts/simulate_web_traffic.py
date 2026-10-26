@@ -24,9 +24,9 @@ import httpx
 from faker import Faker
 from generator.config import load_config
 from generator.log_export import _active_customer_indices
-from generator.sql_export import DEMO_PASSWORD
+from generator.sql_export import SYNTHETIC_CUSTOMER_PASSWORD
 
-PASSWORD = DEMO_PASSWORD
+PASSWORD = SYNTHETIC_CUSTOMER_PASSWORD
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
@@ -73,11 +73,7 @@ class UserPool:
         config = load_config(config_path)
         active_indices = _active_customer_indices(config)
         logical_prefix = config.logical_identity[:8]
-        demo_email = f"demo.{logical_prefix}@web.local"
-        self.users.append(SimUser(email=demo_email, display_name="Khách hàng mẫu"))
         for idx in active_indices:
-            if idx == 0:
-                continue
             email = f"customer.{idx + 1:04d}.{logical_prefix}@web.local"
             self.users.append(SimUser(email=email, display_name=f"Khách hàng {idx + 1}"))
 

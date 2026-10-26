@@ -58,7 +58,7 @@ pipelines/
     3. `gold_marts`: Periodic rollup of `mart_hourly_route_metrics` and `mart_daily_product_demand` from real-time `fact_web_events`.
 
 ### 2.2. OLTP Ingestion Pipelines
-- **Unified OLTP Pipeline (`lakehouse_oltp_pipeline`):** End-to-end daily batch ingestion of 26 OLTP tables across all Medallion layers:
+- **Unified OLTP Pipeline (`lakehouse_oltp_pipeline`):** End-to-end daily batch ingestion of 27 OLTP tables across all Medallion layers:
   1. **Landing Zone:** Incremental extraction via composite cursors `(cursor_field, pk)` with MD5 cryptographic manifests.
   2. **Bronze Layer:** Append-only ingestion into Iceberg Bronze tables.
   3. **Silver Layer:** Deduplication, PII pseudonymization (SHA-256), business rule validation, quarantine routing, and ACID MERGE into Silver tables.

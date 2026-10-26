@@ -986,6 +986,7 @@ function StoreDashboard({
 
   const gaugeOption: EChartsOption = useMemo(() => {
     const pct = metrics.target_achievement_percent;
+    if (pct === null) return {};
     const color = pct >= 80 ? "#059669" : pct >= 50 ? "#d97706" : "#e11d48";
 
     return {
@@ -1249,23 +1250,25 @@ function StoreDashboard({
           <p className={metricValueClasses}>{metrics.store_orders_count}</p>
         </article>
 
-        <article className="admin-panel min-w-0 overflow-hidden">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted">Tiến độ chỉ tiêu ngày</p>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                metrics.target_achievement_percent >= 80
-                  ? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : "border border-line bg-paper text-muted"
-              }`}
-            >
+        {metrics.target_achievement_percent !== null && (
+          <article className="admin-panel min-w-0 overflow-hidden">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted">Tiến độ chỉ tiêu ngày</p>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  metrics.target_achievement_percent >= 80
+                    ? "border border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                    : "border border-line bg-paper text-muted"
+                }`}
+              >
+                {metrics.target_achievement_percent}%
+              </span>
+            </div>
+            <p className={`${metricValueClasses} text-emerald-700 dark:text-emerald-400`}>
               {metrics.target_achievement_percent}%
-            </span>
-          </div>
-          <p className={`${metricValueClasses} text-emerald-700 dark:text-emerald-400`}>
-            {metrics.target_achievement_percent}%
-          </p>
-        </article>
+            </p>
+          </article>
+        )}
 
         <article className="admin-panel min-w-0 overflow-hidden">
           <div className="flex items-center justify-between">
@@ -1283,10 +1286,12 @@ function StoreDashboard({
       </div>
 
       {/* Target Gauge Visualization */}
-      <section className="admin-panel space-y-4">
-        <h3 className="text-lg font-semibold text-ink">Đồng hồ Tiến độ Doanh số Chỉ tiêu (Daily Target Gauge)</h3>
-        <EChart height={280} option={gaugeOption} />
-      </section>
+      {metrics.target_achievement_percent !== null && (
+        <section className="admin-panel space-y-4">
+          <h3 className="text-lg font-semibold text-ink">Đồng hồ Tiến độ Doanh số Chỉ tiêu (Daily Target Gauge)</h3>
+          <EChart height={280} option={gaugeOption} />
+        </section>
+      )}
 
       {/* Low Stock Warning Alert */}
       {metrics.low_stock_at_store_count > 0 && (

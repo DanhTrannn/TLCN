@@ -70,7 +70,6 @@ def main() -> None:
     print(f"SQL file: {summary.sql_path}")
     print(f"Generation run: {summary.generation_run_id}")
     print(f"Rows: {summary.customers} customers, {summary.products} products, {summary.variants} variants, {summary.orders} orders")
-    print(f"Demo login: {summary.demo_email} / {summary.demo_password}")
 
 
 if __name__ == "__main__":

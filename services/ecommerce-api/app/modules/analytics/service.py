@@ -22,17 +22,13 @@ from app.models.review import ProductReview
 from app.modules.analytics.schemas import (
     CashInTransitSignal,
     CategoryShareMetric,
-    ChannelPaceComparisonSignal,
     CriticalStockoutSignal,
     DailySalesTrendPoint,
     DepletionVelocitySignal,
     ExecutiveMetricsResponse,
     FulfillmentBottleneckSignal,
     FunnelStep,
-    HourlyMarginPoint,
-    HourlyRunRatePoint,
     InventoryMetricsResponse,
-    MarginErosionSignal,
     MarketingMetricsResponse,
     NegativeReviewSpikeSignal,
     OperationsMetricsResponse,
@@ -44,11 +40,9 @@ from app.modules.analytics.schemas import (
     StoreContribution,
     StoreItemResponse,
     StoreMetricsResponse,
-    StoreRunRateSignal,
     StoreStockoutSignal,
     SystemMetricsResponse,
     TopProductMetric,
-    ViralProductSignal,
     VoucherBurnRateSignal,
 )
 from app.modules.analytics.trino_client import TrinoClient, default_trino_client
@@ -177,52 +171,16 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
     boom_rate = round((boom_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
     return_rate = round((return_count / total_orders) * 100, 2) if total_orders > 0 else 0.0
 
-    # OLTP signal 1: Margin erosion (intra-day hourly pacing)
-    rev_09 = round(net_rev * 0.25)
-    cogs_09 = round(int(cogs_vnd) * 0.20)
-    margin_09 = round(((rev_09 - cogs_09) / rev_09) * 100, 1) if rev_09 > 0 else 52.0
-
-    rev_12 = round(net_rev * 0.55)
-    cogs_12 = round(int(cogs_vnd) * 0.50)
-    margin_12 = round(((rev_12 - cogs_12) / rev_12) * 100, 1) if rev_12 > 0 else gross_margin
-
-    rev_15 = net_rev
-    cogs_15 = int(cogs_vnd)
-    margin_15 = round(gross_margin, 1)
-
-    base_margin = max(margin_09, gross_margin) if gross_margin > 0 else 52.0
-    cur_margin = margin_15
-    drop_pct = max(0.0, round(base_margin - cur_margin, 1))
-
-    hourly_margins = [
-        HourlyMarginPoint(hour="09:00", revenue_vnd=rev_09, cogs_vnd=cogs_09, margin_percent=margin_09),
-        HourlyMarginPoint(hour="12:00", revenue_vnd=rev_12, cogs_vnd=cogs_12, margin_percent=margin_12),
-        HourlyMarginPoint(hour="15:00", revenue_vnd=rev_15, cogs_vnd=cogs_15, margin_percent=margin_15),
-    ]
-    margin_erosion = MarginErosionSignal(
-        baseline_margin_percent=round(base_margin, 1),
-        current_margin_percent=round(cur_margin, 1),
-        erosion_drop_percent=drop_pct,
-        erosion_warning=drop_pct >= 15.0 or (cur_margin > 0 and cur_margin < 20.0),
-        lowest_margin_hour="15:00",
-        hourly_margins=hourly_margins,
-    )
-
     # OLTP signal 2: Cash in transit (COD shipments on delivery)
     cod_rows = db.execute(
         select(Order.total_vnd, Shipment.status)
         .join(Shipment, Shipment.order_id == Order.order_id)
-        .where(Shipment.status.in_(("dispatched", "in_transit")))
+        .where(Order.payment_method == "cod", Shipment.status.in_(("dispatched", "in_transit")))
     ).all()
     cod_total = sum(int(r[0]) for r in cod_rows)
-    carrier_breakdown = {
-        "Giao Hàng Nhanh (GHN)": round(cod_total * 0.6),
-        "Giao Hàng Tiết Kiệm (GHTK)": round(cod_total * 0.4),
-    } if cod_total > 0 else {}
     cash_in_transit = CashInTransitSignal(
         total_cod_amount_vnd=int(cod_total),
         dispatched_shipments_count=len(cod_rows),
-        carrier_breakdown=carrier_breakdown,
     )
 
     return ExecutiveMetricsResponse(
@@ -236,7 +194,6 @@ def _get_executive_metrics_oltp(db: Session) -> ExecutiveMetricsResponse:
         aov_vnd=int(aov),
         boom_rate_percent=boom_rate,
         return_rate_percent=return_rate,
-        margin_erosion=margin_erosion,
         cash_in_transit=cash_in_transit,
     )
 
@@ -345,42 +302,11 @@ def _get_sales_metrics_oltp(db: Session) -> SalesMetricsResponse:
         for row in cat_rows
     ]
 
-    # OLTP signal 1: Viral products (sudden sales velocity surge)
-    viral_products = []
-    if top_selling_products:
-        avg_units = sum(p.units_sold for p in top_selling_products) / len(top_selling_products) if top_selling_products else 1.0
-        for p in top_selling_products[:3]:
-            multiple = round(p.units_sold / avg_units, 1) if avg_units > 0 else 1.0
-            is_viral = multiple >= 1.5 or len(viral_products) == 0
-            viral_products.append(
-                ViralProductSignal(
-                    product_id=p.product_id,
-                    product_name=p.product_name,
-                    units_sold_recent=p.units_sold,
-                    growth_velocity_multiple=max(1.0, multiple),
-                    viral_badge=is_viral,
-                )
-            )
-
-    # OLTP signal 2: Channel pace comparison (online vs physical retail)
-    store_rev_total = sum(st.revenue_vnd for st in store_contributions if st.store_id is not None)
-    tot_rev = int(online_rev) + store_rev_total
-    onl_pct = round((int(online_rev) / tot_rev) * 100, 1) if tot_rev > 0 else 50.0
-    str_pct = round((store_rev_total / tot_rev) * 100, 1) if tot_rev > 0 else 50.0
-    channel_pace = ChannelPaceComparisonSignal(
-        online_growth_percent=onl_pct,
-        store_growth_percent=str_pct,
-        dominant_channel="online" if onl_pct >= str_pct else "store",
-        pace_divergence_warning=abs(onl_pct - str_pct) >= 40.0,
-    )
-
     return SalesMetricsResponse(
         role="sales",
         store_contributions=store_contributions,
         top_selling_products=top_selling_products,
         category_shares=category_shares,
-        viral_products=viral_products,
-        channel_pace=channel_pace,
     )
 
 
@@ -442,12 +368,15 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
     ).first()
     voucher_burn_rate = None
     if active_coupon:
-        limit = active_coupon.total_usage_limit or 1000
+        limit = int(active_coupon.total_usage_limit or 0)
         used = int(active_coupon.used_count)
         burn_pct = round((used / limit) * 100, 1) if limit > 0 else 0.0
         recent_redemptions = db.scalar(
-            select(func.count()).select_from(CouponRedemption).where(CouponRedemption.coupon_id == active_coupon.coupon_id)
-        ) or used
+            select(func.count()).select_from(CouponRedemption).where(
+                CouponRedemption.coupon_id == active_coupon.coupon_id,
+                CouponRedemption.redeemed_at >= datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=15),
+            )
+        ) or 0
         rate_per_min = round(float(recent_redemptions) / 15.0, 1) if recent_redemptions > 0 else 0.0
         voucher_burn_rate = VoucherBurnRateSignal(
             coupon_code=active_coupon.code_normalized,
@@ -462,7 +391,10 @@ def _get_marketing_metrics_oltp(db: Session) -> MarketingMetricsResponse:
     bad_review_rows = db.execute(
         select(ProductReview.product_id, Product.name, func.count().label("cnt"))
         .join(Product, Product.product_id == ProductReview.product_id)
-        .where(ProductReview.rating <= 2)
+        .where(
+            ProductReview.rating <= 2,
+            ProductReview.created_at >= datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=45),
+        )
         .group_by(ProductReview.product_id, Product.name)
         .order_by(desc("cnt"))
         .limit(5)
@@ -530,9 +462,6 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
             )
         ) or 0
 
-    daily_target = 15000000
-    target_pct = round((int(store_rev_today) / daily_target) * 100, 1) if daily_target > 0 else 0.0
-
     low_stock_count = 0
     store_stockouts = []
     if store_id is not None:
@@ -559,32 +488,14 @@ def _get_store_metrics_oltp(db: Session, store_id: int | None) -> StoreMetricsRe
             for r in stockout_items
         ]
 
-    # OLTP signal 2: Hourly run-rate vs daily target
-    cur_rev = int(store_rev_today)
-    h_points = [
-        HourlyRunRatePoint(hour="10:00", hourly_revenue_vnd=round(cur_rev * 0.25), cumulative_revenue_vnd=round(cur_rev * 0.25), target_vnd=3000000),
-        HourlyRunRatePoint(hour="14:00", hourly_revenue_vnd=round(cur_rev * 0.40), cumulative_revenue_vnd=round(cur_rev * 0.65), target_vnd=8000000),
-        HourlyRunRatePoint(hour="18:00", hourly_revenue_vnd=round(cur_rev * 0.35), cumulative_revenue_vnd=cur_rev, target_vnd=15000000),
-    ]
-    run_rate = StoreRunRateSignal(
-        daily_target_vnd=daily_target,
-        current_revenue_vnd=cur_rev,
-        achievement_percent=target_pct,
-        projected_revenue_vnd=round(cur_rev * 1.5) if cur_rev > 0 else 0,
-        pace_status="on_track" if target_pct >= 50.0 else "behind",
-        hourly_points=h_points,
-    )
-
     return StoreMetricsResponse(
         role="store",
         store_id=store_id,
         store_name=store_name,
         store_revenue_today_vnd=int(store_rev_today),
         store_orders_count=int(store_orders_today),
-        target_achievement_percent=target_pct,
         low_stock_at_store_count=int(low_stock_count),
         store_stockouts=store_stockouts,
-        run_rate=run_rate,
     )
 
 
@@ -702,6 +613,7 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
     shipment_rows = db.execute(
         select(Order.shipping_address_text, Shipment.status)
         .join(Order, Order.order_id == Shipment.order_id)
+        .where(Order.payment_method == "cod")
     ).all()
     region_stats: dict[str, dict[str, int]] = {}
     for addr, st in shipment_rows:
@@ -735,16 +647,25 @@ def _get_operations_metrics_oltp(db: Session) -> OperationsMetricsResponse:
     regional_boom_rates.sort(key=lambda x: x.boom_rate_percent, reverse=True)
 
     # OLTP signal 2: Fulfillment bottleneck (stale orders > 2 hours)
-    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=2)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    cutoff = now - timedelta(hours=2)
     stale_unfulfilled = db.scalar(
         select(func.count()).select_from(Order)
         .where(Order.status.in_(("paid", "confirmed")), Order.created_at <= cutoff)
     ) or 0
+    pending_created_at = db.scalars(
+        select(Order.created_at).where(Order.status.in_(("paid", "confirmed", "processing")))
+    ).all()
+    average_waiting_hours = (
+        sum(max(0.0, (now - created_at).total_seconds() / 3600) for created_at in pending_created_at)
+        / len(pending_created_at)
+        if pending_created_at else 0.0
+    )
     fulfillment_bottleneck = FulfillmentBottleneckSignal(
         paid_unfulfilled_orders=int(pending_fulfillment),
         stale_unfulfilled_orders=int(stale_unfulfilled),
         bottleneck_warning=int(stale_unfulfilled) > 0 or int(pending_fulfillment) >= 20,
-        average_waiting_hours=2.5 if int(stale_unfulfilled) > 0 else 0.5,
+        average_waiting_hours=round(average_waiting_hours, 2),
     )
 
     return OperationsMetricsResponse(
@@ -1257,9 +1178,6 @@ def get_store_metrics(
         rev_today = int(row.get("store_revenue_today_vnd") or 0)
         orders_today = int(row.get("store_orders_count") or 0)
 
-        daily_target = 15000000
-        target_pct = round((rev_today / daily_target) * 100, 1) if daily_target > 0 else 0.0
-
         inv_filter = (
             f"location_type = 'store' AND location_id = {effective_store_id}"
             if effective_store_id is not None
@@ -1281,7 +1199,6 @@ def get_store_metrics(
             store_name=store_name,
             store_revenue_today_vnd=rev_today,
             store_orders_count=orders_today,
-            target_achievement_percent=target_pct,
             low_stock_at_store_count=low_stock_count,
             store_stockouts=store_stockouts,
             run_rate=run_rate,
