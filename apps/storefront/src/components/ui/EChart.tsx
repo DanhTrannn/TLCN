@@ -16,6 +16,7 @@ import {
   LegendComponent,
   ToolboxComponent,
   DataZoomComponent,
+  AriaComponent,
 } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { EChartsOption } from "echarts";
@@ -33,6 +34,7 @@ echarts.use([
   LegendComponent,
   ToolboxComponent,
   DataZoomComponent,
+  AriaComponent,
   CanvasRenderer,
 ]);
 
@@ -44,6 +46,7 @@ export interface EChartProps {
   width?: number | string;
   loading?: boolean;
   className?: string;
+  label?: string;
   onChartReady?: (chart: echarts.ECharts) => void;
 }
 
@@ -63,6 +66,7 @@ export function EChart({
   width = "100%",
   loading = false,
   className = "",
+  label,
   onChartReady,
 }: EChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +136,8 @@ export function EChart({
   return (
     <div
       ref={containerRef}
+      aria-label={label}
+      role={label ? "img" : undefined}
       className={`relative w-full ${className}`}
       style={{ height: heightStyle, width: widthStyle, minHeight: heightStyle }}
     />

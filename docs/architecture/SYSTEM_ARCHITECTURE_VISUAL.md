@@ -92,6 +92,10 @@ Response chỉ số có `data_source`, `is_degraded`, `degraded_reason`. Trino l
 
 Store/inventory/operations ưu tiên OLTP ngay cả khi Trino đang hoạt động. Marketing/store/inventory/operations tự tải lại 60 giây khi trang hoạt động; việc reload không khiến batch Gold tự chạy.
 
+BI Hub tổ chức từng góc nhìn theo tổng quan → xu hướng (khi có API phù hợp) → phân nhóm/bảng chi tiết → bước kiểm tra. Bộ chọn 7/30/90 ngày chỉ tác động biểu đồ và bảng xu hướng, không đổi KPI toàn nguồn. Bộ chọn cửa hàng áp dụng góc nhìn store theo quyền của API. Tìm kiếm, sắp xếp và xuất CSV giới hạn trong từng bảng.
+
+Giao diện tách thời điểm nhận phản hồi (UTC+7) khỏi tuổi dữ liệu Gold, hiển thị nguồn/fallback riêng cho xu hướng, và cung cấp từ điển chỉ số theo nguồn phản hồi. Không dựng target/delta khi API chưa cung cấp. Các bước marketing được trình bày như lượng sự kiện/proxy, các nhóm giao vận có thể chồng lặp không dùng làm cơ cấu đơn. Khi system dùng fallback, giá trị Gold/variance thay thế không được diễn giải như kết quả đối soát đã đo. Các hành động là hướng dẫn hoặc liên kết tới màn hình nghiệp vụ có quyền truy cập.
+
 Nguồn serving: [router](../../services/ecommerce-api/app/modules/analytics/router.py), [service](../../services/ecommerce-api/app/modules/analytics/service.py), [schemas](../../services/ecommerce-api/app/modules/analytics/schemas.py), [BI Hub](../../apps/storefront/src/app/admin/analytics/page.tsx).
 
 ### Quyền truy cập storage và catalog
