@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { formatMetricVnd, formatVnd, type RoleMetricsResponse, type ReconciliationVariance } from "@/lib/api";
 import { Chart, DetailTable, EmptyState, MetricCard, NextSteps, Panel, number, percent, ratio } from "./AnalyticsUI";
-import { barOption } from "./chart-options";
+import { barOption, reconciliationOption } from "./chart-options";
 
 export function RoleDashboards({ metrics, userRole, trend }: { metrics: RoleMetricsResponse; userRole: string; trend?: ReactNode }) {
   const kpiGrid = "grid gap-4 sm:grid-cols-2 xl:grid-cols-4";
@@ -207,10 +207,22 @@ export function RoleDashboards({ metrics, userRole, trend }: { metrics: RoleMetr
           <MetricCard detail={`Ngưỡng hiển thị ${metrics.data_freshness_sla_minutes} phút; lịch batch hằng ngày 02:00 UTC+7, không phải SLA 15 phút.`} label="Tuổi dữ liệu Gold" scope="Từ lần nạp fact_order gần nhất" value={metrics.data_freshness_minutes == null ? "Chưa xác định" : `${number(metrics.data_freshness_minutes)} phút`} warning={metrics.data_freshness_minutes == null || metrics.data_freshness_minutes > metrics.data_freshness_sla_minutes} />
           <MetricCard detail={comparable ? "Trong các chỉ số đối soát API trả về. Không so đơn và VND trên cùng trục giá trị." : "Không có số đo Lakehouse để đối soát; không dùng giá trị fallback làm kết quả kiểm chứng."} label="Sai lệch lớn nhất" scope="MySQL hiện tại ↔ Gold" value={percent(maximum)} warning={maximum != null && maximum > 0} />
         </div>
-        <Panel title="Chỉ số đối soát nào đang chênh lệch?" subtitle="Biểu đồ chỉ dùng tỷ lệ phần trăm; bảng giữ đơn vị gốc theo từng dòng.">
+        <Panel title="Đối soát dữ liệu OLTP và Lakehouse" subtitle="Tổng đơn và giá trị tiền có thang đo riêng; mỗi biểu đồ so sánh cùng một chỉ số giữa MySQL và Gold.">
           {comparable ? <>
             <p className={`mb-4 rounded-xl border p-3 text-sm leading-6 ${maximum === 0 ? "border-success/25 bg-success/5 text-success" : "border-warning/25 bg-warning/5 text-warning"}`}>{maximum === 0 ? "Các chỉ số được trả về đang có sai lệch 0%. Kết quả này không chứng minh toàn bộ bảng hoặc pipeline đều chính xác." : "Có chênh lệch trong các chỉ số được trả về. Kiểm tra kỳ dữ liệu, lần chạy batch và bản ghi gốc trước khi xác định nguyên nhân."}</p>
-            <Chart height={220} label="Sai lệch MySQL và Gold theo từng chỉ số, phần trăm." option={barOption(variances.map(row => ({ name: label(row), value: row.variance_percent })), "Sai lệch", value => `${number(value)}%`, "#a94728")} />
+            <div className="mb-5 grid gap-4 xl:grid-cols-2">
+              {variances.map(row => {
+                const monetary = row.metric_name.endsWith("_vnd");
+                const unit = monetary ? "VND" : row.metric_name === "total_orders" ? "Đơn" : "Giá trị";
+                return <section className="min-w-0 rounded-xl border border-line p-3 sm:p-4" key={row.metric_name}>
+                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-ink">{label(row)}</h3>
+                    <p className={`text-xs tabular-nums ${row.variance_percent === 0 ? "text-success" : "text-warning"}`}>Sai lệch: {percent(row.variance_percent)}</p>
+                  </div>
+                  <Chart height={240} label={`${label(row)}: so sánh MySQL và Gold, đơn vị ${unit}.`} option={reconciliationOption(row, unit, monetary ? formatMetricVnd : number, monetary ? formatVnd : number)} />
+                </section>;
+              })}
+            </div>
           </> : <EmptyState title="Chưa đủ dữ liệu để đối soát" detail="Lakehouse chưa có số đo hợp lệ hoặc đang dùng nguồn thay thế. Không diễn giải Gold bằng 0 hay variance 100% trong fallback là chênh lệch đã đo được." />}
           <DetailTable caption="Đối soát MySQL và Gold" filename="doi-soat-nguon-gold" rows={variances} rowKey={row => row.metric_name} columns={[
             { key: "metric", label: "Chỉ số / đơn vị", value: label },
