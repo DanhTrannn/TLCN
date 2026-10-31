@@ -1014,6 +1014,67 @@ Thiết kế chuyên biệt cho các nhà quản lý nghiệp vụ vận hành h
 
 ![BI Hub — Vận hành theo vai trò](docs/diagram/ui-dashboard-operations.svg)
 
+# **CHƯƠNG 4. TRIỂN KHAI HỆ THỐNG**
+
+## **4.1. Môi trường và kiến trúc triển khai**
+
+### **4.1.1. Cấu trúc dự án và môi trường phát triển**
+
+### **4.1.2. Triển khai các dịch vụ bằng Docker Compose**
+
+### **4.1.3. Cấu hình kết nối giữa các thành phần**
+
+## **4.2. Xây dựng Backend và cơ sở dữ liệu giao dịch**
+
+### **4.2.1. Khởi tạo cơ sở dữ liệu**
+
+### **4.2.2. Xây dựng API xác thực và phân quyền**
+
+### **4.2.3. Quản lý sản phẩm, giỏ hàng và đặt hàng**
+
+### **4.2.4. Quản lý kho, bán hàng POS và nhập hàng**
+
+### **4.2.5. Quản lý thanh toán, giao vận và đổi trả**
+
+### **4.2.6. Ghi nhận Access Log**
+
+## **4.3. Xây dựng giao diện người dùng**
+
+### **4.3.1. Giao diện Storefront**
+
+### **4.3.2. Giao diện Admin**
+
+## **4.4. Xây dựng hệ thống thu thập dữ liệu**
+
+### **4.4.1. Thu thập dữ liệu MySQL theo lô**
+
+### **4.4.2. Thu thập CDC bằng Debezium, Kafka và Flink**
+
+### **4.4.3. Thu thập và xử lý Access Log**
+
+## **4.5. Xây dựng nền tảng Data Lakehouse**
+
+### **4.5.1. Triển khai hệ thống lưu trữ MinIO, Iceberg và Polaris**
+
+### **4.5.2. Xử lý và chuyển đổi dữ liệu tại Bronze và Silver**
+
+### **4.5.3. Xây dựng Gold và các Data Mart**
+
+### **4.5.4. Điều phối Pipeline bằng Airflow**
+
+### **4.5.5. Kiểm tra chất lượng và đối soát dữ liệu**
+
+## **4.6. Xây dựng hệ thống Business Intelligence**
+
+### **4.6.1. Kết nối Trino và xây dựng API phân tích**
+
+### **4.6.2. Xây dựng Dashboard và trực quan hóa KPI**
+
+### **4.6.3. Phân quyền truy cập Dashboard**
+
+## **4.7. Xây dựng dữ liệu mô phỏng phục vụ trình diễn và kiểm thử**
+
+
 # **TÀI LIỆU THAM KHẢO**
 
 [1] OECD, OECD Handbook on Compiling Digital Supply and Use Tables, 2023. https://www.oecd.org/en/publications/oecd-handbook-on-compiling-digital-supply-and-use-tables_11a0db02-en.html  
