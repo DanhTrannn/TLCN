@@ -1583,13 +1583,205 @@ Nhằm thu thập trọn vẹn luồng dữ liệu hành vi người dùng (Clic
 
 ### **4.5.1. Triển khai hệ thống lưu trữ MinIO, Iceberg và Polaris**
 
+Nền tảng Data Lakehouse của D&K được thiết lập trên sự kết hợp giữa ba công nghệ cốt lõi: hệ thống lưu trữ đối tượng tương thích S3 **MinIO** [8], định dạng bảng mở **Apache Iceberg** [9], và hệ thống quản lý danh mục siêu dữ liệu tập trung **Apache Polaris REST Catalog** [10]:
+
+1. **Phân vùng lưu trữ đối tượng trên MinIO S3 (Bucket Partitioning)**:
+   * Toàn bộ tài nguyên hồ dữ liệu được tập trung trong bucket duy nhất mang tên `lakehouse` (`s3://lakehouse/`).
+   * Cấu trúc thư mục logic được phân định rạch ròi theo chức năng:
+     * `s3://lakehouse/warehouse/`: Khu vực lưu trữ dữ liệu bảng Apache Iceberg cho các phân tầng Bronze, Silver và Gold.
+     * `s3://lakehouse/landing/`: Vùng lưu trữ tệp thô tạm thời (Parquet mẻ OLTP và JSON log).
+     * `s3://lakehouse/state/`: Vùng lưu giữ trạng thái con trỏ Watermark trích xuất theo mẻ (`cursor/<table>.json`).
+     * `s3://lakehouse/checkpoints/`: Vùng lưu giữ trạng thái điểm kiểm tra (Checkpoints) của các job luồng Apache Flink.
+   * Dịch vụ `minio-init` tự động thực thi khi khởi động hệ thống: tự động tạo bucket, thiết lập chính sách lưu trữ (Lifecycle Policies) và tạo các tài khoản dịch vụ (Service Accounts) với quyền truy cập tối thiểu.
+
+2. **Quản lý danh mục siêu dữ liệu tập trung qua Apache Polaris REST Catalog [10]**:
+   * Apache Polaris vận hành như một dịch vụ quản lý danh mục (Catalog Server) độc lập theo chuẩn giao thức mở Iceberg REST Catalog Specification, sử dụng cơ sở dữ liệu PostgreSQL 16 làm kho lưu trữ metadata nội bộ.
+   * Polaris quản lý thống nhất 6 không gian tên (Namespaces) phục vụ toàn bộ quy trình xử lý dữ liệu:
+     * `lakehouse.landing`: Các bảng dữ liệu tiếp nhận sự kiện thô.
+     * `lakehouse.bronze`: Các bảng thô lưu giữ nguyên trạng và lịch sử biến động dữ liệu.
+     * `lakehouse.silver`: Các bảng sạch, đã chuẩn hóa kiểu dữ liệu, khử trùng lặp và mã hóa PII.
+     * `lakehouse.gold`: Các bảng Chiều (Dimensions), Sự kiện (Facts) và Data Marts phân tích.
+     * `lakehouse.quarantine`: Không gian cách ly dữ liệu lỗi, vi phạm ràng buộc schema hoặc logic.
+     * `lakehouse.system`: Bảng lưu vết siêu dữ liệu kiểm toán và kết quả kiểm tra chất lượng dữ liệu (`data_quality_results`).
+   * **Quản lý kiểm soát truy cập theo mô hình RBAC-as-Code**: Toàn bộ chính sách phân quyền trên Catalog được định nghĩa bằng tệp cấu hình `infrastructure/polaris/rbac.yml` và được script `sync_polaris_rbac.py` tự động đồng bộ khi khởi tạo:
+     * Cấp vai trò `spark_writer` với quyền `CATALOG_MANAGE_CONTENT` trên toàn bộ catalog.
+     * Cấp vai trò `flink_writer` với quyền ghi dữ liệu streaming vào Bronze và Silver.
+     * Cấp vai trò `trino_reader` chỉ với các đặc quyền đọc dữ liệu (`TABLE_READ_DATA`, `NAMESPACE_LIST`, `VIEW_READ_PROPERTIES`), ngăn chặn hoàn toàn việc sửa đổi dữ liệu từ tầng BI.
+
+3. **Tích hợp các công cụ tính toán (Spark, Flink, Trino) với Iceberg REST Catalog**:
+   * **Cấu hình Apache Spark (`pipelines/src/lakehouse/spark.py`)**:
+     * Khai báo lớp Catalog: `org.apache.iceberg.spark.SparkCatalog`.
+     * Kiểu Catalog: `org.apache.iceberg.rest.RESTCatalog` kết nối tới `http://polaris:8181/api/catalog`.
+     * Lớp FileIO: `org.apache.iceberg.aws.s3.S3FileIO` trỏ về endpoint MinIO `http://minio:9000`.
+     * Tự động nạp thông tin xác thực OAuth2 động từ volume `/run/polaris-output/spark-client/credentials.json`.
+   * **Cấu hình Apache Trino (`infrastructure/trino/catalog/lakehouse.properties`)**:
+     * Sử dụng connector `iceberg` với `iceberg.catalog.type = rest`.
+     * Kết nối danh mục Polaris qua `iceberg.rest-catalog.uri = http://polaris:8181/api/catalog`.
+     * Tự động nạp Bearer Token xác thực của `trino_reader` từ `/run/polaris-output/trino-reader/credentials.json`.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.18: Giao diện quản trị Apache Polaris REST Console quản lý các namespace Lakehouse]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập giao diện Apache Polaris Console tại `http://localhost:8183`:
+>   * Cửa sổ hiển thị Catalog `lakehouse` với danh sách đầy đủ 6 namespaces: `landing`, `bronze`, `silver`, `gold`, `quarantine`, `system`.
+>   * Mở rộng namespace `silver` hoặc `gold` thể hiện danh sách các bảng Apache Iceberg đã được đăng ký quản lý siêu dữ liệu (ví dụ: `silver_orders`, `fact_order`, `dim_customer`, `mart_sales_daily`).
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.19: Cấu trúc bảng và metadata Apache Iceberg trên MinIO Object Storage]**
+> * **Nội dung cần chụp**: Giao diện MinIO Console (`http://localhost:9001`) duyệt vào đường dẫn lưu trữ bảng Iceberg tại `lakehouse/warehouse/silver/silver_orders/`:
+>   * Hiển thị thư mục `data/` chứa các tệp định dạng `*.parquet`.
+>   * Hiển thị thư mục `metadata/` chứa các tệp siêu dữ liệu đặc thù của kiến trúc Iceberg: các tệp `v1.metadata.json` (hoặc `v2.metadata.json`), các tệp ảnh chụp `snap-*.avro` và tệp kê khai `*.manifest.avro`.
+
+---
+
 ### **4.5.2. Xử lý và chuyển đổi dữ liệu tại Bronze và Silver**
+
+1. **Nạp dữ liệu từ Landing vào tầng Bronze (`pipelines/src/jobs/oltp/ingest_bronze.py`)**:
+   * Kịch bản đọc tệp Parquet và xác thực tính hợp lệ của `manifest.json` từ Landing.
+   * Toàn bộ dữ liệu được nạp vào các bảng Iceberg tương ứng trong namespace `lakehouse.bronze` theo phương thức **chỉ ghi thêm (Append-only)**.
+   * **Bổ sung siêu dữ liệu truy vết nguồn gốc (Lineage Enrichment)**: Mỗi dòng bản ghi được tự động gắn thêm 3 cột kỹ thuật hệ thống:
+     * `_ingested_at`: Thời điểm chính xác dòng dữ liệu được nạp vào Bronze.
+     * `_source_file`: Tên tệp Parquet nguồn tại Landing mà dòng dữ liệu được trích xuất.
+     * `_source_run_id`: Mã phiên chạy Airflow (`run_id`) chịu trách nhiệm nạp dữ liệu.
+   * **Tiến hóa lược đồ tự động (Schema Evolution)**: Bảng Bronze kích hoạt thuộc tính `write.spark.accept-any-schema = true`. Khi bảng MySQL nguồn bổ sung cột mới, hàm `_append_iceberg_with_schema_evolution` tự động thực thi lệnh `ALTER TABLE ... ADD COLUMN` trên bảng Iceberg mà không làm sập tiến trình.
+   * **Cam kết con trỏ Watermark (Atomic Cursor Commit)**: Chỉ sau khi toàn bộ dữ liệu của mẻ được ghi nhận thành công vào Bronze, hệ thống mới cập nhật con trỏ mới vào `s3a://lakehouse/state/cursor/<table>.json`, bảo đảm dữ liệu không bao giờ bị nhảy cóc nếu xảy ra lỗi giữa chừng.
+
+2. **Chuyển đổi, làm sạch và khử trùng lặp tại tầng Silver (`pipelines/src/jobs/oltp/ingest_oltp_silver.py`)**:
+   * Đọc dữ liệu biến động mới nạp từ Bronze dựa trên điều kiện `_source_run_id = :run_id`.
+   * **Chuẩn hóa kiểu dữ liệu và bóc tách cấu trúc**: Chuyển đổi các cột chuỗi thô thành các kiểu dữ liệu mạnh (`TIMESTAMP`, `DECIMAL(12,2)`, `INTEGER`, `BOOLEAN`). Các trường JSON linh hoạt như `attributes_json`, `metadata_json` được bóc tách thành các cột có kiểu dữ liệu rõ ràng.
+   * **Khử trùng lặp bản ghi (Deduplication via Window Ranking)**: Do luồng trích xuất có áp dụng cửa sổ lùi $\Delta t_{\text{lookback}}$, nhiều bản ghi sẽ bị trích xuất lặp lại. Spark áp dụng hàm cửa sổ để lấy bản ghi có thời điểm cập nhật mới nhất:
+     ```sql
+     WITH ranked AS (
+       SELECT *, ROW_NUMBER() OVER (
+         PARTITION BY id 
+         ORDER BY updated_at DESC, _ingested_at DESC
+       ) AS rn
+       FROM bronze_data
+     )
+     SELECT * FROM ranked WHERE rn = 1;
+     ```
+   * **Bảo vệ dữ liệu cá nhân (PII Pseudonymization)**:
+     * Module `pipelines/src/lakehouse/oltp/silver/pii.py` tự động áp dụng thuật toán băm có muối: $\text{SHA-256}(\text{value} + \text{salt})$ cho toàn bộ các trường nhạy cảm: `email`, `phone`, `full_name` tại bảng khách hàng (`silver_customers`) và nhân viên giao vận (`silver_delivery_staff`).
+     * Định dạng đầu ra sau khi băm là chuỗi ký tự hex 64 ký tự, đảm bảo tuân thủ nghiêm ngặt quy định bảo vệ dữ liệu cá nhân NFR-02 và OWASP [6].
+   * **Cập nhật dữ liệu biến đổi (SCD Type 1 via Iceberg `MERGE INTO`)**:
+     * Spark thực thi câu lệnh `MERGE INTO` để đồng bộ dữ liệu vào bảng Silver Iceberg đích:
+       * Nếu khớp khóa chính (`MATCHED`) và thời gian cập nhật của bản ghi mới lớn hơn: Thực hiện cập nhật toàn bộ thuộc tính (`UPDATE SET *`).
+       * Nếu chưa tồn tại khóa chính (`NOT MATCHED`): Thực hiện chèn mới (`INSERT *`).
+   * **Cách ly dữ liệu lỗi (Quarantine Isolation Pattern)**: Mọi dòng bản ghi vi phạm tính toàn vẹn (như khóa ngoại rỗng bất hợp lý, định dạng ngày tháng sai lệch, hoặc số tiền âm) được module `quarantine.py` tự động định tuyến vào namespace `lakehouse.quarantine` kèm mã nguyên nhân lỗi (`violation_type`) để phục vụ kiểm tra ngoại lệ mà không làm ngắt luồng xử lý chính.
+
+---
 
 ### **4.5.3. Xây dựng Gold và các Data Mart**
 
+Tầng Gold được triển khai thông qua kịch bản `pipelines/src/jobs/oltp/build_oltp_gold.py` và `pipelines/src/jobs/logs/build_logs_gold.py`, cấu trúc theo mô hình hình sao (Star Schema) chuẩn hóa của Kimball [11] nhằm tối ưu hóa tối đa cho các truy vấn phân tích đa chiều trên BI Hub:
+
+1. **Hiện thực hóa 6 Bảng Chiều chuẩn hóa (Conformed Dimensions)**:
+   * Được khởi tạo thông qua DDL tập trung tại `pipelines/src/lakehouse/oltp/gold_ddl.py`:
+     * `dim_date`: Khởi tạo lịch 10 năm với đầy đủ các thuộc tính phân tích thời gian (ngày, tháng, quý, năm, ngày trong tuần, cờ cuối tuần `is_weekend`).
+     * `dim_customer`: Lưu giữ hồ sơ khách hàng, mã nhóm phân khúc, ngày đăng ký và các thông tin định danh đã mã hóa bảo mật SHA-256 (`email_hash`, `phone_hash`, `full_name_hash`).
+     * `dim_product` và `dim_variant`: Phân tách mạch lạc giữa thông tin sản phẩm cha (tên, danh mục, thương hiệu) và chi tiết biến thể SKU (kích cỡ, màu sắc, đơn giá niêm yết, giá vốn gốc).
+     * `dim_store`: Định danh toàn bộ các điểm bán hàng vật lý và kênh phân phối trực tuyến.
+     * `dim_delivery_staff`: Thông tin đội ngũ shipper nội bộ và đối tác vận chuyển thứ ba (3PL).
+   * Toàn bộ các bảng chiều sử dụng khóa thay thế số nguyên tự tăng (`surrogate key` dạng số nguyên như `customer_key`, `product_key`, `variant_key`) thay vì dùng khóa tự nhiên nhằm tối ưu hóa tốc độ thực thi phép nối bảng (JOIN) trên Trino.
+
+2. **Hiện thực hóa 5 Bảng Sự kiện cốt lõi (Core Fact Tables)**:
+   * `fact_order` (Mức độ hạt: Đơn hàng) và `fact_order_item` (Mức độ hạt: Mặt hàng chi tiết): Tính toán doanh thu gộp, doanh thu ròng, chiết khấu voucher, giá vốn snapshot và lợi nhuận gộp danh nghĩa. Cả hai bảng được phân vùng theo trường ngày đặt hàng `order_date DATE`.
+   * `fact_shipment`: Đo lường chi tiết vòng đời giao vận, tính toán độ trễ xử lý (Fulfillment Lead Time) và mức độ tuân thủ cam kết SLA giao hàng. Phân vùng theo `shipping_date DATE`.
+   * `fact_return_exchange`: Lưu vết các yêu cầu đổi trả, số lượng hoàn trả, giá trị hoàn tiền và phân loại lý do đổi trả hàng. Phân vùng theo `request_date DATE`.
+   * `fact_inventory_daily_snapshot`: Ảnh chụp trạng thái tồn kho hàng ngày cho từng cặp `(store_id, variant_id)`: số lượng tồn cuối ngày (`ending_quantity`), giá trị vốn tồn kho (`inventory_value_vnd`), và cờ cảnh báo hết hàng (`is_out_of_stock`). Phân vùng theo `snapshot_date DATE`.
+
+3. **Hiện thực hóa các Data Marts tổng hợp nghiệp vụ**:
+   * **`mart_sales_daily`**: Tổng hợp doanh thu, số đơn, lợi nhuận gộp, tỷ lệ hủy đơn theo ngày, cửa hàng và kênh bán lẻ.
+   * **`mart_logistics_performance`**: Đánh giá hiệu suất giao hàng thành công lần đầu và tỷ lệ giao trễ hạn theo đối tác vận chuyển.
+   * **`mart_product_returns`**: Thống kê tỷ lệ trả hàng theo danh mục sản phẩm và cơ cấu nguyên nhân.
+   * **`mart_inventory_health`**: Đo lường tốc độ quay vòng tồn kho và nhận diện các SKU ứ đọng trên 60 ngày.
+   * **Các Log Data Marts** (`mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_marketing_funnel_daily`): Phân tích lưu lượng kỹ thuật p95/p99, nhu cầu xem/thêm giỏ hàng theo SKU, và tỷ lệ chuyển đổi phễu thương mại điện tử qua từng bước.
+
+4. **Tối ưu hóa tệp dữ liệu lưu trữ (Iceberg File Optimization)**:
+   * Toàn bộ bảng Gold được cấu hình tham số dung lượng tệp Parquet mục tiêu:
+     `write.parquet.target-file-size-bytes = 134217728` ($128\text{ MiB}$)
+   * Kết hợp kỹ thuật phân vùng theo ngày (Partitioning) và cơ chế dọn dẹp các tệp siêu dữ liệu cũ (`expire_snapshots`, `remove_orphans`), giúp động cơ Trino loại bỏ hoàn toàn việc đọc các tệp không liên quan (Partition Pruning / Min-Max Statistics Filtering), giảm $85\%$ lượng dữ liệu phải quét trên đĩa.
+
+---
+
 ### **4.5.4. Điều phối Pipeline bằng Airflow**
 
+Toàn bộ quy trình trích xuất và biến đổi dữ liệu theo lô được tự động hóa thông qua DAG `lakehouse_oltp_pipeline` trên **Apache Airflow 2.10** [16] (`airflow/dags/lakehouse_oltp_pipeline.py`):
+
+1. **Cấu hình lịch trình và ngữ cảnh phiên chạy**:
+   * Lịch chạy được thiết lập định kỳ: `schedule = "0 2 * * *"` (kích hoạt lúc 02:00 sáng hàng ngày theo múi giờ Việt Nam `Asia/Ho_Chi_Minh`).
+   * Task đầu tiên `check_pipeline_context`: Tự động sinh mã định danh phiên chạy duy nhất `run_id` (định dạng `YYYYMMDD_HHMMSS`) và ngày mẻ dữ liệu `batch_date`, chia sẻ ngữ cảnh này cho toàn bộ các tác vụ phía sau thông qua Airflow XCom.
+
+2. **Cấu trúc luồng thực thi tuần tự có kiểm soát (DAG Task Flow)**:
+   * Quy trình được tổ chức thành các nhóm tác vụ (Task Groups) với quan hệ phụ thuộc chặt chẽ:
+     $$\text{check\_pipeline\_context} \rightarrow \text{tg\_landing} \rightarrow \text{tg\_bronze} \rightarrow \text{load\_cursors} \rightarrow \text{tg\_silver} \rightarrow \text{validate\_reconciliation} \rightarrow \text{tg\_gold} \rightarrow \text{validate\_gold\_quality}$$
+   * **`tg_landing` (Task Group)**:
+     * `check_mysql_connection`: Kiểm tra tính khả dụng của cơ sở dữ liệu MySQL nguồn.
+     * `extract_high_watermarks`: Quét mốc thời gian cập nhật lớn nhất hiện tại của 27 bảng.
+     * `extract_mysql_tables`: Thực thi job Spark trích xuất song song dữ liệu ra Landing.
+     * `validate_landing_manifests`: Kiểm tra sự tồn tại và tính hợp lệ của tệp `manifest.json`.
+   * **`tg_bronze` (Task Group)**: Nạp dữ liệu từ Landing vào các bảng Iceberg Bronze.
+   * **`load_cursors`**: Ghi nhận và lưu vết con trỏ watermark mới vào MinIO S3 sau khi tầng Bronze nạp thành công.
+   * **`tg_silver` (Task Group)**: Làm sạch, khử trùng lặp, băm muối PII và thực thi `MERGE INTO` vào Silver.
+   * **`validate_reconciliation`**: Cổng đối soát dữ liệu Pre-Gold Reconciliation Gate.
+   * **`tg_gold` (Task Group)**:
+     * Chạy song song: `build_gold_dimensions` và `build_gold_facts`.
+     * Khi cả hai hoàn tất: Kích hoạt `aggregate_gold_marts` để tổng hợp số liệu vào các Data Marts.
+   * **`validate_gold_quality`**: Cổng kiểm định chất lượng Post-Gold Quality Gate với 18 chỉ tiêu tự động.
+
+3. **Chính sách thử lại và Quản trị lỗi (Retry & SLA Policies)**:
+   * Các task được cấu hình tự động thử lại $2\text{ lần}$ (`retries = 2`, `retry_delay = 3\text{ phút}`) khi gặp lỗi mạng tạm thời.
+   * Bất kỳ sự cố nghiêm trọng nào tại các cổng kiểm soát chất lượng dữ liệu đều lập tức ngắt toàn bộ pipeline, ghi vết chi tiết vào log và chuyển trạng thái DAG sang `FAILED`.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.20: Giao diện Apache Airflow DAGs và biểu đồ trực quan hóa luồng thực thi `lakehouse_oltp_pipeline`]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập Airflow Webserver tại `http://localhost:8080`:
+>   * Đăng nhập tài khoản `airflow / password`.
+>   * Mở DAG `lakehouse_oltp_pipeline` và chọn chế độ hiển thị đồ thị (**Graph View**).
+>   * Màn hình thể hiện luồng liên kết hoàn chỉnh giữa các Task Groups: `check_pipeline_context` $\rightarrow$ `tg_landing` $\rightarrow$ `tg_bronze` $\rightarrow$ `load_cursors` $\rightarrow$ `tg_silver` $\rightarrow$ `validate_reconciliation` $\rightarrow$ `tg_gold` $\rightarrow$ `validate_gold_quality`.
+>   * Toàn bộ các nút tác vụ được bao quanh bởi viền màu xanh lá đậm biểu thị trạng thái thực thi thành công (`success`).
+
+---
+
 ### **4.5.5. Kiểm tra chất lượng và đối soát dữ liệu**
+
+Để đảm bảo tính toàn vẹn và độ tin cậy tuyệt đối của số liệu phục vụ báo cáo điều hành, hệ thống triển khai kiến trúc Cổng kiểm soát chất lượng dữ liệu hai giai đoạn (Dual-Stage Quality Gate Framework) [17]:
+
+#### **1. Cổng đối soát tiền xuất bản (Pre-Gold Reconciliation Gate)**
+* Được hiện thực hóa trong module `pipelines/src/lakehouse/oltp/reconcile.py` và chạy tự động thông qua job `run_reconciliation_gate.py`.
+* **Đối soát số lượng dòng bản ghi (`check_table_counts`)**:
+  * Spark đọc số lượng dòng thực tế từ MySQL qua truy vấn JDBC và so sánh trực tiếp với tổng số dòng hiện có trên bảng Silver Iceberg tương ứng cho toàn bộ 27 bảng nghiệp vụ.
+  * Tỷ lệ sai lệch dòng cho phép được giới hạn nghiêm ngặt ở ngưỡng dung sai:
+    $$\tau_{\text{count}} = \frac{|\text{Rows}_{\text{MySQL}} - \text{Rows}_{\text{Silver}}|}{\text{Rows}_{\text{MySQL}}} \times 100\% \le 0.05\%$$
+* **Đối soát các chỉ tiêu tài chính tiền tệ (`check_financial_metrics`)**:
+  * Thực hiện tính tổng độc lập và so khớp giá trị tiền tệ trên 3 chỉ tiêu trọng yếu:
+    1. Tổng doanh thu đơn hàng: $\sum \text{orders.total\_vnd}$ (loại trừ đơn hủy `status != 'CANCELLED'`) so khớp với $\sum \text{silver\_orders.total\_vnd}$.
+    2. Tổng tiền thanh toán thành công: $\sum \text{payments.amount\_vnd}$ (với `status = 'SUCCEEDED'`) so khớp với $\sum \text{silver\_payments.amount\_vnd}$.
+    3. Tổng tiền hoàn trả: $\sum \text{refunds.amount\_vnd}$ (với `status = 'SUCCEEDED'`) so khớp với $\sum \text{silver\_refunds.amount\_vnd}$.
+  * Dung sai sai lệch tiền tệ cho phép: $\tau_{\text{money}} \le 0.05\%$.
+* **Cơ chế ngắt mạch an toàn (Circuit Breaker)**: Nếu tỷ lệ sai lệch vượt ngưỡng $0.05\%$, hệ thống ném ngoại lệ `ReconciliationGateError`, ngắt toàn bộ pipeline và **tuyệt đối không xuất bản dữ liệu sang Gold**, ngăn chặn việc đưa dữ liệu sai lệch vào hệ thống báo cáo tài chính của doanh nghiệp.
+
+#### **2. Cổng kiểm tra chất lượng hậu xuất bản (Post-Gold Quality Gate)**
+* Được thực thi bởi module `pipelines/src/lakehouse/oltp/quality.py` ngay sau khi các bảng Gold hoàn tất cập nhật.
+* Thực hiện tự động bộ **18 chỉ tiêu kiểm tra** tuân thủ 5 khía cạnh chất lượng theo tiêu chuẩn quốc tế ISO/IEC 25012:2008 [17]:
+  1. *Tính đầy đủ (Completeness)*: Khớp tuyệt đối số lượng dòng giữa `silver_orders` $\leftrightarrow$ `fact_order` và `silver_order_items` $\leftrightarrow$ `fact_order_item` (2 chỉ tiêu).
+  2. *Tính chính xác tài chính (Accuracy)*: Đối soát chính xác $100\%$ doanh thu gộp giữa `silver_orders.total_vnd` và `fact_order.gross_revenue_vnd` (1 chỉ tiêu).
+  3. *Tính duy nhất và không rỗng (Uniqueness & Non-null)*: Xác thực khóa chính không bị null và không trùng lặp trên 5 bảng cốt lõi: `fact_order`, `fact_order_item`, `dim_customer`, `dim_product`, `dim_variant` (5 chỉ tiêu).
+  4. *Tính toàn vẹn tham chiếu (Referential Integrity)*: Kiểm tra không tồn tại khóa ngoại mồ côi bằng phép nối `left_anti` giữa `fact_order_item` với `dim_product` và `dim_variant` (2 chỉ tiêu).
+  5. *Tính tươi mới của mẻ nạp (Data Freshness)*: Xác nhận mã phiên chạy `_source_run_id` hiện hữu với số lượng bản ghi $> 0$ trong các bảng đích: `fact_order`, `fact_order_item`, `mart_sales_daily` (3 chỉ tiêu).
+  6. *Tính hợp lệ mã hóa bảo vệ PII (Pseudonymization Validity)*: Kiểm tra toàn bộ các trường PII (`email`, `phone`, `full_name` tại `dim_customer` và `phone`, `full_name` tại `dim_delivery_staff`) phải khớp chính xác với định dạng mã băm hex 64 ký tự của SHA-256 (`^[0-9a-f]{64}$`), bảo đảm không có dữ liệu văn bản rõ bị rò rỉ (5 chỉ tiêu).
+
+Toàn bộ kết quả kiểm tra của cả hai cổng đối soát được ghi vết tự động và bền vững vào bảng hệ thống `lakehouse.system.data_quality_results` làm bằng chứng phục vụ công tác kiểm toán dữ liệu độc lập.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.21: Bảng kết quả kiểm tra chất lượng dữ liệu trong `lakehouse.system.data_quality_results`]**
+> * **Nội dung cần chụp**: Cửa sổ truy vấn LibreDB Studio (hoặc Trino CLI) kết nối Trino Engine thực thi câu lệnh SQL:
+>   ```sql
+>   SELECT check_name, dataset, severity, status, observed, expected, checked_at 
+>   FROM lakehouse.system.data_quality_results 
+>   ORDER BY checked_at DESC 
+>   LIMIT 15;
+>   ```
+>   hiển thị danh sách các chỉ tiêu kiểm tra chất lượng dữ liệu (như `silver_to_gold_row_count`, `silver_to_gold_gross_revenue_vnd`, `primary_key_unique_not_null`, `referential_integrity`, `pii_pseudonymization`) với cột `status` đều hiển thị trạng thái `PASSED`.
 
 ## **4.6. Xây dựng hệ thống Business Intelligence**
 
