@@ -244,9 +244,350 @@ Các yêu cầu phi chức năng được xác lập nhằm đảm bảo chất 
 
 ### **3.2.1. Sơ đồ Use Case**
 
+Các ca sử dụng của hệ thống được phân rã theo 3 phân hệ độc lập tương ứng với các nhóm tác nhân đã xác định: Phân hệ Khách hàng (Storefront), Phân hệ Quản trị vận hành & Điểm bán (Admin & POS), và Phân hệ Kỹ thuật dữ liệu & Báo cáo BI (Data Engineering & Analytics) [docs/diagram/02-use-cases.drawio](docs/diagram/02-use-cases.drawio).
+
+#### **a. Phân hệ Khách hàng (Storefront Use Cases)**
+Tác nhân Khách vãng lai (*Guest*) và Khách hàng đã đăng nhập (*Authenticated Customer*) tương tác với nền tảng thông qua giao diện Web Storefront [2]:
+* **Khách vãng lai**: Duyệt danh mục phân cấp, tìm kiếm sản phẩm theo từ khóa/bộ lọc, xem chi tiết biến thể và bảng giá, tra cứu danh sách cửa hàng còn hàng gần nhất theo khu vực, và xem đánh giá công khai.
+* **Khách hàng đã đăng nhập**: Quản lý giỏ hàng và danh sách yêu thích (*Wishlist*); thực hiện đặt hàng trực tuyến (*Checkout*); tra cứu trạng thái đơn hàng và lịch sử mua sắm; xác nhận đã nhận hàng (`delivered` $\rightarrow$ `completed`); gửi yêu cầu hoàn trả/đổi hàng trong thời hạn 7 ngày; viết bài đánh giá kèm điểm số xếp hạng cho từng sản phẩm đã mua.
+
+```mermaid
+flowchart LR
+    subgraph Actors["Tác nhân"]
+        Guest["Khách vãng lai"]
+        Customer["Khách hàng đăng nhập"]
+    end
+
+    subgraph StorefrontUC["Phân hệ Storefront"]
+        UC01["Duyệt danh mục & Tìm kiếm sản phẩm"]
+        UC02["Tra cứu cửa hàng còn hàng"]
+        UC03["Quản lý Giỏ hàng & Wishlist"]
+        UC04["Đặt hàng trực tuyến (Checkout)"]
+        UC05["Áp dụng mã giảm giá (Coupon)"]
+        UC06["Kiểm tra rủi ro COD"]
+        UC07["Theo dõi & Hủy đơn hàng"]
+        UC08["Xác nhận nhận hàng"]
+        UC09["Yêu cầu hoàn trả (7 ngày)"]
+        UC10["Đánh giá sản phẩm đã mua"]
+    end
+
+    Guest --> UC01
+    Guest --> UC02
+    Customer --> UC01
+    Customer --> UC02
+    Customer --> UC03
+    Customer --> UC04
+    Customer --> UC07
+    Customer --> UC08
+    Customer --> UC09
+    Customer --> UC10
+
+    UC04 -.->|"<<include>>"| UC05
+    UC04 -.->|"<<extend>>"| UC06
+```
+
+*Sơ đồ chi tiết: [docs/diagram/uc-storefront.svg](docs/diagram/uc-storefront.svg).*
+
+#### **b. Phân hệ Quản trị & Bán lẻ tại quầy (Admin & POS Use Cases)**
+Hệ thống quản trị áp dụng cơ chế kiểm soát truy cập dựa trên vai trò (RBAC) nghiêm ngặt [6]:
+* **Thu ngân / Quản lý cửa hàng (`store_manager`)**: Tra cứu sản phẩm theo mã SKU, chọn cửa hàng phục vụ, tạo đơn hàng bán lẻ tại quầy POS, tự động trừ tồn kho khả dụng tại cửa hàng và xuất hóa đơn bán lẻ [4].
+* **Quản lý kho (`inventory_manager`)**: Quản lý sản phẩm, danh mục và các biến thể; lập phiếu nhập kho (Inbound Receipt) và kích hoạt tính toán lại giá vốn bình quân gia quyền di động; điều chuyển hàng hóa giữa các kho.
+* **Quản trị viên / Quản lý vận hành (`admin` / `operations_manager`)**: Quản lý vòng đời đơn hàng, phân công nhân sự giao hàng (`delivery_staff`), cập nhật tiến trình vận chuyển, thẩm định và duyệt phiếu hoàn trả hàng kèm hoàn tiền.
+* **Quản lý tiếp thị (`marketing_manager`)**: Quản lý chiến dịch khuyến mại, phát hành mã giảm giá (Coupon) và kiểm duyệt nội dung đánh giá sản phẩm.
+* **Quản trị hệ thống (`admin`)**: Quản lý tài khoản nhân viên, cấu hình phân quyền và mở lại quyền COD cho khách hàng sau khi đối soát rủi ro.
+
+```mermaid
+flowchart LR
+    subgraph AdminActors["Nhân sự quản trị"]
+        Cashier["Thu ngân / Store Manager"]
+        InvMgr["Inventory Manager"]
+        OpsAdmin["Admin / Operations Manager"]
+        MktMgr["Marketing Manager"]
+    end
+
+    subgraph AdminPOSUC["Phân hệ Quản trị & POS"]
+        UC11["Bán lẻ tại quầy POS"]
+        UC12["Quản lý Sản phẩm & Biến thể"]
+        UC13["Lập phiếu nhập kho & Tính giá vốn"]
+        UC14["Điều phối vận chuyển (Logistics)"]
+        UC15["Thẩm định & Duyệt trả hàng"]
+        UC16["Quản lý Coupon & Kiểm duyệt Review"]
+        UC17["Quản trị người dùng & Mở khóa COD"]
+    end
+
+    Cashier --> UC11
+    InvMgr --> UC12
+    InvMgr --> UC13
+    OpsAdmin --> UC14
+    OpsAdmin --> UC15
+    MktMgr --> UC16
+    OpsAdmin --> UC17
+```
+
+*Sơ đồ chi tiết: [docs/diagram/uc-admin.svg](docs/diagram/uc-admin.svg).*
+
+#### **c. Phân hệ Kỹ thuật dữ liệu & Báo cáo BI (Data & Analytics Use Cases)**
+Phân hệ phục vụ hai nhóm đối tượng: Đội ngũ kỹ sư dữ liệu vận hành nền tảng Lakehouse và các cấp quản lý nghiệp vụ khai thác thông tin phân tích [7], [18]:
+* **Kỹ sư dữ liệu (Data Engineer)**: Khởi chạy và giám sát đường ống trích xuất mẻ định kỳ (Batch ETL); kiểm soát luồng thu thập CDC từ MySQL binlog qua Debezium/Kafka/Flink; điều phối dòng Access Log từ Storefront; thực thi kiểm tra chất lượng tự động (Data Quality Gate) và chạy các tác vụ bảo trì định dạng bảng Iceberg (Compaction, Expire Snapshots) [9], [13], [16].
+* **Các cấp quản lý nghiệp vụ (Business Managers)**: Tiếp cận báo cáo Dashboard đa chiều được lọc và bảo mật theo vai trò: Executive Dashboard (`admin`), Sales Trend (`sales_manager`), Funnel & Traffic (`marketing_manager`), Store Performance (`store_manager`), Inventory Aging (`inventory_manager`), Logistics & COD Risk (`operations_manager`), và System Reconciliation (`system_admin`).
+
+```mermaid
+flowchart LR
+    subgraph DataActors["Tác nhân Dữ liệu & Quản lý"]
+        DE["Kỹ sư dữ liệu (Data Engineer)"]
+        Mgr["Quản lý nghiệp vụ (Managers)"]
+    end
+
+    subgraph DataBIUC["Phân hệ Kỹ thuật dữ liệu & BI"]
+        UC21["Vận hành Batch ETL (Airflow/Spark)"]
+        UC22["Thu thập CDC & Access Log (Kafka/Flink)"]
+        UC23["Kiểm định chất lượng dữ liệu (DQ Gates)"]
+        UC24["Bảo trì Iceberg (Compaction & Expire)"]
+        UC25["Khai thác Dashboard Sales & Doanh thu"]
+        UC26["Phân tích Phễu chuyển đổi & Marketing"]
+        UC27["Giám sát Sức khỏe tồn kho & Vận chuyển"]
+        UC28["Đối soát dữ liệu hệ thống (System Audit)"]
+    end
+
+    DE --> UC21
+    DE --> UC22
+    DE --> UC23
+    DE --> UC24
+    Mgr --> UC25
+    Mgr --> UC26
+    Mgr --> UC27
+    Mgr --> UC28
+```
+
+*Sơ đồ chi tiết: [docs/diagram/uc-data-bi.svg](docs/diagram/uc-data-bi.svg).*
+
+---
+
 ### **3.2.2. Activity Diagram**
 
+Hệ thống được chuẩn hóa dựa trên ba quy trình nghiệp vụ trọng yếu: Quy trình Đặt hàng trực tuyến, Quy trình Bán lẻ tại quầy POS, và Quy trình Tiếp nhận & Xử lý hoàn trả hàng.
+
+#### **a. Quy trình Đặt hàng trực tuyến (Online Checkout Activity)**
+Quy trình đặt hàng trực tuyến được thực thi theo mô hình hai pha: Pha thẩm định & kiểm soát rủi ro (Validation & Risk Check) và Pha cam kết giao dịch (Transaction Commit & Allocation) nhằm đảm bảo tính toàn vẹn tuyệt đối của dữ liệu tồn kho và doanh thu [docs/diagram/03-activity-checkout.drawio](docs/diagram/03-activity-checkout.drawio):
+
+1. **Pha thẩm định**: Khách hàng gửi yêu cầu kèm mã bảo vệ `Idempotency-Key`. Hệ thống xác thực danh tính qua JWT và chống giả mạo với CSRF Token. Mở giao dịch, khóa dòng bản ghi khách hàng (`Customer`) bằng cơ chế `SELECT ... FOR UPDATE` [4]. Nếu khách hàng chọn thanh toán COD nhưng cờ `is_cod_blocked = True` (do có số lần từ chối nhận hàng $\ge 3$), hệ thống lập tức từ chối và yêu cầu chuyển sang thanh toán chuyển khoản VietQR. Khóa dòng kiểm tra tồn kho sẵn sàng bán (`available_quantity`) của từng SKU trong kho tổng. Xác thực điều kiện sử dụng mã giảm giá và tính toán số tiền thanh toán cuối cùng.
+2. **Pha cam kết**: Khởi tạo bản ghi `orders` (trạng thái ban đầu `pending_payment` hoặc `paid` đối với VietQR), sinh các dòng `order_items` lưu vết ảnh chụp giá bán và giá vốn tại thời điểm giao dịch (`cost_price_snapshot`). Khởi tạo bản ghi thanh toán `payments`. Giảm trừ số lượng tồn kho khả dụng và ghi nhật ký biến động kho `inventory_transactions`. Đóng phiên giỏ hàng hiện tại (`status = closed`) và thực hiện `COMMIT` giao dịch. Nếu xảy ra bất kỳ lỗi hoặc xung đột khóa nào, toàn bộ giao dịch được `ROLLBACK` an toàn [5].
+
+```mermaid
+flowchart TD
+    Start([Khách hàng nhấn Thanh toán]) --> AuthCheck{"Xác thực JWT & CSRF?"}
+    AuthCheck -- Không --> Return401["Trả lỗi 401/403 Unauthorized"]
+    AuthCheck -- Hợp lệ --> IdempCheck{"Kiểm tra Idempotency Key?"}
+    IdempCheck -- Đã xử lý --> ReturnCached["Trả lại kết quả đơn hàng cũ"]
+    IdempCheck -- Yêu cầu mới --> BeginTx["Bắt đầu Unit of Work Transaction"]
+    
+    BeginTx --> LockCust["Khóa dòng Customer (FOR UPDATE)"]
+    LockCust --> MethodCheck{"Phương thức COD?"}
+    MethodCheck -- Có --> BoomCheck{"is_cod_blocked == True?"}
+    BoomCheck -- Đúng --> AbortCOD["Từ chối COD: Bắt buộc chọn VietQR"]
+    BoomCheck -- Sai --> LockStock["Khóa tồn kho SKU tại Kho tổng (FOR UPDATE)"]
+    MethodCheck -- Không (VietQR) --> LockStock
+    
+    LockStock --> StockCheck{"Đủ tồn kho khả dụng?"}
+    StockCheck -- Không đủ --> AbortStock["Báo lỗi OUT_OF_STOCK & Rollback"]
+    StockCheck -- Đủ hàng --> ApplyCoupon["Xác thực Coupon & Tính tổng thanh toán"]
+    
+    ApplyCoupon --> CreateOrder["Tạo Order, OrderItems (Snapshot giá bán & giá vốn)"]
+    CreateOrder --> CreatePayment["Tạo Payment (Trạng thái pending hoặc succeeded)"]
+    CreatePayment --> DeductStock["Trừ tồn kho & Ghi sổ nhật ký InventoryTransaction"]
+    DeductStock --> CloseCart["Đóng giỏ hàng hiện tại (status = 'closed')"]
+    CloseCart --> CommitTx["COMMIT Transaction"]
+    CommitTx --> ReturnSuccess([Trả kết quả Checkout thành công])
+    
+    AbortCOD --> RollbackTx["ROLLBACK Transaction"]
+    AbortStock --> RollbackTx
+    RollbackTx --> ReturnError([Trả thông báo lỗi cho người dùng])
+```
+
+*Sơ đồ chi tiết: [docs/diagram/activity-checkout-validate.svg](docs/diagram/activity-checkout-validate.svg) và [docs/diagram/activity-checkout-commit.svg](docs/diagram/activity-checkout-commit.svg).*
+
+#### **b. Quy trình Bán lẻ tại quầy POS (In-store POS Activity)**
+Quy trình bán hàng tại quầy được thiết kế tối ưu cho tốc độ và tính tức thời của cửa hàng vật lý [docs/diagram/04-activity-pos.drawio](docs/diagram/04-activity-pos.drawio):
+1. Thu ngân xác thực ca làm việc và chọn chi nhánh cửa hàng phụ trách (`store_id`).
+2. Nhập hoặc quét mã SKU sản phẩm. Hệ thống truy vấn thông tin sản phẩm và khóa dòng dữ liệu tại bảng `StoreInventory` tương ứng với chi nhánh đó.
+3. Kiểm tra số lượng tồn thực tế tại cửa hàng: nếu số lượng yêu cầu vượt quá tồn hiện tại (`on_hand`), hệ thống lập tức thông báo hết hàng tại quầy và gợi ý tra cứu kho tổng hoặc chi nhánh lân cận.
+4. Khi khách thanh toán thành công (tiền mặt hoặc quét mã QR), hệ thống tạo đơn hàng với trạng thái hoàn tất tức thì (`status = 'completed'`), thanh toán ghi nhận `status = 'succeeded'`.
+5. Tự động trừ số lượng tồn kho của chi nhánh, ghi sổ nhật ký biến động kho với loại giao dịch xuất bán quầy (`outbound_pos`), in hóa đơn bán lẻ và bàn giao hàng cho khách.
+
+```mermaid
+flowchart TD
+    POSStart([Thu ngân mở ca & Chọn Cửa hàng]) --> SearchSKU["Quét / Nhập mã SKU sản phẩm"]
+    SearchSKU --> LockStoreInv["Khóa dòng StoreInventory theo store_id (FOR UPDATE)"]
+    LockStoreInv --> CheckStoreStock{"Số lượng tồn tại quầy đủ?"}
+    CheckStoreStock -- Không đủ --> AlertStock["Báo hết hàng & Đề xuất tra cứu kho khác"]
+    CheckStoreStock -- Đủ hàng --> AddLineItem["Thêm dòng sản phẩm vào đơn hàng POS"]
+    
+    AddLineItem --> MoreItems{"Còn sản phẩm khác?"}
+    MoreItems -- Có --> SearchSKU
+    MoreItems -- Không --> SelectPay["Chọn hình thức thanh toán (Tiền mặt / VietQR)"]
+    
+    SelectPay --> ProcessPay["Thu ngân thu tiền / Xác nhận giao dịch thành công"]
+    ProcessPay --> CreatePOSOrder["Tạo Order ('completed') & Payment ('succeeded')"]
+    CreatePOSOrder --> DeductStoreStock["Trừ StoreInventory & Ghi sổ nhật ký 'outbound_pos'"]
+    DeductStoreStock --> PrintReceipt["In hóa đơn bán lẻ & Xuất kho trực tiếp"]
+    PrintReceipt --> POSEnd([Hoàn tất giao dịch tại quầy])
+```
+
+*Sơ đồ chi tiết: [docs/diagram/activity-pos.svg](docs/diagram/activity-pos.svg).*
+
+#### **c. Quy trình Tiếp nhận và Xử lý trả hàng (Returns & Refund Activity)**
+Quy trình xử lý hoàn trả hàng được kiểm soát chặt chẽ qua khung thời gian và kiểm định chất lượng sản phẩm thực tế [docs/diagram/05-activity-returns.drawio](docs/diagram/05-activity-returns.drawio):
+1. **Khởi tạo yêu cầu**: Khách hàng chỉ có thể tạo yêu cầu trả hàng khi đơn hàng đang ở trạng thái đã giao (`delivered`) hoặc hoàn thành (`completed`), và thời điểm yêu cầu nằm trong khoảng thời gian quy định 7 ngày (`RETURN_WINDOW_DAYS = 7`) kể từ lúc nhận hàng. Số lượng trả cho từng sản phẩm không được vượt quá số lượng đã mua khả hoàn.
+2. **Thẩm định ban đầu**: Phiếu trả hàng được khởi tạo với trạng thái chờ duyệt (`pending_review`) kèm ảnh minh chứng và thông tin tài khoản ngân hàng thụ hưởng. Bộ phận quản trị vận hành (`admin` / `operations_manager`) xem xét lý do và phê duyệt (`approved`) hoặc từ chối (`rejected`).
+3. **Nhận hàng & Kiểm định (Inspection)**: Khách hàng gửi hàng về kho trung tâm; nhân viên kho cập nhật trạng thái đã nhận kiện hàng (`goods_received`). Tiến hành kiểm định thực tế chất lượng sản phẩm:
+   * Nếu sản phẩm đạt tiêu chuẩn hoàn trả (nguyên tem mác, lỗi nhà sản xuất): Cập nhật trạng thái `inspected_passed`, tự động cộng lại tồn kho khả dụng tại kho tổng, tạo giao dịch hoàn tiền (`refunds` liên kết với `payments`).
+   * Nếu sản phẩm hư hại do khách hàng sử dụng: Đánh dấu `inspected_failed`, từ chối hoàn kho và không hoàn tiền cho sản phẩm đó.
+4. **Đóng đơn hoàn trả**: Đơn hàng ban đầu chỉ chuyển sang trạng thái đã hoàn trả (`status = 'returned'`) khi toàn bộ các sản phẩm trong đơn đã được xử lý hoàn tất và đạt kiểm định trả hàng.
+
+```mermaid
+flowchart TD
+    ReturnStart([Khách hàng gửi yêu cầu Trả hàng]) --> CheckOrderDelivered{"Đơn hàng đã giao (delivered)?"}
+    CheckOrderDelivered -- Sai --> DenyNotDelivered["Từ chối: Đơn hàng chưa hoàn tất giao"]
+    CheckOrderDelivered -- Đúng --> CheckWindow{"Thời gian nhận hàng <= 7 ngày?"}
+    CheckWindow -- Quá 7 ngày --> DenyExpired["Từ chối: Đã hết thời hạn đổi trả quy định"]
+    CheckWindow -- Hợp lệ --> CreateReturnReq["Tạo ReturnRequest (status = 'pending_review')"]
+    
+    CreateReturnReq --> AdminReview{"Admin thẩm định lý do & hình ảnh"}
+    AdminReview -- Không hợp lệ --> RejectReturn["Cập nhật 'rejected' & Đóng yêu cầu"]
+    AdminReview -- Chấp thuận --> ApproveReturn["Cập nhật 'approved' & Chờ khách gửi hàng"]
+    
+    ApproveReturn --> ReceiveGoods["Kho nhận kiện hàng (status = 'goods_received')"]
+    ReceiveGoods --> InspectItem{"Kiểm định chất lượng sản phẩm (Inspection)"}
+    InspectItem -- Không đạt (lỗi do khách) --> FailItem["Đánh dấu 'inspected_failed' (Không hoàn tiền/kho)"]
+    InspectItem -- Đạt tiêu chuẩn --> PassItem["Đánh dấu 'inspected_passed'"]
+    
+    PassItem --> RestockInventory["Cộng lại tồn kho Kho tổng (Movement: 'inbound_return')"]
+    RestockInventory --> IssueRefund["Tạo bản ghi Refund & Chuyển tiền hoàn cho khách"]
+    
+    FailItem --> CheckAllDone{"Toàn bộ mặt hàng đã xử lý xong?"}
+    IssueRefund --> CheckAllDone
+    CheckAllDone -- Hoàn tất --> CloseReturn["Cập nhật ReturnRequest 'completed'"]
+    CloseReturn --> UpdateOrderStatus{"Đơn hàng được trả 100%?"}
+    UpdateOrderStatus -- Đúng --> SetOrderReturned["Chuyển trạng thái Order sang 'returned'"]
+    UpdateOrderStatus -- Một phần --> ReturnEnd([Kết thúc quy trình trả hàng])
+    SetOrderReturned --> ReturnEnd
+```
+
+*Sơ đồ chi tiết: [docs/diagram/activity-returns.svg](docs/diagram/activity-returns.svg).*
+
+---
+
 ### **3.2.3. Sequence Diagram**
+
+Để mô tả sự tương tác chi tiết theo thời gian giữa các thành phần phần mềm, hai biểu đồ tuần tự tiêu biểu được thiết kế: Tuần tự Đặt hàng trực tuyến (xử lý giao dịch ACID phía Backend) và Tuần tự Tải báo cáo BI theo vai trò (truy vấn kết hợp Lakehouse và OLTP).
+
+#### **a. Biểu đồ tuần tự Đặt hàng trực tuyến (Online Checkout Sequence)**
+Biểu đồ mô tả sự phối hợp giữa Client Browser, API Router, Checkout Service, Transaction Manager (Unit of Work), các Repositories và Cơ sở dữ liệu MySQL [docs/diagram/06-sequence-checkout.drawio](docs/diagram/06-sequence-checkout.drawio):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Khách hàng
+    participant UI as Next.js Storefront
+    participant Router as Checkout Router (FastAPI)
+    participant Service as Checkout Service
+    participant UoW as Unit of Work (DB Session)
+    participant DB as MySQL InnoDB
+
+    Customer->>UI: Nhấn xác nhận "Đặt hàng"
+    UI->>Router: POST /api/v1/checkout (Header: Idempotency-Key, Cookie: JWT & CSRF)
+    Router->>Router: Xác thực JWT token & Double-submit CSRF cookie
+    Router->>Service: checkout(customer_id, idempotency_key, payload)
+    
+    Service->>UoW: run_in_transaction(_work)
+    UoW->>DB: BEGIN TRANSACTION
+    
+    UoW->>DB: SELECT * FROM customers WHERE id = ? FOR UPDATE
+    DB-->>UoW: customer_record
+    Note over Service,DB: Kiểm tra quyền COD: nếu is_cod_blocked=True -> Báo lỗi 403
+    
+    UoW->>DB: SELECT * FROM orders WHERE checkout_idempotency_key = ?
+    alt Khóa Idempotency đã tồn tại
+        DB-->>UoW: existing_order
+        UoW->>DB: SELECT * FROM payments WHERE order_id = ?
+        DB-->>UoW: payment_record
+        UoW-->>Service: Trả kết quả đơn hàng đã tạo trước đó
+        Service-->>Router: CheckoutResultResponse (Cached)
+        Router-->>UI: 200 OK (Thông tin đơn hàng cũ)
+    else Khóa mới hợp lệ
+        UoW->>DB: SELECT * FROM cart_items JOIN inventories FOR UPDATE
+        DB-->>UoW: Danh sách SKU & tồn kho khả dụng
+        Note over Service,DB: Kiểm tra on_hand >= quantity & Coupon hợp lệ
+        
+        UoW->>DB: INSERT INTO orders (...) VALUES (...)
+        UoW->>DB: INSERT INTO order_items (...) VALUES (...) [Snapshot giá & vốn]
+        UoW->>DB: INSERT INTO payments (...) VALUES (...)
+        UoW->>DB: UPDATE inventories SET on_hand = on_hand - ? WHERE variant_id = ?
+        UoW->>DB: INSERT INTO inventory_transactions (...) [Ghi ledger xuất kho]
+        UoW->>DB: UPDATE carts SET status = 'closed' WHERE cart_id = ?
+        
+        UoW->>DB: COMMIT TRANSACTION
+        DB-->>UoW: Commit thành công
+        UoW-->>Service: CheckoutResultResponse (Mới)
+        Service-->>Router: 200 OK (Chi tiết đơn hàng & trạng thái thanh toán)
+        Router-->>UI: Hiển thị màn hình Xác nhận đơn hàng thành công
+        UI-->>Customer: Thông báo đặt hàng thành công & Mã đơn hàng
+    end
+```
+
+*Sơ đồ chi tiết: [docs/diagram/seq-checkout.svg](docs/diagram/seq-checkout.svg).*
+
+#### **b. Biểu đồ tuần tự Tải Dashboard BI theo vai trò với cơ chế Fallback (Role-based Dashboard Query Sequence)**
+Biểu đồ thể hiện cơ chế phục vụ dữ liệu phân tích thông minh: định tuyến quyền truy cập tại API Layer, truy vấn tầng Gold Lakehouse thông qua Trino, và tự động chuyển đổi dự phòng (Graceful Degradation / OLTP Fallback) sang MySQL khi Trino gặp sự cố [docs/diagram/07-sequence-dashboard.drawio](docs/diagram/07-sequence-dashboard.drawio):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Manager as Quản lý nghiệp vụ
+    participant UI as Next.js BI Hub (ECharts)
+    participant Router as Analytics Router
+    participant Security as RBAC Validator
+    participant Service as Analytics Service
+    participant Trino as Trino Engine (Iceberg Gold)
+    participant MySQL as MySQL (OLTP Replica)
+
+    Manager->>UI: Truy cập Dashboard Phân tích (/admin/analytics)
+    UI->>Router: GET /api/v1/admin/analytics/role-metrics?target_role=sales_manager
+    Router->>Security: validate_role_access(actor, target_role, store_id)
+    
+    alt Không đủ quyền hạn
+        Security-->>Router: Báo lỗi FORBIDDEN (403)
+        Router-->>UI: 403 Forbidden (Không có quyền truy cập góc nhìn này)
+    else Hợp lệ
+        Security->>Security: resolve_effective_store_id(actor, store_id)
+        Security-->>Router: Phê duyệt quyền & Trả store_id hiệu lực
+        Router->>Service: get_role_metrics_data(target_role, store_id)
+        
+        alt Nguồn ưu tiên Lakehouse (Sales / Executive / Marketing)
+            Service->>Trino: Thực thi SQL trên Gold Marts (mart_sales_overview / fact_order)
+            alt Trino hoạt động bình thường
+                Trino-->>Service: Bộ số liệu KPI tổng hợp & Doanh thu theo chiều phân tích
+                Service-->>Router: RoleMetricsResponse (data_source = 'lakehouse', is_degraded = False)
+            else Trino gián đoạn hoặc quá thời gian chờ (Timeout)
+                Note over Service,MySQL: Kích hoạt cơ chế Fallback sang MySQL OLTP
+                Service->>MySQL: Thực thi truy vấn tính toán rút gọn trên bảng giao dịch
+                MySQL-->>Service: Dữ liệu giao dịch tính toán trực tiếp
+                Service-->>Router: RoleMetricsResponse (data_source = 'oltp_fallback', is_degraded = True, degraded_reason = 'Trino unreachable')
+            end
+        else Nguồn nghiệp vụ trực tiếp (Store / Inventory / Operations)
+            Service->>MySQL: Truy vấn trạng thái thực tế từ MySQL (StoreInventory, Inbound)
+            MySQL-->>Service: Dữ liệu vận hành thời gian thực
+            Service-->>Router: RoleMetricsResponse (data_source = 'oltp', is_degraded = False)
+        end
+        
+        Router-->>UI: JSON Response kèm Metadata trạng thái nguồn dữ liệu
+        UI->>UI: Adapter định dạng dữ liệu cho thư viện Apache ECharts
+        Note over UI: Hiển thị biểu đồ & gắn huy hiệu cảnh báo (Degraded Badge) nếu nguồn là Fallback
+        UI-->>Manager: Hiển thị đầy đủ biểu đồ KPI & bảng số liệu chi tiết
+    end
+```
+
+*Sơ đồ chi tiết: [docs/diagram/seq-dashboard.svg](docs/diagram/seq-dashboard.svg).*
 
 ## **3.3. Thiết kế kiến trúc tổng thể**
 
