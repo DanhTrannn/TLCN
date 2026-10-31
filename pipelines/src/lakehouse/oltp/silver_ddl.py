@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from lakehouse.sql import identifier, load_sql, render_sql
+
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,694 +13,90 @@ SILVER_QUARANTINE_TABLE = "lakehouse.quarantine.silver_oltp_violations"
 SILVER_TABLE_DDL: dict[str, str] = {}
 
 
-SILVER_TABLE_DDL["silver_customers"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_customers (
-    customer_id                     BIGINT,
-    public_id                       BINARY,
-    display_name_pseudonymized      STRING,
-    email_pseudonymized             STRING,
-    phone_pseudonymized             STRING,
-    full_name_pseudonymized         STRING,
-    role                            STRING,
-    status                          STRING,
-    city_id                         BIGINT,
-    store_id                        BIGINT,
-    is_cod_blocked                  BOOLEAN,
-    boom_count                      INT,
-    data_origin                     STRING,
-    generation_run_id               STRING,
-    anonymized_at                   TIMESTAMP,
-    _pii_pseudonymized_at           TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_customers"] = load_sql("spark/silver/silver_customers.sql")
 
 
-SILVER_TABLE_DDL["silver_categories"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_categories (
-    category_id                     BIGINT,
-    public_id                       BINARY,
-    parent_category_id              BIGINT,
-    code                            STRING,
-    slug                            STRING,
-    name                            STRING,
-    is_active                       BOOLEAN,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_categories"] = load_sql("spark/silver/silver_categories.sql")
 
 
-SILVER_TABLE_DDL["silver_products"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_products (
-    product_id                      BIGINT,
-    public_id                       BINARY,
-    category_id                     BIGINT,
-    slug                            STRING,
-    name                            STRING,
-    description                     STRING,
-    image_url                       STRING,
-    is_active                       BOOLEAN,
-    archived_at                     TIMESTAMP,
-    archived_by_customer_id         BIGINT,
-    archive_reason                  STRING,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_products"] = load_sql("spark/silver/silver_products.sql")
 
 
-SILVER_TABLE_DDL["silver_product_variants"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_product_variants (
-    variant_id                      BIGINT,
-    public_id                       BINARY,
-    product_id                      BIGINT,
-    sku                             STRING,
-    size_code                       STRING,
-    color_code                      STRING,
-    price_vnd                       BIGINT,
-    cost_price_vnd                  BIGINT,
-    is_active                       BOOLEAN,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_product_variants"] = load_sql("spark/silver/silver_product_variants.sql")
 
 
-SILVER_TABLE_DDL["silver_carts"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_carts (
-    cart_id                         BIGINT,
-    public_id                       BINARY,
-    customer_id                     BIGINT,
-    status                          STRING,
-    last_activity_at                TIMESTAMP,
-    checked_out_at                  TIMESTAMP,
-    abandoned_at                    TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_carts"] = load_sql("spark/silver/silver_carts.sql")
 
 
-SILVER_TABLE_DDL["silver_cart_items"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_cart_items (
-    cart_item_id                    BIGINT,
-    cart_id                         BIGINT,
-    variant_id                      BIGINT,
-    quantity                        INT,
-    is_present                      BOOLEAN,
-    first_added_at                  TIMESTAMP,
-    removed_at                      TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_cart_items"] = load_sql("spark/silver/silver_cart_items.sql")
 
 
-SILVER_TABLE_DDL["silver_wishlist_items"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_wishlist_items (
-    wishlist_item_id                BIGINT,
-    customer_id                     BIGINT,
-    product_id                      BIGINT,
-    is_present                      BOOLEAN,
-    first_added_at                  TIMESTAMP,
-    last_added_at                   TIMESTAMP,
-    added_at                        TIMESTAMP,
-    removed_at                      TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_wishlist_items"] = load_sql("spark/silver/silver_wishlist_items.sql")
 
 
-SILVER_TABLE_DDL["silver_orders"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_orders (
-    order_id                        BIGINT,
-    order_number                    STRING,
-    cart_id                         BIGINT,
-    customer_id                     BIGINT,
-    checkout_idempotency_key        STRING,
-    currency_code                   STRING,
-    subtotal_vnd                    BIGINT,
-    discount_amount_vnd             BIGINT,
-    shipping_fee_vnd                BIGINT,
-    total_vnd                       BIGINT,
-    coupon_id                       BIGINT,
-    coupon_code_snapshot            STRING,
-    coupon_type_snapshot            STRING,
-    coupon_value_snapshot           BIGINT,
-    receiver_name_pseudonymized     STRING,
-    receiver_phone_pseudonymized    STRING,
-    shipping_address_text_pseudonymized STRING,
-    status                          STRING,
-    payment_method                  STRING,
-    store_id                        BIGINT,
-    channel                         STRING,
-    staff_id                        BIGINT,
-    paid_at                         TIMESTAMP,
-    confirmed_at                    TIMESTAMP,
-    completed_at                    TIMESTAMP,
-    cancelled_at                    TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _pii_pseudonymized_at           TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_orders"] = load_sql("spark/silver/silver_orders.sql")
 
 
-SILVER_TABLE_DDL["silver_order_items"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_order_items (
-    order_item_id                   BIGINT,
-    public_id                       BINARY,
-    order_id                        BIGINT,
-    variant_id                      BIGINT,
-    product_public_id_snapshot      BINARY,
-    category_code_snapshot          STRING,
-    product_name_snapshot           STRING,
-    category_name_snapshot          STRING,
-    sku_snapshot                    STRING,
-    size_code_snapshot              STRING,
-    color_code_snapshot             STRING,
-    unit_price_vnd                  BIGINT,
-    cost_price_vnd                  BIGINT,
-    quantity                        INT,
-    line_total_vnd                  BIGINT,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_order_items"] = load_sql("spark/silver/silver_order_items.sql")
 
 
-SILVER_TABLE_DDL["silver_payments"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_payments (
-    payment_id                      BIGINT,
-    payment_reference               STRING,
-    order_id                        BIGINT,
-    payment_idempotency_key         STRING,
-    status                          STRING,
-    currency_code                   STRING,
-    amount_vnd                      BIGINT,
-    failure_code                    STRING,
-    attempted_at                    TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_payments"] = load_sql("spark/silver/silver_payments.sql")
 
 
-SILVER_TABLE_DDL["silver_order_status_history"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_order_status_history (
-    order_status_history_id         BIGINT,
-    order_id                        BIGINT,
-    from_status                     STRING,
-    to_status                       STRING,
-    transition_source               STRING,
-    reason                          STRING,
-    transition_idempotency_key      STRING,
-    transitioned_at                 TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_order_status_history"] = load_sql("spark/silver/silver_order_status_history.sql")
 
 
-SILVER_TABLE_DDL["silver_inventory"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inventory (
-    variant_id                      BIGINT,
-    opening_on_hand                 INT,
-    on_hand                         INT,
-    version                         INT,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_inventory"] = load_sql("spark/silver/silver_inventory.sql")
 
 
-SILVER_TABLE_DDL["silver_coupons"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_coupons (
-    coupon_id                       BIGINT,
-    public_id                       BINARY,
-    code_normalized                 STRING,
-    discount_type                   STRING,
-    discount_value                  BIGINT,
-    minimum_subtotal_vnd            BIGINT,
-    starts_at                       TIMESTAMP,
-    ends_at                         TIMESTAMP,
-    is_active                       BOOLEAN,
-    total_usage_limit               INT,
-    per_customer_usage_limit        INT,
-    archived_at                     TIMESTAMP,
-    archived_by_customer_id         BIGINT,
-    archive_reason                  STRING,
-    used_count                      INT,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_coupons"] = load_sql("spark/silver/silver_coupons.sql")
 
 
-SILVER_TABLE_DDL["silver_coupon_redemptions"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_coupon_redemptions (
-    coupon_redemption_id            BIGINT,
-    coupon_id                       BIGINT,
-    order_id                        BIGINT,
-    customer_id                     BIGINT,
-    status                          STRING,
-    redeemed_at                     TIMESTAMP,
-    released_at                     TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_coupon_redemptions"] = load_sql("spark/silver/silver_coupon_redemptions.sql")
 
 
-SILVER_TABLE_DDL["silver_refunds"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_refunds (
-    refund_id                       BIGINT,
-    public_id                       BINARY,
-    payment_id                      BIGINT,
-    refund_idempotency_key          STRING,
-    status                          STRING,
-    currency_code                   STRING,
-    amount_vnd                      BIGINT,
-    reason                          STRING,
-    requested_by_customer_id        BIGINT,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    completed_at                    TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_refunds"] = load_sql("spark/silver/silver_refunds.sql")
 
 
-SILVER_TABLE_DDL["silver_product_reviews"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_product_reviews (
-    review_id                       BIGINT,
-    public_id                       BINARY,
-    order_item_id                   BIGINT,
-    customer_id                     BIGINT,
-    product_id                      BIGINT,
-    rating                          INT,
-    content                         STRING,
-    status                          STRING,
-    moderation_reason               STRING,
-    moderated_by_customer_id        BIGINT,
-    moderated_at                    TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_product_reviews"] = load_sql("spark/silver/silver_product_reviews.sql")
 
 
-SILVER_TABLE_DDL["silver_cities"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_cities (
-    city_id                         BIGINT,
-    code                            STRING,
-    name                            STRING,
-    is_active                       BOOLEAN,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_cities"] = load_sql("spark/silver/silver_cities.sql")
 
 
-SILVER_TABLE_DDL["silver_stores"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_stores (
-    store_id                        BIGINT,
-    city_id                         BIGINT,
-    code                            STRING,
-    name                            STRING,
-    address                         STRING,
-    phone                           STRING,
-    is_active                       BOOLEAN,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_stores"] = load_sql("spark/silver/silver_stores.sql")
 
 
-SILVER_TABLE_DDL["silver_store_inventory"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_store_inventory (
-    store_inventory_id              BIGINT,
-    store_id                        BIGINT,
-    variant_id                      BIGINT,
-    on_hand                         BIGINT,
-    opening_on_hand                 BIGINT,
-    version                         BIGINT,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_store_inventory"] = load_sql("spark/silver/silver_store_inventory.sql")
 
 
-SILVER_TABLE_DDL["silver_delivery_staff"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_delivery_staff (
-    staff_id                        BIGINT,
-    public_id                       BINARY,
-    full_name_pseudonymized         STRING,
-    phone_pseudonymized             STRING,
-    vehicle_plate                   STRING,
-    is_active                       BOOLEAN,
-    _pii_pseudonymized_at           TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_delivery_staff"] = load_sql("spark/silver/silver_delivery_staff.sql")
 
 
-SILVER_TABLE_DDL["silver_shipments"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_shipments (
-    shipment_id                     BIGINT,
-    public_id                       BINARY,
-    shipment_code                   STRING,
-    order_id                        BIGINT,
-    delivery_staff_id               BIGINT,
-    status                          STRING,
-    attempt_count                   INT,
-    cod_amount_vnd                  BIGINT,
-    cod_collected_vnd               BIGINT,
-    dispatched_at                   TIMESTAMP,
-    delivered_at                    TIMESTAMP,
-    failed_at                       TIMESTAMP,
-    failure_reason                  STRING,
-    notes                           STRING,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_shipments"] = load_sql("spark/silver/silver_shipments.sql")
 
 
-SILVER_TABLE_DDL["silver_shipment_attempts"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_shipment_attempts (
-    attempt_id                      BIGINT,
-    public_id                       BINARY,
-    shipment_id                     BIGINT,
-    attempt_number                  INT,
-    delivery_staff_id               BIGINT,
-    status                          STRING,
-    failure_reason                  STRING,
-    is_buyer_fault                  BOOLEAN,
-    idempotency_key                 STRING,
-    attempted_at                    TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_shipment_attempts"] = load_sql("spark/silver/silver_shipment_attempts.sql")
 
 
-SILVER_TABLE_DDL["silver_return_requests"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_return_requests (
-    return_id                       BIGINT,
-    public_id                       BINARY,
-    return_code                     STRING,
-    order_id                        BIGINT,
-    customer_id                     BIGINT,
-    action_type                     STRING,
-    status                          STRING,
-    customer_reason                 STRING,
-    image_urls                      STRING,
-    admin_note                      STRING,
-    reviewed_at                     TIMESTAMP,
-    resolved_at                     TIMESTAMP,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_return_requests"] = load_sql("spark/silver/silver_return_requests.sql")
 
 
-SILVER_TABLE_DDL["silver_return_items"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_return_items (
-    return_item_id                  BIGINT,
-    public_id                       BINARY,
-    return_id                       BIGINT,
-    order_item_id                   BIGINT,
-    variant_id                      BIGINT,
-    quantity                        INT,
-    exchange_variant_id             BIGINT,
-    refund_amount_vnd               BIGINT,
-    inspection_status               STRING,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_return_items"] = load_sql("spark/silver/silver_return_items.sql")
 
 
-SILVER_TABLE_DDL["silver_inventory_transactions"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inventory_transactions (
-    transaction_id                  BIGINT,
-    public_id                       BINARY,
-    variant_id                      BIGINT,
-    location_type                   STRING,
-    store_id                        BIGINT,
-    movement_type                   STRING,
-    quantity_delta                  INT,
-    reference_code                  STRING,
-    notes                           STRING,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_inventory_transactions"] = load_sql("spark/silver/silver_inventory_transactions.sql")
 
 
-SILVER_TABLE_DDL["silver_inbound_receipts"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inbound_receipts (
-    receipt_id                      BIGINT,
-    public_id                       BINARY,
-    receipt_code                    STRING,
-    batch_name                      STRING,
-    status                          STRING,
-    total_items_count               INT,
-    total_cost_vnd                  BIGINT,
-    notes                           STRING,
-    created_by_customer_id          BIGINT,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_inbound_receipts"] = load_sql("spark/silver/silver_inbound_receipts.sql")
 
 
-SILVER_TABLE_DDL["silver_inbound_receipt_items"] = """
-CREATE TABLE IF NOT EXISTS lakehouse.silver.silver_inbound_receipt_items (
-    item_id                         BIGINT,
-    public_id                       BINARY,
-    receipt_id                      BIGINT,
-    variant_id                      BIGINT,
-    quantity                        INT,
-    unit_cost_vnd                   BIGINT,
-    total_cost_vnd                  BIGINT,
-    previous_cost_price_vnd         BIGINT,
-    new_cost_price_vnd              BIGINT,
-    created_at                      TIMESTAMP,
-    updated_at                      TIMESTAMP,
-    _silver_ingested_at             TIMESTAMP,
-    _source_bronze_run_id           STRING
-)
-USING iceberg
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
+SILVER_TABLE_DDL["silver_inbound_receipt_items"] = load_sql("spark/silver/silver_inbound_receipt_items.sql")
 
 
-SILVER_QUARANTINE_DDL = f"""
-CREATE TABLE IF NOT EXISTS {SILVER_QUARANTINE_TABLE} (
-    record_data                     STRING,
-    violation_type                  STRING,
-    violation_types                 ARRAY<STRING>,
-    violation_detail                STRING,
-    source_table                    STRING,
-    _run_id                         STRING,
-    _quarantined_at                 TIMESTAMP
+SILVER_QUARANTINE_DDL = render_sql(
+    "spark/silver/silver_quarantine.sql", silver_quarantine_table=identifier(SILVER_QUARANTINE_TABLE)
 )
-USING iceberg
-PARTITIONED BY (days(_quarantined_at))
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
 
 
 def ensure_silver_namespaces(spark: SparkSession) -> None:
@@ -714,16 +113,11 @@ def ensure_silver_tables(spark: SparkSession) -> None:
     # Existing local environments may have created the quarantine table before
     # multi-violation reporting was introduced. Iceberg schema evolution keeps
     # the migration idempotent while preserving historical records.
-    try:
-        quarantine_columns = {
-            field.name.lower() for field in spark.table(SILVER_QUARANTINE_TABLE).schema.fields
-        }
-        if "violation_types" not in quarantine_columns:
-            spark.sql(
-                f"ALTER TABLE {SILVER_QUARANTINE_TABLE} "
-                "ADD COLUMNS (violation_types ARRAY<STRING>)"
+    quarantine_columns = {field.name.lower() for field in spark.table(SILVER_QUARANTINE_TABLE).schema.fields}
+    if "violation_types" not in quarantine_columns:
+        spark.sql(
+            render_sql(
+                "spark/silver/add_quarantine_violation_types.sql",
+                silver_quarantine_table=identifier(SILVER_QUARANTINE_TABLE),
             )
-    except Exception:
-        # Fresh catalogs are fully provisioned by SILVER_QUARANTINE_DDL. Let
-        # the subsequent write surface any real catalog/storage failure.
-        pass
+        )

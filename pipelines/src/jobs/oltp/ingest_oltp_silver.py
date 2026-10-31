@@ -2,8 +2,7 @@ import argparse
 import sys
 
 from lakehouse.config import load_config
-from lakehouse.oltp.silver import merge_oltp_table
-from lakehouse.oltp.silver_ddl import ensure_silver_tables
+from lakehouse.oltp.ingestion import ingest_silver_tables
 from lakehouse.spark import spark_session
 
 
@@ -20,27 +19,7 @@ def main():
     spark = spark_session("ingest_oltp_bronze_to_silver")
     try:
         cfg = load_config(args.config_path)
-        ensure_silver_tables(spark)
-
-        for table in cfg.tables:
-            bronze_table = f"lakehouse.bronze.{table.name}"
-            silver_table = f"lakehouse.silver.{table.silver_table}"
-
-            try:
-                bronze_df = spark.read.format("iceberg").load(bronze_table)
-            except Exception:
-                print(f"Bronze table {bronze_table} not found, skipping.")
-                continue
-
-            result = merge_oltp_table(
-                spark=spark,
-                table=table,
-                bronze_df=bronze_df,
-                run_id=args.run_id,
-                target_path=silver_table,
-            )
-
-            print(f"{table.name}: inserted={result.inserted}, updated={result.updated}, quarantined={result.quarantined}")
+        ingest_silver_tables(spark, cfg, args.run_id, args.bronze_date)
     finally:
         spark.stop()
 
