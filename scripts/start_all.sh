@@ -118,7 +118,7 @@ wait_for_url "Trino SQL Engine" "http://localhost:8084/v1/info" 30 || STARTUP_FA
 wait_for_url "MinIO S3" "http://localhost:9000/minio/health/live" 20 || STARTUP_FAILED=1
 wait_for_url "Polaris Console" "http://localhost:8183" 20 || STARTUP_FAILED=1
 wait_for_url "Airflow Web UI" "http://localhost:8080/health" 30 || STARTUP_FAILED=1
-wait_for_url "Flink Dashboard" "http://localhost:8085/overview" 20 || STARTUP_FAILED=1
+wait_for_url "Flink Dashboard" "http://localhost:8085/jobs/overview" 20 || STARTUP_FAILED=1
 wait_for_url "Debezium Connect" "http://127.0.0.1:${CDC_CONNECT_PORT:-8086}/connectors/mysql-ecommerce-cdc/status" 30 || STARTUP_FAILED=1
 
 if [[ "$STARTUP_FAILED" -ne 0 && "$ALLOW_DEGRADED" != "true" ]]; then

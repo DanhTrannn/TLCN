@@ -35,3 +35,16 @@ airflow/logs/*
 docs/superpowers/
 skills/
 
+
+# Python package build output
+pipelines/build/
+
+# Tests & test cache
+tests/
+**/tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+test-reports/
+

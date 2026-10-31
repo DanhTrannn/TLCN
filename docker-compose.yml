@@ -15,6 +15,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
     AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
     PIPELINE_ENV: ${PIPELINE_ENV:-local}
+    FLINK_REQUIRED_JOBS: ${FLINK_REQUIRED_JOBS:-kafka_to_lakehouse_pure_streaming,oltp_cdc_to_bronze}
     PIPELINE_RUN_DIRECTORY: /data/pipeline-runs
     PIPELINE_CONFIG_PATH: /opt/project/pipelines/config/default.yml
     PYTHONPATH: /opt/project/pipelines/src
@@ -72,6 +73,7 @@ x-flink-common: &flink-common
     MINIO_FLINK_SECRET_KEY: ${MINIO_FLINK_SECRET_KEY:?set MINIO_FLINK_SECRET_KEY}
     MINIO_ENDPOINT: http://minio:9000
     KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    KAFKA_ACCESS_LOG_TOPIC: ${KAFKA_ACCESS_LOG_TOPIC:-ecommerce.access_logs}
     CDC_TOPIC_PREFIX: ${CDC_TOPIC_PREFIX:-ecommerce}
     CDC_FLINK_GROUP_ID: ${CDC_FLINK_GROUP_ID:-flink-oltp-cdc-bronze-v1}
     MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
