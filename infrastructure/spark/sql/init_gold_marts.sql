@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_order_item (
     order_item_id                   BIGINT,
     order_id                        BIGINT,
     order_date_key                  INT,
+    order_date                      DATE,
     customer_key                    BIGINT,
     product_key                     BIGINT,
     variant_key                     BIGINT,
@@ -118,7 +119,8 @@ CREATE TABLE IF NOT EXISTS lakehouse.gold.fact_order_item (
     _gold_ingested_at               TIMESTAMP,
     _source_run_id                  STRING
 )
-USING iceberg;
+USING iceberg
+PARTITIONED BY (order_date);
 
 -- 7. mart_marketing_funnel_daily
 CREATE TABLE IF NOT EXISTS lakehouse.gold.mart_marketing_funnel_daily (
