@@ -1487,9 +1487,97 @@ Phân hệ Quản trị (Admin Web Console) được đặt tại không gian tu
 
 ### **4.4.1. Thu thập dữ liệu MySQL theo lô**
 
+Quy trình thu thập dữ liệu theo lô (Batch Ingestion) chịu trách nhiệm trích xuất định kỳ 27 bảng nghiệp vụ từ cơ sở dữ liệu quan hệ MySQL 8.4 [4] và nạp vào vùng lưu trữ đệm Landing trên MinIO S3 [8]. Quy trình được hiện thực hóa thông qua kịch bản Python `pipelines/src/jobs/oltp/extract_oltp.py` kết hợp thư viện lõi `pipelines/src/lakehouse/oltp/extract.py` chạy trên động cơ tính toán phân tán **Apache Spark 3.5.3** [12], dưới sự điều phối tự động của **Apache Airflow 2.10** [16].
+
+Các cơ chế kỹ thuật cốt lõi của luồng trích xuất theo lô:
+1. **Trích xuất tăng dần dựa trên Watermark (Incremental Pull)**:
+   * Trạng thái con trỏ đọc (Cursor State) của từng bảng được lưu trữ bền vững dưới dạng tệp JSON tại đường dẫn: `s3a://lakehouse/state/cursor/<table>.json`.
+   * Tệp con trỏ ghi nhận mốc thời gian cập nhật cao nhất (`high_watermark`) và khóa chính (`last_pk`) đã xử lý thành công ở mẻ trước. Khi khởi chạy, Spark nạp con trỏ đã cam kết thông qua hàm `read_committed_cursor` để xây dựng mệnh đề vị từ lọc dữ liệu mới phát sinh.
+2. **Cơ chế Cửa sổ lùi chống rò rỉ giao dịch (Lookback Window Predicate)**:
+   * Để khắc phục triệt để hiện tượng mất mát dữ liệu do độ trễ commit giao dịch (Commit Latency) hoặc sai lệch đồng hồ hệ thống giữa các máy chủ, hàm `build_range_predicate` tự động áp dụng cửa sổ lùi:
+     $$\text{Watermark}_{\text{start}} = \text{Watermark}_{\text{previous}} - \Delta t_{\text{lookback}}$$
+   * Tham số cửa sổ lùi được cấu hình linh hoạt theo đặc thù vòng đời dữ liệu của từng nhóm bảng:
+     * $\Delta t_{\text{lookback}} = 10\text{ phút}$: Áp dụng cho các bảng danh mục ít biến động (như `products`, `categories`, `stores`).
+     * $\Delta t_{\text{lookback}} = 3\text{ ngày}$: Áp dụng cho các bảng giao dịch có chu kỳ cập nhật trạng thái kéo dài (như `orders`, `order_status_history`, `shipments`, `refunds`).
+3. **Thực thi trích xuất song song có kiểm soát (Parallel JDBC Extraction)**:
+   * Spark sử dụng kết nối JDBC qua lớp điều khiển `com.mysql.cj.jdbc.Driver`. Nhằm tối ưu hóa thời gian trích xuất mà không làm quá tải tài nguyên CPU/Connection Pool của MySQL, hàm `run_extract` sử dụng `concurrent.futures.ThreadPoolExecutor` với tham số `max_parallel_tables` (mặc định cấu hình 4–8 luồng song song).
+4. **Đóng gói dữ liệu Parquet và tạo tệp Kê khai nguyên tử (`manifest.json`)**:
+   * Dữ liệu đọc từ MySQL được Spark ghi vào vùng lưu trữ đệm Landing theo cấu trúc phân cấp:
+     `s3a://lakehouse/landing/oltp/<table>/<batch_id>/part-*.parquet`
+   * Toàn bộ tệp dữ liệu được nén theo thuật toán **Snappy** nhằm cân bằng tối ưu giữa tỷ lệ nén và tốc độ giải nén khi xử lý ở các tầng sau.
+   * Ngay sau khi ghi xong các tệp Parquet, hàm `_write_manifest` tạo lập tệp kê khai nguyên tử `manifest.json` (tuân thủ cấu trúc `MANIFEST_VERSION = "1.0.0"`) ghi nhận toàn diện siêu dữ liệu mẻ nạp: mã phiên chạy (`run_id`), tổng số dòng bản ghi (`rows`), cờ dữ liệu rỗng (`empty`), phạm vi con trỏ quét được (`cursor_min`, `cursor_max`), danh sách tên tệp kèm mã băm kiểm tra toàn vẹn SHA-256, và mốc thời gian trích xuất UTC chính xác. Tệp kê khai này là bằng chứng duy nhất để các tác vụ tầng sau xác thực tính toàn vẹn trước khi nạp vào Bronze.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.15: Giao diện MinIO Console hiển thị tệp dữ liệu Parquet và `manifest.json` tại tầng Landing]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập MinIO Storage Console tại `http://localhost:9001`:
+>   * Chọn bucket `lakehouse`, điều hướng theo cây thư mục: `landing` $\rightarrow$ `oltp` $\rightarrow$ `orders` $\rightarrow$ `<batch_id>/`.
+>   * Khung nhìn hiển thị danh sách các tệp dữ liệu dạng `part-00000-*.snappy.parquet` kèm tệp `manifest.json`.
+>   * Mở xem chi tiết nội dung tệp `manifest.json` thể hiện các trường: `manifest_version: "1.0.0"`, `table: "orders"`, `run_id`, `rows`, `extract_started_at`, `extract_completed_at`.
+
+---
+
 ### **4.4.2. Thu thập CDC bằng Debezium, Kafka và Flink**
 
+Bên cạnh luồng trích xuất theo mẻ, hệ thống triển khai đường ống thu thập dữ liệu thay đổi theo thời gian thực (Change Data Capture - CDC) nhằm bắt giữ tức thời mọi biến động giao dịch từ MySQL, đưa vào nền tảng Lakehouse với độ trễ dưới 1 giây mà không tạo tải truy vấn `SELECT` lên cơ sở dữ liệu nguồn:
+
+1. **Bắt sự kiện giao dịch qua Debezium MySQL Connector [13]**:
+   * Dịch vụ Debezium Connect chạy phân tán trên container `debezium-connect` (cổng nội bộ 8083, cổng host 8086).
+   * Connector kết nối trực tiếp đến MySQL bằng tài khoản chuyên biệt, liên tục đọc và giải mã luồng log nhị phân giao dịch của InnoDB (`binlog_format = ROW` và `binlog_row_image = FULL`).
+   * Khi phát sinh bất kỳ thao tác cơ sở dữ liệu nào, Debezium tự động phát hiện và đóng gói thành một thông điệp sự kiện JSON mang cấu trúc chuẩn:
+     * Trường `op`: Định danh loại thao tác gồm `c` (Create/Insert), `u` (Update), `d` (Delete), và `r` (Snapshot ban đầu).
+     * Trường `before`: Chứa toàn bộ giá trị các cột của dòng dữ liệu trước khi thay đổi.
+     * Trường `after`: Chứa toàn bộ giá trị các cột của dòng dữ liệu sau khi cập nhật.
+     * Trường `source`: Chứa siêu dữ liệu tọa độ giao dịch trong binlog gồm tên tệp (`file`), vị trí (`pos`), mốc thời gian máy chủ (`ts_ms`), và định danh luồng giao dịch.
+
+2. **Truyền dẫn thông điệp qua cụm Apache Kafka (KRaft Mode) [14]**:
+   * Cụm Kafka vận hành theo cơ chế mới **KRaft** (Kafka Raft Metadata Mode), loại bỏ hoàn toàn sự phụ thuộc vào Apache ZooKeeper, giúp đơn giản hóa kiến trúc và tăng tốc độ đồng thuận cụm.
+   * Sự kiện biến động của 27 bảng dữ liệu được Debezium tự động định tuyến vào các topic Kafka tương ứng theo cấu trúc: `cdc.ecommerce.<table>` (ví dụ: `cdc.ecommerce.orders`, `cdc.ecommerce.inventory_levels`, `cdc.ecommerce.payments`).
+   * Mỗi topic được cấu hình chính sách lưu trữ (Retention Policy) và phân vùng (Partitioning) dựa trên khóa chính của bảng nghiệp vụ, đảm bảo thứ tự tuần tự tuyệt đối của các biến động trên cùng một bản ghi.
+
+3. **Tiêu thụ luồng và cập nhật tầng Bronze Iceberg bằng Apache Flink [15]**:
+   * Tác vụ luồng được thực thi bởi kịch bản `pipelines/src/jobs/cdc/mysql_cdc_to_bronze.py` trên cụm Apache Flink 1.19.
+   * Flink khởi tạo `TableEnvironment`, kết nối vào Kafka với nhóm tiêu thụ `flink-oltp-cdc-bronze-v1` và lắng nghe toàn bộ các topic khớp với biểu thức chính quy: `cdc\.ecommerce\..*`.
+   * **Cơ chế Checkpoint bảo toàn trạng thái**: Flink thiết lập chu kỳ kiểm tra trạng thái định kỳ $10.000\text{ ms}$ ($10\text{ giây}$) với trạng thái được lưu trữ an toàn trên MinIO S3 (`FLINK_CHECKPOINT_DIR=s3://lakehouse/checkpoints`). Cơ chế này bảo đảm ngữ nghĩa xử lý chính xác một lần (Exactly-Once Processing Semantics) ngay cả khi cụm gặp sự cố phần cứng.
+   * **Ghi nhật ký kiểm toán bất biến (Immutable Audit Log)**: Dữ liệu CDC được Flink nạp nối tiếp (Append-only) vào bảng Apache Iceberg `lakehouse.bronze.oltp_cdc_events` thông qua Apache Polaris REST Catalog. Bảng này lưu giữ vĩnh viễn toàn bộ lịch sử biến động dữ liệu kèm tọa độ Kafka và Binlog, đóng vai trò nguồn chân lý kiểm toán cho phép tái hiện trạng thái dữ liệu tại bất kỳ thời điểm nào trong quá khứ (Time-Travel / Event Replay).
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.16: Bảng điều khiển Flink Dashboard giám sát Job CDC và Kafka Topic `cdc.ecommerce.*`]**
+> * **Nội dung cần chụp**: Ảnh ghép hoặc 2 ảnh thành phần:
+>   1. Giao diện Flink Web Dashboard tại `http://localhost:8085`: Hiển thị job streaming `oltp_cdc_to_bronze` đang ở trạng thái `RUNNING` màu xanh lá, thể hiện biểu đồ đồ thị luồng (Dataflow Graph) và các thông số Checkpoint định kỳ 10 giây thành công.
+>   2. Cửa sổ Terminal chạy lệnh kiểm tra trạng thái của Debezium MySQL Connector:
+>      ```bash
+>      curl -s http://127.0.0.1:8086/connectors/ecommerce-mysql-cdc/status | jq
+>      ```
+>      hiển thị connector đang hoạt động với `state: "RUNNING"` và worker task đang ở trạng thái `RUNNING`.
+
+---
+
 ### **4.4.3. Thu thập và xử lý Access Log**
+
+Nhằm thu thập trọn vẹn luồng dữ liệu hành vi người dùng (Clickstream) phục vụ phân tích phễu chuyển đổi và theo dõi kỹ thuật, hệ thống triển khai đường ống xử lý luồng sự kiện truy cập thời gian thực kết nối từ Middleware FastAPI đến Apache Flink và Apache Iceberg:
+
+1. **Phát tán sự kiện từ Middleware Backend**:
+   * Middleware trên FastAPI bắt giữ mọi yêu cầu HTTP, bóc tách ngữ cảnh nghiệp vụ (`catalog_search`, `product_detail`, `cart_item_set`, `checkout_submit`), che giấu thông tin cá nhân PII (Email, Phone, Card, Token) và gửi bất đồng bộ qua `AIOKafkaProducer` vào topic `ecommerce.access-logs`.
+   * Luồng đẩy log diễn ra trong tiến trình nền không khóa (Non-blocking I/O), đảm bảo không tạo thêm bất kỳ độ trễ nào cho khách hàng duyệt web.
+
+2. **Xử lý luồng đa tầng bằng Apache Flink Multi-Sink Pipeline**:
+   * Tác vụ luồng được triển khai trong kịch bản `pipelines/src/jobs/logs/kafka_to_lakehouse.py` kết hợp thư viện `pipelines/src/lakehouse/logs/streaming.py`.
+   * Flink sử dụng toán tử ánh xạ `ParseAccessLog` (kế thừa `MapFunction`) để phân tích cú pháp chuỗi JSON, kiểm thực cấu trúc dữ liệu theo schema `ecommerce.access` v1.0.0. Các sự kiện sai định dạng hoặc bị lỗi sẽ bị loại bỏ an toàn kèm log cảnh báo (`Rejected malformed access event`) mà không làm sập luồng xử lý.
+   * Flink tự động đăng ký và xác thực danh mục Apache Polaris REST Catalog (`register_polaris_catalog`), đồng thời kích hoạt chế độ **Merge-on-Read** và **Upsert Mode** trên các bảng Iceberg đích.
+
+3. **Ghi đồng thời xuống 4 tầng Lakehouse thông qua Flink `StatementSet`**:
+   * Thay vì phải chạy nhiều luồng đọc Kafka độc lập gây lãng phí băng thông mạng, Flink sử dụng cơ chế `StatementSet` để đọc một lần từ Kafka và phân tán ghi đồng thời (Multi-Sink Execution) xuống 4 bảng Apache Iceberg:
+     1. **`lakehouse.landing.access_logs`**: Tiếp nhận và lưu trữ toàn bộ sự kiện thô nguyên bản kèm tọa độ Kafka partition và offset.
+     2. **`lakehouse.bronze.web_events`**: Phân tách cấu trúc các cột trường định dạng mạnh, gán nhãn thời gian và thiết lập cơ chế phân vùng theo ngày sự kiện.
+     3. **`lakehouse.silver.silver_logs`**: Lọc bỏ các yêu cầu kiểm tra sức khỏe hệ thống, khử trùng lặp và làm giàu thông tin phiên truy cập của khách hàng.
+     4. **`lakehouse.gold.fact_web_events`**: Tổng hợp và tính toán các chỉ số thống kê sự kiện theo khung cửa sổ thời gian (Tumbling / Sliding Window) phục vụ trực tiếp cho Dashboard phân tích kỹ thuật và chuyển đổi hành vi.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.17: Đồ thị luồng xử lý Flink Multi-Sink cho sự kiện Access Log]**
+> * **Nội dung cần chụp**: Giao diện Flink Web Dashboard tại `http://localhost:8085`:
+>   * Nhấp chọn job streaming `kafka_to_lakehouse_pure_streaming`.
+>   * Cửa sổ hiển thị biểu đồ đồ thị luồng xử lý (Dataflow Graph): Từ một nguồn đầu vào duy nhất `Source: KafkaSource` rẽ nhánh song song thành 4 luồng ghi (Sinks) xuống 4 bảng Iceberg tương ứng (`landing.access_logs`, `bronze.web_events`, `silver.silver_logs`, `gold.fact_web_events`).
+>   * Bảng thống kê bên dưới hiển thị số lượng bản ghi (Records Sent / Records Received) tăng đều đặn theo thời gian thực khi người dùng thao tác trên Storefront.
 
 ## **4.5. Xây dựng nền tảng Data Lakehouse**
 
