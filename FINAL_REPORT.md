@@ -1020,9 +1020,159 @@ Thiết kế chuyên biệt cho các nhà quản lý nghiệp vụ vận hành h
 
 ### **4.1.1. Cấu trúc dự án và môi trường phát triển**
 
+Hệ thống D&K E-Commerce Lakehouse Platform được tổ chức và quản lý theo mô hình kho mã nguồn hợp nhất (**Monorepo**). Cấu trúc này cho phép quản lý vòng đời phát triển của toàn bộ các phân hệ từ ứng dụng Web giao dịch, dịch vụ Backend API, đường ống kỹ thuật dữ liệu Lakehouse, cấu hình hạ tầng container, đến bộ công cụ sinh dữ liệu mô phỏng trong cùng một kho lưu trữ duy nhất, đảm bảo tính đồng bộ phiên bản và kiểm soát phụ thuộc chặt chẽ [5].
+
+Cấu trúc cây thư mục tổng thể của dự án được phân cấp như sau:
+
+```text
+dk-ecommerce-data-platform/
+├── apps/
+│   └── storefront/              # Ứng dụng Web Storefront & Admin Console (Next.js 15, TypeScript, TailwindCSS)
+├── services/
+│   └── ecommerce-api/           # Dịch vụ Backend REST API nghiệp vụ (FastAPI, Python 3.12, SQLAlchemy 2.0 ORM)
+├── pipelines/                   # Thư viện xử lý dữ liệu Lakehouse (Apache Spark & Apache Flink Streaming)
+│   └── src/lakehouse/
+│       ├── landing.py           # Trích xuất dữ liệu MySQL sang tệp Parquet và manifest tại Landing
+│       ├── oltp/                # Pipeline xử lý dữ liệu OLTP (Bronze, Silver, Gold, Reconcile, Quality)
+│       └── logs/                # Pipeline xử lý dữ liệu Access Log & Clickstream đa tầng
+├── airflow/                     # Bộ điều phối quy trình trích xuất và xử lý dữ liệu định kỳ (Airflow 2.10)
+│   └── dags/                    # Chứa DAG định kỳ lakehouse_oltp_pipeline
+├── infrastructure/              # Tệp cấu hình hạ tầng, phân quyền và kết nối dịch vụ
+│   ├── polaris/                 # Cấu hình RBAC-as-Code và đồng bộ vai trò Apache Polaris Catalog
+│   ├── trino/                   # Cấu hình catalog kết nối Polaris Iceberg cho Trino
+│   ├── debezium/                # Cấu hình Kafka Connect và Debezium MySQL Connector
+│   └── flink/                   # Cấu hình Flink Cluster và các script submit streaming job
+├── database/                    # Định nghĩa cơ sở dữ liệu quan hệ giao dịch MySQL 8.4
+│   ├── schema.sql               # Kịch bản DDL khởi tạo 28 bảng dữ liệu quan hệ và 50 khóa ngoại
+│   └── seeds/                   # Kịch bản sinh dữ liệu mẫu ban đầu (danh mục, cửa hàng, tài khoản)
+├── generator/                   # Bộ công cụ sinh dữ liệu mô phỏng giao dịch và truy cập web đa kênh
+├── scripts/                     # Kịch bản tự động hóa vận hành (start_all.sh, stop_all.sh, verify_pipeline.py)
+├── docs/                        # Tài liệu kỹ thuật, tài liệu thiết kế và bộ sơ đồ kiến trúc hệ thống
+├── docker-compose.yml           # Tệp điều phối toàn bộ 28 container dịch vụ của hệ thống
+├── pyproject.toml / uv.lock     # Quản lý phụ thuộc môi trường Python qua công cụ Astral uv
+└── Makefile                     # Lệnh tắt chuẩn hóa điều khiển và vận hành nền tảng
+```
+
+Về môi trường phát triển cục bộ và quản trị phụ thuộc:
+* **Môi trường Python (Backend, Lakehouse Pipelines, Scripts)**: Sử dụng công cụ quản lý gói thế hệ mới `uv` (Astral), giúp tăng tốc độ phân giải và cài đặt gói phụ thuộc gấp 10–100 lần so với `pip` truyền thống. Toàn bộ các thư viện được định nghĩa tại `pyproject.toml` và khóa phiên bản chính xác thông qua `uv.lock`, vận hành trên nền tảng Python 3.12 và môi trường ảo hóa `.venv` độc lập.
+* **Môi trường Node.js (Frontend Storefront & Admin)**: Ứng dụng giao diện được xây dựng trên Node.js v20 LTS, sử dụng `npm` quản lý các phụ thuộc Next.js 15, React 19, Lucide Icons và TailwindCSS v3.
+* **Bộ công cụ kiểm định chất lượng mã nguồn (Code Quality & Testing Tooling)**:
+  * `ruff`: Thực hiện kiểm tra quy chuẩn viết mã (linting) và tự động định dạng mã nguồn Python tuân thủ nghiêm ngặt tiêu chuẩn PEP 8.
+  * `pytest`: Thực thi tự động hệ thống kiểm thử đơn vị (unit tests) và kiểm thử tích hợp (integration tests) cho backend API và các module tính toán Lakehouse.
+  * `tsc` (TypeScript Compiler): Kiểm tra an toàn kiểu tĩnh cho toàn bộ mã nguồn giao diện người dùng Storefront (`npm run typecheck`).
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.1: Cấu trúc thư mục dự án và môi trường phát triển trên IDE]**
+> * **Nội dung cần chụp**: Giao diện IDE (Visual Studio Code hoặc PyCharm) mở cây thư mục gốc của dự án `dk-ecommerce-data-platform` ở thanh bên trái (Sidebar) hiển thị rõ các thư mục `apps`, `services`, `pipelines`, `infrastructure`, `airflow`, `database`, `docker-compose.yml`.
+> * **Cửa sổ Terminal tích hợp bên dưới**: Đang chạy thành công các lệnh kiểm tra phiên bản công cụ:
+>   ```bash
+>   python --version       # Python 3.12.x
+>   uv --version           # uv 0.x.x
+>   node --version         # v20.x.x
+>   docker compose version # Docker Compose version v2.x.x
+>   ```
+
+---
+
 ### **4.1.2. Triển khai các dịch vụ bằng Docker Compose**
 
+Hệ thống đóng gói và cô lập toàn bộ hạ tầng phần mềm thành 28 dịch vụ container độc lập, được khai báo tập trung trong tệp `docker-compose.yml`. Nhằm tối ưu hóa tài nguyên phần cứng máy chủ phát triển và cho phép vận hành linh hoạt theo từng kịch bản thử nghiệm, hệ thống áp dụng kỹ thuật **Compose Profiles** để phân chia các dịch vụ thành 3 nhóm phụ tải chuyên biệt:
+
+1. **Profile `core` (Hạ tầng dịch vụ nền tảng)**: Gồm các dịch vụ cốt lõi bắt buộc để hệ thống thương mại điện tử và lưu trữ Lakehouse hoạt động cơ bản (MySQL 8.4, FastAPI Backend, Next.js Storefront, MinIO S3 Storage, PostgreSQL Metadata, Apache Polaris REST Catalog, và Trino Query Engine).
+2. **Profile `batch` (Hạ tầng xử lý dữ liệu theo lô)**: Bổ sung cụm phân tán Apache Spark (Master, Worker, Client) và cụm điều phối Apache Airflow (Webserver, Scheduler).
+3. **Profile `streaming` (Hạ tầng dữ liệu thời gian thực)**: Bổ sung cụm truyền thông điệp Apache Kafka (chế độ KRaft), Debezium Connect thu thập CDC, cụm tính toán luồng Apache Flink (JobManager, TaskManager), và các container nộp tác vụ luồng tự động.
+
+Bảng 4.1 tổng hợp thông số kỹ thuật, cổng dịch vụ và trách nhiệm của 28 container trong hệ thống:
+
+| STT | Tên dịch vụ (Service) | Hình ảnh Container (Image / Build) | Cổng Host (Port) | Profile | Vai trò và chức năng trong hệ thống |
+| :---: | :--- | :--- | :---: | :---: | :--- |
+| 1 | `mysql` | `mysql:8.4.3` | `3306:3306` | `core` | Cơ sở dữ liệu giao dịch OLTP chính (InnoDB Engine, bật binlog ROW). |
+| 2 | `mysql-cdc-init` | Custom script container | - | `streaming` | Khởi tạo tài khoản, cấp quyền CDC và cấu hình kiểm tra trạng thái MySQL. |
+| 3 | `ecommerce-api` | `./services/ecommerce-api` | `8000:8000` | `core` | Máy chủ REST API nghiệp vụ bán hàng, xác thực JWT, và ghi nhận access logs. |
+| 4 | `storefront` | `./apps/storefront` | `3000:3000` | `core` | Giao diện người dùng Web Storefront, quầy POS và Admin Web Console. |
+| 5 | `minio` | `minio/minio:RELEASE.2024-10-13` | `9000, 9001` | `core` | Lưu trữ đối tượng S3-compatible cho các phân tầng Lakehouse (Landing, Bronze, Silver, Gold). |
+| 6 | `minio-init` | `minio/mc:RELEASE.2024-10-14` | - | `core` | Tự động tạo bucket `lakehouse`, cấu hình chính sách truy cập và tài khoản dịch vụ. |
+| 7 | `postgres` | `postgres:16-alpine` | `5432:5432` | `core` | Cơ sở dữ liệu lưu siêu dữ liệu (Metadata DB) cho Apache Polaris Catalog và Apache Airflow. |
+| 8 | `polaris-bootstrap` | Custom SQL client | - | `core` | Khởi tạo lược đồ quan hệ và cơ sở dữ liệu nội bộ cho Polaris trên PostgreSQL. |
+| 9 | `polaris` | `apache/polaris:latest` | `8181:8181` | `core` | Máy chủ Apache Polaris REST Catalog quản lý metadata bảng Apache Iceberg theo chuẩn mở. |
+| 10 | `polaris-init` | Custom Python script | - | `core` | Tự động đồng bộ cấu hình RBAC-as-Code từ `rbac.yml`, cấp quyền truy cập catalog cho các engine. |
+| 11 | `polaris-console` | `ghcr.io/duckdb/duckdb:latest` | `8183:8183` | `core` | Giao diện Web Console quản lý catalog, namespace và bảng dữ liệu Iceberg của Polaris. |
+| 12 | `spark-master` | `apache/spark:3.5.3` | `7077, 8080` | `batch` | Nút điều phối trung tâm của cụm tính toán phân tán Apache Spark (RPC và Web UI). |
+| 13 | `spark-worker` | `apache/spark:3.5.3` | `8081:8081` | `batch` | Nút thực thi tính toán phân tán Apache Spark (chạy các tác vụ nạp và biến đổi dữ liệu). |
+| 14 | `spark-client` | Custom build w/ pipeline pkg | - | `batch` | Môi trường đóng gói thư viện `lakehouse` để nộp các job Spark xử lý mẻ. |
+| 15 | `airflow-init` | `apache/airflow:2.10.2` | - | `batch` | Khởi tạo cấu trúc bảng siêu dữ liệu Airflow và tạo tài khoản quản trị mặc định. |
+| 16 | `airflow-webserver`| `apache/airflow:2.10.2` | `8085:8080` | `batch` | Giao diện Web quản trị và giám sát tiến độ thực thi của các DAGs Airflow. |
+| 17 | `airflow-scheduler`| `apache/airflow:2.10.2` | - | `batch` | Bộ lập lịch kích hoạt định kỳ các pipeline trích xuất dữ liệu Lakehouse. |
+| 18 | `trino` | `trinodb/trino:468` | `8084:8080` | `core` | Động cơ truy vấn SQL phân tán hiệu năng cao, kết nối trực tiếp đến Polaris Iceberg Catalog. |
+| 19 | `trino-admin` | `trinodb/trino:468` | - | `core` | CLI client phục vụ kiểm thử truy vấn và quản trị cấu hình catalog Trino. |
+| 20 | `libredb-studio` | `dbeaver/cloudbeaver:24.2.0` | `3001:8978` | `core` | Giao diện Web SQL Client trực quan giúp phân tích viên truy vấn dữ liệu MySQL và Trino. |
+| 21 | `kafka` | `confluentinc/cp-kafka:7.7.1` | `9092, 9094` | `streaming`| Nền tảng phân tán luồng sự kiện (chạy chế độ KRaft độc lập, không cần Zookeeper). |
+| 22 | `kafka-init` | Custom init script | - | `streaming`| Tự động tạo sẵn các topic Kafka: `cdc.ecommerce.*` và `ecommerce.access-logs`. |
+| 23 | `debezium-connect`| `debezium/connect:2.7.3.Final`| `8086:8083` | `streaming`| Dịch vụ Kafka Connect chạy connector Debezium đọc log nhị phân MySQL CDC. |
+| 24 | `debezium-init` | Custom curl runner | - | `streaming`| Đăng ký cấu hình MySQL CDC Connector với Debezium Connect qua REST API. |
+| 25 | `flink-jobmanager`| `apache/flink:1.19.1-scala_2.12` | `8082:8081` | `streaming`| Nút điều phối chính của cụm tính toán luồng thời gian thực Apache Flink. |
+| 26 | `flink-taskmanager`| `apache/flink:1.19.1-scala_2.12`| - | `streaming`| Nút công nhân thực thi các toán tử xử lý luồng sự kiện của Flink. |
+| 27 | `flink-submit` | Custom submission container | - | `streaming`| Tự động nộp (submit) tác vụ luồng Flink ghi nhận và làm giàu Access Logs. |
+| 28 | `flink-cdc-submit`| Custom submission container | - | `streaming`| Tự động nộp tác vụ luồng Flink tiêu thụ dữ liệu CDC và cập nhật Bronze Iceberg. |
+
+Quy trình kích hoạt và điều phối toàn bộ hạ tầng được đóng gói thông qua kịch bản tự động hóa `scripts/start_all.sh` (hoặc lệnh tắt `make up`):
+1. **Kiểm tra môi trường**: Tự động xác thực sự tồn tại của tệp `.env` và nạp toàn bộ các biến cấu hình cần thiết.
+2. **Khởi chạy đồng thời**: Thực thi lệnh `docker compose --profile core --profile batch --profile streaming up -d` để khởi động đồng thời cả 3 profile.
+3. **Thăm dò sức khỏe (Healthcheck Polling)**: Kịch bản liên tục thăm dò trạng thái hoạt động của các cổng dịch vụ then chốt (MySQL, MinIO, Polaris REST API, Kafka, Flink Web, Trino Engine) cho đến khi toàn bộ đạt trạng thái sẵn sàng tiếp nhận yêu cầu (`healthy`).
+4. **Khởi tạo tự động lược đồ Lakehouse**: Tự động kiểm tra sự tồn tại của bảng Gold Marts (`mart_sales_daily`) trên Trino; nếu chưa có, kịch bản tự động điều phối `spark-client` thực thi tệp DDL `init_gold_marts.sql` để thiết lập trước toàn bộ cấu trúc bảng phân tích.
+5. **Xuất bảng chỉ mục dịch vụ**: In bảng tra cứu trực quan toàn bộ các địa chỉ truy cập (URL) và tài khoản quản trị để người dùng sẵn sàng thao tác.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.2: Kết quả thực thi script khởi chạy toàn bộ hệ thống `start_all.sh`]**
+> * **Nội dung cần chụp**: Màn hình Terminal khi chạy hoàn tất lệnh `make up` (hoặc `./scripts/start_all.sh`), hiển thị thông báo kiểm tra sức khỏe thành công và bảng tổng hợp các dịch vụ nền tảng:
+>   * Customer Storefront: `http://localhost:3000`
+>   * Admin Management: `http://localhost:3000/admin`
+>   * BI Analytics Hub: `http://localhost:3000/admin/analytics`
+>   * FastAPI Swagger Docs: `http://localhost:8000/docs`
+>   * Trino Query Engine: `http://localhost:8084`
+>   * Airflow Web UI: `http://localhost:8080`
+>   * Flink Streaming Dashboard: `http://localhost:8085`
+>   * MinIO Storage Console: `http://localhost:9001`
+>   * Apache Polaris REST Console: `http://localhost:8183`
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.3: Danh sách các container hoạt động trên Docker Compose / Docker Desktop]**
+> * **Nội dung cần chụp**: Cửa sổ Terminal hiển thị kết quả lệnh `make ps` (hoặc `docker compose ps`), thể hiện danh sách đầy đủ 28 container đang ở trạng thái `Up / healthy`; hoặc ảnh chụp từ ứng dụng Docker Desktop hiển thị nhóm container `dk-ecommerce-data-platform` đang hoạt động ổn định màu xanh.
+
+---
+
 ### **4.1.3. Cấu hình kết nối giữa các thành phần**
+
+Để đảm bảo khả năng liên lạc thông suốt, an toàn và dễ bảo trì giữa 28 dịch vụ độc lập, kiến trúc triển khai áp dụng 3 trụ cột kỹ thuật kết nối:
+
+#### **1. Kiến trúc mạng ảo nội bộ (Docker Bridge Network)**
+Toàn bộ các container được kết nối chung vào một mạng ảo duy nhất mang tên `lakehouse-network` được khai báo trong `docker-compose.yml` (`driver: bridge`). 
+* **Phân giải tên miền nội bộ (Docker Embedded DNS)**: Các dịch vụ liên lạc với nhau hoàn toàn thông qua tên định danh dịch vụ (`service hostname`) thay vì dựa vào địa chỉ IP tĩnh. Ví dụ:
+  * Máy chủ FastAPI kết nối đến cơ sở dữ liệu quan hệ qua chuỗi kết nối: `mysql+pymysql://ecommerce_user:***@mysql:3306/ecommerce_db`.
+  * Trino kết nối đến danh mục Polaris REST Catalog qua: `http://polaris:8181/api/catalog`.
+  * Trino và Spark kết nối đến kho đối tượng S3 nội bộ qua: `http://minio:9000`.
+  * Debezium kết nối đến cụm truyền thông điệp qua: `kafka:9092`.
+* **Cô lập an ninh mạng**: Các cổng nhạy cảm (như cổng nội bộ của Debezium Connect `8083` hoặc cổng kết nối MySQL gốc `3306`) được giới hạn ràng buộc (bind) vào `127.0.0.1` trên máy chủ chủ quản (Host Machine) hoặc chỉ mở nội bộ trong Docker Network, ngăn chặn hoàn toàn việc thâm nhập trái phép từ bên ngoài mạng Internet.
+
+#### **2. Quản lý cấu hình tập trung qua tệp biến môi trường (`.env`)**
+Hệ thống sử dụng tệp `.env` (được sao chép và thiết lập từ `.env.example`) làm nguồn thông tin cấu hình duy nhất (**Single Source of Truth**), quản lý toàn diện các tham số hoạt động:
+* **Cấu hình Cơ sở dữ liệu**: Định nghĩa tài khoản quản trị (`MYSQL_ROOT_PASSWORD`), tài khoản ứng dụng (`MYSQL_USER`, `MYSQL_PASSWORD`), tên cơ sở dữ liệu (`ecommerce_db`) và các thông số kết nối pool SQLAlchemy.
+* **Cấu hình Hồ dữ liệu & Catalog**: Xác định Bucket lưu trữ chính (`LAKEHOUSE_BUCKET=lakehouse`), khóa xác thực MinIO (`MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`), địa chỉ kho hàng Polaris (`POLARIS_WAREHOUSE_LOCATION=s3://lakehouse/warehouse`) và Realm định danh (`POLARIS_REALM=POLARIS`).
+* **Cấu hình Dịch vụ Luồng**: Địa chỉ máy chủ phân phối thông điệp (`KAFKA_BOOTSTRAP_SERVERS=kafka:9092`), cổng kết nối Debezium (`CDC_CONNECT_PORT=8086`), và đường dẫn lưu trữ checkpoint của Apache Flink (`FLINK_CHECKPOINT_DIR=s3://lakehouse/checkpoints`).
+* **Cấu hình Bảo mật & Khóa bí mật**: Chuỗi khóa mã hóa token xác thực (`JWT_SECRET_KEY`), thời hạn hiệu lực của token, và chuỗi muối ngẫu nhiên (`SECURITY_SALT`) phục vụ việc mã hóa một chiều (Pseudonymization) các trường thông tin nhạy cảm của người dùng trước khi nạp vào Lakehouse.
+
+#### **3. Cơ chế chia sẻ thông tin xác thực động qua Docker Volumes (Dynamic Credential Sharing)**
+Nhằm tuân thủ nguyên tắc an toàn thông tin đặc quyền tối thiểu và loại bỏ nguy cơ rò rỉ khóa bí mật (Hard-coded Credentials) trong mã nguồn, hệ thống thiết kế cơ chế cấp phát quyền động thông qua Apache Polaris và chia sẻ qua Docker Volumes:
+* Dịch vụ `polaris-init` (thực thi script `sync_polaris_rbac.py`) tự động đọc tệp khai báo vai trò `infrastructure/polaris/rbac.yml`, tạo lập các tài khoản ủy thác (Principals) gồm `spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`.
+* Polaris tự sinh các cặp khóa OAuth2 (`client_id` và `client_secret`) tạm thời và xuất ra các thư mục volume riêng biệt:
+  * `/run/polaris-output/spark-client` (phân quyền gắn POSIX `uid: 185, gid: 185`) $\rightarrow$ gắn kết trực tiếp vào container `spark-client` và `airflow-scheduler`.
+  * `/run/polaris-output/flink` (phân quyền `uid: 9999, gid: 9999`) $\rightarrow$ gắn kết vào `flink-jobmanager` và `flink-taskmanager`.
+  * `/run/polaris-output/trino-reader` (phân quyền `uid: 1000, gid: 1000`) $\rightarrow$ gắn kết vào container `trino`.
+* Nhờ cơ chế này, Trino và Spark tự động nạp thông tin xác thực định danh OAuth2 trực tiếp từ tệp volume lúc khởi động để kết nối an toàn đến Polaris Catalog mà không cần bất kỳ sự can thiệp thủ công nào từ phía quản trị viên.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.4: Cấu trúc tệp biến môi trường mẫu `.env.example` và cấu hình mạng `lakehouse-network`]**
+> * **Nội dung cần chụp**: Cửa sổ soạn thảo mã nguồn hiển thị tệp `.env.example` với các nhóm biến môi trường được phân loại mạch lạc (Database, Lakehouse Storage, Polaris, Kafka, Security); kết hợp cửa sổ Terminal chạy lệnh kiểm tra mạng nội bộ `docker network inspect dk-ecommerce-data-platform_lakehouse-network`, hiển thị danh sách các container đang kết nối cùng dải địa chỉ IP nội bộ (`172.x.x.x`).
 
 ## **4.2. Xây dựng Backend và cơ sở dữ liệu giao dịch**
 
