@@ -1178,15 +1178,207 @@ Nhằm tuân thủ nguyên tắc an toàn thông tin đặc quyền tối thiể
 
 ### **4.2.1. Khởi tạo cơ sở dữ liệu**
 
+Cơ sở dữ liệu giao dịch của hệ thống D&K được xây dựng trên hệ quản trị cơ sở dữ liệu quan hệ MySQL 8.4 [4]. Toàn bộ cấu trúc thực thể, quan hệ và các ràng buộc toàn vẹn được định nghĩa tập trung trong tệp kịch bản DDL `database/schema.sql`, bao gồm **28 bảng vật lý** và **50 ràng buộc khóa ngoại (Foreign Keys)** (đã được phân tích chi tiết tại mục 3.4).
+
+Các đặc tính kỹ thuật cốt lõi trong quá trình khởi tạo cơ sở dữ liệu:
+* **Chuẩn hóa bảng mã và đối chiếu ký tự**: Toàn bộ các bảng được thiết lập bảng mã ký tự `CHARACTER SET utf8mb4` kết hợp phép đối chiếu `COLLATE utf8mb4_unicode_ci`, đảm bảo hỗ trợ đầy đủ tiếng Việt có dấu, các ký tự đa ngôn ngữ và các biểu tượng cảm xúc (emoji) trong nội dung đánh giá sản phẩm của người dùng.
+* **Động cơ lưu trữ và tối ưu hóa CDC**: $100\%$ các bảng sử dụng động cơ lưu trữ `InnoDB` với khả năng hỗ trợ giao dịch ACID toàn vẹn. Máy chủ MySQL được cấu hình tham số bắt buộc để phục vụ thu thập dữ liệu thay đổi (CDC) qua Debezium:
+  * `binlog_format = ROW`: Ghi lại chi tiết từng dòng dữ liệu bị biến động thay vì chỉ lưu câu lệnh SQL.
+  * `binlog_row_image = FULL`: Ghi nhận toàn bộ hình ảnh trạng thái trước (`before`) và sau (`after`) của dòng dữ liệu trong log nhị phân.
+  * `transaction_isolation = READ-COMMITTED`: Tối ưu hóa hiệu năng khóa dòng và ngăn chặn hiện tượng đọc bẩn (dirty read).
+* **Tự động hóa nạp cấu trúc (Automated Initialization)**: Tệp `database/schema.sql` được gắn kết tự động vào thư mục `/docker-entrypoint-initdb.d/` của container `mysql`. Khi container khởi động lần đầu tiên, hệ thống sẽ tự động thực thi kịch bản tạo lập toàn bộ lược đồ cơ sở dữ liệu `ecommerce_db` mà không cần can thiệp thủ công.
+* **Kịch bản nạp dữ liệu mầm ban đầu (Idempotent Database Seeding)**:
+  * Quá trình nạp dữ liệu mẫu được thực thi thông qua kịch bản Python `database/seeds/seed_catalog.py` (chạy qua lệnh `make seed`).
+  * **Tính tất định và bất biến (Deterministic & Idempotent)**: Kịch bản sử dụng thuật toán sinh UUIDv5 dựa trên không gian tên chuẩn `uuid.NAMESPACE_URL` kết hợp khóa `web:catalog`. Nhờ đó, các mã định danh công khai (`public_id`) của danh mục, sản phẩm và biến thể luôn được sinh ra nhất quán qua các lần chạy lại, cho phép kịch bản tự động bỏ qua (skip) nếu dữ liệu danh mục đã tồn tại.
+  * Dữ liệu mầm bao gồm: 3 danh mục gốc (Áo, Quần, Phụ kiện), 7 dòng sản phẩm thời trang thiết yếu kèm các biến thể kích cỡ/màu sắc, tài khoản quản trị viên gốc (`admin@web.local` với mật khẩu băm Argon2id), các cửa hàng vật lý mẫu (`store_id=1` Hà Nội, `store_id=2` TP.HCM), số dư tồn kho ban đầu, và mã giảm giá chào mừng (`WELCOME10`).
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.5: Giao diện quản trị cơ sở dữ liệu LibreDB Studio hiển thị cấu trúc 28 bảng quan hệ MySQL]**
+> * **Nội dung cần chụp**: Giao diện Web SQL Client LibreDB Studio (truy cập `http://localhost:3001` hoặc DBeaver) kết nối đến cơ sở dữ liệu `ecommerce_db` tại cổng 3306.
+> * **Cột cây đối tượng bên trái**: Hiển thị danh sách đầy đủ 28 bảng dữ liệu quan hệ (`orders`, `order_items`, `customers`, `products`, `product_variants`, `inventory_levels`, `shipments`, `payments`, `returns`, v.v.).
+> * **Cửa sổ soạn thảo truy vấn SQL bên phải**: Thực thi câu lệnh kiểm tra:
+>   ```sql
+>   SELECT table_name, engine, table_rows 
+>   FROM information_schema.tables 
+>   WHERE table_schema = 'ecommerce_db' 
+>   ORDER BY table_name;
+>   ```
+>   hiển thị kết quả trả về 28 bảng dữ liệu hoạt động trên động cơ InnoDB.
+
+---
+
 ### **4.2.2. Xây dựng API xác thực và phân quyền**
+
+Phân hệ xác thực và kiểm soát truy cập được triển khai trong module `services/ecommerce-api/app/modules/auth/` và `app/core/security.py`, tuân thủ các hướng dẫn an toàn thông tin OWASP API Security Top 10 [6]:
+
+1. **Cơ chế băm mật khẩu chuẩn công nghiệp (Argon2id Hashing)**:
+   * Hệ thống sử dụng thuật toán băm mật khẩu `Argon2id` (chuẩn RFC 9106) thông qua thư viện `pwdlib` / `passlib`.
+   * Argon2id là thuật toán đạt giải nhất cuộc thi Password Hashing Competition (PHC), kết hợp cả khả năng chống tấn công kênh phụ (Side-channel Attack) của Argon2i và khả năng chống tấn công phần cứng chuyên dụng song song (ASIC/GPU Cracking) của Argon2d.
+   * Mật khẩu người dùng được băm kèm chuỗi muối ngẫu nhiên (Salt) sinh tự động, lưu trữ an toàn trong bảng `customer_credentials`. Hệ thống tuyệt đối không lưu mật khẩu ở dạng văn bản rõ.
+
+2. **Cơ chế cấp phát và kiểm thực JSON Web Token (JWT Authentication)**:
+   * Khi người dùng đăng nhập thành công qua endpoint `POST /api/v1/auth/login`, hệ thống phát hành một mã khóa truy cập JWT (RFC 7519) được ký số bằng thuật toán đối xứng HMAC-SHA256 (`HS256`) với chuỗi khóa bí mật `JWT_SECRET_KEY`.
+   * Cấu trúc Payload của JWT bao gồm các trường chuẩn hóa: `sub` (chứa định danh duy nhất `customer_id`), `role` (vai trò nghiệp vụ), `iat` (thời điểm phát hành) và `exp` (thời điểm hết hạn dựa trên `ACCESS_TOKEN_EXPIRE_MINUTES`).
+   * **Bảo vệ Cookie đa lớp chống XSS**: Bên cạnh việc hỗ trợ gửi token qua tiêu đề `Authorization: Bearer <token>` phục vụ các API client, backend tự động đóng gói token vào Cookie mang tên `dk_access_token` với các cờ bảo vệ tối đa: `HttpOnly = True` (chặn JavaScript truy cập, triệt tiêu nguy cơ đánh cắp token qua lỗ hổng XSS), `Secure = True` (chỉ truyền qua HTTPS/môi trường phát triển an toàn), và `SameSite = 'lax'` (ngăn chặn tấn công CSRF).
+
+3. **Cơ chế phân quyền dựa trên vai trò (Role-Based Access Control - RBAC)**:
+   * Được hiện thực hóa thông qua cơ chế tiêm phụ thuộc (Dependency Injection) của FastAPI [3]:
+     * `get_current_active_user`: Xác thực tính hợp lệ của token và nạp thông tin người dùng từ cơ sở dữ liệu.
+     * `get_current_staff`: Ràng buộc bắt buộc tài khoản phải thuộc nhóm nhân sự nội bộ doanh nghiệp.
+     * `require_roles(*roles)`: Bộ lọc kiểm tra vai trò người dùng trước khi chuyển tiếp yêu cầu vào tầng xử lý nghiệp vụ (Service Layer).
+   * Hệ thống phân định rạch ròi quyền hạn giữa 6 vai trò người dùng trong doanh nghiệp:
+     * `customer`: Chỉ có quyền thao tác trên giỏ hàng, thông tin cá nhân và đơn hàng do chính mình tạo ra.
+     * `store_staff`: Nhân viên quầy thu ngân, được cấp quyền thao tác trên giao diện POS và tạo đơn hàng tại chi nhánh được chỉ định.
+     * `store_manager`: Quản lý cửa hàng, có quyền xem báo cáo doanh số, kiểm soát tồn kho và nhân sự tại cửa hàng phụ trách.
+     * `inventory_manager`: Quản lý kho trung tâm, có đặc quyền tạo và duyệt phiếu nhập hàng (`inbound_receipts`), điều chuyển tồn kho.
+     * `operations_manager`: Quản lý giao vận và chăm sóc khách hàng, phụ trách điều phối phiếu giao hàng (`shipments`) và phê duyệt đổi trả (`returns`).
+     * `admin`: Quản trị viên hệ thống, sở hữu toàn quyền trên mọi endpoint và phân hệ quản trị.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.6: Tài liệu đặc tả API tương tác Swagger UI cho phân hệ Xác thực và Phân quyền]**
+> * **Nội dung cần chụp**: Giao diện Swagger UI tại `http://localhost:8000/docs`, mở rộng nhóm tag **auth**, hiển thị đầy đủ danh sách các endpoint:
+>   * `POST /api/v1/auth/register` (Đăng ký khách hàng mới)
+>   * `POST /api/v1/auth/login` (Xác thực đăng nhập và nhận JWT token)
+>   * `POST /api/v1/auth/logout` (Đăng xuất và hủy phiên làm việc)
+>   * `GET /api/v1/auth/me` (Truy xuất hồ sơ định danh hiện tại)
+> * Kèm nút "Authorize" ở góc trên bên phải hiển thị biểu tượng ổ khóa màu xanh lá (đã xác thực thành công Bearer Token).
+
+---
 
 ### **4.2.3. Quản lý sản phẩm, giỏ hàng và đặt hàng**
 
+1. **Phân hệ Danh mục và Tìm kiếm sản phẩm (`modules/catalog/`)**:
+   * Cung cấp các endpoint công khai phục vụ Storefront: `GET /api/v1/products`, `GET /api/v1/products/{slug}`, và `GET /api/v1/categories`.
+   * **Triệt tiêu vấn đề N+1 Query**: Ứng dụng SQLAlchemy 2.0 ORM [5] với kỹ thuật nạp dữ liệu sớm (Eager Loading) thông qua chỉ thị `selectinload(Product.variants)` và `selectinload(Product.images)`, giúp nạp toàn bộ danh mục sản phẩm và biến thể chỉ với 2 truy vấn SQL tối ưu thay vì phát sinh hàng trăm truy vấn con riêng lẻ.
+   * Hỗ trợ tìm kiếm từ khóa không phân biệt hoa thường, bộ lọc đa chiều theo mức giá, danh mục, kích thước và màu sắc, kết hợp phân trang an toàn (`limit`, `offset`).
+
+2. **Phân hệ Quản lý giỏ hàng (`modules/cart/`)**:
+   * Kiến trúc hỗ trợ song song cả giỏ hàng người dùng đã đăng nhập (lưu vết trong cơ sở dữ liệu theo `customer_id`) và giỏ hàng của khách vãng lai (lưu trữ theo định danh phiên `session_id`).
+   * Các API thao tác giỏ hàng: thêm sản phẩm, điều chỉnh số lượng mua, và xóa SKU khỏi giỏ. Mỗi thao tác đều tự động kiểm tra tính tương thích của biến thể và kiểm tra số lượng tồn khả dụng thực tế để cảnh báo người mua kịp thời.
+
+3. **Phân hệ Đặt hàng và Điều phối thanh toán (`modules/checkout/`, `modules/orders/`)**:
+   * **Mẫu thiết kế Unit of Work (UoW)**: Toàn bộ quy trình đặt hàng được đóng gói trong hàm `run_in_transaction` (`app/db/uow.py`), đảm bảo tính nguyên tử (Atomicity) theo chuẩn ACID: hoặc toàn bộ các bước (tạo đơn, tạo chi tiết đơn, trừ tồn kho, áp dụng voucher) thành công, hoặc tự động hoàn nguyên (Rollback) hoàn toàn nếu có bất kỳ ngoại lệ nào phát sinh.
+   * **Cơ chế Khóa bi quan chống bán vượt tồn (Pessimistic Locking Anti-Overselling)**: Khi khách hàng nhấn đặt hàng, hệ thống thực thi câu lệnh SQL với khóa độc quyền:
+     ```sql
+     SELECT * FROM inventory_levels 
+     WHERE store_id = :store_id AND variant_id = :variant_id 
+     FOR UPDATE;
+     ```
+     Cơ chế này khóa chặn các giao dịch cạnh tranh khác đang cố gắng mua cùng một SKU tại cùng thời điểm, loại bỏ hoàn toàn hiện tượng bán vượt số lượng tồn thực tế (Race Condition / Overselling).
+   * **Thuật toán cấp phát cửa hàng gần nhất (Nearest Store Allocation)**: Hệ thống tự động tính toán khoảng cách địa lý giữa địa chỉ nhận hàng của khách hàng và tọa độ các kho/cửa hàng vật lý nhằm chỉ định kho xuất hàng tối ưu nhất về chi phí và thời gian vận chuyển.
+   * **Tự động thử lại lỗi giao dịch tạm thời (Transient Deadlock Retry)**: Trong môi trường chịu tải cao, nếu phát sinh lỗi tranh chấp khóa của MySQL (Mã lỗi 1213 - Deadlock hoặc 1205 - Lock wait timeout), Unit of Work tự động bắt lỗi và thực hiện thử lại giao dịch với thuật toán Exponential Backoff kết hợp độ trễ ngẫu nhiên (Jitter):
+     $$\Delta t_{\text{retry}} = 2^{\text{attempt}} \times 0.05 + \text{random}(0, 0.05)\text{ (giây)}$$
+   * **Chụp ảnh dữ liệu giao dịch lịch sử (Historical Snapshot)**: Tại thời điểm đơn hàng xác lập, hệ thống lưu giữ nguyên vẹn đơn giá bán (`unit_price_vnd`), giá vốn bình quân di động (`cost_price_vnd`), tên sản phẩm và mã SKU vào bảng `order_items`, bảo đảm số liệu doanh thu và lợi nhuận lịch sử không bao giờ bị sai lệch khi giá niêm yết trong danh mục thay đổi sau này.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.7: Thao tác gửi yêu cầu Đặt hàng thành công trên Swagger UI]**
+> * **Nội dung cần chụp**: Giao diện Swagger UI thực hiện thử nghiệm gọi endpoint `POST /api/v1/checkout` (hoặc `POST /api/v1/checkout/commit`), hiển thị:
+>   * Cửa sổ Request Body: Dữ liệu JSON chứa thông tin người nhận, phương thức thanh toán `COD`, mã giảm giá `WELCOME10`, và danh sách các mặt hàng mua (`variant_id`, `quantity`).
+>   * Cửa sổ Response: Trả về mã trạng thái HTTP `200 OK` (hoặc `201 Created`) kèm Response Body chứa mã đơn hàng thực tế (ví dụ: `ORD-20261031-XXXXX`), trạng thái đơn `PENDING`, tổng số tiền thanh toán `total_vnd`.
+
+---
+
 ### **4.2.4. Quản lý kho, bán hàng POS và nhập hàng**
+
+1. **Phân hệ Bán lẻ tại quầy POS (`modules/pos/`)**:
+   * Phục vụ trực tiếp nhân viên thu ngân tại các cửa hàng vật lý thông qua endpoint chuyên biệt `POST /api/v1/pos/orders`.
+   * Nhân viên quét mã SKU hoặc nhập mã vạch sản phẩm; hệ thống tự động kiểm tra số lượng tồn kho khả dụng tại chính cửa hàng phụ trách (`store_id` gắn với tài khoản nhân viên).
+   * Khi thanh toán tiền mặt hoặc quẹt thẻ tại quầy, giao dịch được hoàn tất ngay lập tức: trạng thái đơn hàng được gán thẳng là `DELIVERED` (Đã giao khách tại quầy), thanh toán chuyển thành `PAID`, và số lượng tồn kho khả dụng tại cửa hàng được khấu trừ tức thời mà không cần tạo phiếu giao hàng qua các đơn vị 3PL.
+
+2. **Phân hệ Nhập hàng và Điều chỉnh giá vốn (`modules/inbound/`)**:
+   * Cung cấp endpoint quản trị `POST /api/v1/admin/inbound` cho phép Quản lý kho tạo lập các đợt nhập hàng từ nhà cung cấp về kho trung tâm hoặc các chi nhánh.
+   * Dữ liệu phiếu nhập gồm: Kho tiếp nhận, số hóa đơn nhà cung cấp, ngày nhập kho và danh sách chi tiết các mặt hàng nhập (`inbound_items`) kèm số lượng thực nhận (`quantity`) và đơn giá nhập mua trước thuế (`cost_price_vnd`).
+   * **Thuật toán tính toán lại Giá vốn bình quân gia quyền di động (Moving Weighted Average Cost)**: Được thực thi tự động bên trong giao dịch nhập hàng nhằm cập nhật giá trị vốn chuẩn cho SKU:
+     $$\text{Cost}_{\text{new}} = \frac{(\text{Qty}_{\text{current}} \times \text{Cost}_{\text{current}}) + (\text{Qty}_{\text{inbound}} \times \text{Cost}_{\text{inbound}})}{\text{Qty}_{\text{current}} + \text{Qty}_{\text{inbound}}}$$
+   * **Ghi nhật ký biến động kho (Inventory Audit Ledger)**: Mỗi sự kiện thay đổi số lượng tồn kho đều bắt buộc phải ghi vết một bản ghi tương ứng vào bảng `inventory_transactions` với các mã loại nghiệp vụ:
+     * `INBOUND`: Nhập kho hàng mới từ nhà cung cấp (lượng biến động $> 0$).
+     * `POS_SALE`: Bán hàng trực tiếp tại quầy (lượng biến động $< 0$).
+     * `ONLINE_ALLOCATE`: Giữ chỗ hàng cho đơn mua trực tuyến (lượng biến động $< 0$).
+     * `RETURN_RESTOCK`: Nhập lại kho hàng hoàn trả đạt chuẩn kiểm định (lượng biến động $> 0$).
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.8: Dữ liệu giao dịch biến động kho trong bảng `inventory_transactions`]**
+> * **Nội dung cần chụp**: Cửa sổ truy vấn LibreDB Studio (hoặc MySQL CLI) thực thi câu lệnh SQL:
+>   ```sql
+>   SELECT transaction_id, store_id, variant_id, tx_type, quantity_delta, ending_quantity, created_at 
+>   FROM inventory_transactions 
+>   ORDER BY transaction_id DESC 
+>   LIMIT 10;
+>   ```
+>   hiển thị danh sách các bản ghi nhật ký kho với đầy đủ các loại giao dịch `INBOUND`, `POS_SALE`, `ONLINE_ALLOCATE`, thể hiện rõ ràng số lượng thay đổi (`quantity_delta`) và số dư tồn kho cuối kỳ (`ending_quantity`).
+
+---
 
 ### **4.2.5. Quản lý thanh toán, giao vận và đổi trả**
 
+1. **Phân hệ Quản lý thanh toán và Hoàn tiền (`modules/payments/`)**:
+   * Hỗ trợ hai phương thức thanh toán chủ đạo: Thanh toán khi nhận hàng (COD) và Thanh toán trực tuyến tự động qua mã **VietQR** (chuẩn chuyển khoản liên ngân hàng nhanh NAPAS 247).
+   * Khi thanh toán thành công, hệ thống ghi nhận bản ghi tại bảng `payments`: số tiền giao dịch (`amount_vnd`), cổng thanh toán (`payment_gateway`), mã giao dịch ngân hàng đối soát (`gateway_transaction_id`) và chuyển trạng thái thành `SUCCEEDED`.
+   * Nghiệp vụ hoàn tiền (`refunds`): Tự động phát hành bản ghi hoàn tiền khi đơn hàng bị hủy trước khi giao hoặc khi yêu cầu đổi trả hàng được ban quản trị phê duyệt.
+
+2. **Phân hệ Quản lý giao vận và Điều phối (`modules/logistics/`)**:
+   * Ngay khi đơn hàng trực tuyến chuyển sang trạng thái `CONFIRMED`, hệ thống tự động khởi tạo một phiếu giao vận tương ứng tại bảng `shipments`.
+   * Endpoint điều phối `PATCH /api/v1/admin/logistics/shipments/{id}`: Cho phép nhân viên vận hành gán mã vận đơn (`tracking_number`), chỉ định đơn vị vận chuyển đối tác thứ ba (3PL: Giao Hàng Nhanh, Giao Hàng Tiết Kiệm, ViettelPost) hoặc đội ngũ giao hàng nội bộ (`delivery_staff_id`).
+   * Quản lý tiến trình giao hàng qua các trạng thái chuẩn hóa: `PREPARING` (Đang đóng gói) $\rightarrow$ `IN_TRANSIT` (Đang vận chuyển) $\rightarrow$ `DELIVERED` (Giao thành công kèm chữ ký/hình ảnh xác nhận) hoặc `FAILED_DELIVERY` (Giao thất bại). Hệ thống tự động ghi nhận các mốc thời gian chuyển trạng thái để phục vụ tính toán các chỉ số hiệu năng vận chuyển (SLA Delivery Lead Time) tại Lakehouse.
+
+3. **Phân hệ Tiếp nhận và Kiểm định đổi trả (`modules/returns/`)**:
+   * Khách hàng hoặc bộ phận hỗ trợ gửi yêu cầu đổi trả qua endpoint `POST /api/v1/returns` trong thời hạn chính sách cho phép (7 ngày kể từ khi nhận hàng).
+   * Bản ghi yêu cầu đổi trả được lưu trữ tại bảng `returns` kèm danh sách chi tiết các sản phẩm hoàn trả tại bảng `return_items`, ghi rõ phân loại lý do: `DAMAGED_ITEM` (Hàng hư hỏng), `WRONG_SIZE` (Không vừa cỡ), `NOT_AS_DESCRIBED` (Sai mô tả), hoặc `DEFECTIVE` (Lỗi kỹ thuật).
+   * **Quy trình kiểm định chất lượng sản phẩm hoàn trả (Quality Inspection)**: Nhân viên kho thực hiện kiểm tra sản phẩm thực nhận và cập nhật kết quả kiểm định (`inspection_status`):
+     * Nếu sản phẩm đạt chuẩn (`PASSED`): Hệ thống tự động nạp lại sản phẩm vào tồn kho khả dụng (`RETURN_RESTOCK`) tại `inventory_levels` và kích hoạt lệnh hoàn tiền tương ứng cho khách hàng.
+     * Nếu sản phẩm bị hư hại do người dùng (`REJECTED`) hoặc là phế phẩm (`SCRAPPED`): Hệ thống từ chối hoàn tiền hoặc chuyển sản phẩm vào danh mục hàng hỏng cách ly, bảo vệ tính trung thực của kho hàng thương mại.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.9: Giao diện Swagger UI quản trị phân hệ Giao vận và Tiếp nhận Đổi trả]**
+> * **Nội dung cần chụp**: Giao diện Swagger UI mở rộng đồng thời 2 nhóm tag: **logistics** và **returns**, hiển thị các endpoint:
+>   * `GET /api/v1/admin/logistics/shipments` (Danh sách phiếu giao vận cần điều phối)
+>   * `PATCH /api/v1/admin/logistics/shipments/{id}/status` (Cập nhật trạng thái giao hàng)
+>   * `POST /api/v1/returns` (Khởi tạo yêu cầu hoàn trả sản phẩm)
+>   * `PATCH /api/v1/admin/returns/{return_code}/inspect` (Cập nhật kết quả kiểm định chất lượng hàng trả)
+
+---
+
 ### **4.2.6. Ghi nhận Access Log**
+
+Nhằm phục vụ phân tích hành vi người dùng, tối ưu hóa tỷ lệ chuyển đổi và theo dõi sức khỏe kỹ thuật của hệ thống, backend tích hợp bộ giải pháp ghi nhận nhật ký truy cập (Access Log) theo thời gian thực được thiết kế tại tầng middleware (`app/core/access_logging.py` và `app/core/middleware.py`):
+
+1. **Cơ chế đánh chặn toàn diện (Global Request Interceptor)**:
+   * Middleware được cấu hình ở lớp ngoài cùng của ứng dụng FastAPI, tự động bắt giữ toàn bộ các yêu cầu HTTP đi vào và các phản hồi HTTP trả về trước khi gửi tới trình duyệt của khách hàng.
+   * Để đảm bảo không làm nhiễu dữ liệu phân tích, middleware tự động loại trừ (bypass) các yêu cầu kiểm tra sức khỏe hệ thống tự động: `GET /health/live` và `GET /health/ready`.
+
+2. **Chuẩn hóa cấu trúc sự kiện theo lược đồ `ecommerce.access` v1.0.0**:
+   * Mỗi sự kiện truy cập được đóng gói thành một cấu trúc dữ liệu JSON định dạng mạnh gồm các khối thông tin tiêu chuẩn:
+     * **Siêu dữ liệu giao thức (`http`)**: Phương thức (`request_method`), mã trạng thái (`status_code`), và đặc biệt là đường dẫn tuyến đường chuẩn hóa (`canonical_route`). Việc sử dụng `canonical_route` (ví dụ `/api/v1/products/{slug}` thay vì URL cụ thể `/api/v1/products/ao-thun-basic`) giúp triệt tiêu hiện tượng nổ số lượng giá trị phân biệt (Cardinality Explosion) khi tổng hợp dữ liệu trên Lakehouse.
+     * **Định danh tác nhân (`actor`)**: Phân loại đối tượng tương tác thành `anonymous` (khách vãng lai chưa đăng nhập), `customer` (khách hàng có tài khoản kèm `actor_key`), hoặc `staff` (nhân viên nội bộ).
+     * **Thời gian xử lý (`event.duration_ns`)**: Đo lường thời gian xử lý yêu cầu của máy chủ với độ chính xác nano-giây.
+     * **Mức độ nghiêm trọng (`severity`)**: Tự động phân loại `INFO` (mã trạng thái $2xx/3xx$), `WARN` (mã lỗi client $4xx$), hoặc `ERROR` (mã lỗi máy chủ $5xx$).
+
+3. **Làm sạch và khử định danh dữ liệu nhạy cảm (PII Sanitization & Redaction)**:
+   * Nhằm tuân thủ nguyên tắc bảo vệ quyền riêng tư người dùng (NFR-02) và các tiêu chuẩn bảo mật OWASP [6], middleware tích hợp bộ lọc biểu thức chính quy (Regex Engine) tự động nhận diện và che giấu các thông tin nhạy cảm:
+     * Địa chỉ Email (`_EMAIL_PATTERN`), số điện thoại di động (`_PHONE_PATTERN`), số thẻ tín dụng (`_CARD_PATTERN`), chuỗi JWT Token (`_JWT_PATTERN`), các từ khóa chứa mật khẩu/secret (`_SECRET_PATTERN`), và địa chỉ nhà chi tiết (`_ADDRESS_PATTERN`).
+     * Mọi chuỗi tìm kiếm của người dùng (`search_query`) hoặc chuỗi nhận diện trình duyệt (`user_agent`) chứa thông tin nhạy cảm đều được tự động thay thế bằng nhãn che giấu an toàn trước khi đẩy vào đường ống xử lý.
+
+4. **Trích xuất ngữ cảnh nghiệp vụ thương mại điện tử chuyên sâu (`ecommerce_context`)**:
+   * Middleware tự động ánh xạ cặp `(method, route)` thành các hành động nghiệp vụ chuẩn hóa:
+     * `catalog_search`: Trích xuất từ khóa tìm kiếm và các tham số lọc kích cỡ, màu sắc, khoảng giá.
+     * `product_detail`: Bóc tách mã định danh sản phẩm (`slug`).
+     * `cart_item_set` / `cart_item_remove`: Bóc tách mã biến thể SKU được thêm hoặc xóa khỏi giỏ hàng.
+     * `checkout_submit`: Ghi nhận sự kiện khách hàng tiến hành gửi đơn thanh toán.
+
+5. **Phát tán luồng sự kiện bất đồng bộ vào Apache Kafka**:
+   * Sử dụng cơ chế phát tán thông điệp bất đồng bộ của `AIOKafkaProducer` [14] đẩy các bản ghi sự kiện JSON vào topic `ecommerce.access-logs`.
+   * Việc đẩy log vào Kafka được thực hiện hoàn toàn trong tác vụ nền bất đồng bộ (Non-blocking I/O / Background Task), đảm bảo **hoàn toàn không làm gia tăng độ trễ (Zero Overhead Latency)** đối với thời gian phản hồi giao diện người dùng.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.10: Thông điệp sự kiện Access Log chuẩn hóa được tiêu thụ từ Kafka Topic]**
+> * **Nội dung cần chụp**: Cửa sổ Terminal chạy lệnh tiêu thụ thông điệp từ Kafka Console Consumer:
+>   ```bash
+>   docker compose exec kafka kafka-console-consumer \
+>     --bootstrap-server localhost:9092 \
+>     --topic ecommerce.access-logs \
+>     --from-beginning --max-messages 1
+>   ```
+> * Kết quả hiển thị một bản ghi sự kiện JSON có cấu trúc đẹp mắt (pretty-printed qua `jq`), thể hiện đầy đủ các trường: `schema.name = "ecommerce.access"`, `timestamp`, `event.duration_ns`, `http.route`, `http.status_code`, `actor.type`, và `ecommerce.action` (ví dụ `catalog_search` hoặc `product_detail`).
 
 ## **4.3. Xây dựng giao diện người dùng**
 
