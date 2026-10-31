@@ -712,13 +712,183 @@ Các trụ cột kỹ thuật đảm bảo tính nhất quán dữ liệu:
 
 ### **3.5.1. Xác định nguồn dữ liệu**
 
+Để xây dựng nền tảng phân tích kinh doanh đa chiều phục vụ cả báo cáo điều hành chiến lược lẫn quyết định vận hành thời gian thực, hệ thống Data Lakehouse của D&K tiếp nhận và tích hợp dữ liệu từ hai nhóm nguồn phát sinh độc lập [7]:
+
+1. **Nguồn dữ liệu quan hệ giao dịch (OLTP RDBMS)**:
+   * **Phạm vi nguồn**: Xuất phát từ cơ sở dữ liệu quan hệ MySQL 8.4 InnoDB của hệ thống bán hàng, bao gồm 27 bảng nghiệp vụ thuộc 7 cụm phân hệ (đã được chuẩn hóa ở mục 3.4): Định danh tài khoản khách hàng, Danh mục sản phẩm & tồn kho biến thể, Quản lý đơn hàng & chi tiết đơn, Thanh toán, Tồn kho cửa hàng & nhập hàng, Giao vận đơn hàng, và Tiếp nhận đổi trả.
+   * **Ngoại lệ bảo mật (Zero-Knowledge Exclusion)**: Bảng `customer_credentials` (chứa chuỗi băm mật khẩu `argon2id` và muối bảo mật) **bị loại trừ hoàn toàn** khỏi mọi quy trình trích xuất và lưu trữ Lakehouse theo quy tắc an toàn thông tin NFR-02 và khuyến nghị của OWASP [6]. Hồ sơ khách hàng đưa vào phân tích chỉ sử dụng khóa định danh kỹ thuật `customer_id` cùng các thông tin nhân khẩu học đã được che giấu hoặc băm một chiều.
+   * **Đặc tính dữ liệu**: Dữ liệu có cấu trúc định dạng mạnh (strongly-typed schema), có tính toàn vẹn tham chiếu cao (ACID compliant), phản ánh trạng thái hiện tại (state-based) của thực thể kinh doanh.
+
+2. **Nguồn nhật ký truy cập và tương tác người dùng (Web Clickstream & Access Logs)**:
+   * **Phạm vi nguồn**: Phát sinh từ toàn bộ các yêu cầu HTTP/HTTPS của người dùng truy cập giao diện Storefront (Next.js 15) và tương tác với máy chủ API (FastAPI) [2], [3].
+   * **Cấu trúc sự kiện**: Được chuẩn hóa theo lược đồ JSON nghiêm ngặt (`ecommerce-access-v1.schema.json`). Mỗi bản ghi sự kiện bao gồm: định danh phiên truy cập (`session_id`), người dùng (`user_id`), mã tuyến đường API (`route_pattern`), phương thức HTTP (`method`), mã phản hồi (`status_code`), thời gian xử lý (`duration_ms`), địa chỉ IP, chuỗi User-Agent, và payload tham số ngữ cảnh (như mã sản phẩm xem, danh mục tìm kiếm, biến thể được đưa vào giỏ).
+   * **Đặc tính dữ liệu**: Dữ liệu chuỗi thời gian bất biến (immutable time-series event streams), lưu lượng lớn, tần suất phát sinh liên tục theo hành vi người dùng trực tuyến.
+
+Bảng 3.7 tổng hợp thông số kỹ thuật của các nguồn dữ liệu đi vào nền tảng Lakehouse:
+
+| Nhóm nguồn | Thực thể dữ liệu | Cơ chế thu thập | Định dạng tại nguồn | Tần suất đẩy / nạp | Mục đích phân tích |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **OLTP Batch** | 27 bảng nghiệp vụ MySQL | Spark JDBC Incremental Pull | Quan hệ (InnoDB B+Tree) | Định kỳ hàng ngày (02:00 UTC+7) | Báo cáo tài chính, hiệu suất bán hàng, đối soát kho và giao vận. |
+| **OLTP CDC** | 27 bảng nghiệp vụ MySQL | Debezium MySQL Connector [13] | Row-based Binary Log (`binlog`) | Thời gian thực (Streaming sub-second) | Kiểm toán thay đổi dữ liệu, truy vết trạng thái đơn, tái tạo dòng lịch sử. |
+| **Access Logs** | Nhật ký truy cập & tương tác Web | FastAPI Middleware $\rightarrow$ Kafka | Chuỗi sự kiện JSON | Thời gian thực (Streaming qua Kafka [14]) | Phân tích phễu chuyển đổi (Conversion Funnel), tải hệ thống, nhu cầu sản phẩm. |
+
+---
+
 ### **3.5.2. Thiết kế luồng thu thập Batch, CDC và Access Log**
+
+Hệ thống triển khai ba cơ chế thu thập dữ liệu chuyên biệt hóa nhằm đáp ứng đồng thời tính chính xác tuyệt đối của kế toán giao dịch và tính kịp thời của dữ liệu hành vi tương tác:
+
+1. **Luồng thu thập Batch tăng dần (OLTP Batch Ingestion)**:
+   * Được điều phối tự động bởi Apache Airflow thông qua DAG `lakehouse_oltp_pipeline` [16], kích hoạt định kỳ lúc 02:00 sáng (UTC+7) khi giao dịch trực tiếp trên hệ thống giảm xuống mức thấp nhất.
+   * **Cơ chế đọc tăng dần (Incremental Read)**: Động cơ Apache Spark đọc dữ liệu qua kết nối JDBC [12] sử dụng cặp con trỏ watermark: `(cursor_field, primary_key)`. Đối với các bảng có cột mốc thời gian cập nhật `updated_at`, truy vấn sẽ lọc các bản ghi có giá trị lớn hơn mốc watermark của lần chạy trước.
+   * **Cơ chế Lookback Window chống rò rỉ giao dịch**: Nhằm loại bỏ hoàn toàn hiện tượng mất mát dữ liệu do độ trễ commit giao dịch (transaction commit latency) hoặc lệch đồng hồ hệ thống (clock drift), Spark tự động áp dụng cửa sổ lùi:
+     $$\text{Watermark}_{\text{start}} = \text{Watermark}_{\text{previous}} - \Delta t_{\text{lookback}}$$
+     Hệ thống thiết lập $\Delta t_{\text{lookback}} = 10\text{ phút}$ cho các bảng danh mục chuẩn và $\Delta t_{\text{lookback}} = 3\text{ ngày}$ cho các bảng giao dịch có chu kỳ cập nhật kéo dài như `orders`, `shipments` và `refunds`.
+   * **Ghi nguyên tử xuống Landing**: Dữ liệu đọc từ MySQL được Spark nạp vào vùng lưu trữ Landing (`s3://lakehouse/landing/oltp/<table>/<batch_id>/`) dưới định dạng Apache Parquet, đi kèm tệp kê khai nguyên tử `manifest.json` ghi nhận chính xác: tổng số bản ghi (`record_count`), thời điểm quét, phạm vi con trỏ, và mã phiên chạy (`run_id`).
+
+2. **Luồng Change Data Capture thời gian thực (CDC)**:
+   * Trình kết nối Debezium MySQL Connector [13] đọc trực tiếp các bản ghi nhị phân của MySQL (`binlog_format = ROW`, `binlog_row_image = FULL`).
+   * Mỗi thao tác cơ sở dữ liệu (`INSERT`, `UPDATE`, `DELETE`) được chuyển đổi thành một thông điệp sự kiện JSON gồm hình ảnh trạng thái trước (`before`) và sau (`after`) của dòng dữ liệu, phát tán trực tiếp vào các topic Kafka tương ứng theo quy ước: `cdc.ecommerce.<table>` [14].
+   * Job streaming của Apache Flink tiêu thụ các sự kiện CDC từ Kafka, thực hiện ghi chép nối tiếp (Append-only) vào bảng Iceberg `bronze.oltp_cdc_events` với chu kỳ kiểm tra trạng thái (checkpoint interval) là 10 giây [15], bảo toàn lịch sử biến động dữ liệu phục vụ tái lập trạng thái và kiểm toán.
+
+3. **Luồng thu thập nhật ký truy cập (Access Log Streaming)**:
+   * Middleware trên FastAPI đánh chặn mọi luồng yêu cầu/phản hồi HTTP, đóng gói thông tin ngữ cảnh vào cấu trúc sự kiện JSON và gửi bất đồng bộ qua Kafka Producer vào topic `ecommerce.access-logs`.
+   * Một tác vụ luồng Flink chuyên biệt (`StatementSet`) tiêu thụ từ Kafka và phân tán dữ liệu đồng thời (Multi-Sink Pipeline) xuống các bảng Iceberg trong nền tảng Lakehouse: ghi nhận thô vào `landing.access_logs`, làm giàu thông tin và gán watermark thời gian tại `bronze.web_events`, chuẩn hóa schema tại `silver.silver_logs`, và tổng hợp tính toán các chỉ số lưu lượng theo khung cửa sổ vào `gold.fact_web_events`.
+
+---
 
 ### **3.5.3. Thiết kế các lớp Landing, Bronze, Silver và Gold**
 
+Kiến trúc hồ dữ liệu của D&K tuân thủ mô hình Huy chương (Medallion Architecture) [7], phân chia dữ liệu thành các phân tầng chất lượng lũy tiến nhằm đảm bảo tính toàn vẹn, khả năng kiểm toán nguồn gốc (lineage) và tối ưu hóa hiệu năng truy vấn phân tích:
+
+![Các tầng dữ liệu Lakehouse](docs/diagram/medallion.svg)
+
+1. **Phân tầng Landing (Vùng tiếp nhận đệm - Staging Storage)**:
+   * **Vị trí và định dạng**: Đặt trên MinIO S3 Object Storage [8], lưu trữ dữ liệu trích xuất dưới định dạng tệp Parquet nguyên bản (đối với luồng Batch OLTP) hoặc JSON nguyên thủy (đối với luồng Access Logs).
+   * **Nguyên tắc hoạt động**: Vùng đệm mang tính bất biến (immutable) và ngắn hạn. Mỗi mẻ trích xuất được đóng gói thành một thư mục độc lập gắn mã định danh phiên chạy `_run_id` kèm tệp `manifest.json`. Landing đóng vai trò ranh giới an toàn, cô lập hoạt động trích xuất khỏi quy trình nạp bảng phân tích, cho phép phát lại (replay) toàn bộ mẻ dữ liệu khi xảy ra sự cố xử lý mà không cần đọc lại từ MySQL nguồn.
+
+2. **Phân tầng Bronze (Vùng thô dạng bảng - Raw Iceberg Tables)**:
+   * **Vị trí và định dạng**: Được quản lý dưới dạng bảng Apache Iceberg [9] trong namespace `lakehouse.bronze`.
+   * **Nguyên tắc hoạt động**: Toàn bộ dữ liệu từ Landing được nạp vào Bronze theo phương thức **chỉ ghi thêm (Append-only)**. Dữ liệu tại Bronze bảo toàn nguyên vẹn kiểu dữ liệu nguồn (hoặc chuyển thành chuỗi an toàn) nhằm tránh thất thoát thông tin.
+   * **Truy vết nguồn gốc (Lineage Enrichment)**: Mỗi dòng dữ liệu được tự động bổ sung ba cột siêu dữ liệu kiểm toán hệ thống:
+     * `_ingested_at`: Mốc thời gian bản ghi được nạp vào Bronze.
+     * `_source_file`: Đường dẫn tệp Parquet nguồn tại Landing.
+     * `_source_run_id`: Mã định danh phiên chạy Airflow (`run_id`) đã nạp bản ghi.
+   * **Tiến hóa lược đồ (Schema Evolution)**: Bảng Bronze hỗ trợ tự động bổ sung cột (`ADD COLUMN`) khi bảng MySQL phát sinh thuộc tính mới mà không cần xây dựng lại bảng hoặc làm gián đoạn tiến trình. Con trỏ watermark của hệ thống chỉ được cập nhật và lưu vết sau khi dữ liệu đã ghi nhận thành công vào Bronze.
+
+3. **Phân tầng Silver (Vùng dữ liệu sạch và chuẩn hóa - Conformed Operational Tables)**:
+   * **Vị trí và định dạng**: Không gian tên `lakehouse.silver` gồm 27 bảng tương ứng với các thực thể OLTP và 1 bảng nhật ký web (`silver_logs`).
+   * **Chức năng xử lý**:
+     * **Ép kiểu và chuẩn hóa cấu trúc**: Chuyển đổi các kiểu dữ liệu chuỗi thô thành các kiểu dữ liệu định dạng chuẩn của Spark SQL (`TIMESTAMP`, `DECIMAL(12, 2)`, `INTEGER`, `BOOLEAN`). Các cột chứa chuỗi JSON (như `attributes_json`, `metadata_json`) được bóc tách thành các cột cấu trúc có định dạng.
+     * **Khử trùng lặp (Deduplication)**: Loại bỏ các bản ghi trùng lặp sinh ra do cơ chế trích xuất có cửa sổ lùi (Lookback Window) bằng cách xếp hạng theo thời gian cập nhật mới nhất: `ROW_NUMBER() OVER (PARTITION BY pk ORDER BY updated_at DESC) = 1`.
+     * **Cập nhật dữ liệu biến đổi (SCD Type 1)**: Thực thi câu lệnh `MERGE INTO` của Apache Iceberg để đồng bộ trạng thái mới nhất của bản ghi dựa trên khóa chính:
+       $$\text{WHEN MATCHED AND target.updated\_at} < \text{source.updated\_at THEN UPDATE SET } *$$
+       $$\text{WHEN NOT MATCHED THEN INSERT } *$$
+     * **Bảo vệ quyền riêng tư (PII Pseudonymization)**: Các thông tin nhạy cảm của khách hàng và nhân viên (`email`, `phone`, `full_name`) được mã hóa một chiều qua thuật toán băm có muối: $\text{SHA-256}(\text{value} + \text{salt})$, đảm bảo không lưu thông tin nhận dạng cá nhân dạng văn bản rõ.
+     * **Cách ly dữ liệu dị biệt (Quarantine Pattern)**: Các bản ghi vi phạm tính toàn vẹn (như khóa ngoại không tồn tại, định dạng thời gian sai lệch, hoặc số tiền âm bất hợp lý) được định tuyến tự động vào namespace `lakehouse.quarantine` để ghi vết cảnh báo mà không làm gián đoạn toàn bộ đường ống dẫn dữ liệu.
+
+4. **Phân tầng Gold (Vùng mô hình hóa phân tích - Dimensional & Mart Layer)**:
+   * **Vị trí và định dạng**: Không gian tên `lakehouse.gold`, tổ chức theo mô hình hình sao (Star Schema) [11] gồm các bảng Chiều chuẩn hóa (Conformed Dimensions), bảng Sự kiện (Fact Tables) và các Data Marts tổng hợp phục vụ trực tiếp cho BI Hub.
+   * **Tối ưu hóa tệp dữ liệu lưu trữ**: Toàn bộ bảng Gold được cấu hình tham số dung lượng tệp Parquet mục tiêu đạt $128\text{ MiB}$ (`write.parquet.target-file-size-bytes = 134217728`), đồng thời thiết lập chiến lược phân vùng tối ưu theo ngày giao dịch (`order_date`, `shipping_date`, `snapshot_date`), giúp Trino và Spark giảm thiểu chi phí quét dữ liệu (Data Pruning / Partition Elimination) khi xử lý các truy vấn tổng hợp phân tích quy mô lớn.
+
+---
+
 ### **3.5.4. Thiết kế Dimension, Fact và Data Mart**
 
+Tầng Gold được mô hình hóa theo phương pháp luận Kimball [11], phân tách mạch lạc giữa các bảng chiều dùng chung (Conformed Dimensions), các bảng sự kiện phản ánh nghiệp vụ giao dịch, và các Data Mart chuyên biệt:
+
+#### **1. Hệ thống bảng chiều (Conformed Dimensions)**
+* **`dim_date`**: Bảng chiều thời gian sinh trước cho chu kỳ 10 năm, chứa các thuộc tính lịch: ngày trong tuần, ngày trong tháng, tuần trong năm, tháng, quý, năm, cờ đánh dấu ngày cuối tuần (`is_weekend`), và cờ ngày lễ quốc gia.
+* **`dim_customer`**: Chiều khách hàng, sử dụng khóa thay thế kỹ thuật `customer_key`. Lưu trữ thông tin phân nhóm khách hàng, ngày đăng ký, điểm tích lũy, cùng các trường PII đã được mã hóa bảo mật (`email_hash`, `phone_hash`, `full_name_hash`).
+* **`dim_product`**: Chiều sản phẩm gốc, lưu trữ mã định danh sản phẩm (`product_id`), tên sản phẩm, danh mục cha, danh mục con, thương hiệu, trạng thái kích hoạt, và cờ xóa mềm.
+* **`dim_variant`**: Chiều biến thể sản phẩm (SKU Grain), khóa thay thế `variant_key`. Lưu trữ mã SKU, kích thước (`size_code`), màu sắc (`color_code`), giá niêm yết hiện hành, và giá vốn tiêu chuẩn.
+* **`dim_store`**: Chiều cửa hàng và kênh phân phối, phân định giữa các cửa hàng bán lẻ vật lý (kèm địa chỉ, quận, tỉnh/thành phố) và kênh bán hàng trực tuyến Storefront.
+* **`dim_delivery_staff`**: Chiều nhân sự giao vận, lưu mã nhân viên, đơn vị vận chuyển (đội ngũ nội bộ hoặc đối tác thứ ba 3PL), trạng thái hoạt động, và số điện thoại đã băm bảo mật.
+
+#### **2. Hệ thống bảng sự kiện cốt lõi (Core Fact Tables)**
+Hệ thống thiết lập 5 bảng sự kiện nghiệp vụ OLTP và 1 bảng sự kiện nhật ký tương tác:
+* **`fact_order`**: Sự kiện cấp độ đơn hàng (Order Grain). Đo lường: tổng tiền hàng, giá trị giảm giá voucher, phí vận chuyển, doanh thu gộp, doanh thu ròng, trạng thái đơn, phương thức thanh toán, số lượng sản phẩm trong đơn. Phân vùng theo `order_date`.
+* **`fact_order_item`**: Sự kiện chi tiết mặt hàng (Line Item Grain). Đo lường: số lượng mua (`quantity`), đơn giá bán snapshot (`unit_price_vnd`), giá vốn bình quân snapshot (`cost_price_vnd`), doanh thu gộp mặt hàng, lợi nhuận gộp danh nghĩa. Phân vùng theo `order_date`.
+* **`fact_shipment`**: Sự kiện thực hiện đơn hàng và giao vận (Shipment Grain). Đo lường: thời gian tiếp nhận, thời gian xuất kho, thời gian giao hàng thành công, độ trễ giao vận so với cam kết (SLA Duration), số lần giao lại, trạng thái giao vận cuối cùng. Phân vùng theo `shipping_date`.
+* **`fact_return_exchange`**: Sự kiện xử lý trả hàng và đổi hàng (Return Grain). Đo lường: số lượng hàng trả, giá trị hoàn tiền (`refund_amount_vnd`), lý do trả hàng (hàng lỗi, không vừa kích cỡ, sai mô tả), thời gian từ lúc giao đến khi yêu cầu trả. Phân vùng theo `request_date`.
+* **`fact_inventory_daily_snapshot`**: Sự kiện chụp ảnh tồn kho định kỳ (Periodic Snapshot Grain). Ghi nhận trạng thái tồn kho hàng ngày cho từng cặp `(store_id, variant_id)`: số lượng tồn cuối ngày (`ending_quantity`), giá trị tồn kho theo giá vốn (`inventory_value_vnd`), và cờ cảnh báo hết hàng (`is_out_of_stock`). Phân vùng theo `snapshot_date`.
+* **`fact_web_events`**: Sự kiện tương tác trên nền tảng web. Ghi nhận chi tiết từng hành động của người dùng: loại sự kiện (`event_type`), mã người dùng, mã phiên, mã tuyến đường API, thời gian phản hồi máy chủ (`duration_ms`), mã trạng thái HTTP. Phân vùng theo ngày sự kiện.
+
+Hai sơ đồ dưới đây minh họa chi tiết cấu trúc mô hình hình sao tại tầng Gold:
+
+![Gold — Mô hình phân tích bán hàng](docs/diagram/gold-sales.svg)
+
+![Gold — Giao vận, trả hàng và tồn kho](docs/diagram/gold-operations.svg)
+
+#### **3. Hệ thống Data Marts phục vụ phân tích nghiệp vụ**
+Nhằm tối ưu hóa tốc độ tải dữ liệu cho hệ thống Dashboard và giảm thiểu tải tính toán lặp lại trên các bảng Fact chi tiết, tầng Gold xây dựng sẵn 4 Data Marts định kỳ từ nguồn OLTP và 3 Data Marts từ nguồn nhật ký Web:
+
+* **Các Data Mart nghiệp vụ bán lẻ (OLTP Data Marts)**:
+  * **`mart_sales_daily`**: Tổng hợp doanh thu theo ngày, mã cửa hàng, kênh bán hàng và phương thức thanh toán. Tính toán sẵn: tổng số đơn đặt, số đơn thành công, số đơn hủy, doanh thu gộp (`gross_revenue_vnd`), tổng chiết khấu, doanh thu thuần, và giá trị trung bình trên một đơn hàng (AOV).
+  * **`mart_logistics_performance`**: Tổng hợp hiệu năng vận chuyển theo ngày, đơn vị vận chuyển và khu vực địa lý. Đo lường: tỷ lệ giao hàng thành công lần đầu (First-Attempt Delivery Rate), thời gian giao hàng trung bình (Average Delivery Hours), và tỷ lệ đơn trễ hạn cam kết SLA.
+  * **`mart_product_returns`**: Tổng hợp tỷ lệ hoàn trả theo sản phẩm, danh mục và lý do hoàn hàng. Giúp bộ phận quản lý sản phẩm phát hiện kịp thời các mã hàng có tỷ lệ lỗi cao bất thường.
+  * **`mart_inventory_health`**: Tổng hợp sức khỏe hàng tồn kho theo ngày và kho hàng. Tính toán tốc độ quay vòng tồn kho (Inventory Turnover Rate), số ngày tồn kho ước tính (Days of Inventory On-Hand - DIO), và nhận diện các SKU ứ đọng, tồn kho vượt ngưỡng an toàn.
+
+* **Các Data Mart phân tích hành vi và kỹ thuật (Log Data Marts)**:
+  * **`mart_hourly_route_metrics`**: Tổng hợp theo khung giờ và tuyến đường API: tổng số yêu cầu (Request Volume), thời gian xử lý phân vị p95/p99, và tỷ lệ lỗi kỹ thuật 4xx/5xx.
+  * **`mart_daily_product_demand`**: Tổng hợp mức độ quan tâm của khách hàng theo từng sản phẩm: số lượt xem trang chi tiết (Product Views), số lần thêm vào giỏ (Add-to-Cart Actions), phản ánh nhu cầu thị trường thực tế trước khi phát sinh đơn hàng.
+  * **`mart_marketing_funnel_daily`**: Phân tích phễu chuyển đổi thương mại điện tử hàng ngày: đo lường tỷ lệ chuyển đổi qua các giai đoạn: $\text{Xem sản phẩm} \rightarrow \text{Thêm giỏ hàng} \rightarrow \text{Tiến hành thanh toán} \rightarrow \text{Đặt hàng thành công}$.
+
+Mối quan hệ dẫn xuất và dòng chảy dữ liệu (Lineage) vào các Data Marts được minh họa cụ thể qua hai sơ đồ sau:
+
+![Gold — Lineage các Data Mart OLTP](docs/diagram/gold-marts.svg)
+
+![Gold — Fact và Mart Access Log](docs/diagram/gold-log-marts.svg)
+
+---
+
 ### **3.5.5. Thiết kế kiểm soát chất lượng và bảo mật dữ liệu**
+
+Một nền tảng Data Lakehouse phục vụ doanh nghiệp đòi hỏi các cơ chế kiểm định chất lượng chặt chẽ để đảm bảo số liệu kinh doanh không bao giờ bị sai lệch, song song với khung bảo vệ an toàn thông tin theo nguyên tắc đặc quyền tối thiểu [6], [17].
+
+#### **1. Khung kiểm soát chất lượng dữ liệu hai giai đoạn (Dual-Stage Quality Gate)**
+Hệ thống triển khai hai chốt kiểm soát tự động được tích hợp trực tiếp vào quy trình ETL/ELT của Apache Spark và Apache Airflow:
+
+![Quality gate và xử lý dữ liệu lỗi](docs/diagram/quality-gates.svg)
+
+* **Chốt đối soát tiền xuất bản (Pre-Gold Reconciliation Gate)**:
+  * Kích hoạt tự động ngay sau khi hoàn tất nạp dữ liệu vào tầng Silver thông qua module `reconcile.py`.
+  * **Đối soát số lượng dòng bản ghi (`check_table_counts`)**: So sánh trực tiếp tổng số dòng giữa cơ sở dữ liệu nguồn MySQL và bảng Silver Iceberg cho toàn bộ 27 bảng nghiệp vụ. Sai số dòng cho phép (Tolerance) được thiết lập ở ngưỡng khắt khe: $\tau \le 0.05\%$.
+  * **Đối soát chỉ tiêu tài chính tiền tệ (`check_financial_metrics`)**: Thực hiện tính tổng giá trị tiền tệ độc lập giữa hai hệ thống trên 3 chỉ tiêu cốt lõi:
+    1. Tổng doanh thu đơn hàng: $\sum \text{orders.total\_vnd}$ (với $\text{status} \ne \text{'CANCELLED'}$) so khớp với $\sum \text{silver\_orders.total\_vnd}$.
+    2. Tổng tiền thanh toán thành công: $\sum \text{payments.amount\_vnd}$ (với $\text{status} = \text{'SUCCEEDED'}$) so khớp với $\sum \text{silver\_payments.amount\_vnd}$.
+    3. Tổng tiền hoàn trả: $\sum \text{refunds.amount\_vnd}$ (với $\text{status} = \text{'SUCCEEDED'}$) so khớp với $\sum \text{silver\_refunds.amount\_vnd}$.
+  * **Cơ chế ngắt mạch (Circuit Breaker)**: Nếu bất kỳ chỉ tiêu đối soát nào có tỷ lệ sai lệch vượt ngưỡng $0.05\%$, hệ thống lập tức ném ngoại lệ `ReconciliationGateError`, ngắt toàn bộ pipeline và phát tín hiệu cảnh báo khẩn cấp, **tuyệt đối không xuất bản dữ liệu sang tầng Gold**.
+
+* **Chốt kiểm tra chất lượng hậu xuất bản (Post-Gold Quality Gate)**:
+  * Được thực thi bởi module `quality.py` ngay sau khi các bảng Dimension, Fact và Data Mart hoàn tất ghi dữ liệu.
+  * Thực hiện bộ **18 chỉ tiêu kiểm tra tự động** tuân thủ 5 khía cạnh chất lượng theo tiêu chuẩn quốc tế ISO/IEC 25012:2008 [17]:
+    1. *Tính đầy đủ (Completeness)*: Kiểm tra khớp tuyệt đối số dòng giữa Silver Orders/Order Items và Fact Order/Fact Order Item (`silver_to_gold_row_count`).
+    2. *Tính chính xác tài chính (Accuracy)*: Đối soát chính xác $100\%$ doanh thu gộp giữa Silver Orders và Fact Order (`silver_to_gold_gross_revenue_vnd`).
+    3. *Tính duy nhất và không rỗng (Uniqueness & Non-null)*: Kiểm tra khóa chính không chứa giá trị null và không bị trùng lặp trên 5 bảng trọng yếu (`fact_order`, `fact_order_item`, `dim_customer`, `dim_product`, `dim_variant`).
+    4. *Tính toàn vẹn tham chiếu (Referential Integrity)*: Thực hiện phép nối `left_anti` giữa `fact_order_item` với `dim_product` và `dim_variant`, bảo đảm không tồn tại khóa ngoại mồ côi (Zero Orphan Keys).
+    5. *Tính tươi mới của mẻ nạp (Data Freshness)*: Xác nhận mã phiên chạy hiện tại `_source_run_id` xuất hiện hợp lệ trong các bảng đích (`fact_order`, `fact_order_item`, `mart_sales_daily`).
+    6. *Tính hợp lệ mã hóa bảo mật (Pseudonymization Validity)*: Kiểm tra toàn bộ các trường PII (`email`, `phone`, `full_name` tại `dim_customer` và `phone`, `full_name` tại `dim_delivery_staff`) phải khớp chính xác với định dạng mã băm hex 64 ký tự của SHA-256 (`^[0-9a-f]{64}$`), bảo đảm không có dữ liệu văn bản rõ bị rò rỉ.
+  * Toàn bộ kết quả đối soát của cả hai giai đoạn được ghi vết bền vững vào bảng siêu dữ liệu hệ thống `lakehouse.system.data_quality_results` để phục vụ kiểm toán và theo dõi độ tin cậy của dữ liệu theo thời gian.
+
+#### **2. Thiết kế bảo mật đa tầng và kiểm soát truy cập (Security & RBAC)**
+Kiến trúc an toàn thông tin của hệ thống Lakehouse được phân định rõ ràng thành hai bình diện: Bảo mật tầng ứng dụng và Bảo mật tầng hạ tầng tính toán:
+
+* **Bảo mật ứng dụng và quyền dữ liệu người dùng**:
+  * Phân tách nghiêm ngặt quyền hạn người dùng theo mô hình RBAC: Khách hàng (Storefront) chỉ truy xuất dữ liệu cá nhân qua mã định danh JWT; Nhân viên vận hành cửa hàng (POS/Admin) được phân quyền theo nhóm chức năng (quản lý kho, điều phối vận chuyển, chăm sóc khách hàng).
+  * Hồ sơ xác thực mật khẩu người dùng (`argon2id`) được cô lập hoàn toàn tại cơ sở dữ liệu quan hệ giao dịch, không được phép chuyển tiếp vào bất kỳ tầng nào của Lakehouse. Toàn bộ các thông tin nhận dạng cá nhân khi đi vào tầng phân tích đều bắt buộc phải qua cơ chế Pseudonymization.
+
+![Quyền ứng dụng và dữ liệu người dùng](docs/diagram/security-app.svg)
+
+* **Bảo mật công cụ, Catalog và Phân vùng lưu trữ**:
+  * **Apache Polaris REST Catalog RBAC [10]**: Toàn bộ quyền truy cập siêu dữ liệu Iceberg được quản lý tập trung theo mô hình "RBAC as Code" thông qua cấu hình `infrastructure/polaris/rbac.yml`:
+    * `spark_writer`: Gán vai trò `spark_writer_catalog_role` với đặc quyền `CATALOG_MANAGE_CONTENT`, cho phép đọc/ghi dữ liệu trên toàn bộ các namespace (`landing`, `bronze`, `silver`, `gold`, `quarantine`, `system`).
+    * `flink_writer`: Gán vai trò `flink_writer_catalog_role` dành riêng cho các tiến trình xử lý luồng CDC và Access Logs.
+    * `trino_reader`: Gán vai trò `trino_reader_catalog_role` với các đặc quyền chỉ đọc khắt khe: `TABLE_READ_DATA`, `NAMESPACE_LIST`, `VIEW_READ_PROPERTIES`. Tuyệt đối không cấp quyền ghi (`MANAGE_CONTENT`) hay sửa đổi lược đồ bảng, bảo vệ kho dữ liệu Gold khỏi mọi hành vi can thiệp trái phép từ các công cụ BI và người dùng phân tích.
+    * `trino_admin`: Gán vai trò `trino_admin_catalog_role` phục vụ các tác vụ bảo trì siêu dữ liệu và cấu hình nâng cao.
+  * **Phân quyền lưu trữ đối tượng MinIO [8]**: Thiết lập 7 tài khoản định danh khối lượng công việc (Workload Identities) độc lập với các chính sách IAM chuyên biệt, ngăn chặn hoàn toàn việc chia sẻ khóa truy cập giữa các phân hệ và cô lập tài nguyên lưu trữ theo đúng phạm vi nhiệm vụ được giao.
+
+![Quyền engine, catalog và object storage](docs/diagram/security-engines.svg)
 
 ## **3.6. Thiết kế giao diện và hệ thống Dashboard**
 
