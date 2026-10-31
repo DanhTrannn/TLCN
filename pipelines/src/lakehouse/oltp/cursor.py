@@ -46,11 +46,26 @@ def build_cursor_advancements(
         hw = watermarks.get(name)
         if hw is None or hw.get("at") is None:
             continue
-        states[name] = CursorState(
-            cursor_at=hw["at"], cursor_pk=hw.get("pk"), updated_at_utc=updated_at_utc
-        )
+        states[name] = CursorState(cursor_at=hw["at"], cursor_pk=hw.get("pk"), updated_at_utc=updated_at_utc)
     return states
 
 
 def write_committed_cursor(s3, bucket: str, table: str, state: CursorState) -> None:
     s3.put_object(Bucket=bucket, Key=cursor_object_path(bucket, table), Body=state.to_json())
+
+
+def verified_cursor_advancements(watermarks, completions, table_names, run_id, updated_at_utc):
+    """Validate every table before publishing any cursor from this run."""
+    names = tuple(table_names)
+    for name in names:
+        done = completions.get(name, {})
+        watermark = watermarks.get(name)
+        if (
+            watermark is None
+            or done.get("run_id") != run_id
+            or done.get("table") != name
+            or done.get("high_watermark_at") != watermark.get("at")
+            or done.get("high_watermark_pk") != watermark.get("pk")
+        ):
+            raise ValueError(f"Bronze completion does not match captured watermark: {name}")
+    return build_cursor_advancements(watermarks, names, updated_at_utc)

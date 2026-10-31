@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from lakehouse.sql import identifier, render_sql
+
 import concurrent.futures
 import hashlib
 import json
@@ -62,9 +64,7 @@ def _file_stats(spark, paths: RunPaths) -> list[dict]:
     files = []
     for status in statuses:
         key = str(status.getPath()).replace(f"s3a://{paths.bucket}/", "")
-        content = spark.read.format("binaryFile").load(
-            f"s3a://{paths.bucket}/{key}"
-        ).first()["content"]
+        content = spark.read.format("binaryFile").load(f"s3a://{paths.bucket}/{key}").first()["content"]
         md5 = hashlib.md5(bytes(content)).hexdigest()
         rows = int(spark.read.parquet(f"s3a://{paths.bucket}/{key}").count())
         files.append({"path": key, "rows": rows, "md5": md5})
@@ -81,23 +81,37 @@ def extract_one_table(
     high_watermark_pk: int | None,
     committed: CursorState | None,
 ) -> dict:
-    paths = RunPaths(bucket=cfg.bucket, table=table.name,
-                     extract_date=extract_date, run_id=run_id)
+    paths = RunPaths(bucket=cfg.bucket, table=table.name, extract_date=extract_date, run_id=run_id)
     now_utc = _utc_now()
 
     lookback_minutes = getattr(cfg.run, "lookback_minutes", 10)
     range_pred = build_range_predicate(
-        table.cursor_field, table.pk, committed, high_watermark_at, high_watermark_pk,
+        table.cursor_field,
+        table.pk,
+        committed,
+        high_watermark_at,
+        high_watermark_pk,
         lookback_minutes=lookback_minutes,
     )
 
-    bounds = spark.read.format("jdbc").options(
-        url=cfg.jdbc_url,
-        query=(
-            f"SELECT MIN(`{table.pk}`) AS lo, MAX(`{table.pk}`) AS hi "
-            f"FROM `{table.name}`{range_pred}"
-        ),
-    ).load().first()
+    bounds = (
+        spark.read.format("jdbc")
+        .option("driver", "com.mysql.cj.jdbc.Driver")
+        .options(
+            url=cfg.jdbc_url,
+            query=(
+                render_sql(
+                    "mysql/extract_bounds.sql",
+                    table_pk=identifier(table.pk),
+                    table_pk_2=identifier(table.pk),
+                    table_name=identifier(table.name),
+                    range_pred=range_pred,
+                )
+            ),
+        )
+        .load()
+        .first()
+    )
 
     cursor_brief = {
         "field": table.cursor_field,
@@ -111,11 +125,14 @@ def extract_one_table(
     }
     if bounds["lo"] is None:
         manifest = {
-            "manifest_version": MANIFEST_VERSION, "run_id": run_id,
+            "manifest_version": MANIFEST_VERSION,
+            "run_id": run_id,
             "table": table.name,
             "source": {"system": "mysql_ecommerce", "schema": "ecommerce"},
             "cursor": cursor_brief,
-            "rows": 0, "empty": True, "files": [],
+            "rows": 0,
+            "empty": True,
+            "files": [],
             "generated_at_utc": now_utc,
         }
         _write_manifest(spark, paths.bucket, paths.manifest_key(), manifest)
@@ -123,8 +140,11 @@ def extract_one_table(
 
     df = (
         spark.read.format("jdbc")
+        .option("driver", "com.mysql.cj.jdbc.Driver")
         .option("url", cfg.jdbc_url)
-        .option("dbtable", f"(SELECT * FROM `{table.name}`{range_pred}) AS extract_src")
+        .option(
+            "dbtable", render_sql("mysql/extract_rows.sql", table_name=identifier(table.name), range_pred=range_pred)
+        )
         .option("partitionColumn", table.pk)
         .option("lowerBound", str(bounds["lo"]))
         .option("upperBound", str(bounds["hi"] + 1))
@@ -141,9 +161,7 @@ def extract_one_table(
         .withColumn("_ingested_at_utc", lit(now_utc))
     )
 
-    df.write.mode("overwrite").parquet(
-        f"s3a://{paths.bucket}/{paths.data_prefix()}"
-    )
+    df.write.mode("overwrite").parquet(f"s3a://{paths.bucket}/{paths.data_prefix()}")
     files = _file_stats(spark, paths)
 
     cursor_df = df.agg(
@@ -155,12 +173,14 @@ def extract_one_table(
     cursor_brief["max_at"] = str(cursor_df["max_at"])
 
     manifest = {
-        "manifest_version": MANIFEST_VERSION, "run_id": run_id,
+        "manifest_version": MANIFEST_VERSION,
+        "run_id": run_id,
         "table": table.name,
         "source": {"system": "mysql_ecommerce", "schema": "ecommerce"},
         "cursor": cursor_brief,
         "rows": int(cursor_df["row_count"]),
-        "empty": False, "files": files,
+        "empty": False,
+        "files": files,
         "generated_at_utc": now_utc,
     }
     _write_manifest(spark, paths.bucket, paths.manifest_key(), manifest)
@@ -181,8 +201,13 @@ def run_extract(
             raise RuntimeError(f"no high watermark captured for {table.name}")
         committed = read_committed_cursor(spark, cfg.bucket, table.name)
         return extract_one_table(
-            spark, cfg, table, run_id, extract_date,
-            high_watermark_at=hw["at"], high_watermark_pk=hw.get("pk"),
+            spark,
+            cfg,
+            table,
+            run_id,
+            extract_date,
+            high_watermark_at=hw["at"],
+            high_watermark_pk=hw.get("pk"),
             committed=committed,
         )
 

@@ -55,6 +55,13 @@ class ManifestFile:
 
 
 @dataclass(frozen=True)
+class FileStats:
+    size: int
+    rows: int
+    md5: str
+
+
+@dataclass(frozen=True)
 class Manifest:
     manifest_version: str
     run_id: str
@@ -104,13 +111,15 @@ def manifest_from_dict(raw: dict) -> Manifest:
         raise ValueError(f"manifest missing key: {exc.args[0]}") from exc
 
 
-def validate_manifest(
-    manifest: Manifest, file_stats: Callable[[str], tuple[int, int] | None]
-) -> list[str]:
+def validate_manifest(manifest: Manifest, file_stats: Callable[[str], FileStats | None]) -> list[str]:
     violations: list[str] = []
+    if manifest.manifest_version != MANIFEST_VERSION:
+        violations.append("unsupported manifest version")
     if manifest.empty:
         if manifest.files:
             violations.append("empty manifest must not list files")
+        if manifest.rows != 0:
+            violations.append("empty manifest must have zero rows")
         return violations
     if not manifest.files:
         violations.append("non-empty manifest lists no files")
@@ -121,7 +130,9 @@ def validate_manifest(
         if stats is None:
             violations.append(f"missing object: {f.path}")
             continue
-        size, rows = stats
+        size, rows = stats.size, stats.rows
+        if stats.md5 != f.md5:
+            violations.append(f"checksum mismatch for {f.path}")
         if size <= 0:
             violations.append(f"empty object: {f.path}")
         if rows != f.rows:
@@ -140,9 +151,7 @@ def validate_manifest(
             )
             if dt_min < dt_lower:
                 violations.append(
-                    "min_at is before lookback_at"
-                    if manifest.lookback_minutes > 0
-                    else "min_at is before committed_at"
+                    "min_at is before lookback_at" if manifest.lookback_minutes > 0 else "min_at is before committed_at"
                 )
         else:
             lower_str = manifest.committed_at
@@ -150,9 +159,7 @@ def validate_manifest(
                 lower_str = _subtract_lookback(manifest.committed_at, manifest.lookback_minutes)
             if manifest.min_at < lower_str:
                 violations.append(
-                    "min_at is before lookback_at"
-                    if manifest.lookback_minutes > 0
-                    else "min_at is before committed_at"
+                    "min_at is before lookback_at" if manifest.lookback_minutes > 0 else "min_at is before committed_at"
                 )
     if manifest.max_at is not None and manifest.high_watermark_at is not None:
         dt_max = _parse_ts(manifest.max_at)

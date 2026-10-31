@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from lakehouse.sql import identifier, render_sql
+
+
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -18,30 +21,9 @@ except ImportError:  # pragma: no cover - unit tests without Spark
 
 QUALITY_RESULTS_TABLE = "lakehouse.system.data_quality_results"
 
-QUALITY_RESULTS_DDL = f"""
-CREATE TABLE IF NOT EXISTS {QUALITY_RESULTS_TABLE} (
-    check_id                       STRING,
-    run_id                         STRING,
-    batch_date                     DATE,
-    phase                          STRING,
-    check_name                     STRING,
-    dataset                        STRING,
-    severity                       STRING,
-    observed_value                 STRING,
-    expected_value                 STRING,
-    variance_percent               DOUBLE,
-    failed_rows                    BIGINT,
-    status                         STRING,
-    details                        STRING,
-    checked_at                     TIMESTAMP
+QUALITY_RESULTS_DDL = render_sql(
+    "spark/system/quality_results.sql", quality_results_table=identifier(QUALITY_RESULTS_TABLE)
 )
-USING iceberg
-PARTITIONED BY (days(checked_at))
-TBLPROPERTIES (
-    'format-version' = '2',
-    'write.parquet.compression-codec' = 'zstd'
-)
-"""
 
 
 class GoldQualityGateError(RuntimeError):
@@ -84,7 +66,7 @@ def _result_payload(result: Any) -> dict[str, Any]:
 
 def _sql_string(value: Any) -> str:
     """Quote a value as a Spark SQL string literal."""
-    return "'" + str(value).replace("'", "''") + "'"
+    return "'" + str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
 def persist_quality_results(
@@ -100,26 +82,16 @@ def persist_quality_results(
     rows = []
     for result in results:
         payload = _result_payload(result)
-        rows.append(
-            "(" + ", ".join(
-                (
-                    _sql_string(uuid.uuid4().hex),
-                    _sql_string(run_id),
-                    f"DATE {_sql_string(batch_date)}",
-                    _sql_string(phase),
-                    _sql_string(payload["check_name"]),
-                    _sql_string(payload["dataset"]),
-                    _sql_string(payload["severity"]),
-                    _sql_string(payload["observed_value"]),
-                    _sql_string(payload["expected_value"]),
-                    str(float(payload["variance_percent"])),
-                    str(int(payload["failed_rows"])),
-                    _sql_string("PASSED" if payload["passed"] else "FAILED"),
-                    _sql_string(payload["details"]),
-                    f"TIMESTAMP {_sql_string(checked_at.strftime('%Y-%m-%d %H:%M:%S.%f'))}",
-                )
-            ) + ")"
-        )
+        rows.append(render_sql('spark/system/quality_result_row.sql',
+            result_id=_sql_string(uuid.uuid4().hex), run_id=_sql_string(run_id),
+            batch_date=_sql_string(batch_date), phase=_sql_string(phase),
+            check_name=_sql_string(payload['check_name']), dataset=_sql_string(payload['dataset']),
+            severity=_sql_string(payload['severity']), observed=_sql_string(payload['observed_value']),
+            expected=_sql_string(payload['expected_value']), variance=str(float(payload['variance_percent'])),
+            failed_rows=str(int(payload['failed_rows'])),
+            status=_sql_string('PASSED' if payload['passed'] else 'FAILED'),
+            details=_sql_string(payload['details']),
+            checked_at=_sql_string(checked_at.strftime('%Y-%m-%d %H:%M:%S.%f'))).strip())
 
     if not rows:
         return
@@ -128,7 +100,13 @@ def persist_quality_results(
     # SQL VALUES executes fully in the JVM. That avoids starting Python workers
     # merely to persist a few audit rows, and keeps the gate portable across a
     # Spark cluster whose worker image may use a different Python minor version.
-    spark.sql(f"INSERT INTO {QUALITY_RESULTS_TABLE} VALUES " + ", ".join(rows))
+    spark.sql(
+        render_sql(
+            "spark/system/insert_quality_results.sql",
+            quality_results_table=identifier(QUALITY_RESULTS_TABLE),
+            rows=", ".join(rows),
+        )
+    )
 
 
 def _exact_count_check(
@@ -217,10 +195,7 @@ def run_gold_quality_gate(
     ):
         df = spark.table(table_name)
         duplicate_rows = (
-            df.groupBy(primary_key)
-            .count()
-            .filter(F.col(primary_key).isNull() | (F.col("count") > 1))
-            .count()
+            df.groupBy(primary_key).count().filter(F.col(primary_key).isNull() | (F.col("count") > 1)).count()
         )
         results.append(
             QualityCheckResult(
@@ -237,14 +212,10 @@ def run_gold_quality_gate(
     dim_product = spark.table("lakehouse.gold.dim_product").select("product_key")
     dim_variant = spark.table("lakehouse.gold.dim_variant").select("variant_key")
     orphan_products = (
-        fact_order_item.filter(F.col("product_key") > 0)
-        .join(dim_product, "product_key", "left_anti")
-        .count()
+        fact_order_item.filter(F.col("product_key") > 0).join(dim_product, "product_key", "left_anti").count()
     )
     orphan_variants = (
-        fact_order_item.filter(F.col("variant_key") > 0)
-        .join(dim_variant, "variant_key", "left_anti")
-        .count()
+        fact_order_item.filter(F.col("variant_key") > 0).join(dim_variant, "variant_key", "left_anti").count()
     )
     for key_name, orphan_count in (
         ("product_key", orphan_products),
@@ -287,9 +258,7 @@ def run_gold_quality_gate(
     ):
         df = spark.table(table_name)
         for column_name in columns:
-            invalid = df.filter(
-                F.col(column_name).isNotNull() & ~F.col(column_name).rlike(hash_pattern)
-            ).count()
+            invalid = df.filter(F.col(column_name).isNotNull() & ~F.col(column_name).rlike(hash_pattern)).count()
             results.append(
                 QualityCheckResult(
                     check_name="pii_pseudonymization",
@@ -321,7 +290,5 @@ def run_gold_quality_gate(
     }
     if failed:
         messages = "; ".join(f"{item.dataset}.{item.check_name}: {item.details}" for item in failed)
-        raise GoldQualityGateError(
-            f"Gold quality gate failed with {len(failed)} violation(s): {messages}"
-        )
+        raise GoldQualityGateError(f"Gold quality gate failed with {len(failed)} violation(s): {messages}")
     return summary

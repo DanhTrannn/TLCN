@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from lakehouse.sql import identifier, render_sql, sql_type
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -12,18 +14,15 @@ except ImportError:
 
 
 def _append_iceberg_with_schema_evolution(spark, df, target_table: str) -> None:
-    """Append while allowing additive source columns to evolve an existing Bronze table."""
-    try:
-        spark.table(target_table).limit(0).collect()
-        table_exists = True
-    except Exception:
-        table_exists = False
+    """Replace one run atomically; preserve other runs and additive source columns."""
+    table_exists = spark.catalog.tableExists(target_table)
+    run_ids = df.select("_run_id").distinct().collect()
+    if len(run_ids) != 1 or not run_ids[0]["_run_id"]:
+        raise ValueError("Bronze writes require exactly one non-empty run_id")
+    run_id = run_ids[0]["_run_id"]
 
     if table_exists:
-        spark.sql(
-            f"ALTER TABLE {target_table} SET TBLPROPERTIES "
-            "('write.spark.accept-any-schema' = 'true')"
-        )
+        spark.sql(render_sql("spark/bronze/enable_schema_evolution.sql", target_table=identifier(target_table)))
 
         target_schema = spark.table(target_table).schema
         target_names = {field.name for field in target_schema.fields}
@@ -31,8 +30,12 @@ def _append_iceberg_with_schema_evolution(spark, df, target_table: str) -> None:
             if field.name not in target_names:
                 column_name = field.name.replace("`", "``")
                 spark.sql(
-                    f"ALTER TABLE {target_table} ADD COLUMN "
-                    f"`{column_name}` {field.dataType.simpleString()}"
+                    render_sql(
+                        "spark/bronze/add_column.sql",
+                        target_table=identifier(target_table),
+                        column_name=identifier(column_name),
+                        field_datatype_simplestring=sql_type(field.dataType.simpleString()),
+                    )
                 )
 
         # Iceberg validates physical field ordering even for V2 writes. Align
@@ -40,13 +43,15 @@ def _append_iceberg_with_schema_evolution(spark, df, target_table: str) -> None:
         # has been retired.
         target_schema = spark.table(target_table).schema
         source_names = set(df.columns)
-        aligned_df = df.select(*[
-            col(f"`{field.name.replace('`', '``')}`")
-            if field.name in source_names
-            else lit(None).cast(field.dataType).alias(field.name)
-            for field in target_schema.fields
-        ])
-        aligned_df.writeTo(target_table).append()
+        aligned_df = df.select(
+            *[
+                col(f"`{field.name.replace('`', '``')}`")
+                if field.name in source_names
+                else lit(None).cast(field.dataType).alias(field.name)
+                for field in target_schema.fields
+            ]
+        )
+        aligned_df.writeTo(target_table).overwrite(col("_run_id") == lit(run_id))
         return
 
     (
@@ -68,6 +73,8 @@ def ingest_to_bronze(
     error_threshold: float = 0.01,
     _write_format: str = "iceberg",
 ) -> None:
+    if not 0 < error_threshold <= 1:
+        raise ValueError("error_threshold must be in (0, 1]")
     # Read permissive mode
     df = (
         spark.read.option("mode", "PERMISSIVE")
@@ -95,15 +102,11 @@ def ingest_to_bronze(
             error_count = error_df.count()
 
             if error_count / total_count >= error_threshold:
-                raise RuntimeError(
-                    f"Error threshold exceeded: {error_count} errors out of {total_count} records."
-                )
+                raise RuntimeError(f"Error threshold exceeded: {error_count} errors out of {total_count} records.")
 
             if error_count > 0:
                 if _write_format == "iceberg":
-                    _append_iceberg_with_schema_evolution(
-                        spark, error_df, quarantine_table
-                    )
+                    _append_iceberg_with_schema_evolution(spark, error_df, quarantine_table)
                 else:
                     error_df.write.format(_write_format).mode("append").save(quarantine_table)
 

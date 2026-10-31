@@ -12,6 +12,8 @@ Acceptance criteria:
 
 from __future__ import annotations
 
+from lakehouse.sql import identifier, load_sql, render_sql
+
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -75,10 +77,15 @@ def check_table_counts(
             continue
 
         # 1. Source MySQL count
-        source_df = spark.read.format("jdbc").options(
-            url=cfg.jdbc_url,
-            query=f"SELECT COUNT(*) AS cnt FROM `{table_spec.name}`",
-        ).load()
+        source_df = (
+            spark.read.format("jdbc")
+            .option("driver", "com.mysql.cj.jdbc.Driver")
+            .options(
+                url=cfg.jdbc_url,
+                query=render_sql("mysql/table_count.sql", table_spec_name=identifier(table_spec.name)),
+            )
+            .load()
+        )
         source_count = int(source_df.first()["cnt"] or 0)
 
         # 2. Silver Iceberg count
@@ -133,34 +140,39 @@ def check_financial_metrics(
         (
             "gross_revenue_vnd",
             "orders",
-            "SELECT COALESCE(SUM(total_vnd), 0) AS value FROM `orders` WHERE status != 'cancelled'",
+            load_sql("mysql/order_revenue.sql"),
             "lakehouse.silver.silver_orders",
             "total_vnd",
-            "status != 'cancelled'",
+            load_sql("mysql/order_revenue_predicate.sql"),
         ),
         (
             "successful_payments_vnd",
             "payments",
-            "SELECT COALESCE(SUM(amount_vnd), 0) AS value FROM `payments` WHERE status = 'succeeded'",
+            load_sql("mysql/successful_payments.sql"),
             "lakehouse.silver.silver_payments",
             "amount_vnd",
-            "status = 'succeeded'",
+            load_sql("mysql/succeeded_predicate.sql"),
         ),
         (
             "successful_refunds_vnd",
             "refunds",
-            "SELECT COALESCE(SUM(amount_vnd), 0) AS value FROM `refunds` WHERE status = 'succeeded'",
+            load_sql("mysql/successful_refunds.sql"),
             "lakehouse.silver.silver_refunds",
             "amount_vnd",
-            "status = 'succeeded'",
+            load_sql("mysql/succeeded_predicate.sql"),
         ),
     )
 
     for metric_name, table_name, source_query, silver_table, amount_column, predicate in metric_specs:
-        source_df = spark.read.format("jdbc").options(
-            url=cfg.jdbc_url,
-            query=source_query,
-        ).load()
+        source_df = (
+            spark.read.format("jdbc")
+            .option("driver", "com.mysql.cj.jdbc.Driver")
+            .options(
+                url=cfg.jdbc_url,
+                query=source_query,
+            )
+            .load()
+        )
         source_value = int(source_df.first()["value"] or 0)
 
         read_error = None
@@ -252,9 +264,7 @@ def run_reconciliation_gate(
     if failed:
         failure_msg = "; ".join([f"{f.table_name}.{f.metric_name}: {f.details}" for f in failed])
         logger.error("Reconciliation Gate Failed: %s", failure_msg)
-        raise ReconciliationGateError(
-            f"Reconciliation Gate failed with {len(failed)} violation(s): {failure_msg}"
-        )
+        raise ReconciliationGateError(f"Reconciliation Gate failed with {len(failed)} violation(s): {failure_msg}")
 
     logger.info("Reconciliation Gate passed all %d checks successfully.", len(all_results))
     return summary

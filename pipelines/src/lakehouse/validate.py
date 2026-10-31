@@ -1,10 +1,12 @@
 import io
 import json
+import hashlib
 
 import boto3
 import pyarrow.parquet as pq
+from botocore.exceptions import ClientError
 
-from lakehouse.landing import Manifest, RunPaths, manifest_from_dict, validate_manifest
+from lakehouse.landing import FileStats, Manifest, RunPaths, manifest_from_dict, validate_manifest
 
 S3_REGION = "us-east-1"
 
@@ -35,18 +37,23 @@ def validate_manifest_on_s3(
     load_stats=None,
 ) -> list[str]:
     key = paths.manifest_key()
-    try:
-        manifest = load_manifest(s3, bucket, key)
-    except KeyError:
-        manifest = load_manifest(s3, bucket, key.rsplit("/", 1)[-1])
+    manifest = load_manifest(s3, bucket, key)
+    if manifest.run_id != paths.run_id or manifest.table != paths.table:
+        return ["manifest identity does not match requested table/run"]
+    if any(not f.path.startswith(paths.data_prefix() + "/") or ".." in f.path.split("/") for f in manifest.files):
+        return ["manifest file path is outside requested run"]
     if load_stats is None:
+
         def load_stats(key: str):
             try:
                 obj = s3.get_object(Bucket=bucket, Key=key)
-            except Exception:
-                return None
+            except ClientError as exc:
+                if exc.response["Error"]["Code"] in ("NoSuchKey", "404", "NotFound"):
+                    return None
+                raise
             data = obj["Body"].read()
-            return len(data), parquet_row_count(data)
+            return FileStats(len(data), parquet_row_count(data), hashlib.md5(data).hexdigest())
+
     return validate_manifest(manifest, load_stats)
 
 
