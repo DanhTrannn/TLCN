@@ -30,11 +30,7 @@ def main() -> None:
         ensure_logs_gold_tables(spark)
 
         # 2. Read streaming Fact table directly
-        try:
-            fact_df = spark.read.table(FACT_WEB_EVENTS_TABLE)
-        except Exception as exc:
-            print(f"Fact table {FACT_WEB_EVENTS_TABLE} not found: {exc}. Exiting.")
-            return
+        fact_df = spark.read.table(FACT_WEB_EVENTS_TABLE)
 
         if fact_df.limit(1).count() == 0:
             print(f"Fact table {FACT_WEB_EVENTS_TABLE} is empty. No Gold marts to build.")

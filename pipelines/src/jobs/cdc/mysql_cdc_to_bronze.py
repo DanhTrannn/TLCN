@@ -6,6 +6,8 @@ The existing Spark batch path remains the authoritative backfill/reconciliation
 path; downstream consumers can deterministically order and replay this table.
 """
 
+from lakehouse.sql import literal, load_sql, render_sql
+
 import logging
 import os
 
@@ -26,81 +28,21 @@ log = logging.getLogger("flink.mysql_cdc_to_bronze")
 CHECKPOINT_INTERVAL_MS = 10_000
 
 
-def _sql_literal(value: str) -> str:
-    """Escape a value embedded in a Flink SQL single-quoted literal."""
-    return value.replace("'", "''")
-
-
 def kafka_source_ddl(
     bootstrap_servers: str,
     topic_pattern: str,
     group_id: str,
 ) -> str:
     """Build the raw Kafka source DDL without coupling to OLTP table schemas."""
-    return f"""
-        CREATE TEMPORARY TABLE mysql_cdc_kafka (
-            record_key STRING,
-            payload STRING,
-            topic STRING METADATA FROM 'topic' VIRTUAL,
-            kafka_partition INT METADATA FROM 'partition' VIRTUAL,
-            kafka_offset BIGINT METADATA FROM 'offset' VIRTUAL,
-            kafka_timestamp TIMESTAMP_LTZ(3) METADATA FROM 'timestamp' VIRTUAL
-        ) WITH (
-            'connector' = 'kafka',
-            'topic-pattern' = '{_sql_literal(topic_pattern)}',
-            'properties.bootstrap.servers' = '{_sql_literal(bootstrap_servers)}',
-            'properties.group.id' = '{_sql_literal(group_id)}',
-            'properties.auto.offset.reset' = 'earliest',
-            'scan.startup.mode' = 'group-offsets',
-            'key.format' = 'raw',
-            'key.fields' = 'record_key',
-            'value.format' = 'raw',
-            'value.fields-include' = 'EXCEPT_KEY',
-            'value.raw.charset' = 'UTF-8'
-        )
-    """
+    return render_sql(
+        "flink/cdc/kafka_source.sql",
+        topic_pattern=literal(topic_pattern),
+        bootstrap_servers=literal(bootstrap_servers),
+        group_id=literal(group_id),
+    )
 
 
-CDC_INSERT_SQL = """
-    INSERT INTO lakehouse.bronze.oltp_cdc_events
-    SELECT
-        CONCAT(topic, ':', CAST(kafka_partition AS STRING), ':', CAST(kafka_offset AS STRING)),
-        topic,
-        JSON_VALUE(payload, '$.source.db'),
-        COALESCE(
-            JSON_VALUE(payload, '$.source.table'),
-            REGEXP_EXTRACT(topic, '[^.]+$', 0)
-        ),
-        CASE
-            WHEN payload IS NULL THEN 't'
-            ELSE JSON_VALUE(payload, '$.op')
-        END,
-        COALESCE(
-            TO_TIMESTAMP_LTZ(CAST(JSON_VALUE(payload, '$.ts_ms') AS BIGINT), 3),
-            kafka_timestamp
-        ),
-        TO_TIMESTAMP_LTZ(CAST(JSON_VALUE(payload, '$.source.ts_ms') AS BIGINT), 3),
-        JSON_VALUE(payload, '$.transaction.id'),
-        JSON_VALUE(payload, '$.source.server_id'),
-        JSON_VALUE(payload, '$.source.file'),
-        CAST(JSON_VALUE(payload, '$.source.pos') AS BIGINT),
-        CAST(JSON_VALUE(payload, '$.source.row') AS INT),
-        kafka_partition,
-        kafka_offset,
-        record_key,
-        JSON_QUERY(payload, '$.before'),
-        JSON_QUERY(payload, '$.after'),
-        payload,
-        CURRENT_TIMESTAMP,
-        CAST(
-            COALESCE(
-                TO_TIMESTAMP_LTZ(CAST(JSON_VALUE(payload, '$.ts_ms') AS BIGINT), 3),
-                kafka_timestamp,
-                CURRENT_TIMESTAMP
-            ) AS DATE
-        )
-    FROM mysql_cdc_kafka
-"""
+CDC_INSERT_SQL = load_sql("flink/cdc/insert_events.sql")
 
 
 def main() -> None:
