@@ -1,0 +1,45 @@
+CREATE TABLE IF NOT EXISTS {{logs_silver_table}} (
+    event_id            STRING,
+    event_ts            TIMESTAMP,
+    observed_timestamp  TIMESTAMP,
+    schema_name         STRING,
+    schema_version      STRING,
+    service_name        STRING,
+    service_version     STRING,
+    service_environment STRING,
+    service_instance_id STRING,
+    severity_number     INT,
+    severity_text       STRING,
+    trace_id            STRING,
+    span_id             STRING,
+    event_name          STRING,
+    event_category      STRING,
+    event_kind          STRING,
+    event_outcome       STRING,
+    event_duration_ns   BIGINT,
+    http_request_method STRING,
+    http_route          STRING,
+    http_status_code    INT,
+    request_id          STRING,
+    actor_type          STRING,
+    actor_key           STRING,
+    client_user_agent   STRING,
+    ecommerce_action    STRING,
+    ecommerce_product_key STRING,
+    ecommerce_variant_key STRING,
+    ecommerce_search_query STRING,
+    ecommerce_search_redacted BOOLEAN,
+    ecommerce_filters   MAP<STRING, STRING>,
+    error_code          STRING,
+    error_type          STRING,
+    data_origin         STRING,
+    _silver_ingested_at TIMESTAMP,
+    _source_bronze_run_id STRING
+)
+USING iceberg
+PARTITIONED BY (days(event_ts))
+TBLPROPERTIES (
+    'format-version' = '2',
+    'write.upsert.enabled' = 'true',
+    'write.parquet.compression-codec' = 'zstd'
+)
