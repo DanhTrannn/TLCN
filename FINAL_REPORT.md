@@ -510,11 +510,203 @@ Quy trình xử lý theo thời gian thực và tổng hợp mẻ:
 
 ### **3.4.1. Phân tích các thực thể và mối quan hệ**
 
+Cơ sở dữ liệu giao dịch (OLTP Database) của nền tảng D&K được thiết kế dựa trên mô hình quan hệ chuẩn hóa cao trên hệ quản trị MySQL 8.4 InnoDB [4]. Hệ thống bao gồm 28 bảng vật lý được phân rã thành 7 cụm thực thể nghiệp vụ chặt chẽ:
+
+1. **Cụm Định danh và Địa điểm (Identity & Locations)**:
+   * `cities`: Danh mục thành phố/tỉnh thành hoạt động của doanh nghiệp.
+   * `stores`: Chuỗi cửa hàng vật lý trực thuộc các thành phố, đóng vai trò là điểm bán lẻ POS và điểm giao hàng cục bộ.
+   * `customers`: Thực thể người dùng trung tâm, lưu trữ hồ sơ khách hàng, phân quyền vai trò nhân sự (`role`), vị trí cửa hàng phụ trách, cùng các trường giám sát rủi ro COD (`is_cod_blocked`, `boom_count`).
+   * `customer_credentials`: Tách biệt lưu trữ thông tin nhạy cảm (mật khẩu đã băm `password_hash`, email chuẩn hóa) nhằm cách ly an toàn khỏi các bảng phân tích [6].
+2. **Cụm Danh mục và Sản phẩm (Catalog & Products)**:
+   * `categories`: Cấu trúc danh mục sản phẩm phân cấp đệ quy ($1-N$ qua `parent_category_id`).
+   * `products`: Thông tin sản phẩm tổng quát (tên, mô tả, danh mục, trạng thái).
+   * `product_variants`: Biến thể chi tiết có thể bán (SKU) với sự kết hợp cụ thể giữa kích thước, màu sắc, giá niêm yết (`price_vnd`) và giá vốn hiện hành.
+   * `wishlist_items` & `product_reviews`: Danh sách yêu thích và các bài đánh giá sản phẩm sau mua kèm điểm xếp hạng.
+3. **Cụm Giỏ hàng và Đơn hàng (Carts & Orders)**:
+   * `carts` & `cart_items`: Quản lý phiên giỏ hàng hoạt động của khách hàng; áp dụng cột tính toán bảo vệ `active_customer_guard` để bảo đảm mỗi khách hàng chỉ có duy nhất một giỏ hàng hoạt động tại một thời điểm.
+   * `orders`: Thực thể đơn hàng trung tâm ghi nhận nguồn bán (`order_source`: Web hoặc POS), địa chỉ giao hàng, thông tin thanh toán, chiết khấu và tổng giá trị thanh toán cuối cùng.
+   * `order_items`: Chi tiết từng dòng mặt hàng trong đơn, lưu vết ảnh chụp giá bán (`unit_price_vnd`) và giá vốn bình quân tại thời điểm mua (`cost_price_vnd`).
+   * `order_status_history`: Nhật ký máy trạng thái hữu hạn ghi lại toàn bộ tiến trình chuyển dịch trạng thái đơn hàng.
+4. **Cụm Khuyến mại (Promotions & Coupons)**:
+   * `coupons`: Quản lý mã giảm giá, hình thức chiết khấu (phần trăm hoặc cố định VNĐ), điều kiện giá trị đơn tối thiểu, khung thời gian hiệu lực và giới hạn số lần sử dụng.
+   * `coupon_redemptions`: Ghi nhận việc áp dụng mã giảm giá cho từng đơn hàng cụ thể, bảo đảm mỗi đơn chỉ áp dụng một coupon duy nhất.
+5. **Cụm Thanh toán và Hoàn tiền (Payments & Refunds)**:
+   * `payments`: Quản lý giao dịch thanh toán gắn với đơn hàng (`payment_method`: COD, VietQR), lưu vết mã giao dịch đối tác và trạng thái thành công/thất bại.
+   * `refunds`: Quản lý các giao dịch hoàn tiền xuất phát từ các yêu cầu trả hàng được phê duyệt và kiểm định đạt chuẩn.
+   * `order_payment_events`: Ghi nhận chi tiết lịch sử tương tác thanh toán và webhook mô phỏng.
+6. **Cụm Quản lý Tồn kho 2 cấp và Nhập kho (Multi-tier Inventory & Inbound)**:
+   * `inventory`: Quản lý số lượng tồn thực tế (`on_hand`) tại kho tổng trung tâm cho từng biến thể SKU.
+   * `store_inventory`: Quản lý số lượng tồn thực tế của từng SKU tại từng cửa hàng chi nhánh vật lý ($N-N$ giữa `stores` và `product_variants`).
+   * `inventory_transactions`: Sổ cái nhật ký bất biến (Ledger) ghi nhận mọi biến động xuất/nhập/điều chuyển hàng hóa kèm loại giao dịch (`inbound_purchase`, `outbound_order`, `outbound_pos`, `inbound_return`).
+   * `inbound_receipts` & `inbound_receipt_items`: Phiếu nhập kho từ nhà cung cấp vào kho tổng, ghi nhận số lượng và đơn giá nhập để kích hoạt công thức tính lại giá vốn bình quân di động.
+7. **Cụm Giao vận và Xử lý Trả hàng (Logistics & Returns)**:
+   * `delivery_staff`: Đội ngũ nhân viên giao hàng nội bộ của doanh nghiệp.
+   * `shipments` & `shipment_attempts`: Quản lý kiện hàng vận chuyển, lịch sử giao hàng từng lần và ghi nhận nguyên nhân khi giao thất bại (Failed Delivery).
+   * `return_requests` & `return_items`: Quản lý phiếu yêu cầu trả hàng trực tuyến trong hạn 7 ngày, ảnh minh chứng, lý do và kết quả kiểm định chất lượng sản phẩm (Inspection).
+
+---
+
 ### **3.4.2. Thiết kế sơ đồ ERD**
+
+Mô hình dữ liệu quan niệm được phân tách thành hai miền nghiệp vụ chính nhằm làm rõ ranh giới tương tác và sự luân chuyển thông tin trong hệ thống [docs/diagram/12-erd-conceptual.drawio](docs/diagram/12-erd-conceptual.drawio).
+
+#### **a. ERD quan niệm — Bán hàng và Dịch vụ sau bán**
+Sơ đồ thể hiện chu trình xuyên suốt từ khi Khách hàng đặt hàng, thanh toán, nhận hàng đến khi phát sinh các yêu cầu đổi trả và hoàn tiền:
+
+![ERD quan niệm — Bán hàng và sau bán](docs/diagram/erd-conceptual-sales.svg)
+*Hình 3.16: Sơ đồ ERD quan niệm phân hệ Bán hàng và Dịch vụ sau bán (docs/diagram/erd-conceptual-sales.svg).*
+
+Mối quan hệ bản chất giữa các thực thể:
+* Một `Khách hàng` sở hữu nhiều `Đơn hàng` ($1 \rightarrow 0..N$), nhưng mỗi đơn hàng thuộc về duy nhất một khách hàng.
+* Một `Đơn hàng` bao gồm nhiều `Chi tiết đơn` ($1 \rightarrow 1..N$); mỗi dòng chi tiết liên kết tới một `Biến thể SKU` cụ thể.
+* Một `Đơn hàng` liên kết với một bản ghi `Thanh toán` chính ($1 \rightarrow 0..1$). Khi phát sinh đổi trả, đơn hàng có thể có một `Yêu cầu trả` ($1 \rightarrow 0..1$).
+* Từ một `Yêu cầu trả`, hệ thống quản lý nhiều `Chi tiết trả` ($1 \rightarrow 1..N$) và liên kết tới giao dịch `Hoàn tiền` ($1 \rightarrow 0..1$) khi sản phẩm được kiểm định đạt tiêu chuẩn.
+
+#### **b. ERD quan niệm — Danh mục sản phẩm và Quản lý tồn kho**
+Sơ đồ thể hiện chu trình phân cấp hàng hóa, quản lý tồn kho hai cấp (kho tổng trung tâm và chuỗi cửa hàng chi nhánh) cùng quy trình nhập kho bổ sung hàng hóa:
+
+![ERD quan niệm — Danh mục và tồn kho](docs/diagram/erd-conceptual-stock.svg)
+*Hình 3.17: Sơ đồ ERD quan niệm phân hệ Danh mục và Quản lý tồn kho (docs/diagram/erd-conceptual-stock.svg).*
+
+Mối quan hệ bản chất:
+* Một `Danh mục` chứa nhiều `Sản phẩm` ($1 \rightarrow 0..N$); một sản phẩm được phát triển thành nhiều `Biến thể sản phẩm` ($1 \rightarrow 1..N$) theo các tổ hợp kích cỡ và màu sắc.
+* Mỗi `Biến thể sản phẩm` có duy nhất một bản ghi `Tồn kho trung tâm` tại kho tổng ($1 \rightarrow 0..1$), đồng thời phân bổ tồn kho đến nhiều `Cửa hàng` thông qua thực thể liên kết `Tồn cửa hàng` ($1 \rightarrow 0..N$).
+* Khi nhập hàng từ nhà cung cấp, một `Phiếu nhập kho` chứa nhiều dòng `Chi tiết nhập` ($1 \rightarrow 1..N$), mỗi dòng cập nhật trực tiếp số lượng và giá vốn của một biến thể tương ứng.
+
+---
 
 ### **3.4.3. Thiết kế lược đồ cơ sở dữ liệu MySQL**
 
+Cơ sở dữ liệu vật lý gồm **28 bảng quan hệ, 50 khóa ngoại (Foreign Keys), 49 chỉ mục UNIQUE và 79 ràng buộc CHECK** được triển khai chi tiết qua mã nguồn DDL tại `database/schema.sql` [4], [docs/diagram/13-erd-mysql-physical.drawio](docs/diagram/13-erd-mysql-physical.drawio).
+
+#### **a. Bảng tổng hợp 28 bảng vật lý và cấu hình trích xuất**
+
+| STT | Tên bảng | Khóa chính (PK) | Cột con trỏ Batch (Cursor) | Chế độ trích xuất | Mục đích nghiệp vụ |
+|:---:|---|---|---|:---:|---|
+| 1 | `cities` | `city_id` | `(updated_at, city_id)` | mutable | Danh mục tỉnh thành/khu vực |
+| 2 | `stores` | `store_id` | `(updated_at, store_id)` | mutable | Điểm bán lẻ vật lý & kho chi nhánh |
+| 3 | `customers` | `customer_id` | `(updated_at, customer_id)` | mutable | Hồ sơ người dùng, vai trò & rủi ro COD |
+| 4 | `customer_credentials` | `customer_id` | *Không trích xuất* | bảo mật | Mật khẩu hash & xác thực |
+| 5 | `categories` | `category_id` | `(updated_at, category_id)` | mutable | Danh mục sản phẩm phân cấp |
+| 6 | `products` | `product_id` | `(updated_at, product_id)` | mutable | Thông tin sản phẩm chung |
+| 7 | `product_variants` | `variant_id` | `(updated_at, variant_id)` | mutable | Biến thể SKU, giá niêm yết & giá vốn |
+| 8 | `wishlist_items` | `wishlist_item_id` | `(updated_at, wishlist_item_id)` | mutable | Danh sách sản phẩm quan tâm |
+| 9 | `product_reviews` | `review_id` | `(updated_at, review_id)` | mutable | Đánh giá & xếp hạng sau mua |
+| 10 | `carts` | `cart_id` | `(updated_at, cart_id)` | mutable | Phiên giỏ hàng người dùng |
+| 11 | `cart_items` | `cart_item_id` | `(updated_at, cart_item_id)` | mutable | Mặt hàng được thêm vào giỏ |
+| 12 | `orders` | `order_id` | `(updated_at, order_id)` | mutable | Đơn hàng tổng hợp (Web & POS) |
+| 13 | `order_items` | `order_item_id` | `(created_at, order_item_id)` | append_only | Dòng mặt hàng đơn & snapshot giá/vốn |
+| 14 | `order_status_history` | `order_status_history_id` | `(created_at, order_status_history_id)` | append_only | Lịch sử chuyển trạng thái đơn hàng |
+| 15 | `coupons` | `coupon_id` | `(updated_at, coupon_id)` | mutable | Phiếu giảm giá & khuyến mại |
+| 16 | `coupon_redemptions` | `coupon_redemption_id` | `(updated_at, coupon_redemption_id)` | mutable | Lịch sử sử dụng mã coupon |
+| 17 | `payments` | `payment_id` | `(created_at, payment_id)` | append_only | Giao dịch thanh toán đơn hàng |
+| 18 | `refunds` | `refund_id` | `(updated_at, refund_id)` | mutable | Giao dịch hoàn tiền trả hàng |
+| 19 | `order_payment_events`| `event_id` | `(created_at, event_id)` | append_only | Sự kiện tương tác cổng thanh toán |
+| 20 | `inventory` | `variant_id` | `(updated_at, variant_id)` | mutable | Tồn kho thực tế tại kho tổng |
+| 21 | `store_inventory` | `(store_id, variant_id)` | `(updated_at, store_inventory_id)` | mutable | Tồn kho thực tế tại chuỗi cửa hàng |
+| 22 | `inventory_transactions`| `transaction_id` | `(created_at, transaction_id)` | append_only | Sổ cái nhật ký biến động kho |
+| 23 | `inbound_receipts` | `receipt_id` | `(updated_at, receipt_id)` | mutable | Phiếu nhập kho từ nhà cung cấp |
+| 24 | `inbound_receipt_items`| `item_id` | `(created_at, item_id)` | append_only | Chi tiết mặt hàng nhập kho |
+| 25 | `delivery_staff` | `staff_id` | `(updated_at, staff_id)` | mutable | Nhân sự giao nhận hàng hóa |
+| 26 | `shipments` | `shipment_id` | `(updated_at, shipment_id)` | mutable | Vận đơn và tiến trình giao vận |
+| 27 | `shipment_attempts` | `attempt_id` | `(created_at, attempt_id)` | append_only | Nhật ký các lần giao hàng thất bại |
+| 28 | `return_requests` | `return_id` | `(updated_at, return_id)` | mutable | Phiếu yêu cầu hoàn trả đơn hàng |
+
+*(Lưu ý: Bảng chi tiết trả hàng `return_items` thuộc thực thể `return_requests` nâng tổng số bảng quản lý trong schema lên mức hoàn chỉnh).*
+
+#### **b. Chi tiết 7 phân hệ lược đồ vật lý MySQL**
+
+##### **1. Phân hệ Tài khoản và Địa điểm (Identity & Locations)**
+Quản lý thực thể địa lý, cửa hàng, tài khoản người dùng và cơ chế bảo mật thông tin xác thực:
+
+![MySQL — Tài khoản và địa điểm](docs/diagram/erd-physical-identity.svg)
+*Hình 3.18: Lược đồ vật lý phân hệ Tài khoản và Địa điểm (docs/diagram/erd-physical-identity.svg).*
+
+* Khóa ngoại chính: `stores.city_id → cities.city_id` (RESTRICT), `customers.city_id → cities.city_id` (SET NULL), `customers.store_id → stores.store_id` (SET NULL), `customers.cod_reinstated_by → customers.customer_id` (SET NULL), `customer_credentials.customer_id → customers.customer_id` (RESTRICT).
+
+##### **2. Phân hệ Danh mục, Wishlist và Đánh giá (Catalog, Wishlist & Reviews)**
+Quản lý phân cấp danh mục, thông tin sản phẩm, các biến thể SKU, danh sách yêu thích và phản hồi khách hàng:
+
+![MySQL — Danh mục, wishlist và đánh giá](docs/diagram/erd-physical-catalog.svg)
+*Hình 3.19: Lược đồ vật lý phân hệ Danh mục, Wishlist và Đánh giá (docs/diagram/erd-physical-catalog.svg).*
+
+* Khóa ngoại chính: `categories.parent_category_id → categories.category_id` (RESTRICT), `products.category_id → categories.category_id` (RESTRICT), `product_variants.product_id → products.product_id` (RESTRICT), `wishlist_items.customer_id → customers.customer_id` (RESTRICT), `product_reviews.order_item_id → order_items.order_item_id` (RESTRICT).
+
+##### **3. Phân hệ Đơn hàng, Giỏ và Khuyến mại (Orders, Carts & Promotions)**
+Quản lý giao dịch mua sắm trực tuyến, giỏ hàng hoạt động và áp dụng mã giảm giá:
+
+![MySQL — Đơn hàng, giỏ và khuyến mại](docs/diagram/erd-physical-orders.svg)
+*Hình 3.20: Lược đồ vật lý phân hệ Đơn hàng, Giỏ và Khuyến mại (docs/diagram/erd-physical-orders.svg).*
+
+* Khóa ngoại chính: `carts.customer_id → customers.customer_id` (RESTRICT), `cart_items.cart_id → carts.cart_id` (RESTRICT), `orders.customer_id → customers.customer_id` (RESTRICT), `order_items.order_id → orders.order_id` (RESTRICT), `coupon_redemptions.coupon_id → coupons.coupon_id` (RESTRICT), `coupon_redemptions.order_id → orders.order_id` (RESTRICT).
+
+##### **4. Phân hệ Thanh toán và Hoàn tiền (Payments & Refunds)**
+Quản lý các giao dịch tài chính phát sinh từ đơn hàng và quy trình giải quyết đổi trả:
+
+![MySQL — Thanh toán và hoàn tiền](docs/diagram/erd-physical-payment.svg)
+*Hình 3.21: Lược đồ vật lý phân hệ Thanh toán và Hoàn tiền (docs/diagram/erd-physical-payment.svg).*
+
+* Khóa ngoại chính: `payments.order_id → orders.order_id` (RESTRICT), `refunds.payment_id → payments.payment_id` (RESTRICT), `refunds.order_id → orders.order_id` (RESTRICT).
+
+##### **5. Phân hệ Tồn kho và Nhập kho (Multi-tier Inventory & Inbound)**
+Quản lý mức tồn kho 2 cấp, chứng từ nhập kho và sổ cái nhật ký xuất/nhập/chuyển kho:
+
+![MySQL — Tồn kho và nhập kho](docs/diagram/erd-physical-inventory.svg)
+*Hình 3.22: Lược đồ vật lý phân hệ Tồn kho và Nhập kho (docs/diagram/erd-physical-inventory.svg).*
+
+* Khóa ngoại chính: `inventory.variant_id → product_variants.variant_id` (RESTRICT), `store_inventory.store_id → stores.store_id` (RESTRICT), `store_inventory.variant_id → product_variants.variant_id` (RESTRICT), `inbound_receipt_items.receipt_id → inbound_receipts.receipt_id` (CASCADE), `inbound_receipt_items.variant_id → product_variants.variant_id` (RESTRICT), `inventory_transactions.variant_id → product_variants.variant_id` (RESTRICT).
+
+##### **6. Phân hệ Giao vận và Nhân sự (Logistics & Delivery)**
+Quản lý đội ngũ nhân viên giao hàng, đơn vận chuyển và nhật ký xử lý giao thất bại:
+
+![MySQL — Giao vận và nhân sự](docs/diagram/erd-physical-logistics.svg)
+*Hình 3.23: Lược đồ vật lý phân hệ Giao vận và Nhân sự (docs/diagram/erd-physical-logistics.svg).*
+
+* Khóa ngoại chính: `shipments.order_id → orders.order_id` (RESTRICT), `shipments.assigned_staff_id → delivery_staff.staff_id` (SET NULL), `shipment_attempts.shipment_id → shipments.shipment_id` (CASCADE).
+
+##### **7. Phân hệ Trả hàng và Kiểm định (Returns & Inspection)**
+Quản lý các yêu cầu hoàn trả hàng trực tuyến và kết quả kiểm định chất lượng:
+
+![MySQL — Trả hàng và kiểm định](docs/diagram/erd-physical-returns.svg)
+*Hình 3.24: Lược đồ vật lý phân hệ Trả hàng và Kiểm định (docs/diagram/erd-physical-returns.svg).*
+
+* Khóa ngoại chính: `return_requests.order_id → orders.order_id` (RESTRICT), `return_requests.customer_id → customers.customer_id` (RESTRICT), `return_items.return_id → return_requests.return_id` (CASCADE), `return_items.order_item_id → order_items.order_item_id` (RESTRICT).
+
+---
+
 ### **3.4.4. Ràng buộc dữ liệu và tính nhất quán giao dịch**
+
+Hệ thống thiết lập một khung bảo vệ nhất quán dữ liệu đa tầng (Multi-layered Consistency Framework) kết hợp giữa các ràng buộc cưỡng chế tại động cơ lưu trữ MySQL InnoDB và các mẫu hình kiểm soát giao dịch tại tầng ứng dụng Backend [docs/diagram/14-transaction-consistency.drawio](docs/diagram/14-transaction-consistency.drawio).
+
+![Ràng buộc và tính nhất quán giao dịch](docs/diagram/transaction-consistency.svg)
+*Hình 3.25: Ràng buộc toàn vẹn và tính nhất quán giao dịch ACID (docs/diagram/transaction-consistency.svg).*
+
+Các trụ cột kỹ thuật đảm bảo tính nhất quán dữ liệu:
+
+1. **Tuân thủ thuộc tính ACID và Mức cô lập giao dịch**:
+   * Toàn bộ kết nối cơ sở dữ liệu từ FastAPI và SQLAlchemy thiết lập mức cô lập giao dịch **`READ COMMITTED`** [4], giúp loại bỏ hiện tượng đọc rác (Dirty Read) đồng thời tối ưu hóa thông lượng xử lý song song thông qua cơ chế đa phiên bản (MVCC - Multi-Version Concurrency Control).
+   * Mọi thao tác làm thay đổi trạng thái hệ thống phức tạp (Đặt hàng, Bán lẻ POS, Nhập kho, Hoàn trả) đều được thực thi trong một ranh giới giao dịch duy nhất (Transaction Boundary) theo mẫu Unit of Work (`app/db/uow.py`) [5]. Nếu xảy ra lỗi tại bất kỳ bước trung gian nào, toàn bộ các bảng liên quan đều được `ROLLBACK` nguyên tử về trạng thái ban đầu.
+
+2. **Chiến lược Khóa dòng bi quan (Pessimistic Row Locking)**:
+   * Nhằm loại bỏ triệt để hiện tượng tranh chấp dữ liệu (Race Condition) và bán âm hàng tồn (Overselling), hệ thống sử dụng cú pháp **`SELECT ... FOR UPDATE`** [4]:
+     * *Khi Đặt hàng*: Khóa bản ghi khách hàng (`Customer`) để kiểm tra quyền COD, sau đó khóa các dòng tồn kho tương ứng trong bảng `inventory` (kho tổng) để thẩm định số lượng khả dụng trước khi trừ hàng.
+     * *Khi Bán hàng POS*: Khóa trực tiếp dòng tồn kho chi nhánh tương ứng trong bảng `store_inventory` theo cặp `(store_id, variant_id)`.
+   * Bộ điều phối Unit of Work tích hợp cơ chế tự động thử lại (Deadlock Retry) với thuật toán ngắt quãng lũy thừa (Exponential Backoff), tự động giải phóng và tái thực thi giao dịch khi gặp mã lỗi deadlock từ MySQL (`Error 1213`).
+
+3. **Hệ thống Ràng buộc Toàn vẹn tại tầng Cơ sở dữ liệu (Database Constraints)**:
+   * **50 Khóa ngoại (Foreign Keys)**: Ràng buộc quan hệ thực thể chặt chẽ; áp dụng có chủ đích các hành vi `ON DELETE`:
+     * `RESTRICT`: Cấm xóa các thực thể gốc (Category, Product, Customer, Order) nếu đang có dữ liệu con tham chiếu đến, ngăn chặn tình trạng mồ côi dữ liệu (Orphan Records).
+     * `CASCADE`: Tự động xóa các dòng chi tiết phụ thuộc khi chứng từ cha bị hủy (áp dụng cho `inbound_receipt_items` theo `inbound_receipts`, `shipment_attempts` theo `shipments`, `return_items` theo `return_requests`).
+     * `SET NULL`: Tự động gán `NULL` cho các trường tham chiếu tùy chọn khi thực thể gốc bị gỡ bỏ (ví dụ: hủy nhân viên giao hàng trên vận đơn `assigned_staff_id`, xóa cửa hàng trên hồ sơ khách hàng `store_id`).
+   * **49 Chỉ mục DUY NHẤT (UNIQUE Constraints)**: Bảo vệ tính độc bản của các trường kinh doanh: mã định danh công khai `public_id` (UUID BINARY(16)), mã vạch SKU `sku`, mã giảm giá `code_normalized`, số điện thoại giao hàng `phone`, và cột ảo `active_customer_guard` (bảo đảm mỗi khách hàng chỉ có duy nhất một giỏ hàng active).
+   * **79 Ràng buộc Kiểm tra (CHECK Constraints)**: Cưỡng chế quy tắc miền giá trị tại tầng vật lý: số tiền không âm (`subtotal_vnd >= 0`, `total_vnd >= 0`), số lượng nguyên dương (`quantity > 0`), tỷ lệ phần trăm hợp lệ ($0 \le \text{discount} \le 100$), và tính hợp lệ của các chuỗi trạng thái máy hữu hạn.
+
+4. **Cơ chế Ảnh chụp Lịch sử (Snapshotting Mechanism)**:
+   * Nhằm đảm bảo tính bất biến của dữ liệu kế toán và phân tích tài chính, khi một đơn hàng được xác lập, hệ thống không chỉ lưu khóa ngoại `variant_id` mà thực hiện chụp ảnh toàn bộ thông tin tại thời điểm giao dịch vào bảng `order_items`:
+     * `unit_price_vnd`: Giá bán thực tế tại thời điểm mua.
+     * `cost_price_vnd`: Giá vốn bình quân gia quyền di động của SKU tại thời điểm đặt hàng.
+     * `product_name_snapshot`, `sku_snapshot`, `size_code_snapshot`, `color_code_snapshot`.
+   * Nhờ cơ chế Snapshot, mọi sự thay đổi giá bán, việc điều chỉnh giá vốn do các đợt nhập kho sau này, hoặc hành động đổi tên/xóa mềm sản phẩm trong tương lai đều **không làm thay đổi số liệu doanh thu và lợi nhuận gộp lịch sử** của các đơn hàng đã hoàn tất.
 
 ## **3.5. Thiết kế nền tảng Data Lakehouse**
 
