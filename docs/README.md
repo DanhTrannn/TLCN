@@ -1,6 +1,6 @@
 # Mục lục tài liệu đồ án
 
-Bộ tài liệu lấy phần Data Engineering làm trọng tâm. Kiến trúc, bảng dữ liệu và công thức được đối chiếu với mã nguồn; số dòng và hiệu năng thực tế cần lấy từ môi trường đang chạy.
+Bộ tài liệu lấy phần Data Engineering làm trọng tâm, được đối chiếu tĩnh với mã nguồn ngày **31/10/2026**. Schema/quyền/công thức lấy từ code; số dòng, trạng thái dịch vụ và hiệu năng cần lấy từ môi trường đang chạy.
 
 ## Tài liệu triển khai hiện tại
 
@@ -18,18 +18,19 @@ Bộ tài liệu lấy phần Data Engineering làm trọng tâm. Kiến trúc, 
 | [SETUP](runbook/SETUP.md) | Cài đặt, thứ tự khởi động, vận hành batch/streaming, quyền truy cập và xử lý lỗi |
 | [Phát triển và CI](../README.md#development-commands) | Lệnh kiểm tra cục bộ và các job GitHub Actions |
 | [Sơ đồ Chương 3](diagram/README.md) | Bộ sơ đồ theo dàn ý: Use Case, Activity, Sequence, kiến trúc, ERD MySQL, Lakehouse và wireframe; có trang HTML xem nhanh |
-| [Sơ đồ cũ](diagrams/README.md) | Bản kiến trúc ban đầu, ERD DBML và các sơ đồ PlantUML |
 | [Access log schema](contracts/ecommerce-access-v1.schema.json) | JSON Schema cho hợp đồng dữ liệu |
 
 ## Tài liệu giữ để phân tích và viết tiểu luận
 
-Các tài liệu A–D được giữ theo lựa chọn của tác giả. Chúng mô tả nghiệp vụ và thiết kế mở rộng; khi xác định tính năng/công thức đang triển khai, dùng nhóm tài liệu ở trên và mã nguồn.
+Các tài liệu A–D mô tả phân tích, nghiệp vụ và thiết kế theo code hiện tại. Các phần chưa triển khai và khác biệt UI/API được ghi rõ; định nghĩa công thức chi tiết dùng Metrics Catalog để tránh lặp lại.
 
 | Mã | Tài liệu | Nội dung |
 |---|---|---|
 | A | [OOSAD_ANALYSIS](design-analysis/OOSAD_ANALYSIS.md) | Actors, Use Case, Activity, Sequence và phân tích Web/Lakehouse |
-| B | [BUSINESS_DOMAIN](architecture/BUSINESS_DOMAIN.md) | Bảy vai trò quản lý, câu hỏi kinh doanh và KPI mong muốn |
+| B | [BUSINESS_DOMAIN](architecture/BUSINESS_DOMAIN.md) | Bảy góc nhìn BI, câu hỏi kinh doanh, nguồn và giới hạn diễn giải KPI |
 | C | [BUSINESS_REQUIREMENTS](project/BUSINESS_REQUIREMENTS.md) | Mua hàng, POS, kho, giao vận, COD và đổi trả |
 | D | [WEB_DESIGN_PLAN](project/WEB_DESIGN_PLAN.md) | Thiết kế website nguồn, API và giao dịch |
 
-Bản `BUSINESS_DOMAIN.md` tại `design-analysis/` trùng nội dung đã được gộp về bản B.
+## Quy tắc cập nhật
+
+Khi đổi schema, đối chiếu SQL, ORM, cấu hình extract và ERD. Khi đổi dashboard, cập nhật công thức/nguồn, quyền API và tài liệu giao diện. Lệnh chạy lấy từ script, Makefile hoặc Compose; không dùng lịch chạy/checkpoint làm bằng chứng SLA. Bộ sơ đồ nằm tại `docs/diagram/`; các bản cũ trong `docs/diagrams/` đã được loại bỏ.

@@ -1,119 +1,84 @@
-# E-Commerce Web Application Plan
+# D — Source Web Application Design
 
-This document outlines the architecture, domain design, and technical specifications of the source web application and API that generate operational data for the D&K E-Commerce Data Platform.
+The Next.js/FastAPI application is the transactional source and dashboard interface for the D&K Data Engineering project. This document describes the current code; deferred capabilities are listed separately.
 
-## 1. Application Goals
+## 1. Application boundaries
 
-The source application serves as the system of record for e-commerce transactions and the origin of structured access logs. It provides a realistic, robust retail workflow for both consumer shopping and store management.
+| Component | Responsibility | Source |
+|---|---|---|
+| Next.js App Router | Storefront, admin/store operations, POS, BI Hub | [pages](../../apps/storefront/src/app) |
+| React / Tailwind / ECharts | UI, role dashboards, charts and table interaction | [components](../../apps/storefront/src/components) |
+| FastAPI routers / schemas | HTTP contract, validation, authentication dependencies | [modules](../../services/ecommerce-api/app/modules) |
+| Domain services / Unit of Work | Business rules, transactions and retry | [uow.py](../../services/ecommerce-api/app/db/uow.py) |
+| MySQL / SQLAlchemy | OLTP persistence, 28 tables | [DDL](../../database/schema.sql), [models](../../services/ecommerce-api/app/models) |
+| Trino analytics client | Read historical Gold and expose source/degraded status | [analytics](../../services/ecommerce-api/app/modules/analytics) |
+| Access middleware / Kafka producer | Structured request events for the log stream | [core](../../services/ecommerce-api/app/core) |
 
-### 1.1. Core Capabilities
-- **Customer:** Account registration, login, profile management, catalog browsing, faceted filtering, search, multi-item wishlist, and active shopping cart.
-- **Checkout:** Atomic checkout flow with structured address (province/ward/street), stock deduction, coupon validation, and simulated payment success.
-- **POS (Point of Sale):** Staff sell at store counter, search products by SKU/name, create completed transactions, and deduct the selected store's inventory atomically with an `outbound_pos` ledger entry.
-- **Admin Operations:** Product catalog management, archive controls, inventory oversight, promotion lifecycle, customer accounts, post-publication review moderation, and POS order management.
-- **Multi-City Inventory:** Store-level inventory tracking, city-based product availability, and store assignment for staff.
-- **Data Engineering Integration:** Strict surrogate PKs, UTC `updated_at` timestamps for composite cursor extraction, and exclusion of authentication credentials from analytical access.
+Browsers call FastAPI over HTTP/JSON. The UI does not connect directly to MySQL, Trino, Spark or Polaris. FastAPI uses MySQL for operational transactions and Trino for selected analytical views; batch pipelines do not run inside API requests. Compose currently uses the application MySQL user for batch reads, rather than a separate SELECT-only account.
 
----
-## 2. Architecture and Data Flow
+## 2. Functional modules
 
-The application follows a clean 3-tier architecture, strictly decoupled from the analytical data lakehouse components:
+| Area | Implemented behavior |
+|---|---|
+| Auth | Registration, login/logout, current user; JWT cookies and Argon2 password hashes |
+| Catalog / location | Product search/filter/detail, categories/facets, city/store availability |
+| Wishlist / cart | Authenticated item presence and quantities; no stock reservation on add |
+| Checkout | Quote, idempotent order creation, coupon validation, central stock decrement and cost snapshots |
+| Orders | Owned history/detail, early paid-order cancellation, receipt confirmation; admin fulfillment |
+| POS | Product lookup and completed counter sales using store inventory |
+| Admin / inbound | Product/variant management, customer roles/status, branch stock, inbound receipts and weighted costs |
+| Coupons / reviews | Promotion management and post-publication moderation |
+| Logistics / returns | Delivery staff, shipments/attempts, COD risk, refund-only return workflow |
+| Analytics | Seven role views, sales trend, store scope, Gold/MySQL source and fallback status |
 
-```text
-Browser Client (Storefront & Admin)
-         │ HTTP/JSON + CSRF
-         ▼
-Next.js 15 Storefront (Port 3000)
-         │ HTTP/JSON
-         ▼
-FastAPI Backend (Port 8000)
-        /                      \
-Short Transactions         Real-Time Event Streaming
-      /                          \
-     ▼                            ▼
-MySQL 8.4 (OLTP)             Apache Kafka (Access Logs)
-  (28 tables)                     │
-     │                            ▼
-     │                       Apache Flink (Streaming Ingestion)
-     │                            │
-     └─────────────┬──────────────┘
-                   ▼
-       MinIO S3 / Apache Iceberg
-```
+Category data is readable and seedable; category CRUD/archive endpoints are not implemented. Registration/current-user endpoints do not provide customer self-service profile editing. Payment success is simulated in code; no external bank callback is integrated.
 
-### 2.1. Dependency Invariants
-- The Storefront only communicates with the FastAPI Backend; it never accesses MySQL directly.
-- The FastAPI Backend interacts with Trino via read-only queries for Lakehouse analytics, and never interacts directly with Spark or Polaris.
-- The Data Lakehouse batch pipelines only read from MySQL with a dedicated read-only user and never write back to the OLTP database.
+## 3. Roles and access
 
----
+Seven staff roles are defined alongside `customer`: `admin`, `store_manager`, `sales_manager`, `marketing_manager`, `inventory_manager`, `operations_manager`, `system_admin`.
 
-## 3. Domain Modules
+- Analytics: admin can select all views; other staff roles can request their own view. Store managers are scoped to their assigned store by FastAPI.
+- Products/inbound: inventory manager or admin for writes; product listing is available to staff.
+- Coupons/reviews: marketing manager or admin.
+- Order administration, logistics and return administration: admin at the API layer.
+- Store endpoints: store manager assigned to a store, or admin selecting/defaulting a store.
+- POS API: staff assigned to the requested store; admin/system admin bypass this assignment check. UI route permissions are narrower.
+- Branch stock writes: PATCH permits admin/assigned store manager; refill POST requires admin. Both routes currently flush without commit, so persistence is incomplete; see the admin router and database dependency.
 
-### 3.1. Catalog and Search
-- Categorized navigation with parent-child hierarchy.
-- Bounded search (`LIKE` filters) and faceted filtering (category, size, color, price range, stock availability).
-- Products and categories support soft-archive (`archived_at`, `archived_by_customer_id`, `archive_reason`). Archived products are terminal and hidden from storefront browsing while preserving historical order references.
+The UI currently permits operations managers to open order/logistics/returns routes, while those APIs require admin. This mismatch is a current limitation, not evidence of authorized write access. Delivery staff are records, not separately authenticated website users. Source: [API dependencies](../../services/ecommerce-api/app/db/deps.py), [UI permissions](../../apps/storefront/src/lib/role-routes.ts).
 
-### 3.2. Wishlist and Cart
-- Customers maintain a multi-item wishlist with soft presence tracking (`is_present`, `first_added_at`, `last_added_at`, `removed_at`).
-- Active shopping carts track item additions, updates, and logical removals. Adding items to a cart does not hold inventory.
+## 4. Transaction design
 
-### 3.3. Checkout and Orders
-- Requires authentication and client-generated `Idempotency-Key` headers.
-- Re-validates catalog pricing, coupon criteria, and inventory availability at checkout time.
-- VietQR checkouts atomically create a `paid` order and succeeded payment; COD checkouts create a `confirmed` order with payment pending until the customer confirms receipt.
-- Checkout address uses structured fields: province (34 provinces post-1/7/2025 merger), ward, and street.
-- Online orders deduct central `inventory`; branch stock is managed separately for POS and transfers.
-- Order State Machine:
-  ```text
-  paid ──(admin confirm)──▶ confirmed ──(dispatch)──▶ shipping ──(deliver)──▶ delivered
-  delivered ──(customer confirms receipt)──▶ completed
-  paid ──(cancel)─────────▶ cancelled (restores stock, full refund, releases coupon)
-  ```
+Online checkout requires authentication, CSRF and a client `Idempotency-Key`. The service checks the customer before looking up an existing order. New orders validate catalog, pricing, coupon and inventory inside the Unit of Work. Order/items/payment/history/redemption, central inventory and ledger changes commit together; failures roll back. Retry handling applies to configured lock/deadlock errors, not every possible failure.
 
-### 3.4. POS (Point of Sale)
-- Staff sell at store counter using page `/store/pos` and API `POST /api/v1/pos/transactions`.
-- Search products by SKU prefix or product name, showing up to 8 results with store stock.
-- Create completed transactions immediately (no confirmation flow).
-- Deducts `store_inventory` only; central stock changes through explicit transfer/inbound flows.
-- Order marked with `channel='pos'`, `store_id`, and `staff_id`.
-- POS orders bypass coupons and shipping fees; the service generates an internal idempotency key for persistence.
+VietQR creates a paid order and succeeded payment locally; COD creates confirmed/pending. Dispatch accepts paid or confirmed; delivery precedes customer completion. Cancellation is limited to paid orders and restores stock/releases coupons/records a refund. See [business requirements](BUSINESS_REQUIREMENTS.md) for the return window, third delivery failure and partial-refund behavior.
 
-### 3.4. Product Reviews
-- Customers can review items from `completed` orders only (verified purchase).
-- **Immediate Publication:** Reviews default to `status = 'approved'` and display immediately.
-- **Post-Publication Moderation:** Admins can moderate reviews (`approved` ↔ `rejected`) with a mandatory reason, hiding inappropriate content without introducing a blocking approval queue.
+POS deducts store inventory and creates completed/succeeded records in one transaction. Its generated internal idempotency key does not provide client-retry deduplication equivalent to online checkout. Inbound receipts update central balances and moving weighted costs; historical order items retain their captured cost.
 
-### 3.5. Promotions and Coupons
-- Percentage or fixed-amount discount codes with minimum subtotal requirements, effective windows, and total/per-customer limits.
-- Order snapshots capture coupon code, discount type, and discount amount at purchase.
-- Expired campaigns can be archived without affecting past order redemption history.
+Money is stored as integer VND. MySQL runs with READ COMMITTED in the configured API engine. Row locks and database constraints support consistency; no load-test result or absolute concurrency guarantee is asserted here.
 
----
+## 5. Access logging and analytical serving
 
-## 4. Transaction Constraints
+The API emits selected completed-request events to JSON stdout and asynchronously enqueues them to Kafka. GET liveness/readiness probes are excluded. Log fields include `request.id`, timestamp/service/event metadata, canonical route/status, actor and allowlisted commerce context. Raw request/response bodies, credentials and IP addresses are not included; search/user-agent handling uses bounded sanitization, not a blanket guarantee that arbitrary text cannot contain PII.
 
-- **Atomicity:** All state mutations during checkout (order creation, order items, payment record, inventory decrement, coupon redemption) execute within a single transaction under `READ COMMITTED` isolation.
-- **Idempotency:** Replay requests with the same idempotency key return the original result without duplicate charges or stock deductions.
-- **Concurrency Control:** Inventory and coupon balances are locked with `SELECT ... FOR UPDATE` ordered by primary key to prevent deadlocks and overselling.
-- **Monetary Precision:** All monetary amounts are stored as integer VND (no float rounding issues).
+The producer has a local DLQ path when unavailable/enqueue fails; there is no automated replay job or end-to-end exactly-once guarantee from HTTP completion. Flink writes four log tables through one StatementSet; Spark rolls up three marts. Uploaded historical JSONL is a separate raw source and is not automatically consumed by the Kafka job. See [access-log design](../architecture/ACCESS_LOG_DESIGN.md).
 
----
+Executive/sales use Gold; marketing combines Gold events and MySQL signals; store/inventory/operations use MySQL; system compares MySQL with Gold. Responses declare `data_source`, `is_degraded`, `degraded_reason`. Dashboard refresh reloads the API without triggering batch processing. Reconciliation charts use one axis per metric, separating order counts from VND.
 
-## 5. Structured Access Logging
+## 6. Deployment and configuration
 
-Every completed HTTP request emits a standardized JSON log to stdout matching the [`ecommerce.access:1.0.0`](../contracts/ecommerce-access-v1.schema.json) contract:
+Docker builds Next.js standalone output and the FastAPI service. A fresh MySQL volume imports `database/schema.sql`; API startup then runs the catalog/admin seed. Existing volumes are not automatically altered. There is no application schema migration runner.
 
-- **Core Fields:** `request_id`, `timestamp`, `service`, `event.duration_ns`, `http.request_method`, `http.route`, `http.status_code`.
-- **E-Commerce Context:** `actor.type`, `actor.key`, `ecommerce.action`, `ecommerce.product_key`, `ecommerce.search_query`.
-- **Privacy Redaction:** Passwords, authorization tokens, session cookies, raw IP addresses, and customer PII are strictly excluded.
-- **Rotation:** FastAPI publishes structured events to Apache Kafka; Apache Flink ingests them continuously into Apache Iceberg.
+Frontend public variables are build-time settings: `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_CSRF_COOKIE_NAME`. Backend settings use `API_*`; Kafka producer settings use `KAFKA_*`. Browser requests use cookies and `X-CSRF-Token` where the route enables verification. The store confirm/cancel routes currently omit that CSRF dependency.
 
----
+Compose is a local HTTP deployment. API defaults and several Compose values still include development credentials; production secret-manager injection, TLS termination, enforced Secure cookies, rate limiting and network isolation are not a completed deployment package. Dedicated MinIO/Polaris workload identities do not remove those limitations.
 
-## 6. Synthetic Data Generation
+## 7. Data generation and deferred work
 
-The workspace includes a deterministic synthetic data generator (`generator` package):
-- Generates 12 months of realistic transactions and 30 days of matching access logs based on Vietnamese retail behavior (campaign spikes, 0h sales, Tet seasonality, category weights).
-- Guarantees 100% reproducibility and strict adherence to OLTP relational constraints.
+The generator creates configured synthetic SQL history and access logs; the traffic script exercises actual APIs to feed Kafka. Deterministic generation depends on matching configuration/version, not a guarantee for all interactive runtime requests. Scale settings are inputs, not measured row counts or throughput.
+
+ML training/scoring, recommendations, forecasts, exchange-size/color processing, external payment verification and complete supplier/production management are outside current implementation. Documentation must not describe these as working features.
+
+## References
+
+[API usage](../../services/ecommerce-api/README.md) · [Storefront routes](../../apps/storefront/README.md) · [OLTP schema](../architecture/OLTP_SCHEMA.md) · [architecture](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md) · [setup](../runbook/SETUP.md)

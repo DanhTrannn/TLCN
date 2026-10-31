@@ -1,189 +1,99 @@
 # Structured Access Logs
 
-This document defines the structured access log contract, Kafka + Flink real-time streaming pipeline, Landing Zone layout, and Medallion transformation mapping for the D&K E-Commerce Data Platform.
+This document describes the access-event contract and the current Kafka/Flink implementation. Sources: [middleware](../../services/ecommerce-api/app/core/middleware.py), [event builder](../../services/ecommerce-api/app/core/access_logging.py), [producer](../../services/ecommerce-api/app/core/kafka_producer.py), [streaming job](../../pipelines/src/jobs/logs/kafka_to_lakehouse.py).
 
-## Architectural Overview
+## 1. Capture boundary
 
-The access logging pipeline captures HTTP server requests at the FastAPI boundary, serializes each event into a compact JSON record on container stdout, and streams events in real-time through Apache Kafka to Apache Flink for continuous Iceberg lakehouse ingestion.
+FastAPI middleware assigns a server-generated 32-character hexadecimal request ID and returns it as `X-Request-ID`. Completed requests and handled/unhandled errors produce structured JSON events on stdout and are enqueued asynchronously to Kafka. `GET /health/live` and `GET /health/ready` are excluded. Canonical FastAPI route templates are logged; unmatched paths use `__unmatched__`.
 
-```text
-Browser Client
-      │ HTTP Request
-      ▼
-FastAPI Boundary (Middleware)
-      │ Publishes structured JSON event
-      ▼
-Apache Kafka (Event Bus)
-      │ Topic: ecommerce.access_logs (partitioned, KRaft)
-      ▼
-Apache Flink (Streaming Ingestion Engine)
-      │ Real-time checkpointing & Iceberg streaming sink
-      ▼
-Apache Iceberg Tables (Landing & Bronze)
-      │ landing.access_logs -> bronze.web_events
-      ▼
-Streaming Maintenance & Spark Rollups
-      │ Silver (silver_logs deduplication & typing)
-      │ Gold (fact_web_events, hourly route metrics, product demand)
-      ▼
-Trino Query Layer & Admin BI Analytics Hub
-```
+The source is HTTP requests reaching FastAPI, not browser clicks or every Next.js page view. CORS middleware may handle requests before they reach the access middleware. Actor identity is populated by authentication dependencies on the routes that resolve a user; it is not inferred from every request automatically.
 
----
+## 2. Contract
 
-## Schema Contract (v1.0.0)
+The [JSON Schema](../contracts/ecommerce-access-v1.schema.json) identifies `ecommerce.access:1.0.0`. It documents the payload shape; the current Kafka job does not run a full JSON Schema validator per event.
 
-The formal schema definition is located at [`../contracts/ecommerce-access-v1.schema.json`](../contracts/ecommerce-access-v1.schema.json).
+| Field | Current meaning |
+|---|---|
+| `schema.name`, `schema.version` | Contract identity/version |
+| `timestamp`, `observed_timestamp` | UTC ISO timestamps for completion and event construction |
+| `severity_text`, `severity_number` | INFO/9 below 400, WARN/13 for 4xx, ERROR/17 for 5xx |
+| `request.id` | Server-generated request identity; not a trusted caller-supplied ID |
+| `trace_id`, `span_id` | Nullable trace fields; no distributed tracing integration is implied |
+| `service.*` | Configured name/version/environment; instance from HOSTNAME or service name, up to 128 characters |
+| `event.*` | `http.server.request`, category web, kind event, outcome and monotonic duration in ns |
+| `http.*` | Uppercase request method, canonical route and response status |
+| `actor.type`, `actor.key` | Anonymous, customer, one of seven staff roles, or system; nullable user/system key |
+| `client.user_agent` | Optional bounded/sanitized user agent |
+| `ecommerce.action` | Action derived from method and route |
+| `ecommerce.product_key`, `variant_key` | Allowlisted route identifiers when available |
+| `ecommerce.search_query`, `search_redacted` | Normalized/bounded search term or redaction marker |
+| `ecommerce.filters` | Allowlisted bounded catalog filters; optional |
+| `error.code`, `error.type` | Safe application error metadata; nullable |
+| `data_origin` | Contract allows observed/synthetic; runtime builder emits observed |
 
-### Example JSON Record
+Optional commerce keys are omitted when unavailable, rather than emitted as JSON null. `actor.key`, trace/span and error values may be null. Service/environment values are configurable, not fixed to a 12-character container ID or a closed list of deployment names. The contract accepts uppercase methods, including HEAD, instead of limiting logs to business endpoint methods.
 
-```json
-{
-  "schema": {
-    "name": "ecommerce.access",
-    "version": "1.0.0"
-  },
-  "timestamp": "2026-08-19T12:00:00.123456Z",
-  "observed_timestamp": "2026-08-19T12:00:00.125000Z",
-  "severity_text": "INFO",
-  "severity_number": 9,
-  "request": {
-    "id": "01989a4f62f77a23a874a235818ba625"
-  },
-  "trace_id": null,
-  "span_id": null,
-  "service": {
-    "name": "ecommerce-api",
-    "version": "0.1.0",
-    "environment": "local",
-    "instance_id": "450ce87085c1"
-  },
-  "event": {
-    "name": "http.server.request",
-    "category": "web",
-    "kind": "event",
-    "outcome": "success",
-    "duration_ns": 18425000
-  },
-  "http": {
-    "request_method": "GET",
-    "route": "/api/v1/products/{slug}",
-    "status_code": 200
-  },
-  "actor": {
-    "type": "customer",
-    "key": "01989a4f-62f7-7a23-a874-a235818ba625"
-  },
-  "client": {
-    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)..."
-  },
-  "ecommerce": {
-    "action": "product_detail",
-    "product_key": "dam-linen-dk-001",
-    "variant_key": null,
-    "search_query": null,
-    "filters": {}
-  },
-  "error": {
-    "code": null,
-    "type": null
-  },
-  "data_origin": "observed"
-}
-```
+## 3. Privacy boundary
 
-### Field Reference Table
+The event builder does not copy request/response bodies, raw IP, authorization/cookie headers, passwords, JWTs or internal API secrets. Commerce context uses allowlisted fields. Search text is normalized and bounded; email/phone-like values are redacted. User-agent handling removes control characters, limits length and checks PII patterns.
 
-| Field | Type | Required | Description | Constraints & Values |
-|---|---|---|---|---|
-| `schema.name` | string | Yes | Dataset identity | Fixed value: `ecommerce.access` |
-| `schema.version` | string | Yes | Semantic contract version | Fixed value: `1.0.0` |
-| `timestamp` | string | Yes | ISO 8601 UTC completion time | Microsecond precision |
-| `observed_timestamp` | string | Yes | ISO 8601 UTC emission time | Emitted immediately upon response |
-| `severity_text` | string | Yes | OpenTelemetry severity text | `INFO` (2xx/3xx), `WARN` (4xx), `ERROR` (5xx) |
-| `severity_number` | integer | Yes | OpenTelemetry severity level | `9` (INFO), `13` (WARN), `17` (ERROR) |
-| `request.id` | string | Yes | Unique request ID | 32-character hexadecimal string |
-| `service.name` | string | Yes | Emitting service name | `ecommerce-api` |
-| `service.version` | string | Yes | Service semantic version | `0.1.0` |
-| `service.environment` | string | Yes | Runtime environment | `local`, `staging`, `production` |
-| `service.instance_id` | string | Yes | Container or host identity | 12-character hexadecimal container ID |
-| `event.name` | string | Yes | Event semantic name | `http.server.request` |
-| `event.duration_ns` | integer | Yes | Execution duration | Monotonic clock duration in nanoseconds |
-| `http.request_method` | string | Yes | HTTP method | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
-| `http.route` | string | Yes | Canonical FastAPI route template | e.g. `/api/v1/products/{slug}`, or `__unmatched__` |
-| `http.status_code` | integer | Yes | HTTP status code | Integer `100` to `599` |
-| `actor.type` | string | Yes | Actor classification | `anonymous`, `customer`, `admin`, `system` |
-| `actor.key` | string | No | Actor public ID or system key | UUID string or `null` (for anonymous) |
-| `ecommerce.action` | string | No | Commerce action taxonomy | e.g. `catalog_view`, `product_detail`, `checkout_submit` |
-| `ecommerce.product_key` | string | No | Product public ID or slug | Sanitized identifier or `null` |
-| `ecommerce.variant_key` | string | No | Variant public ID or SKU | Sanitized identifier or `null` |
-| `ecommerce.search_query` | string | No | Normalized search term | Trimmed, lowercase, PII-sanitized |
-| `ecommerce.filters` | object | No | Applied filter map | Bounded key-value object |
-| `error.code` | string | No | Safe application error code | e.g. `INSUFFICIENT_STOCK`, `INVALID_COUPON` |
-| `error.type` | string | No | High-level exception category | e.g. `ValidationError`, `NotFoundError` |
-| `data_origin` | string | Yes | Record provenance | `observed` |
+These rules reduce accidental disclosure; pattern sanitization does not prove that every arbitrary input string is free of PII. Actor public IDs remain identifiers. Raw OLTP/CDC privacy is a separate concern and must not be inferred from the access-log schema.
 
----
+## 4. Producer and failure handling
 
-## Privacy and Redaction Rules
+| Variable | Default in producer |
+|---|---|
+| `KAFKA_ENABLED` | `true` |
+| `KAFKA_BOOTSTRAP_SERVERS` | `kafka:9092` |
+| `KAFKA_ACCESS_LOG_TOPIC` | `ecommerce.access_logs` |
+| `KAFKA_DLQ_FILE_PATH` | `data/events/dlq_access_logs.jsonl` |
 
-To comply with data privacy policies, the following fields are strictly excluded at the API middleware boundary:
+`send_access_event` schedules background enqueueing. If the producer is offline, enqueueing raises or the event loop is unavailable, the code increments a process-local counter and attempts a local JSONL DLQ write. The producer awaits `send`, without awaiting each broker-delivery future; it does not establish confirmed delivery for every HTTP event. DLQ writing may also fail and is logged. There is no automatic DLQ replay job, durable outbox, or end-to-end exactly-once guarantee. Compose does not currently mount a dedicated persistent volume for this API-local DLQ path.
 
-1. **Credentials and Tokens:** Passwords, password hashes, JWT tokens, session cookies, and CSRF tokens are never logged.
-2. **HTTP Headers:** `Authorization`, `Cookie`, `Set-Cookie`, and internal API secrets are excluded.
-3. **Customer PII:** Customer names, email addresses, phone numbers, and shipping street addresses are never logged.
-4. **Payment Details:** Credit card numbers, bank accounts, and raw payment payloads are excluded.
-5. **Raw Payloads:** Request and response JSON bodies are omitted; only allowlisted parameters (product slug, normalized search text) are extracted.
-6. **Raw IP Addresses:** IP addresses are not recorded in the analytical access log schema.
+Compose forwards the producer topic variable, but the Flink access job currently uses the literal `ecommerce.access_logs`. Changing only the producer topic would disconnect ingestion; keep them aligned.
 
----
+## 5. Flink processing and tables
 
-## Ingestion and Landing Layout
+One PyFlink job reads Kafka using group `flink-lakehouse-pure-stream`, with earliest startup for a new submission and configured 10-second exactly-once checkpointing. Checkpoints use the mounted local Flink checkpoint directory. A new submission is not automatically a restore from a previous job's checkpoint.
 
-### Streaming and historical files
+A single StatementSet writes four sinks from the same parsed source. These are parallel inserts, not four sequential jobs or a requirement that Spark constructs log Silver/Gold fact:
 
-FastAPI publishes HTTP events to Kafka `ecommerce.access_logs`. The continuous Flink job writes `landing.access_logs`, `bronze.web_events`, `silver.silver_logs` and `gold.fact_web_events` through a StatementSet, with a configured 10-second checkpoint interval.
+| Sink | Current transformation |
+|---|---|
+| `landing.access_logs` | Routing fields, duration and original raw JSON |
+| `bronze.web_events` | Nested source representation and lineage |
+| `silver.silver_logs` | Flattened typed fields; event_id identifier/upsert configuration |
+| `gold.fact_web_events` | Event facts, duration_ms, HTTP success/error/slow flags; event_id identifier/upsert configuration |
 
-The checkpoint interval is not an end-to-end latency guarantee. Delivery and replay behavior must be interpreted with the Kafka offsets, Flink checkpoints and table commits of the running job.
+The job uses `request.id` as event_id, generating a UUID if missing. Silver/Gold tables are configured with an identifier and upsert; existing table metadata still matters. `ecommerce.filters` is currently set to NULL in the typed inserts, while raw Landing retains the original payload. Invalid JSON is logged and filtered out; this path does not route every malformed event to an Iceberg quarantine table. Other parsing/type failures are not a complete per-record recovery workflow.
 
-The generator can also upload historical `.jsonl.gz` files to:
+The parser converts timestamps to Asia/Ho_Chi_Minh and formats timestamp strings before SQL casts; `event_date` comes from that local date. Spark sessions use UTC. Avoid describing all log date/hour buckets as UTC without checking stored values and engine timezone behavior. A checkpoint interval is not a measured end-to-end latency SLA.
+
+## 6. Spark marts and historical files
+
+[build_logs_gold](../../pipelines/src/jobs/logs/build_logs_gold.py) reads `gold.fact_web_events` and writes `mart_hourly_route_metrics`, `mart_daily_product_demand`, and `mart_marketing_funnel_daily`. The streaming maintenance DAG rolls up the current VN date every two hours; the CLI can omit `--ingest-date` to process all available facts. Counts, percentiles and event-funnel limits are in [Metrics Catalog](METRICS_CATALOG.md).
+
+Generator output can be uploaded to this raw prefix:
 
 ```text
 s3://lakehouse/landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
 ```
 
-These files are raw Landing assets. The current Flink job reads Kafka and does not automatically ingest the uploaded JSONL files. A generated 30-day log window is a dataset setting, not proof that object-storage retention is configured to delete files after 30 days.
+These uploaded historical JSONL files are not consumed automatically by the Kafka job. A configured 30-day generation window is not a storage deletion/retention policy. `data_origin=observed` alone does not prove real user activity: generator exports and simulated API traffic must be identified separately when reporting results.
 
-## Medallion mapping
-
-| Layer | Current tables / processing |
-|---|---|
-| Landing | Iceberg `landing.access_logs` for the stream; historical JSONL files are a separate raw path |
-| Bronze | `bronze.web_events`, source event representation and lineage |
-| Silver | `silver.silver_logs`, typed fields and request-key processing |
-| Gold fact | `gold.fact_web_events`, event-grain HTTP/business facts |
-| Gold marts | `mart_hourly_route_metrics`, `mart_daily_product_demand`, `mart_marketing_funnel_daily`; Spark rollups |
-
-See [Metrics Catalog](METRICS_CATALOG.md) for request duration, error rate, product demand and event-based funnel definitions. Source metadata alone does not prove that a log was produced by real users; record the generator/traffic configuration when reporting synthetic data.
-
----
-
-## Observe the Pipeline
-
-### Check Live Streaming Logs
+## 7. Inspect and feed the stream
 
 ```bash
-docker compose --profile streaming logs -f flink-jobmanager
-docker compose --profile streaming logs -f kafka
-```
+# From the repository root, after configuring .env and starting the stack
+docker compose --profile streaming logs --tail=200 flink-jobmanager
+docker compose exec trino trino --execute "SELECT count(*) FROM lakehouse.gold.fact_web_events;"
 
-### Inspect MinIO S3 Objects
+# Exercise actual API requests after importing the matching SQL dataset
+uv run --locked --package data-generator -- python scripts/simulate_web_traffic.py \
+  --config generator/configs/small.yml --duration 300 --concurrency 5
 
-Access the MinIO Web Console at `http://localhost:9001` (Bucket: `lakehouse`, Prefix: `landing/logs/`).
-
-### Backfill Historical Access Logs
-
-```bash
-# Automated zero-footprint backfill to MinIO
+# Historical file upload only; does not populate Kafka/Gold
 ./scripts/backfill_data.sh --mode logs
 ```
+
+Use [SETUP](../runbook/SETUP.md) for startup/dependencies and [generator guide](../../generator/README.md) for matched SQL/log datasets.

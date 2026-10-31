@@ -1,81 +1,70 @@
-# Lakehouse Batch Pipelines
+# Lakehouse Pipelines
 
-The `batch-pipeline` package encapsulates Apache Spark batch processing jobs, Iceberg Medallion table definitions, incremental MySQL extraction logic, and Airflow DAG integration helpers for the D&K Data Lakehouse.
+The `batch-pipeline` workspace package contains Spark OLTP extraction/transformation/quality jobs, PyFlink access-log and CDC jobs, and Iceberg maintenance helpers. Spark/Flink execution runs in the corresponding Docker images; the Python workspace alone is not their complete runtime.
 
----
+## Source map
 
-## 1. Directory Structure
+| Path | Responsibility |
+|---|---|
+| [config/default.yml](config/default.yml) | 27 source tables, PK/cursor, mutability, PII fields and lookback |
+| [src/jobs/oltp](src/jobs/oltp) | Extract, Landing-to-Bronze, Silver, Gold and gates |
+| [src/jobs/logs/kafka_to_lakehouse.py](src/jobs/logs/kafka_to_lakehouse.py) | Kafka access stream to four Iceberg sinks |
+| [src/jobs/logs/build_logs_gold.py](src/jobs/logs/build_logs_gold.py) | Three log marts from fact_web_events |
+| [src/jobs/cdc/mysql_cdc_to_bronze.py](src/jobs/cdc/mysql_cdc_to_bronze.py) | Debezium table topics to append-only Bronze events |
+| [src/jobs/maintenance](src/jobs/maintenance) | Compaction, manifest rewrite, expiry, orphan and quarantine cleanup |
+| [src/lakehouse/oltp](src/lakehouse/oltp) | SQL predicates, extract, cursor, Bronze/Silver/Gold DDL/transform, reconciliation/quality |
+| [src/lakehouse/logs](src/lakehouse/logs) | Log schemas and Spark rollup transformations |
+| [src/lakehouse/flink.py](src/lakehouse/flink.py) | Active Flink table DDL, upsert/checkpoint/catalog configuration |
+| [src/lakehouse/spark.py](src/lakehouse/spark.py) | Spark session, UTC timezone, S3 and REST catalog configuration |
+| [Airflow DAGs](../airflow/dags) | Batch and separate maintenance orchestration |
 
-```text
-pipelines/
-├── config/
-│   └── default.yml                       # Lakehouse table specifications, cursor mappings, and mutability
-└── src/
-│   ├── jobs/                             # Data pipeline execution jobs (Streaming & Batch)
-│   │   ├── cdc/
-│   │   │   └── mysql_cdc_to_bronze.py    # Debezium Kafka topics -> immutable Iceberg Bronze CDC log
-│   │   ├── logs/                         # Access Logs streaming & analytical jobs
-│   │   │   ├── kafka_to_lakehouse.py     # Pure Streaming: Kafka -> Medallion (Landing, Bronze, Silver, Gold)
-│   │   │   └── build_logs_gold.py        # Builds Gold Data Marts from real-time fact_web_events
-│   │   ├── maintenance/                  # Lakehouse Iceberg maintenance
-│   │   │   └── iceberg_table_maintenance.py # Compaction (rewrite_data_files), snapshot expiration, orphan cleanup
-│   │   └── oltp/                         # MySQL OLTP ingestion jobs
-│   │       ├── extract_oltp.py           # Extracts MySQL OLTP tables to MinIO Landing Zone
-│   │       ├── ingest_bronze.py          # Ingests Landing OLTP Parquet files into Iceberg Bronze tables
-│   │       ├── ingest_oltp_to_bronze.py  # Auto-discovers Landing run_id and ingests to Bronze
-│   │       └── ingest_oltp_silver.py     # Ingests OLTP Bronze to Silver via MERGE
-│   └── lakehouse/                        # Core Python library
-│       ├── flink.py                      # Flink environment & Polaris REST catalog factory
-│       ├── spark.py                      # SparkSession factory with S3A and Polaris OAuth2 authentication
-│       ├── config.py                     # Pipeline configuration loader and validation
-│       ├── landing.py                    # Landing Zone paths builder and MD5 manifest serialization
-│       ├── validate.py                   # S3 object validation and manifest verification
-│       ├── logs/                         # Access Logs domain logic
-│       │   ├── bronze.py                 # OpenTelemetry log schema and Bronze DDLs
-│       │   ├── silver.py                 # Logs Silver: struct flattening, schema DDLs
-│       │   └── gold.py                   # Logs Gold: Fact web events & Marts (hourly route metrics, daily product demand)
-│       └── oltp/                         # MySQL OLTP domain logic
-│           ├── extract.py                # Multi-threaded MySQL JDBC extraction engine
-│           ├── bronze.py                 # OLTP Bronze schema definitions, DDLs, and transformation
-│           ├── silver.py                 # OLTP Silver: MERGE core, dedup, PII, quarantine
-│           ├── silver_ddl.py             # Silver table DDL definitions (16 OLTP + quarantine)
-│           ├── cursor.py                 # Composite cursor JSON state serialization and S3 helpers
-│           └── query.py                  # Extraction window SQL predicate generator
+## Batch OLTP
+
+The `lakehouse_oltp_pipeline` DAG runs daily at 02:00 Asia/Ho_Chi_Minh, with catchup disabled and one active run. Compose creates DAGs paused.
+
+1. Capture per-table high watermarks; Spark reads composite cursor windows with a default 10-minute lookback.
+2. Write Landing Parquet/manifests; validate listed objects and MD5 integrity metadata. MD5 here is an integrity check, not authentication of an untrusted source.
+3. Append source data/lineage to Bronze; **commit cursors after Bronze succeeds**.
+4. Type, deduplicate, pseudonymize configured PII and MERGE Silver; quarantine violations.
+5. Reconcile MySQL against Silver at a 0.05% tolerance before Gold.
+6. Build Gold dimensions and facts in parallel, then marts.
+7. Run post-Gold quality checks and write evidence to `lakehouse.system.data_quality_results`.
+
+Gold OLTP defines 6 dimensions, 5 facts and 4 marts. Counts/keys/financial checks are separate from the dashboard's display thresholds. Each table commits independently; a post-Gold failure does not roll back every previously written table. Watermarks are not a single consistent snapshot across all source tables.
+
+Batch does not propagate all hard deletes. Payments use created_at even though COD completion updates status, so old updates outside lookback can be missed. CDC retains updates/deletes separately but does not automatically apply them to Silver/Gold. Inspect run lineage and audit results when recovering after a Silver/Gold failure with already-advanced cursors.
+
+## Access-log streaming and CDC
+
+| Job | Source | Sinks / boundary |
+|---|---|---|
+| `kafka_to_lakehouse_pure_streaming` | Kafka ecommerce.access_logs | One StatementSet inserts Landing access_logs, Bronze web_events, Silver silver_logs and Gold fact_web_events |
+| `oltp_cdc_to_bronze` | Debezium per-table Kafka topics | Bronze oltp_cdc_events, including raw payload/key, operation, images, binlog and Kafka coordinates |
+
+Both jobs configure 10-second checkpoints on the mounted Flink checkpoint directory. This is not a measured latency SLA or an end-to-end exactly-once guarantee. The submit script does not automatically specify a prior checkpoint/savepoint for a new submission. CDC event_id is deterministic, but the append-only sink does not enforce physical uniqueness.
+
+The access job uses request identity/upsert configuration for Silver/Gold. Invalid JSON is logged and dropped; a full schema/quarantine path is not enforced for every message. Timestamp parsing uses VN local time before SQL casts, whereas Spark sessions use UTC. Historical JSONL uploaded under landing/logs is not read by this Kafka job. See [access logs](../docs/architecture/ACCESS_LOG_DESIGN.md) and [CDC](../docs/architecture/CDC_DASHBOARD_DATA_SPEC.md).
+
+## Maintenance and mart rollups
+
+| DAG | Schedule (VN) | Current scope |
+|---|---|---|
+| `lakehouse_oltp_maintenance` | 03:00 daily | 15 Gold + 8 listed Silver tables; separate quarantine cleanup |
+| `lakehouse_streaming_maintenance` | Every 2 hours | Four log tables, then three log mart rollups for the current VN date |
+
+Maintenance does not yet cover all 27 Silver tables, batch Bronze or Bronze CDC. Refer to TABLE_PROFILES in the maintenance job. OLTP compaction targets 128 MiB, snapshot expiry retains at least the configured last 10 snapshots (20 for logs), orphan cleanup defaults to a 3-day cutoff. Quarantine retention deletes rows older than 30 days in quarantine.silver_oltp_violations; it is not a bucket-wide retention policy.
+
+The streaming health task checks for a RUNNING job, not independently for both required streams. Maintenance DAGs have no cross-DAG dependency waiting for batch completion. The log rollup CLI can omit --ingest-date to process all available fact dates; the scheduled DAG supplies today's VN date.
+
+## Run and inspect
+
+After configuring and starting the stack, load the source history and use:
+
+```bash
+docker compose exec -T airflow-scheduler airflow dags unpause lakehouse_oltp_pipeline
+docker compose exec -T airflow-scheduler airflow dags trigger lakehouse_oltp_pipeline
+docker compose exec trino trino --execute "SHOW TABLES FROM lakehouse.gold;"
+docker compose exec trino trino --execute "SELECT * FROM lakehouse.system.data_quality_results LIMIT 20;"
 ```
 
----
-
-## 2. Ingestion Pipelines
-
-### 2.1. Pure Streaming Medallion Logs Pipeline & Maintenance
-- **Streaming Ingestion (PyFlink):** Continuous real-time ingestion from Kafka `ecommerce.access_logs` directly into all 4 layers (`landing.access_logs`, `bronze.web_events`, `silver.silver_logs`, `gold.fact_web_events`) via Flink `StatementSet` every 10-second checkpoint with Merge-on-Read write mode.
-- **OLTP CDC (Debezium + PyFlink):** MySQL row-binlog events for all 27 analytical tables are published to per-table Kafka topics and retained in `bronze.oltp_cdc_events`, including `r/c/u/d/t`, before/after images, transaction metadata, binlog coordinates, and Kafka offsets.
-- **Maintenance & Data Marts DAG (`lakehouse_streaming_maintenance`):**
-  - **Schedule:** Every 2 hours (`0 */2 * * *`).
-  - **Tasks:**
-    1. `stream_monitoring`: Healthcheck Flink JobManager REST API verifying continuous `RUNNING` stream status.
-    2. `iceberg_maintenance`: Spark-based Iceberg compaction (`rewrite_data_files`, `rewrite_manifests`), snapshot expiration (`expire_snapshots`), and orphan file purge (`remove_orphan_files`).
-    3. `gold_marts`: Periodic rollup of `mart_hourly_route_metrics` and `mart_daily_product_demand` from real-time `fact_web_events`.
-
-### 2.2. OLTP Ingestion Pipelines
-- **Unified OLTP Pipeline (`lakehouse_oltp_pipeline`):** End-to-end daily batch ingestion of 27 OLTP tables across all Medallion layers:
-  1. **Landing Zone:** Incremental extraction via composite cursors `(cursor_field, pk)` with MD5 cryptographic manifests.
-  2. **Bronze Layer:** Append-only ingestion into Iceberg Bronze tables.
-  3. **Silver Layer:** Deduplication, PII pseudonymization (SHA-256), business rule validation, quarantine routing, and ACID MERGE into Silver tables.
-  4. **Gold Layer:** Modular, parallel execution via `[spark_build_gold_dimensions, spark_build_gold_facts] >> spark_build_gold_marts` with financial COGS and KPI rollups.
-  5. **Quality Gates:** Pre-Gold reconciliation across all configured OLTP tables plus revenue/payment/refund totals; post-Gold key, reference, freshness, PII, row-count, and monetary checks. Evidence is appended to `lakehouse.system.data_quality_results`.
-  6. **Iceberg Maintenance:** Automated small-file compaction, rewrite manifests, snapshot expiration, orphan cleanup, and 30-day semantic-quarantine retention.
-
----
-
-## 3. Pipeline Status
-
-### Completed
-
-| DAG / Job | Schedule | Source → Target | Architecture | Notes |
-|---|---|---|---|---|
-| `lakehouse_oltp_pipeline` | Daily 2 AM | MySQL → Landing → Bronze → Silver → Gold | **Unified Batch DAG** | Composite cursors (27 tables), MD5 manifests, PII, MERGE, COGS Marts |
-| `kafka_to_lakehouse_pure_streaming` | Continuous (10s checkpoints) | Kafka → Landing, Bronze, Silver, Gold | **Pure Streaming (PyFlink)** | StatementSet, Pendulum VN timezone, Merge-on-Read |
-| `oltp_cdc_to_bronze` | Continuous (10s checkpoints) | MySQL binlog → Debezium → Kafka → Bronze | **Log-based CDC (PyFlink)** | Immutable envelopes, deletes/tombstones, deterministic event IDs, replay coordinates |
-| `lakehouse_streaming_maintenance` | 2 hours | Iceberg Tables & Gold Marts | **Maintenance DAG** | Flink Healthcheck, Compaction, Expiry, Marts Rollup |
-| `build_oltp_gold` | Daily 2 AM | Silver → Gold (`dim_*`, `fact_*`, `mart_*`) | **Gold Batch Transformation** | Star schema, financial COGS parity, gross profit rollups |
+A successful schema bootstrap only creates tables; it does not populate analytical results. Full startup, other DAGs and recovery checks are in [SETUP](../docs/runbook/SETUP.md). Model grains and KPI formulas are in [Lakehouse Design](../docs/project/LAKEHOUSE_DESIGN_PLAN.md) and [Metrics Catalog](../docs/architecture/METRICS_CATALOG.md).

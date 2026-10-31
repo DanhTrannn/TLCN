@@ -1,6 +1,6 @@
 # Sơ đồ Chương 3 — Phân tích và thiết kế hệ thống
 
-Bộ sơ đồ phục vụ dàn ý Chương 3 hiện tại, đối chiếu mã nguồn ngày **28/10/2026**. Lưu tại `docs/diagram/` theo yêu cầu; bộ sơ đồ cũ ở `docs/diagrams/` vẫn được giữ.
+Bộ sơ đồ phục vụ dàn ý Chương 3, được dựng theo mã nguồn ngày **28/10/2026**. Nguồn chỉnh sửa và bản xem nằm tại `docs/diagram/`; bộ sơ đồ cũ đã được loại bỏ. Tài liệu kiến trúc/nghiệp vụ được đối chiếu lại ngày 31/10/2026; các giới hạn mới ghi nhận bên dưới không đồng nghĩa đã thay đổi nội dung bản vẽ.
 
 ## Mở và sử dụng
 
@@ -72,3 +72,10 @@ Response KPI có `data_source`, `is_degraded`, `degraded_reason`. Thời điểm
 - [Polaris RBAC](../../infrastructure/polaris/rbac.yml), [Compose](../../docker-compose.yml), [CDC](../architecture/CDC_DASHBOARD_DATA_SPEC.md).
 
 Các sơ đồ là tài liệu thiết kế được đối chiếu tĩnh với mã nguồn; không phải bằng chứng chạy thành công pipeline, kiểm thử tải hoặc hiệu năng production. Phần ML không nằm trong bộ sơ đồ này.
+
+## Giới hạn cần đọc cùng sơ đồ
+
+- Các hình nghiệp vụ chọn luồng chính. Mốc trả hàng hiện dùng `completed_at` hoặc `updated_at`, không cố định riêng `shipment.delivered_at`. Order chỉ returned khi trả đủ lượng đạt kiểm định.
+- Có các route chỉnh/cấp tồn chi nhánh mới flush mà chưa commit; xem [kiến trúc](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md). Hình vẽ không chứng minh thao tác đã lưu thành công.
+- Log Flink xử lý ngày theo Asia/Ho_Chi_Minh trước SQL cast; Spark dùng UTC. Tránh mặc định mọi bucket ngày/giờ là UTC.
+- Dashboard system đã tách biểu đồ số đơn và tiền theo từng trục độc lập. Wireframe là bố cục minh họa, không thay thế giao diện runtime hiện tại.

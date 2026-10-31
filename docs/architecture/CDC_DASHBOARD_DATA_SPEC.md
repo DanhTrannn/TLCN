@@ -15,7 +15,7 @@ MySQL 8.4 row binlog
 
 The existing Spark incremental batch pipeline remains in place for historical
 backfills, Silver/Gold construction, and source-to-target reconciliation. CDC is
-the low-latency change log; batch is the correctness and recovery path.
+the continuous change log; no measured end-to-end latency is asserted here.
 
 Access logs continue through their separate
 `ecommerce.access_logs -> Flink -> Landing/Bronze/Silver/Gold` pipeline.
@@ -29,8 +29,10 @@ analytical source.
 The immutable `lakehouse.bronze.oltp_cdc_events` table stores one row per Kafka
 record with:
 
-- `operation`: Debezium `r` (snapshot), `c` (create), `u` (update), `d`
-  (delete), or `t` (Kafka tombstone).
+- `operation`: source envelope `op`, normally `r` (snapshot), `c` (create),
+  `u` (update), or `d` (delete). The local sink maps a NULL Kafka payload to
+  `t`; this is its tombstone convention, not a general definition of Debezium
+  `t` (which can also represent a truncate event).
 - `before_payload` and `after_payload`: row images from the Debezium envelope.
 - `binlog_file`, `binlog_position`, and `binlog_row`: source replay ordering.
 - `topic`, `kafka_partition`, and `kafka_offset`: transport replay coordinates.
@@ -38,7 +40,9 @@ record with:
 - `source_ts`, `event_ts`, and `ingested_at`: source, connector, and sink timing.
 - `record_key` and `raw_payload`: the original Kafka key and Debezium envelope.
 
-The table is append-only and partitioned by `event_date`. It deliberately does
+The table is append-only and partitioned by `event_date`. `event_id` is a replay
+identity, not a physically enforced UNIQUE constraint; consumers must account
+for possible replay duplicates. The table deliberately does
 not overwrite deletes or collapse updates, so audits can reconstruct state at a
 specific offset. Consumers must use the latest event per primary key when they
 need a current-state projection.
@@ -46,8 +50,10 @@ need a current-state projection.
 ## 3. MySQL and connector guarantees
 
 MySQL runs with row-based binlog, full row images, GTID, and seven-day binlog
-retention. A dedicated `debezium` account receives only `SELECT`, `RELOAD`,
-`SHOW DATABASES`, `REPLICATION SLAVE`, and `REPLICATION CLIENT` privileges.
+retention. A dedicated `debezium` account receives `SELECT`, `RELOAD`,
+`SHOW DATABASES`, `REPLICATION SLAVE`, and `REPLICATION CLIENT` privileges
+**on `*.*`**. The connector's table allowlist restricts capture, not this
+account's SQL visibility to just those 27 tables.
 
 The connector is registered idempotently by `debezium-init` with:
 
@@ -58,9 +64,11 @@ The connector is registered idempotently by `debezium-init` with:
 - JSON envelopes without embedded Connect schemas;
 - fail-fast conversion/error handling.
 
-Flink checkpoints every 10 seconds in exactly-once mode. Iceberg commits happen
-on successful checkpoints. Kafka offsets and deterministic `event_id` values
-provide a second line of defence for replay and duplicate detection.
+The job configures 10-second exactly-once checkpoints and checkpoint-driven
+Iceberg commits. Checkpoints use `file:///opt/flink/checkpoints` on a Docker
+volume. These settings do not establish exactly-once delivery across MySQL,
+Connect, Kafka, manual job resubmission and all downstream consumers. Kafka
+coordinates and deterministic event IDs support replay inspection.
 
 ## 4. Run and inspect
 
@@ -69,6 +77,9 @@ Start the complete stack:
 ```bash
 docker compose --profile core --profile batch --profile streaming up -d --build
 ```
+
+Prepare `.env` using [SETUP](../runbook/SETUP.md) first. The connector endpoint
+below uses the default host port; adjust for `CDC_CONNECT_PORT` overrides.
 
 Inspect the connector:
 
@@ -89,8 +100,12 @@ ORDER BY table_name, operation;
 
 - Never delete the Kafka Connect offset or schema-history topics during normal
   operation.
-- A connector restart resumes from its stored binlog offset. A Flink restart
-  resumes from its latest checkpoint and Kafka offsets.
+- A connector normally resumes from its stored binlog offset while that offset
+  and the binlogs remain available. The CDC Kafka source uses group offsets,
+  with earliest fallback. The submission script does not supply a checkpoint
+  or savepoint restore argument; a newly submitted job must not be assumed to
+  restore the prior job's state automatically. Verify the actual restore point
+  and committed Kafka offsets before accepting a recovery as complete.
 - If binlogs have expired before the connector resumes, stop the connector,
   perform a controlled new snapshot, and reconcile with the Spark batch path.
 - Changing `CDC_TOPIC_PREFIX` or `CDC_FLINK_GROUP_ID` creates a new logical
@@ -106,3 +121,9 @@ into every typed Silver table and incremental Gold mart refresh is not yet part
 of this path; those layers continue to be built and verified by the scheduled
 Spark pipeline. Operational dashboard endpoints still query MySQL for current
 transactional actions, while Trino serves analytical history.
+
+Implementation references: [connector configuration](../../infrastructure/debezium/register-connector.sh),
+[MySQL account](../../infrastructure/mysql/create-cdc-user.sh),
+[Flink job](../../pipelines/src/jobs/cdc/mysql_cdc_to_bronze.py),
+[sink DDL/checkpoint factory](../../pipelines/src/lakehouse/flink.py),
+[submission script](../../infrastructure/flink/bin/submit-job.sh).

@@ -34,10 +34,10 @@ MySQL tự tạo database/user theo `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSW
 Sau khi MySQL sẵn sàng, API chạy `database.seeds.seed_catalog` rồi khởi động FastAPI. Seed có thể chạy lại bằng:
 
 ```bash
-make seed
+docker compose exec -T ecommerce-api python -m database.seeds.seed_catalog
 ```
 
-`make seed` không tạo bảng. Schema phải tồn tại trước khi chạy seed.
+Seed không tạo bảng. Schema phải tồn tại trước khi chạy seed. `make seed` chạy bằng uv trên host; cần API_DATABASE_URL tới port MySQL trên host và API_SECRET_KEY hợp lệ, không dùng hostname mysql của mạng Docker từ host.
 
 ## Nạp SQL thủ công
 
@@ -65,7 +65,7 @@ File dùng `CREATE TABLE` và không có `DROP TABLE` hoặc dữ liệu mẫu. 
 3. Áp dụng `ALTER TABLE` riêng cho database hiện có cần thay đổi.
 4. Cập nhật tài liệu schema và ERD.
 
-DDL vật lý hiện giữ nguyên cấu trúc database trước khi đơn giản hóa. DBML được sinh từ ORM; quan hệ `orders.staff_id → customers.customer_id` hiện là quan hệ trong ORM, chưa được cưỡng chế bởi FK trong SQL.
+DDL hiện có 28 bảng, 315 cột, 50 FK, 49 UNIQUE key và 79 CHECK. [ERD hiện tại](../docs/diagram/13-erd-mysql-physical.drawio) dùng FK vật lý; quan hệ `orders.staff_id → customers.customer_id` hiện chỉ có trong ORM, chưa được cưỡng chế bởi FK trong SQL.
 
 ## Biên giới Data Engineering
 

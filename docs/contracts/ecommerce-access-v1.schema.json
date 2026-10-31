@@ -69,7 +69,7 @@
       "additionalProperties": false,
       "required": ["request_method", "route", "status_code"],
       "properties": {
-        "request_method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]},
+        "request_method": {"type": "string", "pattern": "^[A-Z]+$"},
         "route": {"type": "string", "minLength": 1, "maxLength": 240},
         "status_code": {"type": "integer", "minimum": 100, "maximum": 599}
       }
@@ -79,7 +79,7 @@
       "additionalProperties": false,
       "required": ["type", "key"],
       "properties": {
-        "type": {"enum": ["anonymous", "customer", "admin", "system"]},
+        "type": {"enum": ["anonymous", "customer", "admin", "store_manager", "sales_manager", "marketing_manager", "inventory_manager", "operations_manager", "system_admin", "system"]},
         "key": {"type": ["string", "null"], "maxLength": 128}
       }
     },

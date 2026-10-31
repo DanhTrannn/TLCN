@@ -105,7 +105,7 @@ Ports and credentials below follow the default configuration; environment overri
 | **Storefront** | 3000 | `http://localhost:3000` | Public browsing |
 | **Admin Console** | 3000 | `http://localhost:3000/admin` | Bootstrap admin from `API_BOOTSTRAP_ADMIN_*` |
 | **BI Analytics Hub** | 3000 | `http://localhost:3000/admin/analytics` | Staff role or admin |
-| **POS** | 3000 | `http://localhost:3000/admin/pos` | Authorized staff with store assignment |
+| **POS** | 3000 | `http://localhost:3000/store/pos` | Store manager / admin UI; store scope checked by API |
 | **Backend API Docs** | 8000 | `http://localhost:8000/docs` | Swagger UI |
 | **LibreDB Studio** | 3001 | `http://localhost:3001` | `LIBREDB_ADMIN_EMAIL` / `LIBREDB_ADMIN_PASSWORD` |
 | **MinIO Console** | 9001 | `http://localhost:9001` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
@@ -158,7 +158,7 @@ Serving:
   Trino -----------> LibreDB Studio
 ```
 
-See the [system architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) and [editable draw.io diagram](docs/diagrams/system-architecture.drawio) for component boundaries.
+See the [system architecture](docs/architecture/SYSTEM_ARCHITECTURE_VISUAL.md) and [editable draw.io diagram](docs/diagram/08-system-architecture.drawio) for component boundaries.
 
 ### Technology Stack
 
@@ -185,6 +185,8 @@ The OLTP Gold model defines **6 dimensions, 5 facts, and 4 marts**. The log mode
 The OLTP batch DAG is scheduled daily at 02:00 Asia/Ho_Chi_Minh; OLTP maintenance runs at 03:00 and streaming maintenance every two hours. Flink runs continuously with a configured 10-second checkpoint interval. That interval is not a measured end-to-end latency guarantee.
 
 Source–Silver reconciliation runs before Gold processing; a second gate checks Gold counts, monetary parity, keys, references, lineage, and PII tokens. Failures mark the task/DAG unsuccessful and results are recorded in `lakehouse.system.data_quality_results`. These runtime gates remain part of data processing.
+
+Batch cursors advance after Bronze; Gold tables commit independently. CDC does not yet apply changes into typed Silver/Gold, and the payments created_at cursor can miss older COD status updates. Maintenance targets an explicit subset of tables. Current transaction, permission, security and recovery limits are documented in [scope](docs/project/SCOPE.md) and [setup](docs/runbook/SETUP.md).
 
 ---
 
@@ -267,6 +269,8 @@ The BI Hub combines historical Trino queries with current MySQL indicators. API 
 
 Refreshing a dashboard does not refresh batch Gold. Definitions, windows, denominators, and current limitations are detailed in the [Metrics Catalog](docs/architecture/METRICS_CATALOG.md).
 
+System reconciliation renders one chart per metric so order counts and VND use independent scales. Fallback values are not shown as measured Gold comparisons.
+
 ---
 
 ## Development Commands
@@ -315,8 +319,8 @@ CI uses `--env-file .env.example` because `.env` is not committed and Compose re
 | **CDC** | [CDC_DASHBOARD_DATA_SPEC.md](docs/architecture/CDC_DASHBOARD_DATA_SPEC.md) | Capture contract, replay metadata, and recovery |
 | **Access Logs** | [ACCESS_LOG_DESIGN.md](docs/architecture/ACCESS_LOG_DESIGN.md) | Event contract, privacy rules, and streaming/raw-file boundaries |
 | **Data Generator** | [generator/README.md](generator/README.md) | Synthetic SQL/log generation and live traffic |
-| **Diagrams** | [docs/diagrams/README.md](docs/diagrams/README.md) | Editable architecture, ERD, and UML sources |
-| **Business Analysis (B)** | [BUSINESS_DOMAIN.md](docs/architecture/BUSINESS_DOMAIN.md) | Extended business questions and KPI needs |
+| **Diagrams** | [docs/diagram/README.md](docs/diagram/README.md) | Chapter 3 draw.io sources, SVG figures, and offline HTML viewer |
+| **Business Analysis (B)** | [BUSINESS_DOMAIN.md](docs/architecture/BUSINESS_DOMAIN.md) | Implemented role views, business questions, sources, and KPI limits |
 | **Business Requirements (C)** | [BUSINESS_REQUIREMENTS.md](docs/project/BUSINESS_REQUIREMENTS.md) | Retail, POS, inventory, delivery, and returns |
 | **Object-Oriented Analysis (A)** | [OOSAD_ANALYSIS.md](docs/design-analysis/OOSAD_ANALYSIS.md) | Actors, Use Cases, Activity, and Sequence analysis |
 | **Web Design (D)** | [WEB_DESIGN_PLAN.md](docs/project/WEB_DESIGN_PLAN.md) | Source application design |

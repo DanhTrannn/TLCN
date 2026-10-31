@@ -12,14 +12,14 @@ Vai trò dashboard, API và phạm vi truy cập được mô tả trong [kiến
 - Phải kiểm tra grain trước khi SUM hoặc JOIN. `fact_order` có một dòng/đơn; `fact_order_item` có một dòng/chi tiết đơn.
 - Đếm đơn toàn hệ thống bằng `COUNT(DISTINCT order_id)` trên fact. Một đơn có nhiều nhóm sản phẩm sẽ xuất hiện ở nhiều dòng `mart_sales_daily`.
 - `data_source` cho biết `lakehouse`, `oltp` hoặc `oltp_fallback`. `is_degraded` và `degraded_reason` cho biết nguồn thay thế hoặc dữ liệu chưa đầy đủ.
-- Ngày hôm nay ở chỉ số cửa hàng dùng Asia/Ho_Chi_Minh. Ngày sự kiện trong pipeline phụ thuộc timestamp/session UTC. Không cộng các cửa sổ thời gian khác nhau như cùng một kỳ.
+- Ngày hôm nay ở chỉ số cửa hàng dùng Asia/Ho_Chi_Minh. Log Flink chuyển timestamp sang giờ Việt Nam trước SQL cast và tạo event_date theo ngày đó; Spark session dùng UTC. Kiểm tra timestamp lưu và múi giờ engine khi đối chiếu ngày/giờ, không mặc định tất cả bucket là UTC.
 
 ## 2. Doanh thu, giá vốn và lợi nhuận
 
 | Chỉ số | Công thức hiện tại | Nguồn / grain |
 |---|---|---|
 | GMV executive | `SUM(gross_revenue_vnd)`; mỗi giá trị gốc là `orders.total_vnd` | `fact_order`, một dòng/đơn, không lọc bỏ trạng thái trong truy vấn executive |
-| Giá vốn mỗi đơn | `SUM(quantity × cost_price_vnd)`; ưu tiên cost snapshot ở order item, có fallback về variant | `fact_order` / `fact_order_item` |
+| Giá vốn mỗi đơn | `SUM(quantity × cost_price_vnd)`; dùng cột snapshot nếu schema có cột này (null thành 0), chỉ fallback cột variant khi schema thiếu snapshot | `fact_order` / `fact_order_item` |
 | Net revenue mỗi đơn | 0 nếu `failed_delivery`, `returned`, `cancelled`, `payment_failed`; các trạng thái khác lấy `total_vnd` | `fact_order.net_revenue_vnd` |
 | Net profit mỗi đơn | 0 cho bốn trạng thái trên; còn lại `total_vnd - total_cost_vnd` | `fact_order.net_profit_vnd` |
 | Gross profit executive | `SUM(net_profit_vnd)` | `fact_order`; tên API không có nghĩa là lợi nhuận kế toán sau mọi chi phí |
@@ -36,6 +36,8 @@ Vai trò dashboard, API và phạm vi truy cập được mô tả trong [kiến
 
 OLTP fallback executive dùng tiền thanh toán thành công trừ hoàn tiền thành công, COGS của đơn delivered/completed và GMV bỏ đơn cancelled. Vì thế fallback không phải bản sao công thức Gold; UI cần hiển thị nguồn. Biểu đồ sales trend cộng mart theo ngày, nên `orders_count` có thể trùng đơn khi cộng qua danh mục.
 
+Gold order hiện suy ra net revenue từ trạng thái và order total, không trực tiếp trừ mọi refund trả lẻ. Khi mới trả một phần và order chưa returned, net revenue có thể chưa phản ánh khoản hoàn một phần. Không dùng công thức này như số liệu kế toán đã đối soát hoàn tiền đầy đủ.
+
 ## 3. Chỉ số vận hành từ MySQL
 
 | Chỉ số | Công thức / phạm vi |
@@ -46,7 +48,7 @@ OLTP fallback executive dùng tiền thanh toán thành công trừ hoàn tiền
 | Số lượng tồn | Tổng on_hand theo từng nhóm kho/cửa hàng |
 | Số SKU hết hàng | Số variant distinct xuất hiện với on_hand=0 ở kho hoặc cửa hàng; không phải số cặp SKU–địa điểm |
 | Tốc độ xuất hàng | Số lượng bán trong 60 phút / 60; thời gian dự kiến hết hàng lấy tồn hiện tại chia tốc độ |
-| Đơn chờ xử lý | Đếm trạng thái paid/confirmed/processing |
+| Đơn chờ xử lý | Query paid/confirmed/processing; processing không nằm trong CHECK trạng thái orders hiện tại, nên dữ liệu đúng DDL chỉ đóng góp paid/confirmed |
 | Đơn chờ quá 2 giờ | Đếm paid/confirmed với created_at trước ngưỡng 2 giờ |
 | Thời gian chờ trung bình | Trung bình số giờ từ created_at tới hiện tại của đơn paid/confirmed/processing |
 | Giao vận có vấn đề | Trường API `shipping_sla_violations_count` hiện đếm shipment attempt_count > 1 hoặc status failed; chưa phải so sánh deadline SLA |
@@ -63,7 +65,7 @@ Một số trường API vẫn optional để tương thích giao diện. Khi th
 
 | Chỉ số | Công thức / grain |
 |---|---|
-| Total requests | Số dòng sự kiện; mart theo ngày UTC × giờ × route × method |
+| Total requests | Số dòng sự kiện; mart theo event_date × giờ của event_ts trong Spark × route × method; xem quy tắc múi giờ ở mục 1 |
 | Duration | `event_duration_ns / 1_000_000`, đơn vị ms |
 | Error rate | `(4xx + 5xx) / total_requests × 100` |
 | Avg / p50 / p95 / p99 | AVG duration và `percentile_approx` theo nhóm route/giờ |
@@ -92,6 +94,10 @@ Khi không có log trong kỳ hoặc nguồn lỗi, marketing có thể dùng OL
 
 Trang system đánh dấu degraded khi variance >5% hoặc freshness >15 phút; unhealthy khi variance >20%, freshness >60 phút hoặc chưa xác định được freshness. Đây là ngưỡng giao diện, khác ngưỡng đối soát pipeline 0,05%. Lịch batch hằng ngày khiến Gold có thể cũ hơn ngưỡng UI giữa hai lần chạy.
 
+Đối soát dashboard dùng hai metric: `total_orders` so COUNT đơn MySQL với COUNT DISTINCT order_id Gold; `gross_revenue_vnd` so SUM orders.total_vnd với SUM fact_order.gross_revenue_vnd, đều gồm mọi trạng thái. Chênh lệch = abs(OLTP−Gold)/OLTP × 100, làm tròn hai chữ số; OLTP=0 thì 0% nếu Gold=0, ngược lại 100%.
+
+UI vẽ từng metric riêng để số đơn không dùng chung thang với doanh thu. Số đơn có đơn vị đơn; tiền có trục VND, nhãn rút gọn và tooltip giá trị đầy đủ; badge dùng variance_percent từ API. Trong fallback, API còn trả các giá trị placeholder Gold=0/variance=100%, nhưng UI ẩn cột so sánh và hiển thị thiếu nguồn. Không đọc các placeholder như chênh lệch đã đo.
+
 ## 6. Cách trình bày kết quả
 
-Ghi rõ dataset, dữ liệu tổng hợp hay phát sinh thật, thời gian chạy, tầng/bảng, bộ lọc, grain, công thức, đơn vị và nguồn response. Không sử dụng số mẫu từ tài liệu nghiệp vụ A–D làm kết quả đo của hệ thống.
+Ghi rõ dataset, dữ liệu tổng hợp hay phát sinh thật, thời gian chạy, tầng/bảng, bộ lọc, grain, công thức, đơn vị và nguồn response. Các tài liệu A–D mô tả nghiệp vụ và giới hạn, không cung cấp bộ số liệu đo để thay thế truy vấn thực tế.

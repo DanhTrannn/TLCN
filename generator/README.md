@@ -1,6 +1,6 @@
 # OLTP & Access Log Data Generator
 
-The Data Generator (`data-generator` package, v0.7.0) creates deterministic synthetic datasets calibrated to realistic Vietnamese e-commerce behavior. It exports relational SQL inserts for MySQL OLTP and synthetic HTTP access logs using the runtime log contract.
+The Data Generator (`data-generator` package, v0.7.0) creates deterministic synthetic datasets with configured Vietnamese retail seasonality and purchase patterns. It exports relational SQL inserts for MySQL OLTP and synthetic HTTP access logs using the runtime log contract. These are modeled distributions, not calibration results from a measured customer dataset.
 
 ---
 
@@ -69,7 +69,7 @@ Output files are structured in Hive-style partition directories under `data/gene
 landing/logs/ingest_date=YYYY-MM-DD/ingest_hour=HH/service=ecommerce-api/<uuid>.jsonl.gz
 ```
 
-- **Retention Window:** Generates operational access logs matching the most recent 30-day window.
+- **Generation Window:** Exports a 30-day log window relative to the dataset anchor; this is not object-storage retention.
 - **Format:** Gzip-compressed newline-delimited JSON (`.jsonl.gz`).
 - **Telemetry Standards:** Standardized to OpenTelemetry-compatible fields (`service.name=ecommerce-api`, `data_origin=observed`, 12-character hex container IDs).
 
@@ -87,15 +87,17 @@ When MinIO and Docker services are active, upload generated logs to the S3 Landi
 
 The `configs/` directory provides pre-configured scenarios:
 
-| Config | Customers | Products | Variants | Orders | Window |
+| Config | Customers | Products | Variants | Configured Orders | History |
 |---|---|---|---|---|---|
-| `small.yml` | 500 | 60 | 240 | ~3,000 | 12 months |
-| `medium.yml` | 5,000 | 200 | 800 | ~30,000 | 12 months |
-| `large-local.yml` | 50,000 | 500 | 2,000 | ~300,000 | 12 months |
-| `large-10m.yml` | 500,000 | 1,000 | 4,000 | ~10,000,000 | 12 months |
-| `month-test.yml` | 200 | 30 | 120 | ~250 | 1 month |
+| `small.yml` | 500 | 60 | 240 | 3,000 | 12 months |
+| `medium.yml` | 5,000 | 200 | 1,000 | 30,000 | 12 months |
+| `large-local.yml` | 30,000 | 500 | 3,000 | 250,000 | 12 months |
+| `large-10m.yml` | 200,000 | 500 | 3,000 | 1,000,000 | 12 months |
+| `month-test.yml` | 150 | 60 | 240 | 400 | 1 month |
 
 ---
+
+These are YAML inputs, not measured loaded row counts. Despite its filename, `large-10m.yml` currently configures 1,000,000 orders. Dates follow `anchor_time`, not the date the command runs.
 
 ## 6. Vietnamese E-Commerce Behavioral Distributions
 

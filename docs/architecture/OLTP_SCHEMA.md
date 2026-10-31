@@ -1,1330 +1,722 @@
 # OLTP Schema Reference
 
-Tài liệu tham chiếu schema OLTP MySQL của hệ thống D&K E-Commerce (TLCN).
-Kết hợp thiết kế logic, column-level reference, transaction catalog và reconciliation.
-
----
-
-## 1. Phạm vi và quy tắc thiết kế
-
-DDL vật lý được định nghĩa trong [`database/schema.sql`](../../database/schema.sql): grain rõ ràng, chuẩn hóa dữ liệu ghi, snapshot dữ liệu giao dịch, transaction ngắn, khóa theo thứ tự ổn định và invariant được bảo vệ ở tầng thấp nhất phù hợp.
-
-Hệ thống có **28 bảng nghiệp vụ**, khởi tạo từ file SQL duy nhất. Pipeline Lakehouse DE trích xuất **27 bảng**; bảng `customer_credentials` bị loại bỏ vì chứa thông tin xác thực nhạy cảm. Không có bảng analytics/star schema nằm trong MySQL ecommerce (toàn bộ phân tích nằm trên Lakehouse Iceberg / Trino).
-
-### Quy tắc thiết kế cốt lõi
-
-- Checkout yêu cầu đăng nhập và active cart có hàng hợp lệ. Hỗ trợ phương thức thanh toán `vietqr` (trả trước) và `cod` (tiền mặt khi nhận hàng, `payments.status = 'pending'`).
-- Add-to-cart không giữ hàng; checkout kiểm tra và trừ `inventory.on_hand` atomically, đồng thời ghi nhận 1 transaction `movement_type = 'outbound_order'` trong `inventory_transactions`. Khi hủy đơn hàng, hệ thống hoàn kho và ghi nhận transaction đối ứng `movement_type = 'order_cancellation'`.
-- Với đơn `vietqr`, thanh toán thành công ngay khi checkout hợp lệ; với đơn `cod`, đơn được tạo với trạng thái ban đầu `confirmed` chờ điều phối giao vận.
-- POS (Point of Sale): nhân viên bán hàng tại quầy (`orders.staff_id`), tạo đơn `completed` ngay, cho phép khách vãng lai không tài khoản (`orders.customer_id = NULL`), trừ `store_inventory` (kho cửa hàng), ghi nhận transaction `outbound_pos`. Hỗ trợ phương thức thanh toán quầy: `cash`, `card`, `vietqr`.
-- Giao vận nội bộ D&K: Mỗi đơn hàng online đi qua đội ngũ shipper nội bộ (`delivery_staff`) thông qua phiếu giao hàng (`shipments`) và bảng chi tiết các lần giao `shipment_attempts` (1-N).
-- State machine chuẩn hóa của đơn hàng:
-
-```text
-[Online VietQR] paid ────> confirmed ────> shipping ────> delivered ──(khách nhận hàng)──> completed
-                         │               │             │                               │
-                         │               │             └──> returned <─────────────────┘
-                         │               └──> failed_delivery (giao thất bại / COD risk)
-                         └──> cancelled
-
-[Online COD]    confirmed ──> shipping ──> delivered (thu tiền COD) ──(khách nhận hàng)──> completed
-                            │           │                                                │
-                            │           └──> returned <──────────────────────────────────┘
-                            │           └──> failed_delivery (giao thất bại / COD risk)
-                            └──> cancelled
-```
-
-- **Quy trình Hoàn tất Đơn hàng**: Sau khi shipper giao hàng thành công, đơn hàng chuyển sang trạng thái `delivered` (Giao thành công). Admin/Shipper không tự ý hoàn tất đơn. Trên giao diện người dùng, khách hàng kiểm tra hàng thực tế và bấm nút **"Đã nhận được hàng"** để chuyển trạng thái sang `completed`. Tại thời điểm này, tiền thu hộ COD (nếu có) được quyết toán chính thức và khách hàng có quyền đánh giá sản phẩm hoặc yêu cầu đổi trả trong 7 ngày.
-- **Quản trị rủi ro thanh toán COD (COD Payment Risk Management)**:
-  - Khi giao hàng thất bại, shipper ghi nhận lý do cụ thể qua `shipment_attempts`. Hệ thống phân loại nguyên nhân lỗi: chỉ tính vào điểm rủi ro `customers.boom_count` khi lỗi xuất phát từ phía người mua (`is_buyer_fault = TRUE`, e.g. từ chối nhận không lý do, không liên lạc được 3 lần). Các sự cố do logistics (giao nhầm hàng, hàng hư hỏng trong quá trình vận chuyển, shipper trễ hẹn khách xin dời lịch) hoàn toàn không ảnh hưởng điểm rủi ro của khách hàng.
-  - Khi `boom_count >= 3`, khách hàng tự động bị tạm khóa phương thức COD (`is_cod_blocked = TRUE`), vẫn được mua hàng qua chuyển khoản VietQR. Quản trị viên (Admin) có thẩm quyền xem xét khiếu nại và mở lại quyền COD với lưu vết audit trail (`cod_reinstated_at`, `cod_reinstated_by`, `cod_reinstatement_reason`) và thời gian thử thách (`boom_count = 2`).
-- **Chính sách Trả hàng/Hoàn tiền 7 ngày**: Sau khi đơn hàng `delivered`/`completed`, khách hàng có thể tạo yêu cầu `refund`. Các giá trị `exchange`, `exchange_variant_id` và `exchange_out` được dành sẵn cho pha mở rộng, chưa có API/UI thực thi đổi size/màu.
-- **Mô hình Kho tập trung & Nhập kho sản xuất**: 1 Kho trung tâm duy nhất nhập hàng từ xưởng sản xuất thông qua phiếu nhập kho `inbound_receipts` và `inbound_receipt_items`, tự động tính toán lại giá vốn bình quân gia quyền di động (Moving Weighted Average Costing) cho từng biến thể, đồng thời điều phối hàng cho các chi nhánh cửa hàng (`transfer_to_store` / `transfer_received`). Mọi biến động được lưu vết bất biến trong `inventory_transactions`.
-- **Giá vốn hàng bán (COGS)**: Ghi nhận giá vốn tại từng biến thể `product_variants.cost_price_vnd` và snapshot cố định bất biến vào từng dòng `order_items.cost_price_vnd` tại thời điểm phát sinh giao dịch (checkout online & POS).
-
----
-
-## 2. Quy ước chung
-
-- **PK**: `BIGINT UNSIGNED` auto-increment surrogate key
-- **Public ID**: `BINARY(16)` UUIDv5 deterministic — lộ qua API, không lộ PK
-- **Tiền**: số nguyên VND (`BIGINT UNSIGNED`), không dùng FLOAT/DOUBLE
-- **Thời gian**: UTC `DATETIME(6)` — microsecond precision
-- **Bảng mutable**: có `updated_at` + composite cursor `(updated_at, PK)`
-- **Bảng append-only**: có `created_at` + composite cursor `(created_at, PK)`
-- **FK lịch sử**: `ON DELETE RESTRICT` — giữ audit trail
-- **Engine**: InnoDB `READ COMMITTED`
-- Giao dịch write dùng `SELECT ... FOR UPDATE` khi quyết định dựa trên dữ liệu mutable.
-- Không giữ transaction mở khi gọi dịch vụ ngoài.
-
----
-
-## 3. Tổng quan 28 bảng
-
-| # | Bảng | Nhóm | Grain | Mutability | Extract cursor |
-|---|------|------|-------|------------|----------------|
-| 1 | `customers` | Customer | Một customer | Mutable/anonymizable | `(updated_at, customer_id)` |
-| 2 | `customer_credentials` | Auth | Một credential/customer | Mutable, không extract | — |
-| 3 | `categories` | Catalog | Một category | Mutable/inactive | `(updated_at, category_id)` |
-| 4 | `products` | Catalog | Một product | Mutable/archive terminal | `(updated_at, product_id)` |
-| 5 | `product_variants` | Catalog | Một tổ hợp size-color/product | Mutable/inactive | `(updated_at, variant_id)` |
-| 6 | `inventory` | Inventory | Một balance/variant (kho tổng) | Mutable, khóa khi checkout/cancel | `(updated_at, variant_id)` |
-| 7 | `cities` | Location | Một thành phố | Mutable | `(updated_at, city_id)` |
-| 8 | `stores` | Location | Một cửa hàng | Mutable | `(updated_at, store_id)` |
-| 9 | `store_inventory` | Inventory | Một balance/variant/store | Mutable, khóa khi POS/cancel | `(updated_at, store_id, variant_id)` |
-| 10 | `carts` | Cart | Một chu kỳ cart/customer | Mutable lifecycle | `(updated_at, cart_id)` |
-| 11 | `cart_items` | Cart | Một variant/cart | Mutable/logical removal | `(updated_at, cart_item_id)` |
-| 12 | `wishlist_items` | Wishlist | Một product từng wishlist/customer | Mutable presence | `(updated_at, wishlist_item_id)` |
-| 13 | `coupons` | Promotion | Một coupon code | Mutable/archive terminal | `(updated_at, coupon_id)` |
-| 14 | `coupon_redemptions` | Promotion | Một redemption/order | Mutable redeemed/released | `(updated_at, coupon_redemption_id)` |
-| 15 | `orders` | Order | Một kết quả checkout/POS | Mutable state, snapshot amount | `(updated_at, order_id)` |
-| 16 | `order_items` | Order | Một variant line/order | Append-only snapshot | `(created_at, order_item_id)` |
-| 17 | `payments` | Payment | Một payment/order | Append-only (hỗ trợ pending COD) | `(created_at, payment_id)` |
-| 18 | `refunds` | Refund | Một full refund/payment | Append-only | `(created_at, refund_id)` |
-| 19 | `order_status_history` | History | Một transition/order | Append-only | `(created_at, order_status_history_id)` |
-| 20 | `product_reviews` | Review | Một review/order_item | Mutable visibility | `(updated_at, review_id)` |
-| 21 | `delivery_staff` | Logistics | Một nhân viên giao vận shipper D&K | Mutable/anonymizable | `(updated_at, staff_id)` |
-| 22 | `shipments` | Logistics | Một phiếu giao hàng nội bộ | Mutable lifecycle & COD | `(updated_at, shipment_id)` |
-| 23 | `shipment_attempts` | Logistics | Chi tiết một lần thử giao hàng | Append-only audit | `(created_at, attempt_id)` |
-| 24 | `return_requests` | Returns | Một yêu cầu đổi trả sau mua 7 ngày | Mutable workflow | `(updated_at, return_id)` |
-| 25 | `return_items` | Returns | Một món hàng trong yêu cầu đổi trả | Append-only / inspection | `(created_at, return_item_id)` |
-| 26 | `inventory_transactions` | Inventory | Một biến động kho (inbound/outbound/...) | Append-only ledger | `(created_at, transaction_id)` |
-| 27 | `inbound_receipts` | Inbound | Một đợt nhập thành phẩm xưởng sản xuất | Mutable | `(updated_at, receipt_id)` |
-| 28 | `inbound_receipt_items` | Inbound | Chi tiết biến thể & đơn giá nhập xưởng | Append-only | `(created_at, item_id)` |
-
-### Chiến lược định danh
-
-- PK/FK vật lý trong OLTP dùng `BIGINT UNSIGNED` surrogate key để giữ index nhỏ, join nhanh và phù hợp import hàng triệu dòng.
-- Thực thể đi qua API dùng `public_id BINARY(16)` chứa UUID; API không để lộ surrogate key nội bộ.
-- Generator dùng UUIDv5 deterministic cho `public_id`, `logical_identity`, `generation_run_id` và các khóa kỹ thuật/idempotency.
-- `order_number`, SKU, slug, `shipment_code`, `return_code` và coupon code là business key có ý nghĩa hiển thị, nên giữ định dạng nghiệp vụ thay vì biến thành UUID.
-- Trong SQL export, UUID được biểu diễn bằng `UUID_TO_BIN('<uuid>')`; Lakehouse chuẩn hóa lại thành chuỗi UUID canonical ở Silver nếu cần.
-
----
-
-## 4. Quan hệ tổng quát
-
-```text
-customers 1───1 customer_credentials
-customers 1───n carts 1───n cart_items n───1 product_variants
-customers 1───n wishlist_items n───1 products
-categories 1───n categories (self-ref)
-categories 1───n products 1───n product_variants 1───1 inventory
-carts 1───0..1 orders 1───n order_items
-orders 1───1 payments 1───0..1 refunds
-orders 1───n order_status_history
-orders n───0..1 coupons (nullable FK)
-coupons 1───n coupon_redemptions n───1 orders
-order_items 1───0..1 product_reviews
-customers 1───n product_reviews
-cities 1───n stores
-stores 1───n store_inventory n───1 product_variants
-customers n───0..1 stores (store_manager assigned store)
-
-[Logistics & Shipping]
-orders 1───0..1 shipments n───1 delivery_staff
-
-[Returns & Exchanges]
-orders 1───n return_requests 1───n return_items n───1 order_items
-customers 1───n return_requests
-return_items n───0..1 product_variants (exchange_variant_id)
-
-[Inventory Transactions Ledger]
-product_variants 1───n inventory_transactions
-stores 1───n inventory_transactions (nullable store_id cho store transfers/POS)
-```
-
-
----
-
-## 5. Chi tiết từng bảng
-
-### 5.1. `customers`
-
-**Mục đích**: Identity nghiệp vụ, profile, role và trạng thái account.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `customer_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key nội bộ |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 — public identifier |
-| `display_name` | `VARCHAR(120)` | NOT NULL | Tên hiển thị |
-| `role` | `VARCHAR(16)` | NOT NULL, DEFAULT `'customer'` | `customer`, `admin`, `store_manager` |
-| `status` | `VARCHAR(16)` | NOT NULL, DEFAULT `'active'` | `active` hoặc `inactive` |
-| `city_id` | `BIGINT UNSIGNED` | FK → `cities.city_id`, NULLABLE, ON DELETE SET NULL | Thành phố được assign |
-| `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE, ON DELETE SET NULL | Cửa hàng được assign (store_manager) |
-| `data_origin` | `VARCHAR(16)` | NOT NULL, DEFAULT `'manual'` | `manual` hoặc `synthetic` |
-| `generation_run_id` | `VARCHAR(64)` | NULLABLE | ID lần generate (synthetic data) |
-| `anonymized_at` | `DATETIME(6)` | NULLABLE | Thời điểm PII bị ẩn danh hóa |
-| `is_cod_blocked` | `BOOLEAN` | NOT NULL, DEFAULT `FALSE` | Cờ chặn thanh toán COD khi boom hàng nhiều lần |
-| `boom_count` | `INT UNSIGNED` | NOT NULL, DEFAULT `0` | Số lần đặt hàng COD nhưng từ chối nhận (boom hàng) |
-| `cod_reinstated_at` | `DATETIME(6)` | NULLABLE | Thời điểm admin mở lại quyền thanh toán COD |
-| `cod_reinstated_by` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE SET NULL | Admin thực hiện mở lại COD |
-| `cod_reinstatement_reason` | `VARCHAR(255)` | NULLABLE | Lý do admin mở lại quyền COD (khiếu nại hợp lệ, v.v.) |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời gian tạo |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | Thời gian cập nhật cuối |
-
-**Check constraints**:
-- `status IN ('active', 'inactive')`
-- `role IN ('customer', 'admin', 'store_manager', 'sales_manager', 'marketing_manager', 'inventory_manager', 'operations_manager', 'system_admin')`
-- `data_origin IN ('manual', 'synthetic')`
-
-**Indexes**:
-- `uq_customers_public_id` — UK trên `public_id`
-- `ix_customers_role_status_id` — `(role, status, customer_id)`
-- `ix_customers_updated_at_customer_id` — extraction cursor
-- `ix_customers_cod_reinstated_by` — `(cod_reinstated_by)`
-
-**Invariant**: Anonymize không xóa PK/FK. `store_manager` có `store_id` liên kết cửa hàng quản lý (Application/API-level Row Filtering trong FastAPI RBAC). Khi `boom_count >= 3`, hệ thống tự động bật `is_cod_blocked = TRUE` để ngăn chặn rủi ro bom hàng COD. Khi Admin mở lại quyền COD (`POST /admin/customers/{id}/reinstate-cod`), hệ thống cập nhật `boom_count = 2`, `is_cod_blocked = FALSE`, và lưu vết audit trail (`cod_reinstated_at`, `cod_reinstated_by`, `cod_reinstatement_reason`). Hỗ trợ đầy đủ 7 role nhân viên quản trị chuyên biệt phục vụ phân quyền và báo cáo BI Lakehouse.
-
-
-
----
-
-### 5.2. `customer_credentials`
-
-**Mục đích**: Password hash cho đúng một customer.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `customer_id` | `BIGINT UNSIGNED` | PK/FK → `customers.customer_id`, ON DELETE RESTRICT | 1:1 với customer |
-| `email_normalized` | `VARCHAR(320)` | UK, NOT NULL | Email đã normalize |
-| `password_hash` | `VARCHAR(255)` | NOT NULL | Bcrypt password hash |
-| `is_enabled` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt credential |
-| `password_changed_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Lần đổi password cuối |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Indexes**:
-- `uq_customer_credentials_email_normalized` — UK trên `email_normalized`
-
-**Invariant**: 1:1 với customer. Không cấp quyền cho DE reader và không đưa vào lakehouse.
-
----
-
-### 5.3. `categories`
-
-**Mục đích**: Phân cấp sản phẩm dạng tree. Product chỉ thuộc category lá.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `category_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `parent_category_id` | `BIGINT UNSIGNED` | FK → `categories.category_id`, NULLABLE, ON DELETE RESTRICT | Self-reference tạo hierarchy |
-| `code` | `VARCHAR(64)` | UK, NOT NULL | Business key (VD: `'AOLOTRINH'`) |
-| `name` | `VARCHAR(160)` | NOT NULL | Tên danh mục |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt tạm thời |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Indexes**:
-- `uq_categories_code` — UK trên `code`
-- `uq_categories_public_id` — UK trên `public_id`
-- `ix_categories_parent_is_active_id` — `(parent_category_id, is_active, category_id)`
-- `ix_categories_updated_at_category_id` — extraction cursor
-
-**Invariant**: Không tạo chu trình hierarchy. Category lá = không có child.
-
----
-
-### 5.4. `products`
-
-**Mục đích**: Thông tin chung sản phẩm. Size/color/SKU/giá nằm ở variant.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `product_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `category_id` | `BIGINT UNSIGNED` | FK → `categories.category_id`, NOT NULL, ON DELETE RESTRICT | Danh mục cha |
-| `slug` | `VARCHAR(180)` | UK, NOT NULL | SEO-friendly URL slug |
-| `name` | `VARCHAR(200)` | NOT NULL | Tên sản phẩm |
-| `description` | `TEXT` | NULLABLE | Mô tả chi tiết |
-| `image_url` | `VARCHAR(1024)` | NULLABLE | URL hình ảnh chính |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt tạm thời |
-| `archived_at` | `DATETIME(6)` | NULLABLE | Thời điểm archive (terminal) |
-| `archived_by_customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE RESTRICT | Admin thực hiện archive |
-| `archive_reason` | `VARCHAR(500)` | NULLABLE | Lý do archive (≥3 ký tự) |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `archived_at IS NULL AND archived_by_customer_id IS NULL AND archive_reason IS NULL`
-  **OR** `archived_at IS NOT NULL AND archived_by_customer_id IS NOT NULL AND archive_reason IS NOT NULL AND LENGTH(TRIM(archive_reason)) >= 3`
-- `archived_at IS NULL OR is_active = FALSE` — archive buộc inactive
-
-**Indexes**:
-- `uq_products_slug` — UK trên `slug`
-- `uq_products_public_id` — UK trên `public_id`
-- `ix_products_category_id_is_active_product_id` — `(category_id, is_active, product_id)`
-- `ix_products_is_active_product_id` — `(is_active, product_id)`
-- `ix_products_updated_at_product_id` — extraction cursor
-- `ix_products_archived_at_product_id` — `(archived_at, product_id)`
-
-**Invariant**: Archive là terminal — không cascade sang variant, wishlist hay order item. FK actor dùng `ON DELETE RESTRICT` để giữ audit.
-
----
-
-### 5.5. `product_variants`
-
-**Mục đích**: Tổ hợp size-color-SKU-giá cho mỗi product.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `variant_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `product_id` | `BIGINT UNSIGNED` | FK → `products.product_id`, NOT NULL, ON DELETE RESTRICT | Product cha |
-| `sku` | `VARCHAR(64)` | UK, NOT NULL | Mã SKU duy nhất |
-| `size_code` | `VARCHAR(32)` | NOT NULL | Mã size (VD: `'M'`, `'XL'`) |
-| `color_code` | `VARCHAR(64)` | NOT NULL | Mã màu (VD: `'DEN'`) |
-| `price_vnd` | `BIGINT UNSIGNED` | NOT NULL | Giá bán niêm yết (VND, integer) |
-| `cost_price_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Giá vốn hàng bán (COGS, VND, integer) |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `price_vnd >= 0`
-- `cost_price_vnd >= 0`
-- `UNIQUE (product_id, size_code, color_code)` — ngăn trùng tổ hợp
-
-
-**Indexes**:
-- `uq_product_variants_sku` — UK trên `sku`
-- `uq_product_variants_public_id` — UK trên `public_id`
-- `uq_product_variants_product_size_color` — composite UK
-- `ix_product_variants_product_id_is_active_variant_id` — `(product_id, is_active, variant_id)`
-- `ix_product_variants_updated_at_variant_id` — extraction cursor
-
----
-
-### 5.6. `inventory`
-
-**Mục đích**: Số dư tồn kho kho tổng cho mỗi variant. Khóa row khi checkout/cancel.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `variant_id` | `BIGINT UNSIGNED` | PK/FK → `product_variants.variant_id`, ON DELETE RESTRICT | 1:1 với variant |
-| `opening_on_hand` | `BIGINT UNSIGNED` | NOT NULL | Tổng lượng hàng đã cấp làm trần kiểm soát tồn |
-| `on_hand` | `BIGINT UNSIGNED` | NOT NULL | Số lượng tồn hiện tại |
-| `version` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` |乐观锁 — tăng khi checkout/cancel |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `opening_on_hand >= 0`
-- `on_hand >= 0`
-- `on_hand <= opening_on_hand` — không có reservation/backorder
-
-**Indexes**:
-- `ix_inventory_updated_at_variant_id` — extraction cursor
-
-**Invariant**: `0 <= on_hand <= opening_on_hand`. Version tăng khi có thay đổi để detect conflict và hỗ trợ extraction. Online checkout chỉ trừ `inventory`; POS chỉ trừ `store_inventory`.
-
----
-
-### 5.7. `cities`
-
-**Mục đích**: Danh sách thành phố nơi có cửa hàng.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `city_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `code` | `VARCHAR(32)` | UK, NOT NULL | Mã thành phố (VD: `'HCM'`, `'HN'`, `'DN'`) |
-| `name` | `VARCHAR(120)` | NOT NULL | Tên thành phố |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Indexes**:
-- `uq_cities_code` — UK trên `code`
-- `ix_cities_updated_at_city_id` — extraction cursor
-
-**Invariant**: `code` unique. City inactive không tạo store mới.
-
----
-
-### 5.8. `stores`
-
-**Mục đích**: Cửa hàng vật lý trong thành phố.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `store_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `city_id` | `BIGINT UNSIGNED` | FK → `cities.city_id`, NOT NULL, ON DELETE RESTRICT | Thành phố |
-| `code` | `VARCHAR(32)` | UK, NOT NULL | Mã cửa hàng |
-| `name` | `VARCHAR(120)` | NOT NULL | Tên cửa hàng |
-| `address` | `VARCHAR(500)` | NOT NULL | Địa chỉ |
-| `phone` | `VARCHAR(32)` | NOT NULL | Số điện thoại |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Indexes**:
-- `uq_stores_code` — UK trên `code`
-- `ix_stores_city_id_store_id` — `(city_id, store_id)`
-- `ix_stores_updated_at_store_id` — extraction cursor
-
-**Invariant**: `code` unique. Store thuộc đúng một city. Store inactive không nhận đơn mới.
-
----
-
-### 5.9. `store_inventory`
-
-**Mục đích**: Tồn kho tại từng cửa hàng, song song với `inventory` (kho tổng). POS chỉ trừ `store_inventory`.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `store_inventory_id` | `BIGINT UNSIGNED` | UK, auto-increment, NOT NULL | Khóa đơn surrogate phục vụ tracking đơn lẻ |
-| `store_id` | `BIGINT UNSIGNED` | PK/FK → `stores.store_id`, ON DELETE RESTRICT | Cửa hàng |
-| `variant_id` | `BIGINT UNSIGNED` | PK/FK → `product_variants.variant_id`, ON DELETE RESTRICT | Variant |
-| `on_hand` | `BIGINT UNSIGNED` | NOT NULL | Số lượng tồn hiện tại |
-| `opening_on_hand` | `BIGINT UNSIGNED` | NOT NULL | Tổng lượng hàng đã cấp làm trần kiểm soát tồn |
-| `version` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | 乐观锁 — tăng khi POS/cancel |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `opening_on_hand >= 0`
-- `on_hand >= 0`
-- `on_hand <= opening_on_hand`
-
-**Indexes**:
-- `uq_store_inventory_store_id_variant_id` — composite UK
-- `ix_store_inventory_updated_at_store_id` — extraction cursor
-
-**Invariant**: `0 <= on_hand <= opening_on_hand`. `version` tăng khi POS transaction hoặc cancel. POS order trừ `store_inventory` (kho cửa hàng); online checkout trừ `inventory` (kho tổng).
-
----
-
-### 5.10. `carts`
-
-**Mục đích**: Chu kỳ shopping cart. Một customer tối đa một cart `active`.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `cart_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Owner |
-| `status` | `VARCHAR(16)` | NOT NULL, DEFAULT `'active'` | `active` hoặc `checked_out` |
-| `active_customer_guard` | `BIGINT UNSIGNED` | COMPUTED `(CASE WHEN status='active' THEN customer_id ELSE NULL END)`, UK | Guard unique cho active cart |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-| `checked_out_at` | `DATETIME(6)` | NULLABLE | Thời điểm checkout |
-
-**Check constraints**:
-- `status IN ('active', 'checked_out')`
-
-**Indexes**:
-- `uq_carts_public_id` — UK trên `public_id`
-- `uq_carts_active_customer_guard` — UK trên `active_customer_guard` (thực thi 1 active cart/customer)
-- `ix_carts_customer_id_created_at_cart_id` — `(customer_id, created_at, cart_id)`
-- `ix_carts_updated_at_cart_id` — extraction cursor
-
-**Invariant**: Cart đã checkout không tái sử dụng. `active_customer_guard` là computed column dùng làm arbiter cho unique constraint.
-
----
-
-### 5.11. `cart_items`
-
-**Mục đích**: Một variant trong cart. Logical removal giữ lịch sử.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `cart_item_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `cart_id` | `BIGINT UNSIGNED` | FK → `carts.cart_id`, NOT NULL, ON DELETE RESTRICT | Cart cha |
-| `variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NOT NULL, ON DELETE RESTRICT | Variant được thêm |
-| `quantity` | `INT UNSIGNED` | NOT NULL | Số lượng |
-| `is_present` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | `TRUE`=đang trong cart, `FALSE`=đã xóa logic |
-| `first_added_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Lần đầu thêm vào cart |
-| `removed_at` | `DATETIME(6)` | NULLABLE | Thời điểm xóa logic |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `quantity > 0`
-- `(is_present = TRUE AND removed_at IS NULL) OR (is_present = FALSE AND removed_at IS NOT NULL)`
-
-**Unique**: `(cart_id, variant_id)` — mỗi variant chỉ có một dòng trong cart
-
-**Indexes**:
-- `uq_cart_items_cart_id_variant_id` — composite UK
-- `ix_cart_items_variant_id_cart_item_id` — `(variant_id, cart_item_id)`
-- `ix_cart_items_updated_at_cart_item_id` — extraction cursor
-
-**Invariant**: Add/update cart không thay đổi inventory.
-
----
-
-### 5.12. `wishlist_items`
-
-**Mục đích**: Sản phẩm customer đã lưu. Logical removal giữ lịch sử.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `wishlist_item_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Owner |
-| `product_id` | `BIGINT UNSIGNED` | FK → `products.product_id`, NOT NULL, ON DELETE RESTRICT | Sản phẩm được lưu |
-| `is_present` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Đang hiển thị hay đã xóa |
-| `first_added_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Lần đầu thêm |
-| `last_added_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Lần thêm lại sau khi xóa |
-| `removed_at` | `DATETIME(6)` | NULLABLE | Thời điểm xóa logic |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `(is_present = TRUE AND removed_at IS NULL) OR (is_present = FALSE AND removed_at IS NOT NULL)`
-- `last_added_at >= first_added_at`
-- `removed_at IS NULL OR removed_at >= last_added_at`
-
-**Unique**: `(customer_id, product_id)` — mỗi product chỉ có một wishlist item/customer
-
-**Indexes**:
-- `uq_wishlist_items_customer_id_product_id` — composite UK
-- `ix_wishlist_items_customer_present_last_added_id` — `(customer_id, is_present, last_added_at, wishlist_item_id)`
-- `ix_wishlist_items_product_id_wishlist_item_id` — `(product_id, wishlist_item_id)`
-- `ix_wishlist_items_updated_at_wishlist_item_id` — extraction cursor
-
----
-
-### 5.13. `coupons`
-
-**Mục đích**: Cấu hình mã giảm giá và counter sử dụng hiện hành.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `coupon_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `code_normalized` | `VARCHAR(64)` | UK, NOT NULL | Business key (viết hoa, không dấu cách) |
-| `discount_type` | `VARCHAR(24)` | NOT NULL | `percentage` hoặc `fixed_amount` |
-| `discount_value` | `BIGINT UNSIGNED` | NOT NULL | % (1–100) hoặc VND (>0) |
-| `minimum_subtotal_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Đơn tối thiểu để áp dụng |
-| `starts_at` | `DATETIME(6)` | NOT NULL | Thời điểm bắt đầu hiệu lực |
-| `ends_at` | `DATETIME(6)` | NOT NULL | Thời điểm hết hiệu lực |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Bật/tắt tạm thời |
-| `archived_at` | `DATETIME(6)` | NULLABLE | Thời điểm archive (terminal) |
-| `archived_by_customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE RESTRICT | Admin archive |
-| `archive_reason` | `VARCHAR(500)` | NULLABLE | Lý do archive (≥3 ký tự) |
-| `total_usage_limit` | `BIGINT UNSIGNED` | NULLABLE | Giới hạn tổng lần dùng (NULL = vô hạn) |
-| `per_customer_usage_limit` | `INT UNSIGNED` | NULLABLE | Giới hạn mỗi customer |
-| `used_count` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Số lần đã dùng |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `discount_type IN ('percentage', 'fixed_amount')`
-- `(discount_type = 'percentage' AND discount_value BETWEEN 1 AND 100) OR (discount_type = 'fixed_amount' AND discount_value > 0)`
-- `starts_at < ends_at`
-- `total_usage_limit IS NULL OR total_usage_limit > 0`
-- `per_customer_usage_limit IS NULL OR per_customer_usage_limit > 0`
-- `total_usage_limit IS NULL OR used_count <= total_usage_limit`
-- Archive metadata consistency: ba archive field cùng null hoặc cùng có giá trị
-- `archived_at IS NULL OR is_active = FALSE`
-
-**Concurrency**: Checkout khóa row coupon trước khi kiểm tra `used_count`. Tăng counter và insert redemption atomically trong cùng transaction. Cancel khóa coupon và redemption, release đúng một lần rồi giảm counter.
-
-**Indexes**:
-- `uq_coupons_public_id` — UK trên `public_id`
-- `uq_coupons_code_normalized` — UK trên `code_normalized`
-- `ix_coupons_archived_at_coupon_id` — `(archived_at, coupon_id)`
-- `ix_coupons_updated_at_coupon_id` — extraction cursor
-
----
-
-### 5.14. `coupon_redemptions`
-
-**Mục đích**: Chứng minh một order đã chiếm usage coupon. Cho phép release khi hủy.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `coupon_redemption_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `coupon_id` | `BIGINT UNSIGNED` | FK → `coupons.coupon_id`, NOT NULL, ON DELETE RESTRICT | Coupon được dùng |
-| `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, UK, NOT NULL, ON DELETE RESTRICT | Order chiếm usage |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Customer dùng coupon |
-| `status` | `VARCHAR(16)` | NOT NULL | `redeemed` hoặc `released` |
-| `redeemed_at` | `DATETIME(6)` | NOT NULL | Thời điểm redeem |
-| `released_at` | `DATETIME(6)` | NULLABLE | Thời điểm release (khi hủy) |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `status IN ('redeemed', 'released')`
-- `(status = 'redeemed' AND released_at IS NULL) OR (status = 'released' AND released_at IS NOT NULL)`
-
-**Unique**: `order_id` — mỗi order tối đa một redemption
-
-**Indexes**:
-- `uq_coupon_redemptions_order_id` — UK trên `order_id`
-- `ix_coupon_redemptions_coupon_customer_status` — `(coupon_id, customer_id, status)` — per-customer limit check
-- `ix_coupon_redemptions_updated_at_id` — `(updated_at, coupon_redemption_id)` — extraction cursor
-
----
-
-### 5.15. `orders`
-
-**Mục đích**: Kết quả checkout online hoặc POS. Online đi qua `paid/confirmed → shipping → delivered → completed`; POS được tạo trực tiếp ở `completed`.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `order_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `order_number` | `VARCHAR(32)` | UK, NOT NULL | Mã đơn hàng hiển thị |
-| `cart_id` | `BIGINT UNSIGNED` | FK → `carts.cart_id`, UK, NULLABLE | Cart đã checkout (1:1 online, NULL cho POS) |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE RESTRICT | Chủ đơn (NULL cho khách vãng lai tại quầy POS) |
-| `checkout_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key cho checkout (idemp:pos-... cho POS) |
-| `coupon_id` | `BIGINT UNSIGNED` | FK → `coupons.coupon_id`, NULLABLE, ON DELETE RESTRICT | Coupon đã áp dụng |
-| `status` | `VARCHAR(24)` | NOT NULL | Trạng thái hiện tại |
-| `payment_method` | `VARCHAR(16)` | NOT NULL, DEFAULT `'vietqr'` | Online: `vietqr`/`cod`; POS: `cash`/`card`/`vietqr` |
-| `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
-| `subtotal_vnd` | `BIGINT UNSIGNED` | NOT NULL | Tổng tiền hàng (trước giảm giá) |
-| `coupon_code_snapshot` | `VARCHAR(64)` | NULLABLE | Snapshot mã coupon |
-| `coupon_type_snapshot` | `VARCHAR(24)` | NULLABLE | Snapshot loại giảm giá |
-| `coupon_value_snapshot` | `BIGINT UNSIGNED` | NULLABLE | Snapshot giá trị giảm |
-| `discount_amount_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Số tiền giảm giá |
-| `shipping_fee_vnd` | `BIGINT UNSIGNED` | NOT NULL | Phí vận chuyển (0 cho POS) |
-| `total_vnd` | `BIGINT UNSIGNED` | NOT NULL | Tổng thanh toán |
-| `receiver_name` | `VARCHAR(160)` | NOT NULL | Tên người nhận |
-| `receiver_phone` | `VARCHAR(32)` | NOT NULL | SĐT người nhận |
-| `shipping_address_text` | `VARCHAR(1000)` | NOT NULL | Địa chỉ giao hàng |
-| `data_origin` | `VARCHAR(16)` | NOT NULL, DEFAULT `'manual'` | `manual` hoặc `synthetic` |
-| `generation_run_id` | `VARCHAR(64)` | NULLABLE | ID lần generate |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-| `paid_at` | `DATETIME(6)` | NULLABLE | Thời điểm thanh toán (online VietQR, POS, hoặc khi COD thu tiền) |
-| `confirmed_at` | `DATETIME(6)` | NULLABLE | Thời điểm admin xác nhận |
-| `completed_at` | `DATETIME(6)` | NULLABLE | Thời điểm hoàn tất |
-| `cancelled_at` | `DATETIME(6)` | NULLABLE | Thời điểm hủy |
-| `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE | Cửa hàng liên kết (allocation hoặc POS) |
-| `channel` | `VARCHAR(16)` | NOT NULL, DEFAULT `'online'` | Kênh bán: `online` hoặc `pos` |
-| `staff_id` | `BIGINT UNSIGNED` | NULLABLE; tham chiếu `customers.customer_id` trong ORM, chưa có FK vật lý | Nhân viên thu ngân/bán hàng (POS) |
-
-**Check constraints**:
-- `status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed', 'shipping', 'delivered', 'completed', 'cancelled', 'failed_delivery', 'returned')`
-- `payment_method IN ('vietqr', 'cod', 'cash', 'card')`
-- `currency_code = 'VND'`
-- `subtotal_vnd >= 0`
-- `shipping_fee_vnd >= 0`
-- `discount_amount_vnd <= subtotal_vnd`
-- `total_vnd = subtotal_vnd - discount_amount_vnd + shipping_fee_vnd`
-- Coupon snapshot consistency: Toàn bộ coupon fields NULL + discount=0, HOẶC tất cả NOT NULL + discount>0
-- `coupon_type_snapshot` value: `percentage` (1–100) hoặc `fixed_amount` (>0)
-- `data_origin IN ('manual', 'synthetic')`
-- `ck_orders_pos_channel`: `(channel != 'pos') OR (store_id IS NOT NULL AND staff_id IS NOT NULL)`
-- `ck_orders_channel_payment`: `(channel = 'pos' AND payment_method IN ('cash', 'card', 'vietqr')) OR (channel = 'online' AND payment_method IN ('vietqr', 'cod'))`
-- `ck_orders_cod_pending_no_paid_at`: `NOT (payment_method = 'cod' AND status IN ('pending_payment', 'confirmed', 'shipping') AND paid_at IS NOT NULL)`
-
-**Indexes**:
-- `uq_orders_order_number` — UK trên `order_number`
-- `uq_orders_cart_id` — UK trên `cart_id` (1 cart → 1 order)
-- `uq_orders_checkout_idempotency_key` — UK trên `checkout_idempotency_key`
-- `ix_orders_payment_method` — `(payment_method)`
-- `ix_orders_customer_id_created_at_order_id` — customer history
-- `ix_orders_status_created_at_order_id` — admin queue
-- `ix_orders_updated_at_order_id` — extraction cursor
-- `ix_orders_coupon_id_order_id` — coupon lineage
-
-
-**State machine**:
-```text
-[Online VietQR] paid ──> confirmed ──> shipping ──> delivered ──(khách nhận hàng)──> completed
-                         │             │           │                               │
-                         │             │           └──> returned <─────────────────┘
-                         │             └──> failed_delivery (boom COD)
-                         └──> cancelled
-
-[Online COD]    confirmed ──> shipping ──> delivered (thu tiền COD) ──(khách nhận hàng)──> completed
-                            │           │                                                │
-                            │           └──> returned <──────────────────────────────────┘
-                            │           └──> failed_delivery (boom COD)
-                            └──> cancelled
-```
-- Khách hàng (hoặc admin) được phép hủy đơn trước khi đơn được điều phối giao vận (`paid` với VietQR, hoặc `confirmed` trước khi xuất kho). Khi đã chuyển sang `shipping` hoặc `delivered`, không thể hủy đơn.
-- Khi đơn hàng `delivered`: Admin/shipper xác nhận giao thành công. Đơn hàng chuyển sang `completed` **khi khách hàng bấm "Đã nhận được hàng"** trên trang cá nhân.
-- Sau khi `delivered` hoặc `completed`, khách hàng có 7 ngày để yêu cầu Đổi / Trả hàng (`return_requests`). Nếu chấp thuận trả hàng và hoàn tiền, trạng thái đơn chuyển sang `returned`.
-
-**Channel invariants**:
-- `channel='online'`: `cart_id` NOT NULL, `checkout_idempotency_key` NOT NULL, `staff_id` NULL (hoặc allocation store)
-- `channel='pos'`: `store_id` NOT NULL, `staff_id` NOT NULL, `cart_id=NULL`, idempotency key nội bộ, status `completed`
-
----
-
-### 5.16. `order_items`
-
-**Mục đích**: Snapshot dòng hàng trong order. Append-only — master data thay đổi không làm đổi lịch sử.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `order_item_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, NOT NULL, ON DELETE RESTRICT | Order cha |
-| `variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NOT NULL, ON DELETE RESTRICT | Variant được mua |
-| `product_public_id_snapshot` | `BINARY(16)` | NOT NULL | Snapshot product public_id |
-| `category_code_snapshot` | `VARCHAR(64)` | NOT NULL | Snapshot mã danh mục |
-| `category_name_snapshot` | `VARCHAR(160)` | NOT NULL | Snapshot tên danh mục |
-| `product_name_snapshot` | `VARCHAR(200)` | NOT NULL | Snapshot tên sản phẩm |
-| `sku_snapshot` | `VARCHAR(64)` | NOT NULL | Snapshot SKU |
-| `size_code_snapshot` | `VARCHAR(32)` | NOT NULL | Snapshot size |
-| `color_code_snapshot` | `VARCHAR(64)` | NOT NULL | Snapshot màu |
-| `unit_price_vnd` | `BIGINT UNSIGNED` | NOT NULL | Đơn giá tại thời điểm mua |
-| `cost_price_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Snapshot giá vốn hàng bán tại thời điểm mua |
-| `quantity` | `INT UNSIGNED` | NOT NULL | Số lượng |
-| `line_total_vnd` | `BIGINT UNSIGNED` | NOT NULL | `unit_price_vnd × quantity` |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-
-**Check constraints**:
-- `unit_price_vnd >= 0`
-- `cost_price_vnd >= 0`
-- `quantity > 0`
-- `line_total_vnd = unit_price_vnd * quantity`
-
-**Unique**: `(order_id, variant_id)` — mỗi variant chỉ có một dòng trong order
-
-**Indexes**:
-- `uq_order_items_public_id` — UK trên `public_id`
-- `uq_order_items_order_id_variant_id` — composite UK
-- `ix_order_items_variant_id_order_item_id` — `(variant_id, order_item_id)`
-- `ix_order_items_created_at_order_item_id` — extraction cursor
-
----
-
-### 5.17. `payments`
-
-**Mục đích**: Ghi nhận thanh toán cho order. Với `vietqr` là `succeeded` ngay tại checkout; với `cod` là `pending` tại checkout và chỉ chuyển thành `succeeded` khi khách xác nhận hoàn tất đơn.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `payment_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `payment_reference` | `VARCHAR(64)` | UK, NOT NULL | Mã tham chiếu thanh toán |
-| `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, UK, NOT NULL, ON DELETE RESTRICT | Order liên kết (1:1) |
-| `payment_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key |
-| `status` | `VARCHAR(16)` | NOT NULL | `succeeded`, `failed`, hoặc `pending` (COD) |
-| `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
-| `amount_vnd` | `BIGINT UNSIGNED` | NOT NULL | Số tiền thanh toán |
-| `failure_code` | `VARCHAR(64)` | NULLABLE | Mã lỗi (chỉ khi `failed`) |
-| `attempted_at` | `DATETIME(6)` | NOT NULL | Thời điểm thử thanh toán |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-
-**Check constraints**:
-- `status IN ('succeeded', 'failed', 'pending')`
-- `currency_code = 'VND'`
-- `amount_vnd >= 0`
-- `((status IN ('succeeded', 'pending') AND failure_code IS NULL) OR (status = 'failed' AND failure_code IS NOT NULL))`
-
-**Unique**: `order_id` — mỗi order chỉ có một payment
-
-**Indexes**:
-- `uq_payments_payment_reference` — UK trên `payment_reference`
-- `uq_payments_order_id` — UK trên `order_id`
-- `uq_payments_payment_idempotency_key` — UK trên `payment_idempotency_key`
-- `ix_payments_created_at_payment_id` — extraction cursor
-
-**Invariant**: Amount/currency phải khớp order. Đơn COD khởi tạo payment với `status='pending'`, sau khi giao hàng thành công sẽ quyết toán sang `status='succeeded'`.
-
----
-
-### 5.18. `refunds`
-
-**Mục đích**: Full refund khi hủy order đã paid. Không phải return hàng hóa.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `refund_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `payment_id` | `BIGINT UNSIGNED` | FK → `payments.payment_id`, UK, NOT NULL, ON DELETE RESTRICT | Payment được refund (1:1) |
-| `refund_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key |
-| `status` | `VARCHAR(16)` | NOT NULL | `succeeded` hoặc `failed` |
-| `currency_code` | `CHAR(3)` | NOT NULL, DEFAULT `'VND'` | Luôn VND |
-| `amount_vnd` | `BIGINT UNSIGNED` | NOT NULL | Số tiền refund (bằng payment amount) |
-| `reason` | `VARCHAR(500)` | NOT NULL | Lý do hủy/refund |
-| `requested_by_customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Customer yêu cầu |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `completed_at` | `DATETIME(6)` | NULLABLE | Thời điểm refund hoàn tất |
-
-**Check constraints**:
-- `status IN ('succeeded', 'failed')`
-- `currency_code = 'VND'`
-- `amount_vnd >= 0`
-- `(status = 'succeeded' AND completed_at IS NOT NULL) OR (status = 'failed' AND completed_at IS NULL)`
-
-**Unique**: `payment_id` — mỗi payment tối đa một refund
-
-**Indexes**:
-- `uq_refunds_public_id` — UK trên `public_id`
-- `uq_refunds_payment_id` — UK trên `payment_id`
-- `uq_refunds_refund_idempotency_key` — UK trên `refund_idempotency_key`
-- `ix_refunds_created_at_refund_id` — extraction cursor
-
----
-
-### 5.19. `order_status_history`
-
-**Mục đích**: Ghi lại mỗi transition trạng thái của order. Append-only — không update/delete.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `order_status_history_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, NOT NULL, ON DELETE RESTRICT | Order liên kết |
-| `from_status` | `VARCHAR(24)` | NULLABLE | Trạng thái trước (NULL khi tạo mới) |
-| `to_status` | `VARCHAR(24)` | NOT NULL | Trạng thái đích |
-| `transition_source` | `VARCHAR(32)` | NOT NULL | Nguồn transition |
-| `reason` | `VARCHAR(500)` | NULLABLE | Lý do (bắt buộc khi hủy) |
-| `transition_idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key |
-| `transitioned_at` | `DATETIME(6)` | NOT NULL | Thời điểm transition |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-
-**Check constraints** — Valid transitions:
-- `from_status IS NULL AND to_status IN ('pending_payment', 'paid', 'payment_failed', 'confirmed', 'completed')` — tạo mới (gồm POS hoàn tất tức thời)
-- `from_status = 'pending_payment' AND to_status IN ('paid', 'payment_failed', 'cancelled')`
-- `from_status = 'paid' AND to_status IN ('confirmed', 'cancelled')`
-- `from_status = 'confirmed' AND to_status IN ('shipping', 'completed', 'cancelled', 'failed_delivery')`
-- `from_status = 'shipping' AND to_status IN ('delivered', 'failed_delivery', 'returned')`
-- `from_status = 'delivered' AND to_status IN ('completed', 'returned')`
-- `from_status = 'completed' AND to_status = 'returned'`
-
-**Check constraints** — Other:
-- `transition_source IN ('checkout', 'internal_endpoint', 'generator', 'system', 'admin', 'customer')`
-- `to_status <> 'cancelled' OR reason IS NOT NULL` — hủy bắt buộc lý do
-
-**Unique**: `(order_id, to_status)` — ngăn transition đích lặp
-
-**Indexes**:
-- `uq_order_status_history_transition_idempotency_key` — UK trên `transition_idempotency_key`
-- `uq_order_status_history_order_id_to_status` — composite UK
-- `ix_order_status_history_order_id_transitioned_at_id` — `(order_id, transitioned_at, order_status_history_id)`
-- `ix_order_status_history_created_at_id` — `(created_at, order_status_history_id)`
-
----
-
-### 5.20. `product_reviews`
-
-**Mục đích**: Review có verified purchase. Tự động hiển thị (`approved`), admin hậu kiểm để ẩn (`rejected`).
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `review_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `order_item_id` | `BIGINT UNSIGNED` | FK → `order_items.order_item_id`, UK, NOT NULL, ON DELETE RESTRICT | Order item được review (1:1) |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Customer viết review |
-| `product_id` | `BIGINT UNSIGNED` | FK → `products.product_id`, NOT NULL, ON DELETE RESTRICT | Sản phẩm được review |
-| `rating` | `INT UNSIGNED` | NOT NULL | Điểm 1–5 |
-| `content` | `TEXT` | NULLABLE | Nội dung review |
-| `status` | `VARCHAR(16)` | NOT NULL, DEFAULT `'approved'` | `approved` (hiển thị) hoặc `rejected` (ẩn) |
-| `moderation_reason` | `VARCHAR(500)` | NULLABLE | Lý do ẩn (≥3 ký tự khi rejected) |
-| `moderated_by_customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NULLABLE, ON DELETE RESTRICT | Admin thực hiện moderation |
-| `moderated_at` | `DATETIME(6)` | NULLABLE | Thời điểm moderation |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `rating BETWEEN 1 AND 5`
-- `status IN ('approved', 'rejected')`
-- Post-publication moderation consistency:
-  - `approved`: `moderation_reason` NULL; moderation fields đều NULL hoặc đều NOT NULL
-  - `rejected`: `moderated_by_customer_id` + `moderated_at` + `moderation_reason` đều NOT NULL, reason ≥3 ký tự
-
-**Unique**: `order_item_id` — mỗi order_item chỉ có một review
-
-**Indexes**:
-- `uq_product_reviews_public_id` — UK trên `public_id`
-- `uq_product_reviews_order_item_id` — UK trên `order_item_id`
-- `ix_product_reviews_product_status_created_at_id` — `(product_id, status, created_at, review_id)` — trang sản phẩm
-- `ix_product_reviews_customer_created_at_id` — `(customer_id, created_at, review_id)` — lịch sử review
-- `ix_product_reviews_updated_at_review_id` — extraction cursor
-
-**Invariant**: Transaction tạo review phải chứng minh order thuộc customer và status `completed`. Review mới tự động `approved`. Endpoint public chỉ đọc `approved`.
-
----
-
-### 5.21. `delivery_staff`
-
-**Mục đích**: Quản lý hồ sơ và trạng thái hoạt động của đội ngũ nhân viên giao hàng (shipper) nội bộ D&K.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `staff_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `full_name` | `VARCHAR(100)` | NOT NULL | Họ và tên nhân viên giao hàng |
-| `phone` | `VARCHAR(20)` | UK, NOT NULL | Số điện thoại liên lạc |
-| `vehicle_plate` | `VARCHAR(30)` | NULLABLE | Biển số phương tiện giao hàng |
-| `is_active` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | Trạng thái sẵn sàng nhận đơn |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Indexes**:
-- `uq_delivery_staff_public_id` — UK trên `public_id`
-- `uq_delivery_staff_phone` — UK trên `phone`
-- `ix_delivery_staff_updated_at_staff_id` — extraction cursor
-
-**Invariant**: D&K vận hành 100% đội ngũ giao hàng in-house, không tích hợp API 3PL bên thứ ba. Trường `phone` và `full_name` phải được pseudonymize (ẩn danh hóa) khi đồng bộ sang tầng Silver của Lakehouse.
-
----
-
-### 5.22. `shipments`
-
-**Mục đích**: Phiếu giao hàng nội bộ liên kết 1 đơn hàng online với 1 nhân viên giao hàng, theo dõi vòng đời phát hàng và dòng tiền COD thu hộ.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `shipment_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `shipment_code` | `VARCHAR(64)` | UK, NOT NULL | Mã vận đơn nội bộ (VD: `'SHP-...'`) |
-| `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, NOT NULL, ON DELETE RESTRICT | Đơn hàng được giao (1:1 online) |
-| `delivery_staff_id` | `BIGINT UNSIGNED` | FK → `delivery_staff.staff_id`, NULLABLE, ON DELETE SET NULL | Shipper phụ trách giao |
-| `status` | `VARCHAR(32)` | NOT NULL, DEFAULT `'assigned'` | Trạng thái vận đơn |
-| `attempt_count` | `INT UNSIGNED` | NOT NULL, DEFAULT `1` | Số lần thử giao hàng |
-| `cod_amount_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tiền COD cần thu theo đơn hàng |
-| `cod_collected_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tiền COD thực tế shipper đã thu |
-| `dispatched_at` | `DATETIME(6)` | NULLABLE | Thời điểm xuất kho giao hàng |
-| `delivered_at` | `DATETIME(6)` | NULLABLE | Thời điểm giao hàng thành công |
-| `failed_at` | `DATETIME(6)` | NULLABLE | Thời điểm lần giao thứ ba thất bại (kết thúc giao hàng) |
-| `failure_reason` | `VARCHAR(255)` | NULLABLE | Lý do không giao được cuối cùng |
-| `notes` | `TEXT` | NULLABLE | Ghi chú vận hành giao hàng |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `status IN ('assigned', 'picked_up', 'in_transit', 'delivered', 'failed', 'returned_to_warehouse')`
-- `attempt_count BETWEEN 1 AND 3`
-- `cod_amount_vnd >= 0`
-- `cod_collected_vnd >= 0`
-- `ck_shipments_cod_collected_limit`: `cod_collected_vnd <= cod_amount_vnd`
-
-**Indexes**:
-- `uq_shipments_public_id` — UK trên `public_id`
-- `uq_shipments_code` — UK trên `shipment_code`
-- `ix_shipments_order_id` — `(order_id)`
-- `ix_shipments_delivery_staff_id` — `(delivery_staff_id)`
-- `ix_shipments_status` — `(status)`
-- `ix_shipments_updated_at_shipment_id` — extraction cursor
-
-**Invariant**: 
-- Nếu đơn thanh toán `cod`: `cod_amount_vnd = orders.total_vnd`. Khi giao thành công (`delivered`), `cod_collected_vnd = cod_amount_vnd`.
-- Nếu giao thất bại (`failed`), `cod_collected_vnd = 0`, đơn hàng chuyển sang `failed_delivery`, tăng `boom_count` của khách hàng (nếu lỗi do người mua) và hoàn trả hàng về kho tổng qua `inventory_transactions`.
-- Lịch sử từng lần thử giao hàng được lưu vết chuẩn hóa 1-N trong bảng `shipment_attempts`.
-
----
-
-### 5.23. `shipment_attempts`
-
-**Mục đích**: Ghi nhận chi tiết từng lần thử giao hàng thực tế của shipper đối với phiếu vận đơn (`shipments`), phục vụ quản trị rủi ro thanh toán COD, phân tích SLA giao vận và truy vết kiểm toán.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `attempt_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `shipment_id` | `BIGINT UNSIGNED` | FK → `shipments.shipment_id`, NOT NULL, ON DELETE RESTRICT | Phiếu vận đơn liên quan |
-| `attempt_number` | `INT UNSIGNED` | NOT NULL | Số thứ tự lần giao (1, 2, hoặc 3) |
-| `delivery_staff_id` | `BIGINT UNSIGNED` | FK → `delivery_staff.staff_id`, NULLABLE, ON DELETE SET NULL | Shipper thực hiện lần thử |
-| `status` | `VARCHAR(32)` | NOT NULL | `attempted_failed`, `attempted_success`, `failed`, `delivered` |
-| `failure_reason` | `VARCHAR(255)` | NULLABLE | Lý do cụ thể của lần giao thất bại |
-| `is_buyer_fault` | `BOOLEAN` | NOT NULL, DEFAULT `TRUE` | `TRUE` nếu lỗi từ người mua; `FALSE` nếu lỗi logistics/ngoại cảnh |
-| `idempotency_key` | `VARCHAR(64)` | UK, NOT NULL | Idempotency key bảo vệ từng lần giao không bị lặp |
-| `attempted_at` | `DATETIME(6)` | NOT NULL | Thời điểm diễn ra lần thử giao |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm ghi nhận bản ghi |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | Thời điểm cập nhật cuối |
-
-**Check constraints**:
-- `ck_shipment_attempts_attempt_number`: `attempt_number BETWEEN 1 AND 3`
-- `ck_shipment_attempts_status`: `status IN ('attempted_failed', 'attempted_success', 'failed', 'delivered')`
-
-**Indexes**:
-- `uq_shipment_attempts_public_id` — UK trên `public_id`
-- `uq_shipment_attempts_idempotency_key` — UK trên `idempotency_key`
-- `uq_shipment_attempts_shipment_attempt_number` — UK trên `(shipment_id, attempt_number)`
-- `ix_shipment_attempts_delivery_staff_id` — `(delivery_staff_id)`
-- `ix_shipment_attempts_attempted_at` — `(attempted_at)`
-
-**Invariant**:
-- Một phiếu giao hàng có tối đa 3 lần thử (`attempt_number` từ 1 đến 3).
-- Mỗi lần thử giao thất bại phải cung cấp `idempotency_key` duy nhất và phân loại `is_buyer_fault`.
-- Chỉ các lần giao thất bại có `is_buyer_fault = TRUE` mới được tính vào điểm rủi ro khách hàng (`customers.boom_count`).
-- Lần giao thứ 3 thất bại sẽ kết thúc vòng đời giao hàng, chuyển shipment sang `failed` và đơn hàng sang `failed_delivery`.
-
----
-
-### 5.24. `return_requests`
-
-**Mục đích**: Ghi nhận và quản lý quy trình yêu cầu đổi / trả hàng trong vòng 7 ngày sau khi nhận hàng của khách hàng.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `return_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `return_code` | `VARCHAR(64)` | UK, NOT NULL | Mã yêu cầu đổi trả (VD: `'RET-...'`) |
-| `order_id` | `BIGINT UNSIGNED` | FK → `orders.order_id`, NOT NULL, ON DELETE RESTRICT | Đơn hàng gốc phát sinh đổi trả |
-| `customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Khách hàng yêu cầu |
-| `action_type` | `VARCHAR(16)` | NOT NULL | Loại yêu cầu: `exchange` (đổi size/màu) hoặc `refund` (trả hàng hoàn tiền) |
-| `status` | `VARCHAR(32)` | NOT NULL, DEFAULT `'pending_review'` | Trạng thái phê duyệt và xử lý |
-| `customer_reason` | `TEXT` | NOT NULL | Lý do đổi/trả từ phía khách hàng |
-| `image_urls` | `JSON` | NULLABLE | Danh sách ảnh đính kèm minh chứng |
-| `admin_note` | `TEXT` | NULLABLE | Ghi chú xử lý của nhân viên CSKH/Kho |
-| `reviewed_at` | `DATETIME(6)` | NULLABLE | Thời điểm CSKH tiếp nhận phê duyệt |
-| `resolved_at` | `DATETIME(6)` | NULLABLE | Thời điểm xử lý hoàn tất đổi/hoàn tiền |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `action_type IN ('exchange', 'refund')`
-- `status IN ('pending_review', 'approved', 'rejected', 'goods_received', 'completed', 'cancelled')`
-
-**Indexes**:
-- `uq_return_requests_public_id` — UK trên `public_id`
-- `uq_return_requests_code` — UK trên `return_code`
-- `ix_return_requests_order_id` — `(order_id)`
-- `ix_return_requests_customer_id` — `(customer_id)`
-- `ix_return_requests_status` — `(status)`
-- `ix_return_requests_updated_at_return_id` — extraction cursor
-
-**Invariant**: Khách hàng chỉ được gửi yêu cầu đổi/trả cho đơn hàng ở trạng thái `delivered` hoặc `completed` trong vòng 7 ngày kể từ `delivered_at`.
-
----
-
-### 5.25. `return_items`
-
-**Mục đích**: Chi tiết từng món hàng cần đổi hoặc trả trong một yêu cầu đổi trả, phục vụ khâu kiểm định chất lượng sản phẩm (inspection).
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `return_item_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `return_id` | `BIGINT UNSIGNED` | FK → `return_requests.return_id`, NOT NULL, ON DELETE CASCADE | Yêu cầu đổi trả cha |
-| `order_item_id` | `BIGINT UNSIGNED` | FK → `order_items.order_item_id`, NOT NULL, ON DELETE RESTRICT | Dòng món hàng gốc trong đơn |
-| `variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NOT NULL, ON DELETE RESTRICT | Biến thể sản phẩm khách trả lại |
-| `quantity` | `INT UNSIGNED` | NOT NULL, DEFAULT `1` | Số lượng đổi hoặc trả |
-| `exchange_variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NULLABLE, ON DELETE RESTRICT | Biến thể mới muốn đổi lấy (chỉ khi `action_type='exchange'`) |
-| `refund_amount_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Số tiền hoàn lại cho món này (chỉ khi `action_type='refund'`) |
-| `inspection_status` | `VARCHAR(16)` | NOT NULL, DEFAULT `'pending'` | Kết quả kiểm định (`pending`, `passed`, `failed`) |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | |
-
-**Check constraints**:
-- `quantity > 0`
-- `inspection_status IN ('pending', 'passed', 'failed')`
-- `refund_amount_vnd >= 0`
-
-**Indexes**:
-- `uq_return_items_public_id` — UK trên `public_id`
-- `ix_return_items_return_id` — `(return_id)`
-- `ix_return_items_variant_id` — `(variant_id)`
-- `ix_return_items_updated_at_item_id` — extraction cursor
-
-**Invariant**: Nếu `action_type = 'exchange'`, `exchange_variant_id` phải có giá trị và `refund_amount_vnd = 0`. Nếu `action_type = 'refund'`, `exchange_variant_id` là NULL và `refund_amount_vnd` tối đa bằng `order_items.line_total_vnd`.
-
----
-
-### 5.26. `inventory_transactions`
-
-**Mục đích**: Sổ cái ghi nhận bất biến mọi giao dịch biến động số lượng tồn kho (nhập xưởng, xuất bán, chuyển cửa hàng, hoàn hàng boom, đổi trả, hoàn kho hủy đơn). Không dùng bảng `suppliers` mà giả lập nhập kho trực tiếp qua giao dịch `inbound`.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `transaction_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NOT NULL, ON DELETE RESTRICT | Biến thể sản phẩm biến động tồn kho |
-| `location_type` | `VARCHAR(24)` | NOT NULL | Loại địa điểm: `central_warehouse` (kho tổng) hoặc `store` (cửa hàng chi nhánh) |
-| `store_id` | `BIGINT UNSIGNED` | FK → `stores.store_id`, NULLABLE, ON DELETE RESTRICT | Cửa hàng liên quan (NULL nếu là kho tổng) |
-| `movement_type` | `VARCHAR(32)` | NOT NULL | Loại giao dịch biến động |
-| `quantity_delta` | `INT` | NOT NULL | Số lượng biến động (+ tăng tồn, - giảm tồn) |
-| `reference_code` | `VARCHAR(64)` | NULLABLE | Mã chứng từ liên quan (mã đơn, mã phiếu nhập, mã đổi trả) |
-| `notes` | `VARCHAR(255)` | NULLABLE | Ghi chú chi tiết biến động |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm ghi nhận giao dịch |
-
-**Check constraints**:
-- `location_type IN ('central_warehouse', 'store')`
-- `movement_type IN ('inbound', 'outbound_order', 'outbound_pos', 'transfer_to_store', 'transfer_received', 'return_boom', 'return_customer', 'exchange_out', 'adjustment', 'order_cancellation')`
-- `(location_type = 'central_warehouse' AND store_id IS NULL) OR (location_type = 'store' AND store_id IS NOT NULL)`
-- `quantity_delta != 0`
-- Các movement nhập/hoàn có delta dương; các movement xuất/chuyển đi có delta âm; `adjustment` cho phép cả hai chiều.
-
-**Indexes**:
-- `uq_inventory_tx_public_id` — UK trên `public_id`
-- `ix_inv_tx_variant_id` — `(variant_id)`
-- `ix_inv_tx_store_id` — `(store_id)`
-- `ix_inv_tx_movement_type` — `(movement_type)`
-- `ix_inv_tx_created_at_tx_id` — extraction cursor
-
-**Audit & Ledger Invariant**: Bảng hoàn toàn append-only trong runtime ứng dụng. Mỗi thao tác thay đổi tồn phải thỏa `on_hand_after - on_hand_before = SUM(quantity_delta)` của các dòng ledger được tạo trong cùng transaction. Đối soát dài hạn phải bắt đầu từ một snapshot/checkpoint vì `opening_on_hand` là trần tích lũy được mở rộng khi nhập hoặc điều chuyển hàng, không phải số dư ledger cố định.
-
----
-
-### 5.27. `inbound_receipts`
-
-**Mục đích**: Quản lý các đợt nhập thành phẩm từ xưởng sản xuất nội bộ vào kho trung tâm D&K, làm căn cứ cập nhật tồn kho và tính toán giá vốn hàng bán (COGS).
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `receipt_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `receipt_code` | `VARCHAR(64)` | UK, NOT NULL | Mã phiếu nhập (VD: `'INB-20260921-0001'`) |
-| `batch_name` | `VARCHAR(255)` | NOT NULL | Tên đợt may / gia công sản xuất |
-| `status` | `VARCHAR(24)` | NOT NULL, DEFAULT `'completed'` | Trạng thái phiếu nhập (`completed`) |
-| `total_items_count` | `INT UNSIGNED` | NOT NULL, DEFAULT `0` | Tổng số lượng thành phẩm nhập kho |
-| `total_cost_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tổng chi phí xưởng sản xuất (VND) |
-| `notes` | `TEXT` | NULLABLE | Ghi chú xưởng sản xuất |
-| `created_by_customer_id` | `BIGINT UNSIGNED` | FK → `customers.customer_id`, NOT NULL, ON DELETE RESTRICT | Nhân viên kho thực hiện nhập |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm tạo phiếu |
-| `updated_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) ON UPDATE | Thời điểm cập nhật cuối |
-
-**Check constraints**:
-- `status = 'completed'`
-- `total_items_count >= 0`
-- `total_cost_vnd >= 0`
-
-**Indexes**:
-- `uq_inbound_receipts_public_id` — UK trên `public_id`
-- `uq_inbound_receipts_code` — UK trên `receipt_code`
-- `ix_inbound_receipts_created_at_id` — extraction cursor
-
----
-
-### 5.28. `inbound_receipt_items`
-
-**Mục đích**: Chi tiết từng dòng biến thể trong phiếu nhập xưởng, ghi nhận đơn giá sản xuất và lưu vết biến động giá vốn cũ → giá vốn mới.
-
-| Cột | Kiểu | Constraint | Mô tả |
-|-----|------|-----------|-------|
-| `item_id` | `BIGINT UNSIGNED` | PK, auto-increment | Surrogate key |
-| `public_id` | `BINARY(16)` | UK, NOT NULL | UUIDv5 |
-| `receipt_id` | `BIGINT UNSIGNED` | FK → `inbound_receipts.receipt_id`, NOT NULL, ON DELETE CASCADE | Phiếu nhập kho cha |
-| `variant_id` | `BIGINT UNSIGNED` | FK → `product_variants.variant_id`, NOT NULL, ON DELETE RESTRICT | Biến thể sản phẩm nhập |
-| `quantity` | `INT UNSIGNED` | NOT NULL | Số lượng sản phẩm nhập xưởng |
-| `unit_cost_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Đơn giá chi phí xưởng trên từng sản phẩm (VND) |
-| `total_cost_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Tổng chi phí dòng (`quantity × unit_cost_vnd`) |
-| `previous_cost_price_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Giá vốn biến thể trước thời điểm nhập xưởng |
-| `new_cost_price_vnd` | `BIGINT UNSIGNED` | NOT NULL, DEFAULT `0` | Giá vốn biến thể mới sau khi áp dụng MWA |
-| `created_at` | `DATETIME(6)` | NOT NULL, DEFAULT NOW(6) | Thời điểm ghi nhận |
-
-**Check constraints**:
-- `quantity > 0`
-- `unit_cost_vnd >= 0`
-- `total_cost_vnd >= 0`
-
-**Indexes**:
-- `uq_inbound_items_public_id` — UK trên `public_id`
-- `ix_inbound_items_receipt_id` — `(receipt_id)`
-- `ix_inbound_items_variant_id` — `(variant_id)`
-
----
-
-## 6. Transaction catalogue
-
-
-### TX-01 — Checkout có coupon tùy chọn
-
-Isolation: `READ COMMITTED`.
-
-1. Replay order nếu `checkout_idempotency_key` đã tồn tại.
-2. Khóa customer và active cart.
-3. Khóa cart items và product/variant theo ID tăng dần.
-4. Kiểm tra catalog active và quantity; nếu có coupon, khóa coupon và kiểm tra window/subtotal/limit.
-5. Khóa inventory theo variant ID tăng dần rồi kiểm tra `on_hand`.
-6. Tính server-side snapshot subtotal, discount, shipping và total.
-7. Insert order/items/history/redemption. VietQR tạo `paid` + payment `succeeded`; COD tạo `confirmed` + payment `pending`.
-8. Conditional decrement inventory, tăng `version`, đóng cart.
-9. Commit; mọi lỗi rollback toàn bộ.
-
-Không có external call và không random payment.
-
-### TX-02 — Admin xác nhận order
-
-1. Khóa order theo `order_id`.
-2. Chỉ chấp nhận `paid`; replay nếu idempotency key đã commit đúng transition.
-3. Update `status = confirmed`, set `confirmed_at`.
-4. Insert immutable history `paid -> confirmed`.
-5. Commit.
-
-### TX-03 — Khách hàng xác nhận đã nhận hàng
-
-Khóa đơn thuộc khách hàng; chỉ cho phép `delivered -> completed`, set `completed_at`, ghi history nguồn `customer`. Với COD, đồng thời chuyển payment sang `succeeded` và set `orders.paid_at`. Admin/shipper không có endpoint hoàn tất thay khách.
-
-### TX-04 — Customer/admin hủy order
-
-Isolation: `READ COMMITTED`. Lock order là điểm tuần tự hóa.
-
-1. Khóa order; xác minh customer ownership hoặc admin role.
-2. Chỉ `paid` được hủy; replay idempotent nếu đã cancelled bằng cùng key.
-3. Khóa payment; nếu có coupon, khóa redemption rồi coupon.
-4. Đọc order items, khóa inventory theo variant ID tăng dần.
-5. Restore inventory theo từng order item và tăng `version`.
-6. Insert full refund `succeeded` với unique payment/idempotency key.
-7. Release redemption và giảm `coupons.used_count` đúng một lần.
-8. Update order `cancelled`, set `cancelled_at`; insert history kèm actor/reason.
-9. Commit atomically.
-
-### TX-05 — Tạo review
-
-1. Khóa/đọc `order_item -> order` và xác minh ownership.
-2. Chỉ order `completed`.
-3. Insert review `approved`, không có moderation metadata; unique `order_item_id` xử lý race.
-4. Commit.
-
-### TX-06 — Hậu kiểm review
-
-1. Khóa review.
-2. `approved -> rejected` bắt buộc lý do; set moderator/time và ẩn khỏi public query.
-3. `rejected -> approved` xóa lý do, set moderator/time mới và hiển thị lại.
-4. Request trùng desired state là idempotent và giữ audit gần nhất.
-
-### TX-07 — Admin tạo/bật tắt/archive coupon
-
-- Tạo: normalize code, validate window/value/limits, insert; unique code xử lý race.
-- Toggle: khóa coupon; chỉ update `is_active` khi chưa archive.
-- Archive: khóa coupon; lần đầu set inactive và đủ ba archive field trong cùng transaction. Request lặp là no-op và giữ audit đầu tiên.
-- Không sửa snapshot trên order cũ.
-
-### TX-08 — Admin archive product
-
-- Khóa product; lần đầu set inactive và đủ ba archive field trong cùng transaction.
-- Request lặp là no-op và giữ audit đầu tiên; product archive không thể tái kích hoạt.
-- Không cascade sang variant, wishlist hoặc order item để giữ tham chiếu và snapshot lịch sử.
-
-### TX-09 — POS transaction (bán tại quầy)
-
-Isolation: `READ COMMITTED`.
-
-1. Validate store active và staff có quyền truy cập store.
-2. Với mỗi variant: kiểm tra tồn kho cửa hàng (`store_inventory.on_hand >= quantity`).
-3. Tính server-side subtotal, total (không shipping fee, không coupon).
-4. Insert order `completed` với `channel='pos'`, `store_id`, `staff_id`, `payment_method` (`cash`/`card`), `paid_at=now`, `completed_at=now`, `cart_id=null` và idempotency key nội bộ.
-5. Insert order items với snapshot sản phẩm/danh mục, payment `succeeded`, status history `NULL -> completed` với `transition_source='admin'`.
-6. Giảm `store_inventory.on_hand`, tăng `version` và ghi ledger `outbound_pos`.
-7. Commit; mọi lỗi rollback toàn bộ.
-
-### TX-10 — Điều phối giao vận nội bộ & Ghi nhận kết quả giao (Delivered hoặc Boom COD)
-
-Isolation: `READ COMMITTED`. Lock order và shipment là điểm tuần tự hóa.
-
-1. **Xuất kho giao hàng**:
-   - Khóa order theo `order_id` (trạng thái `confirmed`).
-   - Gán `delivery_staff_id`, tạo/cập nhật `shipments` với `status = 'in_transit'`, `dispatched_at = now`.
-   - Cập nhật order `status = 'shipping'`, ghi lịch sử `confirmed -> shipping`.
-2. **Kịch bản A — Giao hàng thành công (`delivered`)**:
-   - Khóa order và shipment; cập nhật `shipments.status = 'delivered'`, `delivered_at = now`.
-   - Nếu đơn hàng thanh toán COD: cập nhật `shipments.cod_collected_vnd = shipments.cod_amount_vnd`.
-   - Cập nhật order `status = 'delivered'`, ghi nhận lịch sử `shipping -> delivered`.
-   - **Xác nhận hoàn tất đơn**: Khách hàng nhấn "Đã nhận được hàng" trên trang chi tiết đơn hàng để chuyển đơn sang `completed` (Admin không được tự ý hoàn tất đơn). Đối với COD, lúc này hệ thống cập nhật `payments.status = 'succeeded'` và `orders.paid_at = now`.
-3. **Kịch bản B — Giao hàng thất bại / Boom hàng (`failed_delivery`)**:
-   - Shipper ghi nhận giao thất bại qua 3 lần không thành công (`attempt_count >= 3`).
-   - Cập nhật `shipments.status = 'failed'`, `failed_at = now`, `failure_reason`, `cod_collected_vnd = 0`.
-   - Cập nhật order `status = 'failed_delivery'`, ghi nhận lịch sử `shipping -> failed_delivery`.
-   - **Hoàn tồn kho**: Ghi 1 bản ghi vào `inventory_transactions` với `movement_type = 'return_boom'`, `quantity_delta = +quantity`, đồng thời hoàn lại `inventory.on_hand`.
-   - **Cảnh báo rủi ro**: Tăng `customers.boom_count = boom_count + 1`. Nếu `boom_count >= 3`, bật cờ `customers.is_cod_blocked = TRUE` để chặn thanh toán COD ở các đơn sau.
-
-### TX-11 — Quy trình Trả hàng / Hoàn tiền trong 7 ngày
-
-Isolation: `READ COMMITTED`.
-
-1. **Khách hàng tạo yêu cầu**:
-   - Kiểm tra đơn hàng thuộc khách hàng, trạng thái `delivered` hoặc `completed` và thời gian trong vòng 7 ngày kể từ `delivered_at`.
-   - Insert `return_requests` với `status = 'pending_review'`, `action_type = 'refund'`, lý do và ảnh đính kèm.
-   - Insert chi tiết các dòng món hàng trong `return_items`.
-2. **CSKH & Kho thẩm định (`inspection`)**:
-   - Khi nhận hàng về kho, kiểm định tình trạng sản phẩm (`return_items.inspection_status = 'passed'`).
-3. **Trả hàng hoàn tiền (`refund`)**:
-   - Nhập sản phẩm đã kiểm định lại vào kho (`inventory_transactions` với `movement_type = 'return_customer'`).
-   - Thực hiện hoàn tiền cho khách (`refund_amount_vnd`), ghi nhận refund.
-   - Cập nhật order `status = 'returned'`, ghi nhận lịch sử sang `returned`.
-   - Đánh dấu `return_requests.status = 'completed'`.
-
-> Nhánh `exchange` và ledger `exchange_out` mới chỉ được dành chỗ ở schema; chưa thuộc transaction catalogue hiện hành.
-
-### TX-12 — Nhập hàng từ xưởng may & Cập nhật giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing)
-
-Isolation: `READ COMMITTED`.
-
-1. **Khóa biến thể và tồn kho**:
-   - Sắp xếp và khóa các bản ghi `product_variants` và `inventory` theo `variant_id` tăng dần (`with_for_update()`) để triệt tiêu nguy cơ deadlock khi nhiều đợt nhập kho diễn ra đồng thời.
-2. **Tính toán giá vốn MWA mới**:
-   - Với từng biến thể, đọc tồn kho hiện tại $Q_{\text{current}} = \text{inventory.on\_hand}$ và giá vốn hiện tại $C_{\text{current}} = \text{product\_variants.cost\_price\_vnd}$.
-   - Áp dụng công thức Bình quân gia quyền di động:
-     $$C_{\text{new}} = \begin{cases} C_{\text{inbound}} & \text{nếu } Q_{\text{current}} \le 0 \\ \text{round}\left(\dfrac{Q_{\text{current}} \times C_{\text{current}} + Q_{\text{inbound}} \times C_{\text{inbound}}}{Q_{\text{current}} + Q_{\text{inbound}}}\right) & \text{nếu } Q_{\text{current}} > 0 \end{cases}$$
-3. **Cập nhật dữ liệu nguyên tử**:
-   - Cập nhật `product_variants.cost_price_vnd = C_{\text{new}}`.
-   - Cập nhật đồng bộ `inventory.on_hand += quantity` và `inventory.opening_on_hand += quantity` (đảm bảo thỏa mãn DB constraint `ck_inventory_on_hand_non_negative_and_bounded`: `on_hand <= opening_on_hand`).
-   - Ghi nhận `inventory_transactions` với `movement_type = 'inbound'`, `quantity_delta = +quantity`, lưu kèm ghi chú mã lô xưởng.
-   - Tạo bản ghi `inbound_receipts` và các dòng `inbound_receipt_items` lưu vết lịch sử biến động giá vốn cũ ($C_{\text{current}}$) sang giá vốn mới ($C_{\text{new}}$).
-4. **Snapshot COGS khi bán hàng**:
-   - Khi có đơn đặt hàng Online (TX-01) hoặc bán tại quầy POS (TX-09), hệ thống lập tức chụp nhanh `product_variants.cost_price_vnd` vào cột `order_items.cost_price_vnd` tại thời điểm tạo đơn, cố định giá vốn để phục vụ tính Lợi nhuận gộp và Tỷ suất lợi nhuận chuẩn xác trên hồ dữ liệu.
-5. Commit atomically.
-
----
-
-## 7. Lock ordering và xử lý race
-
-Thứ tự chuẩn khi transaction chạm nhiều aggregate:
-
-```text
-customer -> cart -> cart_item -> catalog/variant -> coupon -> inventory -> order children (payments, history, shipments, return_requests) -> inbound_receipts/items -> inventory_transactions
-```
-
-Cancel bắt đầu từ order rồi khóa children theo ID ổn định. Không transaction nào khóa ngược từ coupon/inventory sang order đang tồn tại.
-
-| Race | Cơ chế bảo vệ |
+Tài liệu tham chiếu schema vật lý từ [database/schema.sql](../../database/schema.sql), cấu hình extract từ [default.yml](../../pipelines/config/default.yml) và nghiệp vụ từ [API modules](../../services/ecommerce-api/app/modules). DDL là nguồn xác định kiểu cột, khóa và CHECK; model ORM không tự nâng cấp database.
+
+## 1. Phạm vi và khởi tạo
+
+MySQL có **28 bảng, 50 khóa ngoại vật lý, 49 UNIQUE key và 79 CHECK constraint**. Batch và CDC lấy 27 bảng, bỏ `customer_credentials`. Fact/dimension/mart nằm ở Iceberg; metadata Airflow/Polaris nằm ở PostgreSQL.
+
+Schema chỉ chạy tự động khi MySQL data directory trống. API startup seed catalog/admin, không tạo hoặc ALTER bảng. Database đang có dữ liệu cần so sánh DDL và áp dụng thay đổi riêng; xem [database guide](../../database/README.md).
+
+ERD hiện tại: [28 bảng và 50 FK](../diagram/13-erd-mysql-physical.drawio). Quan hệ `orders.staff_id → customers.customer_id` có trong ORM nhưng **không được khai báo FK trong DDL**; không dùng số quan hệ ORM thay cho số FK vật lý.
+
+## 2. Quy ước và tính nhất quán
+
+- PK dùng số nguyên; xem từng bảng để biết khóa và AUTO_INCREMENT. `store_inventory` có PK ghép `(store_id, variant_id)`; `store_inventory_id` là cột AUTO_INCREMENT có UNIQUE và được pipeline dùng làm khóa cursor.
+- Public ID lưu `BINARY(16)`. Generator dùng UUIDv5 deterministic; runtime API còn dùng UUIDv7. Không mặc định mọi public ID là UUIDv5 hoặc mọi response đều giấu surrogate key.
+- Tiền là số nguyên VND; kiểu/null/default cụ thể lấy theo DDL bên dưới. Thời gian dùng DATETIME(6), dịch vụ cấu hình UTC.
+- InnoDB và API connection dùng READ COMMITTED; các service khóa hàng khi quyết định dựa trên tồn/coupon/trạng thái mutable.
+- CHECK/UNIQUE/FK bảo vệ các ràng buộc được khai báo; điều kiện như quyền chủ đơn, chuyển trạng thái, số lượng trả tích lũy và số tiền hoàn còn cần service kiểm tra.
+- FK có nhiều hành vi ON DELETE theo từng quan hệ; không coi tất cả là RESTRICT.
+- Nhật ký/định danh giao dịch phục vụ truy vết; không có trigger tự bảo đảm mọi thay đổi trực tiếp bằng SQL đều tạo ledger/history.
+
+## 3. Bảng và cursor trích xuất
+
+Cursor dưới đây là cấu hình thực tế `(cursor_field, pk)`, không phải danh sách PK ghép suy ra từ nghiệp vụ. Trường `pk` của pipeline có thể dùng khóa UNIQUE kỹ thuật như store_inventory_id, không nhất thiết là PK vật lý. `mutability` là cách pipeline xử lý theo cấu hình, không chứng minh bản ghi sẽ không bao giờ đổi ở runtime.
+
+| Bảng | PK vật lý | Cursor batch | Mutability trong pipeline |
+|---|---|---|---|
+| ``cart_items`` | ``(`cart_item_id`)`` | ``(updated_at, cart_item_id)`` | mutable |
+| ``carts`` | ``(`cart_id`)`` | ``(updated_at, cart_id)`` | mutable |
+| ``categories`` | ``(`category_id`)`` | ``(updated_at, category_id)`` | mutable |
+| ``cities`` | ``(`city_id`)`` | ``(updated_at, city_id)`` | mutable |
+| ``coupon_redemptions`` | ``(`coupon_redemption_id`)`` | ``(updated_at, coupon_redemption_id)`` | mutable |
+| ``coupons`` | ``(`coupon_id`)`` | ``(updated_at, coupon_id)`` | mutable |
+| ``customer_credentials`` | ``(`customer_id`)`` | Không trích xuất | Thông tin xác thực |
+| ``customers`` | ``(`customer_id`)`` | ``(updated_at, customer_id)`` | mutable |
+| ``delivery_staff`` | ``(`staff_id`)`` | ``(updated_at, staff_id)`` | mutable |
+| ``inbound_receipt_items`` | ``(`item_id`)`` | ``(created_at, item_id)`` | append_only |
+| ``inbound_receipts`` | ``(`receipt_id`)`` | ``(updated_at, receipt_id)`` | mutable |
+| ``inventory`` | ``(`variant_id`)`` | ``(updated_at, variant_id)`` | mutable |
+| ``inventory_transactions`` | ``(`transaction_id`)`` | ``(created_at, transaction_id)`` | append_only |
+| ``order_items`` | ``(`order_item_id`)`` | ``(created_at, order_item_id)`` | append_only |
+| ``order_status_history`` | ``(`order_status_history_id`)`` | ``(created_at, order_status_history_id)`` | append_only |
+| ``orders`` | ``(`order_id`)`` | ``(updated_at, order_id)`` | mutable |
+| ``payments`` | ``(`payment_id`)`` | ``(created_at, payment_id)`` | append_only |
+| ``product_reviews`` | ``(`review_id`)`` | ``(updated_at, review_id)`` | mutable |
+| ``product_variants`` | ``(`variant_id`)`` | ``(updated_at, variant_id)`` | mutable |
+| ``products`` | ``(`product_id`)`` | ``(updated_at, product_id)`` | mutable |
+| ``refunds`` | ``(`refund_id`)`` | ``(updated_at, refund_id)`` | mutable |
+| ``return_items`` | ``(`return_item_id`)`` | ``(updated_at, return_item_id)`` | mutable |
+| ``return_requests`` | ``(`return_id`)`` | ``(updated_at, return_id)`` | mutable |
+| ``shipment_attempts`` | ``(`attempt_id`)`` | ``(created_at, attempt_id)`` | append_only |
+| ``shipments`` | ``(`shipment_id`)`` | ``(updated_at, shipment_id)`` | mutable |
+| ``store_inventory`` | ``(`store_id`,`variant_id`)`` | ``(updated_at, store_inventory_id)`` | mutable |
+| ``stores`` | ``(`store_id`)`` | ``(updated_at, store_id)`` | mutable |
+| ``wishlist_items`` | ``(`wishlist_item_id`)`` | ``(updated_at, wishlist_item_id)`` | mutable |
+
+**Giới hạn quan trọng:** `payments` dùng cursor `created_at`, trong khi COD completion cập nhật `payments.status` và `orders.paid_at`. Một cập nhật trên payment cũ ngoài cửa sổ lookback có thể không được batch bắt lại. `refunds` và `return_items` dùng `updated_at`; chúng không phải append-only trong cấu hình. Batch tăng dần cũng chưa tự áp dụng mọi hard delete. CDC có lưu các thay đổi đó ở Bronze nhưng chưa tự sửa Silver/Gold.
+
+## 4. Tham chiếu cột và khóa
+
+Các định nghĩa cột được chép từ DDL, giữ nguyên kiểu, nullability, default và generated expression. Danh sách UNIQUE/FK theo SQL vật lý; index thường và biểu thức CHECK đầy đủ xem file DDL. Đây là snapshot tài liệu, cần cập nhật cùng SQL khi thay schema.
+
+### `cart_items`
+
+| Cột | Định nghĩa MySQL |
 |---|---|
-| Hai checkout cùng key | UK `orders.checkout_idempotency_key` + replay |
-| Hai checkout tranh last item | row lock/conditional inventory update |
-| Vượt coupon total limit | lock `coupons` + check/increment counter |
-| Vượt coupon/customer limit | serialized coupon row + indexed redemption count |
-| Hai actor cùng hủy | lock order + state check + UK refund/history |
-| Hủy và admin confirm đồng thời | cùng lock order; chỉ transaction commit trước hợp lệ |
-| Hai shipper nhận cùng đơn | UK `shipments.order_id` (1 đơn chỉ có 1 shipment) |
-| Cùng yêu cầu đổi trả 1 món hàng | Kiểm tra tổng số lượng đã yêu cầu return $\le$ số lượng trong `order_items` |
-| Nhập xuất kho tranh chấp | Khóa theo thứ tự `variant_id` tăng dần + optimistic version |
-| Review hai request | UK `product_reviews.order_item_id` |
-| Hai admin đổi visibility review | row lock + current-state check; request cùng state idempotent |
-| Transition lặp | UK history idempotency và `(order_id, to_status)` |
-| Hai admin cùng archive | row lock + archive idempotent, giữ audit đầu tiên |
+| ``cart_item_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``cart_id`` | ``bigint unsigned NOT NULL`` |
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``quantity`` | ``int unsigned NOT NULL`` |
+| ``is_present`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``first_added_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``removed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
 
-Deadlock vẫn có thể xảy ra; application chỉ retry transaction khi lỗi được xác định là deadlock/serialization và request idempotent.
+- ``PRIMARY KEY (`cart_item_id`)``.
+- ``UNIQUE KEY `uq_cart_items_cart_id_variant_id` (`cart_id`,`variant_id`)``.
+- ``FOREIGN KEY (`cart_id`) REFERENCES `carts` (`cart_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 2 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
 
----
+### `carts`
 
-## 8. OLAP readiness và reconciliation
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``cart_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``status`` | ``varchar(16) NOT NULL DEFAULT 'active'`` |
+| ``active_customer_guard`` | ``bigint unsigned GENERATED ALWAYS AS ((case when (`status` = _utf8mb4'active') then `customer_id` else NULL end)) STORED`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``checked_out_at`` | ``datetime(6) DEFAULT NULL`` |
 
-Hệ thống trích xuất **26 bảng** sang hồ dữ liệu Lakehouse (toàn bộ trừ `customer_credentials` vì lý do bảo mật thông tin định danh mật khẩu). Extraction cursor cho các bảng:
+- ``PRIMARY KEY (`cart_id`)``.
+- ``UNIQUE KEY `uq_carts_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_carts_active_customer_guard` (`active_customer_guard`)``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- Có 1 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
 
-| Bảng | Cursor | Mutability |
-|---|---|---|
-| `products` | `(updated_at, product_id)` | Mutable/current archive state |
-| `coupons` | `(updated_at, coupon_id)` | Mutable |
-| `coupon_redemptions` | `(updated_at, coupon_redemption_id)` | Mutable |
-| `refunds` | `(created_at, refund_id)` | Append-only |
-| `product_reviews` | `(updated_at, review_id)` | Mutable current visibility/moderation |
-| `delivery_staff` | `(updated_at, staff_id)` | Mutable/anonymizable |
-| `shipments` | `(updated_at, shipment_id)` | Mutable |
-| `return_requests` | `(updated_at, return_id)` | Mutable |
-| `return_items` | `(created_at, return_item_id)` | Append-only |
-| `inventory_transactions` | `(created_at, transaction_id)` | Append-only ledger |
-| `inbound_receipts` | `(updated_at, receipt_id)` | Mutable |
-| `inbound_receipt_items` | `(created_at, item_id)` | Append-only |
+### `categories`
 
-### Reconciliation rules
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``category_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``parent_category_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``code`` | ``varchar(64) NOT NULL`` |
+| ``name`` | ``varchar(160) NOT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
 
-- `orders.total_vnd = subtotal_vnd - discount_amount_vnd + shipping_fee_vnd`
-- Succeeded payment amount = order total (cho đơn VietQR khi đặt hàng thành công)
-- Đơn COD: Tạo đơn với `orders.status = 'confirmed'`, `payments.status = 'pending'`. Khi giao thành công `orders.status = 'delivered'`, `shipments.cod_collected_vnd = shipments.cod_amount_vnd`. Khi khách hàng nhấn "Đã nhận được hàng", `orders.status = 'completed'`, hệ thống chốt `payments.status = 'succeeded'` và `orders.paid_at = now`.
-- Đơn boom COD: `orders.status = 'failed_delivery'`, `shipments.status = 'failed'`, `shipments.cod_collected_vnd = 0`, doanh thu thuần trên Lakehouse = 0
-- Hoàn tất đơn: Nút hoàn tất đơn chỉ dành cho Khách hàng xác nhận sau khi nhận hàng (`delivered -> completed`), quản trị viên chỉ theo dõi trạng thái giao hàng.
-- Succeeded refund amount = payment amount và order cancelled
-- Cancelled order phải có history, refund và inventory đã restore
-- Active redeemed count theo coupon = `coupons.used_count`
-- `archived_at IS NOT NULL` thì entity inactive và đủ actor/reason; order/order item lịch sử vẫn join được đến product/coupon archive
-- Mọi review phải trỏ đến completed purchased order item
-- Review `approved` auto-publish có thể không có moderator; review `rejected` phải đủ moderator/time/reason
-- Mỗi mutation kho phải atomically thỏa `on_hand_after - on_hand_before = SUM(quantity_delta)` theo location trong cùng transaction.
-- Điều chuyển kho tạo cặp ledger cùng `reference_code`: `transfer_to_store` âm ở kho tổng và `transfer_received` dương tại cửa hàng.
-- POS order: `channel='pos'`, `store_id` NOT NULL, `staff_id` NOT NULL, status=`completed`
-- Snapshot COGS: `order_items.cost_price_vnd` cố định tại thời điểm checkout từ `product_variants.cost_price_vnd`. Với đơn hàng `delivered` hoặc `completed`:
-  $$\text{COGS} = \sum (\text{quantity} \times \text{cost\_price\_vnd})$$
-  $$\text{Gross Profit} = \text{Net Revenue} - \text{COGS}$$
-  $$\text{Gross Margin \%} = \frac{\text{Gross Profit}}{\text{Net Revenue}} \times 100\%$$
+- ``PRIMARY KEY (`category_id`)``.
+- ``UNIQUE KEY `uq_categories_code` (`code`)``.
+- ``UNIQUE KEY `uq_categories_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`parent_category_id`) REFERENCES `categories` (`category_id`) ON DELETE RESTRICT``.
 
-PII ở `customers` (tên, email, phone) và `delivery_staff` (tên, phone) phải được hash/pseudonymize ở downstream Silver & Gold. OLTP là source of truth; lakehouse chỉ dẫn xuất.
+### `cities`
 
----
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``city_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``code`` | ``varchar(32) NOT NULL`` |
+| ``name`` | ``varchar(120) NOT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
 
-## 9. Định hướng Mở rộng tiếp theo
+- ``PRIMARY KEY (`city_id`)``.
+- ``UNIQUE KEY `uq_cities_code` (`code`)``.
 
-Hệ thống đồ án tốt nghiệp hiện tại đã triển khai thành công toàn diện:
-1. **Kiến trúc Hybrid Lakehouse hoàn chỉnh**: Tích hợp 26 bảng OLTP, luồng Batch qua PySpark và luồng Streaming qua Apache Kafka + Apache Flink Ingestion.
-2. **Công cụ truy vấn phân tán & Trực quan hóa**: Tích hợp Apache Trino Distributed SQL Engine truy vấn trực tiếp bảng Gold Marts trên Apache Iceberg, liên kết giao diện đồ họa quản trị native Apache ECharts đa vai trò (7 chức năng quản trị nghiệp vụ) trực tiếp trên Storefront Admin BI Hub.
-3. **Mô hình kế toán kho & tài chính hiện đại**: Quản lý chi phí xưởng, tính giá vốn Bình quân gia quyền di động (Moving Weighted Average Costing), snapshot COGS tức thời khi tạo đơn, theo dõi biên lợi nhuận gộp theo thời gian thực.
-4. **Luồng vận hành chuẩn thương mại điện tử**: Tích hợp kiểm soát giao vận nội bộ, xử lý boom hàng COD 3 lần kèm chặn COD tự động, hoàn tồn kho tự động, quy trình trả hàng/hoàn tiền 7 ngày và xác nhận hoàn tất đơn từ phía khách hàng.
+### `coupon_redemptions`
 
-Các hạng mục có thể nghiên cứu mở rộng trong tương lai:
-1. **Machine Learning Feature Store & AI Agent**: Khai thác dữ liệu từ tầng Gold (RFM customer, hành vi clickstream logs) để huấn luyện mô hình dự đoán khách hàng có nguy cơ boom hàng và mô hình gợi ý sản phẩm cá nhân hóa.
-2. **Cổng thanh toán thực tế**: Mở rộng webhook xác thực thanh toán thời gian thực từ các cổng trung gian thanh toán lớn (MoMo, VNPay, ZaloPay).
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``coupon_redemption_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``coupon_id`` | ``bigint unsigned NOT NULL`` |
+| ``order_id`` | ``bigint unsigned NOT NULL`` |
+| ``customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``status`` | ``varchar(16) NOT NULL`` |
+| ``redeemed_at`` | ``datetime(6) NOT NULL`` |
+| ``released_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
 
+- ``PRIMARY KEY (`coupon_redemption_id`)``.
+- ``UNIQUE KEY `uq_coupon_redemptions_order_id` (`order_id`)``.
+- ``FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`coupon_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT``.
+- Có 2 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `coupons`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``coupon_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``code_normalized`` | ``varchar(64) NOT NULL`` |
+| ``discount_type`` | ``varchar(24) NOT NULL`` |
+| ``discount_value`` | ``bigint unsigned NOT NULL`` |
+| ``minimum_subtotal_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``starts_at`` | ``datetime(6) NOT NULL`` |
+| ``ends_at`` | ``datetime(6) NOT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``total_usage_limit`` | ``bigint unsigned DEFAULT NULL`` |
+| ``per_customer_usage_limit`` | ``int unsigned DEFAULT NULL`` |
+| ``used_count`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``archived_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``archived_by_customer_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``archive_reason`` | ``varchar(500) DEFAULT NULL`` |
+
+- ``PRIMARY KEY (`coupon_id`)``.
+- ``UNIQUE KEY `uq_coupons_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_coupons_code_normalized` (`code_normalized`)``.
+- ``FOREIGN KEY (`archived_by_customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- Có 8 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `customer_credentials`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``email_normalized`` | ``varchar(320) NOT NULL`` |
+| ``password_hash`` | ``varchar(255) NOT NULL`` |
+| ``is_enabled`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``password_changed_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`customer_id`)``.
+- ``UNIQUE KEY `uq_customer_credentials_email_normalized` (`email_normalized`)``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+
+### `customers`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``customer_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``display_name`` | ``varchar(120) NOT NULL`` |
+| ``status`` | ``varchar(16) NOT NULL DEFAULT 'active'`` |
+| ``data_origin`` | ``varchar(16) NOT NULL DEFAULT 'manual'`` |
+| ``generation_run_id`` | ``varchar(64) DEFAULT NULL`` |
+| ``anonymized_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``role`` | ``varchar(32) NOT NULL DEFAULT 'customer'`` |
+| ``city_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``store_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``is_cod_blocked`` | ``tinyint(1) NOT NULL DEFAULT '0'`` |
+| ``boom_count`` | ``int unsigned NOT NULL DEFAULT '0'`` |
+| ``cod_reinstated_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``cod_reinstated_by`` | ``bigint unsigned DEFAULT NULL`` |
+| ``cod_reinstatement_reason`` | ``varchar(255) DEFAULT NULL`` |
+
+- ``PRIMARY KEY (`customer_id`)``.
+- ``UNIQUE KEY `uq_customers_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`city_id`) REFERENCES `cities` (`city_id`) ON DELETE SET NULL``.
+- ``FOREIGN KEY (`cod_reinstated_by`) REFERENCES `customers` (`customer_id`) ON DELETE SET NULL``.
+- ``FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`) ON DELETE SET NULL``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `delivery_staff`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``staff_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``full_name`` | ``varchar(100) NOT NULL`` |
+| ``phone`` | ``varchar(20) NOT NULL`` |
+| ``vehicle_plate`` | ``varchar(30) DEFAULT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`staff_id`)``.
+- ``UNIQUE KEY `uq_delivery_staff_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_delivery_staff_phone` (`phone`)``.
+
+### `inbound_receipt_items`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``item_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``receipt_id`` | ``bigint unsigned NOT NULL`` |
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``quantity`` | ``int unsigned NOT NULL`` |
+| ``unit_cost_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``total_cost_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``previous_cost_price_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``new_cost_price_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+
+- ``PRIMARY KEY (`item_id`)``.
+- ``UNIQUE KEY `uq_inbound_items_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`receipt_id`) REFERENCES `inbound_receipts` (`receipt_id`) ON DELETE CASCADE``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `inbound_receipts`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``receipt_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``receipt_code`` | ``varchar(64) NOT NULL`` |
+| ``batch_name`` | ``varchar(255) NOT NULL`` |
+| ``status`` | ``varchar(24) NOT NULL DEFAULT 'completed'`` |
+| ``total_items_count`` | ``int unsigned NOT NULL DEFAULT '0'`` |
+| ``total_cost_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``notes`` | ``text`` |
+| ``created_by_customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`receipt_id`)``.
+- ``UNIQUE KEY `uq_inbound_receipts_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_inbound_receipts_code` (`receipt_code`)``.
+- ``FOREIGN KEY (`created_by_customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `inventory`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``opening_on_hand`` | ``bigint unsigned NOT NULL`` |
+| ``on_hand`` | ``bigint unsigned NOT NULL`` |
+| ``version`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`variant_id`)``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `inventory_transactions`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``transaction_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``location_type`` | ``varchar(24) NOT NULL`` |
+| ``store_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``movement_type`` | ``varchar(32) NOT NULL`` |
+| ``quantity_delta`` | ``int NOT NULL`` |
+| ``reference_code`` | ``varchar(64) DEFAULT NULL`` |
+| ``notes`` | ``varchar(255) DEFAULT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+
+- ``PRIMARY KEY (`transaction_id`)``.
+- ``UNIQUE KEY `uq_inventory_tx_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 5 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `order_items`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``order_item_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``order_id`` | ``bigint unsigned NOT NULL`` |
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``product_public_id_snapshot`` | ``binary(16) NOT NULL`` |
+| ``category_code_snapshot`` | ``varchar(64) NOT NULL`` |
+| ``category_name_snapshot`` | ``varchar(160) NOT NULL`` |
+| ``product_name_snapshot`` | ``varchar(200) NOT NULL`` |
+| ``sku_snapshot`` | ``varchar(64) NOT NULL`` |
+| ``size_code_snapshot`` | ``varchar(32) NOT NULL`` |
+| ``color_code_snapshot`` | ``varchar(64) NOT NULL`` |
+| ``unit_price_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``quantity`` | ``int unsigned NOT NULL`` |
+| ``line_total_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``cost_price_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+
+- ``PRIMARY KEY (`order_item_id`)``.
+- ``UNIQUE KEY `uq_order_items_order_id_variant_id` (`order_id`,`variant_id`)``.
+- ``UNIQUE KEY `uq_order_items_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `order_status_history`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``order_status_history_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``order_id`` | ``bigint unsigned NOT NULL`` |
+| ``from_status`` | ``varchar(24) DEFAULT NULL`` |
+| ``to_status`` | ``varchar(24) NOT NULL`` |
+| ``transition_source`` | ``varchar(32) NOT NULL`` |
+| ``reason`` | ``varchar(500) DEFAULT NULL`` |
+| ``transition_idempotency_key`` | ``varchar(64) NOT NULL`` |
+| ``transitioned_at`` | ``datetime(6) NOT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+
+- ``PRIMARY KEY (`order_status_history_id`)``.
+- ``UNIQUE KEY `uq_order_status_history_transition_idempotency_key` (`transition_idempotency_key`)``.
+- ``UNIQUE KEY `uq_order_status_history_order_id_to_status` (`order_id`,`to_status`)``.
+- ``FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `orders`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``order_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``order_number`` | ``varchar(32) NOT NULL`` |
+| ``cart_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``customer_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``checkout_idempotency_key`` | ``varchar(64) NOT NULL`` |
+| ``status`` | ``varchar(24) NOT NULL`` |
+| ``currency_code`` | ``char(3) NOT NULL DEFAULT 'VND'`` |
+| ``subtotal_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``shipping_fee_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``total_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``receiver_name`` | ``varchar(160) NOT NULL`` |
+| ``receiver_phone`` | ``varchar(32) NOT NULL`` |
+| ``shipping_address_text`` | ``varchar(1000) NOT NULL`` |
+| ``data_origin`` | ``varchar(16) NOT NULL DEFAULT 'manual'`` |
+| ``generation_run_id`` | ``varchar(64) DEFAULT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``paid_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``completed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``coupon_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``coupon_code_snapshot`` | ``varchar(64) DEFAULT NULL`` |
+| ``coupon_type_snapshot`` | ``varchar(24) DEFAULT NULL`` |
+| ``coupon_value_snapshot`` | ``bigint unsigned DEFAULT NULL`` |
+| ``discount_amount_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``confirmed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``cancelled_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``store_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``channel`` | ``varchar(16) NOT NULL DEFAULT 'online'`` |
+| ``staff_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``payment_method`` | ``varchar(16) NOT NULL DEFAULT 'vietqr'`` |
+
+- ``PRIMARY KEY (`order_id`)``.
+- ``UNIQUE KEY `uq_orders_order_number` (`order_number`)``.
+- ``UNIQUE KEY `uq_orders_checkout_idempotency_key` (`checkout_idempotency_key`)``.
+- ``UNIQUE KEY `uq_orders_cart_id` (`cart_id`)``.
+- ``FOREIGN KEY (`cart_id`) REFERENCES `carts` (`cart_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`coupon_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)``.
+- Có 15 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `payments`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``payment_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``payment_reference`` | ``varchar(64) NOT NULL`` |
+| ``order_id`` | ``bigint unsigned NOT NULL`` |
+| ``payment_idempotency_key`` | ``varchar(64) NOT NULL`` |
+| ``status`` | ``varchar(16) NOT NULL`` |
+| ``currency_code`` | ``char(3) NOT NULL DEFAULT 'VND'`` |
+| ``amount_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``failure_code`` | ``varchar(64) DEFAULT NULL`` |
+| ``attempted_at`` | ``datetime(6) NOT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+
+- ``PRIMARY KEY (`payment_id`)``.
+- ``UNIQUE KEY `uq_payments_payment_reference` (`payment_reference`)``.
+- ``UNIQUE KEY `uq_payments_order_id` (`order_id`)``.
+- ``UNIQUE KEY `uq_payments_payment_idempotency_key` (`payment_idempotency_key`)``.
+- ``FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT``.
+- Có 4 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `product_reviews`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``review_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``order_item_id`` | ``bigint unsigned NOT NULL`` |
+| ``customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``product_id`` | ``bigint unsigned NOT NULL`` |
+| ``rating`` | ``int unsigned NOT NULL`` |
+| ``content`` | ``text`` |
+| ``status`` | ``varchar(16) NOT NULL DEFAULT 'approved'`` |
+| ``moderation_reason`` | ``varchar(500) DEFAULT NULL`` |
+| ``moderated_by_customer_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``moderated_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`review_id`)``.
+- ``UNIQUE KEY `uq_product_reviews_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_product_reviews_order_item_id` (`order_item_id`)``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`moderated_by_customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`order_item_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `product_variants`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``variant_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``product_id`` | ``bigint unsigned NOT NULL`` |
+| ``sku`` | ``varchar(64) NOT NULL`` |
+| ``size_code`` | ``varchar(32) NOT NULL`` |
+| ``color_code`` | ``varchar(64) NOT NULL`` |
+| ``price_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``cost_price_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+
+- ``PRIMARY KEY (`variant_id`)``.
+- ``UNIQUE KEY `uq_product_variants_sku` (`sku`)``.
+- ``UNIQUE KEY `uq_product_variants_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_product_variants_product_size_color` (`product_id`,`size_code`,`color_code`)``.
+- ``FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE RESTRICT``.
+- Có 1 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `products`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``product_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``category_id`` | ``bigint unsigned NOT NULL`` |
+| ``slug`` | ``varchar(180) NOT NULL`` |
+| ``name`` | ``varchar(200) NOT NULL`` |
+| ``description`` | ``text`` |
+| ``image_url`` | ``varchar(1024) DEFAULT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``archived_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``archived_by_customer_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``archive_reason`` | ``varchar(500) DEFAULT NULL`` |
+
+- ``PRIMARY KEY (`product_id`)``.
+- ``UNIQUE KEY `uq_products_slug` (`slug`)``.
+- ``UNIQUE KEY `uq_products_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`archived_by_customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`) ON DELETE RESTRICT``.
+- Có 2 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `refunds`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``refund_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``payment_id`` | ``bigint unsigned NOT NULL`` |
+| ``refund_idempotency_key`` | ``varchar(64) NOT NULL`` |
+| ``status`` | ``varchar(16) NOT NULL`` |
+| ``currency_code`` | ``char(3) NOT NULL DEFAULT 'VND'`` |
+| ``amount_vnd`` | ``bigint unsigned NOT NULL`` |
+| ``reason`` | ``varchar(500) NOT NULL`` |
+| ``requested_by_customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``completed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`refund_id`)``.
+- ``UNIQUE KEY `uq_refunds_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_refunds_payment_id` (`payment_id`)``.
+- ``UNIQUE KEY `uq_refunds_refund_idempotency_key` (`refund_idempotency_key`)``.
+- ``FOREIGN KEY (`payment_id`) REFERENCES `payments` (`payment_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`requested_by_customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- Có 4 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `return_items`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``return_item_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``return_id`` | ``bigint unsigned NOT NULL`` |
+| ``order_item_id`` | ``bigint unsigned NOT NULL`` |
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``quantity`` | ``int unsigned NOT NULL DEFAULT '1'`` |
+| ``exchange_variant_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``refund_amount_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``inspection_status`` | ``varchar(16) NOT NULL DEFAULT 'pending'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`return_item_id`)``.
+- ``UNIQUE KEY `uq_return_items_public_id` (`public_id`)``.
+- ``FOREIGN KEY (`exchange_variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`order_item_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`return_id`) REFERENCES `return_requests` (`return_id`) ON DELETE CASCADE``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 1 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `return_requests`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``return_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``return_code`` | ``varchar(64) NOT NULL`` |
+| ``order_id`` | ``bigint unsigned NOT NULL`` |
+| ``customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``action_type`` | ``varchar(16) NOT NULL`` |
+| ``status`` | ``varchar(32) NOT NULL DEFAULT 'pending_review'`` |
+| ``customer_reason`` | ``text NOT NULL`` |
+| ``image_urls`` | ``json DEFAULT NULL`` |
+| ``admin_note`` | ``text`` |
+| ``reviewed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``resolved_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`return_id`)``.
+- ``UNIQUE KEY `uq_return_requests_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_return_requests_code` (`return_code`)``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT``.
+- Có 2 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `shipment_attempts`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``attempt_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``shipment_id`` | ``bigint unsigned NOT NULL`` |
+| ``attempt_number`` | ``int unsigned NOT NULL`` |
+| ``delivery_staff_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``status`` | ``varchar(32) NOT NULL`` |
+| ``failure_reason`` | ``varchar(255) DEFAULT NULL`` |
+| ``is_buyer_fault`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``idempotency_key`` | ``varchar(64) NOT NULL`` |
+| ``attempted_at`` | ``datetime(6) NOT NULL`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+
+- ``PRIMARY KEY (`attempt_id`)``.
+- ``UNIQUE KEY `uq_shipment_attempts_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_shipment_attempts_idempotency_key` (`idempotency_key`)``.
+- ``UNIQUE KEY `uq_shipment_attempts_shipment_attempt_number` (`shipment_id`,`attempt_number`)``.
+- ``FOREIGN KEY (`delivery_staff_id`) REFERENCES `delivery_staff` (`staff_id`) ON DELETE SET NULL``.
+- ``FOREIGN KEY (`shipment_id`) REFERENCES `shipments` (`shipment_id`) ON DELETE RESTRICT``.
+- Có 2 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `shipments`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``shipment_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``public_id`` | ``binary(16) NOT NULL`` |
+| ``shipment_code`` | ``varchar(64) NOT NULL`` |
+| ``order_id`` | ``bigint unsigned NOT NULL`` |
+| ``delivery_staff_id`` | ``bigint unsigned DEFAULT NULL`` |
+| ``status`` | ``varchar(32) NOT NULL DEFAULT 'assigned'`` |
+| ``attempt_count`` | ``int unsigned NOT NULL DEFAULT '1'`` |
+| ``cod_amount_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``cod_collected_vnd`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``dispatched_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``delivered_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``failed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``failure_reason`` | ``varchar(255) DEFAULT NULL`` |
+| ``notes`` | ``text`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`shipment_id`)``.
+- ``UNIQUE KEY `uq_shipments_public_id` (`public_id`)``.
+- ``UNIQUE KEY `uq_shipments_code` (`shipment_code`)``.
+- ``FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`delivery_staff_id`) REFERENCES `delivery_staff` (`staff_id`) ON DELETE SET NULL``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `store_inventory`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``store_id`` | ``bigint unsigned NOT NULL`` |
+| ``variant_id`` | ``bigint unsigned NOT NULL`` |
+| ``on_hand`` | ``bigint unsigned NOT NULL`` |
+| ``opening_on_hand`` | ``bigint unsigned NOT NULL`` |
+| ``version`` | ``bigint unsigned NOT NULL DEFAULT '0'`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+| ``store_inventory_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+
+- ``PRIMARY KEY (`store_id`,`variant_id`)``.
+- ``UNIQUE KEY `uq_store_inventory_store_id_variant_id` (`store_id`,`variant_id`)``.
+- ``UNIQUE KEY `uq_store_inventory_id` (`store_inventory_id`)``.
+- ``FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+### `stores`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``store_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``city_id`` | ``bigint unsigned NOT NULL`` |
+| ``code`` | ``varchar(32) NOT NULL`` |
+| ``name`` | ``varchar(120) NOT NULL`` |
+| ``address`` | ``varchar(500) NOT NULL`` |
+| ``phone`` | ``varchar(32) NOT NULL`` |
+| ``is_active`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``created_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`store_id`)``.
+- ``UNIQUE KEY `uq_stores_code` (`code`)``.
+- ``FOREIGN KEY (`city_id`) REFERENCES `cities` (`city_id`) ON DELETE RESTRICT``.
+
+### `wishlist_items`
+
+| Cột | Định nghĩa MySQL |
+|---|---|
+| ``wishlist_item_id`` | ``bigint unsigned NOT NULL AUTO_INCREMENT`` |
+| ``customer_id`` | ``bigint unsigned NOT NULL`` |
+| ``product_id`` | ``bigint unsigned NOT NULL`` |
+| ``is_present`` | ``tinyint(1) NOT NULL DEFAULT '1'`` |
+| ``first_added_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``last_added_at`` | ``datetime(6) NOT NULL DEFAULT (now(6))`` |
+| ``removed_at`` | ``datetime(6) DEFAULT NULL`` |
+| ``updated_at`` | ``datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`` |
+
+- ``PRIMARY KEY (`wishlist_item_id`)``.
+- ``UNIQUE KEY `uq_wishlist_items_customer_id_product_id` (`customer_id`,`product_id`)``.
+- ``FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE RESTRICT``.
+- ``FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE RESTRICT``.
+- Có 3 CHECK constraint; biểu thức đầy đủ nằm trong DDL.
+
+## 5. Giao dịch và vòng đời dữ liệu
+
+| Luồng | Thay đổi chính trong service |
+|---|---|
+| Checkout online | Khóa customer/cart/catalog/coupon/tồn; tạo order/items/payment/history/redemption; trừ kho tổng, ledger outbound_order, đóng cart |
+| POS | Kiểm tra cửa hàng/catalog/tồn; tạo completed order và succeeded payment, cost snapshot, trừ tồn cửa hàng, ledger outbound_pos |
+| Hủy đơn | Chỉ từ paid; hoàn tồn, giải phóng redemption/used_count, tạo refund, history cancelled |
+| Dispatch/deliver/complete | Shipment và attempts theo luồng; paid/confirmed → shipping → delivered → completed; COD payment đổi sang succeeded khi complete |
+| Giao thất bại | Ghi từng attempt; lần thứ ba failed_delivery và hoàn kho return_boom; risk counter theo phân loại lỗi ở lần kết thúc |
+| Trả hàng | Request/items; duyệt/nhận/kiểm định, chỉ passed restock/refund; refund/payment được cộng dồn khi trả lẻ |
+| Nhập kho | Receipt/items, cộng tồn tổng, ledger inbound và cập nhật giá vốn bình quân |
+| Cấp hàng chi nhánh | Cập nhật tồn tổng/cửa hàng và ledger theo admin service |
+
+Hai route PATCH branch-inventory và POST inventory/refill hiện chỉ flush, không commit; get_db cũng chỉ đóng session. Bảng trên mô tả logic ghi trong code, không xác nhận hai thao tác này đã lưu. PATCH điều chỉnh tồn chưa có ledger riêng. Các luồng dùng Unit of Work hoặc commit rõ ràng phải được phân biệt với các route này.
+
+Runtime tạo VietQR/payment thành công bằng mô phỏng nội bộ. `payments` và `refunds` là hai loại bản ghi; hoàn tiền không có nghĩa payment gốc đổi thành một trạng thái refund không tồn tại trong CHECK. Một payment có tối đa một refund theo UNIQUE, nhưng số tiền refund có thể được cập nhật/cộng dồn cho nhiều lần trả lẻ.
+
+Giá bán/giá vốn order item giữ ngữ cảnh mua. Các trạng thái schema cho phép không đồng nghĩa đều có API chuyển tới. Cancel hiện chỉ paid; dispatch từ paid hoặc confirmed; review chỉ completed. Trả hàng nhận delivered/completed và kiểm tra 7 ngày từ completed_at hoặc updated_at; order chỉ returned khi đã trả đủ lượng đạt kiểm định.
+
+Chi tiết điều kiện và quyền: [Business Requirements](../project/BUSINESS_REQUIREMENTS.md), [API README](../../services/ecommerce-api/README.md), [orders service](../../services/ecommerce-api/app/modules/orders/service.py), [returns service](../../services/ecommerce-api/app/modules/returns/service.py).
+
+## 6. Biên giới phân tích
+
+Bronze batch và Bronze CDC có thể chứa dữ liệu cá nhân thô. Silver pseudonymize theo cấu hình, không biến toàn bộ nguồn thành dữ liệu vô danh ngay từ MySQL. Không xuất customer_credentials vào nguồn phân tích.
+
+Source–Silver reconciliation và Gold quality checks là tác vụ pipeline, không phải constraint MySQL. Cần phân biệt số dòng Bronze history, Silver hiện tại, fact order, fact item và sự kiện CDC; xem [Lakehouse Design](../project/LAKEHOUSE_DESIGN_PLAN.md) và [Metrics Catalog](METRICS_CATALOG.md).

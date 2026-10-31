@@ -22,6 +22,7 @@
 | `infrastructure/` | Docker images, MinIO policy, Polaris RBAC, Kafka/Flink/Trino |
 | `scripts/` | Start/stop, nạp dữ liệu và tạo lưu lượng API |
 | `docs/` | Kiến trúc, chỉ số, contract, vận hành và tài liệu tiểu luận |
+| `docs/diagram/` | Sơ đồ Chương 3: draw.io, SVG và trang xem HTML |
 
 ## 2. Điểm vào dữ liệu
 
@@ -39,7 +40,7 @@
 
 Python workspace có `ecommerce-api`, `data-generator`, `batch-pipeline` dùng chung `uv.lock`. Spark/Flink runtime nằm trong các Docker image xử lý dữ liệu.
 
-Profile `core` bật Web/API; `batch` bật Spark/Airflow; `streaming` bật Kafka/Debezium/Flink. `lakehouse-tools` chứa Spark SQL client; `trino-admin` cung cấp engine có quyền quản trị khi cần.
+Profile `core` chứa Web/API, MySQL và MinIO; `batch` chứa nền tảng batch/catalog/query; `streaming` thêm Kafka/Debezium/Flink. Spark/Airflow, PostgreSQL/Polaris và Trino/LibreDB có mặt ở cả `batch` và `streaming`. `lakehouse-tools` chứa Spark SQL client; `trino-admin` cung cấp engine có quyền quản trị khi cần. Profile được cộng với `COMPOSE_PROFILES`, không phải bộ lọc loại các profile đã chọn.
 
 Các dịch vụ storage/catalog dùng chung và được kết nối qua Docker network. Xem service/port chính xác trong [Compose](../../docker-compose.yml).
 

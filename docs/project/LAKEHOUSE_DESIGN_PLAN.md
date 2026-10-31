@@ -27,7 +27,11 @@ Nguồn là 27 bảng trong [default.yml](../../pipelines/config/default.yml), l
 - **Gold:** Xây dimension/fact/mart từ Silver và gắn `_gold_ingested_at`, `_source_run_id`.
 - **Gates:** Đối soát MySQL–Silver trước Gold và parity/khóa/lineage sau Gold. Vi phạm làm tác vụ thất bại và được ghi vào bảng audit.
 
-Cursor không tự phát hiện mọi hard delete ở nguồn. Bronze CDC có lưu delete/tombstone riêng; việc áp dụng chúng vào Silver/Gold chưa tự động hóa.
+Cursor được commit **sau Bronze thành công, trước Silver/Gold**. Khi tầng sau lỗi, phải xét run_id/dữ liệu Bronze đã lưu để chạy lại; cursor không tự lùi vì Gold thất bại. High watermark được lấy từng bảng, không phải snapshot giao dịch chung cho toàn bộ MySQL. Source có thể tiếp tục thay đổi trong lúc đối soát.
+
+Gold ghi theo từng bảng: phần lớn dimension overwrite toàn bảng, fact/mart overwrite partition. Gate sau Gold không rollback nguyên tử các bảng đã ghi. Cần kiểm tra lineage/run và audit trước khi công bố một lần chạy là hoàn tất.
+
+Cursor không tự phát hiện mọi hard delete ở nguồn. `payments` dùng created_at dù COD completion cập nhật status; thay đổi cũ ngoài lookback có thể không được nạp lại. Bronze CDC có lưu update/delete/tombstone riêng; việc áp dụng chúng vào Silver/Gold chưa tự động hóa.
 
 ## 3. Gold OLTP: 15 bảng
 
@@ -80,11 +84,15 @@ Order count ở mart sales không được cộng qua các danh mục để suy 
 
 Job Flink access log sử dụng StatementSet để ghi các tầng của log. Spark `build_logs_gold` thực hiện rollup mart; DAG streaming maintenance chạy mỗi hai giờ.
 
+Ba mart log lần lượt có grain ngày × giờ × route × method, ngày × product, và **một dòng/ngày** chứa các cột bước phễu. DAG truyền ngày hiện tại giờ Việt Nam vào rollup; không tự backfill mọi ngày log. Flink tạo event_date theo giờ Việt Nam trước SQL cast, còn Spark session dùng UTC; xem [Access Log Design](../architecture/ACCESS_LOG_DESIGN.md) khi đối chiếu mốc ngày/giờ.
+
 CDC log có thể chứa nhiều thay đổi của cùng khóa nguồn. Đếm sự kiện không tương đương đếm bản ghi hiện tại. CDC chưa nối trực tiếp vào các Silver/Gold OLTP ở mục 3.
 
 ## 5. Bảo trì và quyền
 
-DAG OLTP maintenance chạy 03:00 hằng ngày; streaming maintenance chạy hai giờ/lần. Các tác vụ gồm compaction, snapshot expiration, orphan cleanup và retention quarantine 30 ngày theo cấu hình.
+DAG OLTP maintenance chạy 03:00 hằng ngày; streaming maintenance chạy hai giờ/lần. Profile maintenance OLTP hiện liệt kê 15 bảng Gold và 8 bảng Silver; streaming liệt kê bốn bảng log. Danh sách này chưa bao phủ toàn bộ Bronze/Silver hoặc Bronze CDC. Kiểm tra [TABLE_PROFILES](../../pipelines/src/jobs/maintenance/iceberg_table_maintenance.py) trước khi kết luận một bảng đã được bảo trì.
+
+Các tác vụ gồm compaction (OLTP đặt mục tiêu file 128 MiB), rewrite manifests, expire snapshots (retain_last 10 cho OLTP, 20 cho log), orphan cleanup với cutoff mặc định ba ngày. Tác vụ quarantine xóa dòng quá 30 ngày ở `quarantine.silver_oltp_violations`; không phải retention toàn bucket hoặc mọi loại quarantine. DAG maintenance không có dependency chờ batch, và các DAG được tạo paused theo Compose.
 
 Polaris dùng bốn principal tách biệt; MinIO có bảy identity theo workload. `trino_reader` phục vụ truy vấn đọc, `trino_admin` dùng khi cần quản trị. Credential mỗi consumer nằm trong volume riêng.
 

@@ -37,11 +37,14 @@ Chi tiết grain ở [Lakehouse Design](LAKEHOUSE_DESIGN_PLAN.md). Công thức 
 
 - CDC chưa tự cập nhật Silver/Gold OLTP theo sự kiện.
 - Cursor batch chưa thay thế toàn bộ bài toán đồng bộ hard delete.
+- Payments dùng cursor created_at trong khi COD completion đổi status; cập nhật cũ ngoài lookback có thể bị bỏ qua. Cursor được commit sau Bronze, không chờ toàn DAG thành công.
+- Quality gate sau Gold không tạo transaction/rollback chung cho mọi bảng; maintenance chỉ áp dụng danh sách bảng cấu hình.
 - Upload JSONL vào MinIO chưa có job tự động đọc file thô sang Gold.
-- KPI mở rộng trong tài liệu A–D không mặc nhiên là tính năng đã triển khai.
+- Tài liệu A–D đã tách chức năng hiện có và phần chưa triển khai; không dùng chúng thay bằng chứng runtime.
 - Chưa có bảng cấu hình mục tiêu doanh số; target/run-rate để không có dữ liệu thay vì dùng số minh họa.
 - Chưa có benchmark end-to-end hoặc cam kết latency/throughput production.
 - HTTPS và secret manager production chưa được đóng gói đầy đủ.
+- UI/API còn lệch quyền operations_manager; route sửa/cấp tồn chi nhánh mới flush chưa commit. Chi tiết và nguồn code nằm trong [kiến trúc](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md).
 - Machine Learning/RAG/fine-tuning ngoài phạm vi hiện tại.
 
 ## 6. Bằng chứng trình bày

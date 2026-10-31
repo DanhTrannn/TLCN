@@ -2,7 +2,7 @@
 
 Hệ thống xử lý giao dịch thương mại điện tử và xây dựng dữ liệu phân tích. Trọng tâm đồ án là đường dữ liệu từ nguồn đến Lakehouse và lớp SQL phục vụ báo cáo.
 
-Bản vẽ tổng quan: [system-architecture.drawio](../diagrams/system-architecture.drawio). Chi tiết bảng: [Lakehouse Design](../project/LAKEHOUSE_DESIGN_PLAN.md). Công thức: [Metrics Catalog](METRICS_CATALOG.md).
+Bản vẽ tổng quan: [08-system-architecture.drawio](../diagram/08-system-architecture.drawio). Chi tiết bảng: [Lakehouse Design](../project/LAKEHOUSE_DESIGN_PLAN.md). Công thức: [Metrics Catalog](METRICS_CATALOG.md).
 
 ## 1. Thành phần và ranh giới
 
@@ -49,6 +49,8 @@ Catalog `lakehouse` có sáu namespace: `landing`, `bronze`, `silver`, `gold`, `
 
 Gate trước Gold so sánh MySQL/Silver. Gate sau Gold kiểm tra parity, khóa, tham chiếu và lineage. Kết quả ghi vào `lakehouse.system.data_quality_results`; lỗi gate làm DAG thất bại. Đây là logic vận hành của pipeline.
 
+Cursor batch được commit sau Bronze, trước Silver/Gold; lỗi ở tầng sau cần phục hồi từ dữ liệu đã giữ, không mặc định toàn DAG rollback. Các bảng Gold được ghi riêng; gate sau Gold không tạo transaction nguyên tử trên toàn bộ bảng. `payments` đang dùng cursor created_at dù COD completion sửa status; cập nhật cũ ngoài lookback có thể bị bỏ qua. Chi tiết tại [schema](OLTP_SCHEMA.md#3-bảng-và-cursor-trích-xuất).
+
 ## 4. Lịch chạy và độ mới
 
 | Thành phần | Cấu hình mã nguồn |
@@ -60,6 +62,8 @@ Gate trước Gold so sánh MySQL/Silver. Gate sau Gold kiểm tra parity, khóa
 | BI Hub | Một số vai trò tự tải lại sau 60 giây khi trang hoạt động |
 
 Checkpoint và chu kỳ tải lại UI không phải cam kết latency end-to-end. Gold OLTP thay đổi theo batch thực tế. Ngưỡng freshness 15/60 phút trên trang system là ngưỡng hiển thị; batch hằng ngày không đáp ứng ngưỡng 15 phút liên tục.
+
+DAG được tạo ở trạng thái paused theo Compose. Streaming maintenance kiểm tra có job RUNNING và chọn một job phù hợp; chưa xác nhận riêng cả CDC và access-log job đều khỏe. Lịch maintenance và batch ở hai DAG khác nhau không tạo dependency chờ nhau.
 
 ## 5. Serving và phân quyền
 
@@ -79,6 +83,8 @@ BI Hub `/admin/analytics` gọi FastAPI; API xác thực vai trò và cửa hàn
 
 Admin có quyền truy cập các dashboard; các vai trò khác bị giới hạn bởi `validate_role_access`. Store manager bị cố định theo cửa hàng được gán bằng `resolve_effective_store_id`. Đây là lọc ở ứng dụng/API, không phải row-level security tự động trong Trino.
 
+Quyền xem dashboard không cấp quyền ghi nghiệp vụ. UI cho `operations_manager` mở orders/logistics/returns nhưng API tương ứng hiện yêu cầu `admin`. Coupon/review dành cho marketing/admin; sản phẩm/nhập kho dành cho inventory/admin. Các route confirm/cancel cửa hàng chưa gắn dependency CSRF. Hai route điều chỉnh/cấp tồn chi nhánh hiện chỉ flush, chưa commit trong router hoặc dependency; không xem response 204 là bằng chứng đã lưu thay đổi.
+
 ### API và trạng thái nguồn
 
 | Endpoint | Mục đích |
@@ -96,11 +102,15 @@ BI Hub tổ chức từng góc nhìn theo tổng quan → xu hướng (khi có A
 
 Giao diện tách thời điểm nhận phản hồi (UTC+7) khỏi tuổi dữ liệu Gold, hiển thị nguồn/fallback riêng cho xu hướng, và cung cấp từ điển chỉ số theo nguồn phản hồi. Không dựng target/delta khi API chưa cung cấp. Các bước marketing được trình bày như lượng sự kiện/proxy, các nhóm giao vận có thể chồng lặp không dùng làm cơ cấu đơn. Khi system dùng fallback, giá trị Gold/variance thay thế không được diễn giải như kết quả đối soát đã đo. Các hành động là hướng dẫn hoặc liên kết tới màn hình nghiệp vụ có quyền truy cập.
 
+Đối soát system vẽ từng metric thành biểu đồ riêng, so sánh MySQL/Gold: số đơn có đơn vị đơn, các trường tiền có đơn vị VND và trục độc lập. Tooltip tiền giữ giá trị đầy đủ, badge dùng variance_percent từ API. Chỉ hiển thị cặp so sánh khi nguồn là lakehouse và có dữ liệu; fallback hiển thị trạng thái thiếu nguồn cùng bảng, không dựng cột Gold bằng 0.
+
 Nguồn serving: [router](../../services/ecommerce-api/app/modules/analytics/router.py), [service](../../services/ecommerce-api/app/modules/analytics/service.py), [schemas](../../services/ecommerce-api/app/modules/analytics/schemas.py), [BI Hub](../../apps/storefront/src/app/admin/analytics/page.tsx).
 
 ### Quyền truy cập storage và catalog
 
 MinIO có bảy identity theo workload. Polaris có `spark_writer`, `flink_writer`, `trino_reader`, `trino_admin`; credential tách theo consumer. Code batch chỉ đọc OLTP, nhưng Compose mặc định dùng `MYSQL_USER` của ứng dụng; chưa tách MySQL user chỉ có quyền SELECT. Cách bootstrap và áp dụng RBAC nằm trong [SETUP](../runbook/SETUP.md).
+
+Writer Polaris hiện có quyền quản lý nội dung ở mức catalog, chưa giới hạn riêng từng bảng. MySQL CDC user riêng có các quyền replication/SELECT được grant trên `*.*`; danh sách capture 27 bảng không phải giới hạn quyền SQL tương đương. Bronze CDC giữ raw row images nên vẫn cần kiểm soát PII.
 
 ## 6. Triển khai cục bộ
 
