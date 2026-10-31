@@ -894,9 +894,125 @@ Kiến trúc an toàn thông tin của hệ thống Lakehouse được phân đ�
 
 ### **3.6.1. Thiết kế giao diện Storefront**
 
+Giao diện cửa hàng trực tuyến (Storefront) của D&K được xây dựng trên nền tảng Next.js 15 App Router [2], hướng đến việc tối ưu hóa tỷ lệ chuyển đổi (Conversion Rate Optimization - CRO), mang lại trải nghiệm mua sắm mượt mà với thời gian tải trang dưới $1.5\text{ giây}$ (đáp ứng NFR-01). Hệ thống áp dụng triết lý thiết kế tối giản (Minimalist Design), cấu trúc trực quan, phản hồi tức thời trên cả thiết bị di động lẫn máy tính để bàn, đồng thời tuân thủ các tiêu chuẩn về khả năng tiếp cận người dùng (WCAG 2.1).
+
+Dưới đây là thiết kế chi tiết các màn hình nghiệp vụ trọng tâm của Storefront:
+
+#### **1. Giao diện Danh sách sản phẩm (`/products`)**
+* **Thanh điều hướng tiện ích (Global Header)**: Cố định ở đầu trang, tích hợp logo nhận diện thương hiệu D&K, ô tìm kiếm từ khóa tức thì với cơ chế giảm tải truy vấn (Debounced Search), liên kết nhanh đến danh mục yêu thích (Wishlist), biểu tượng giỏ hàng kèm huy hiệu số lượng động (Dynamic Cart Badge), và menu quản lý tài khoản người dùng.
+* **Bộ lọc thuộc tính đa chiều (Faceted Filtering Sidebar)**: Bố trí ở cột bên trái, cho phép khách hàng thu hẹp phạm vi tìm kiếm theo nhiều tiêu chí kết hợp: danh mục thời trang (Áo, Quần, Phụ kiện), kích thước chuẩn (S, M, L, XL), màu sắc trực quan, thanh trượt khoảng giá linh hoạt, và công tắc lọc sản phẩm còn hàng tại kho (`in_stock_only`).
+* **Khu vực hiển thị danh mục sản phẩm (Product Grid)**:
+  * Trình đơn sắp xếp linh hoạt: Hỗ trợ phân loại theo "Mới nhất", "Giá tăng dần", "Giá giảm dần", hoặc "Bán chạy nhất".
+  * Thẻ sản phẩm (Product Card): Trình bày ảnh đại diện sắc nét, tên sản phẩm, đơn giá niêm yết kèm nhãn giảm giá (nếu có), các nút tác vụ nhanh như "Xem nhanh" (Quick View) và "Thêm vào yêu thích".
+  * Cơ chế tải thêm nội dung: Hỗ trợ nút bấm "Tải thêm" kết hợp phân trang nhằm tối ưu dung lượng tải ban đầu của trang web.
+
+![Storefront — Danh sách sản phẩm](docs/diagram/ui-products.svg)
+
+#### **2. Giao diện Chi tiết sản phẩm (`/products/[slug]`)**
+* **Thư viện hình ảnh sản phẩm (Media Gallery)**: Đặt ở cột bên trái với khung hiển thị ảnh lớn chất lượng cao, tích hợp tính năng phóng to chi tiết (Zoom on Hover) và danh sách ảnh thu nhỏ đa góc chụp giúp khách hàng quan sát rõ chất liệu, đường may.
+* **Khu vực thông tin sản phẩm và lựa chọn biến thể**:
+  * Tên sản phẩm, mã định danh, thương hiệu và đơn giá bán lẻ niêm yết rõ ràng.
+  * **Bộ chọn biến thể động (Dynamic Variant Selector)**: Cho phép khách hàng chọn màu sắc và kích cỡ. Hệ thống tự động liên kết với dữ liệu tồn kho thực tế của SKU để hiển thị trạng thái khả dụng (làm mờ hoặc vô hiệu hóa các tùy chọn đã hết hàng) và cập nhật đơn giá tức thời.
+  * Bộ điều chỉnh số lượng mua cùng nút thao tác chính nổi bật: "Thêm vào giỏ hàng" (Add to Cart) và "Mua ngay" (Buy Now).
+* **Mô tả chi tiết và Hướng dẫn chọn kích cỡ**: Bảng thông số kích thước (Size Guide) chi tiết, hướng dẫn bảo quản sản phẩm và chính sách đổi trả hàng minh bạch trong vòng 7 ngày.
+* **Khu vực đánh giá từ cộng đồng (Customer Reviews)**: Điểm đánh giá trung bình tổng thể, biểu đồ phân bổ sao đánh giá (1 đến 5 sao), và danh sách phản hồi thực tế từ những khách hàng đã hoàn tất mua hàng kèm hình ảnh trải nghiệm.
+
+![Storefront — Chi tiết sản phẩm](docs/diagram/ui-product-detail.svg)
+
+#### **3. Giao diện Thanh toán đơn hàng (`/checkout`)**
+Giao diện thanh toán được thiết kế theo mô hình Một trang hai cột (Two-Column Single Page Checkout) nhằm giảm thiểu tỷ lệ bỏ dở giỏ hàng:
+* **Cột trái — Thông tin giao nhận và Phương thức thanh toán**:
+  * Form nhập liệu người nhận: Họ tên, số điện thoại liên hệ, email nhận hóa đơn, địa chỉ giao hàng cụ thể (tỉnh/thành phố, quận/huyện, phường/xã, số nhà, tên đường) và ghi chú giao vận.
+  * Tùy chọn giao hàng: Giao hàng tiêu chuẩn hoặc Giao hàng hỏa tốc.
+  * Lựa chọn phương thức thanh toán an toàn: Thanh toán khi nhận hàng (COD) hoặc Thanh toán chuyển khoản ngân hàng tự động qua mã VietQR động sinh tức thời.
+* **Cột phải — Tóm tắt đơn hàng và Mã giảm giá**:
+  * Danh sách rút gọn các mặt hàng trong giỏ kèm hình ảnh, kích cỡ, màu sắc, số lượng và thành tiền.
+  * Ô nhập mã khuyến mãi (Coupon Code) tích hợp nút kiểm tra tính hợp lệ tức thời qua API, tự động tính toán lại mức giảm giá.
+  * Bảng phân tích chi phí minh bạch: Tạm tính tiền hàng, Mức giảm giá khuyến mãi, Phí vận chuyển, và Tổng số tiền thanh toán cuối cùng (`total_vnd`).
+  * Nút hành động nổi bật: "Đặt hàng ngay" (Commit Order) với hiệu ứng khóa nút chống bấm đúp (Debounced Submit) khi đang trong tiến trình xử lý giao dịch.
+
+![Storefront — Thanh toán đơn hàng](docs/diagram/ui-checkout.svg)
+
+---
+
 ### **3.6.2. Thiết kế giao diện Admin**
 
+Phân hệ Quản trị (Admin Web Console) phục vụ các bộ phận nội bộ của D&K bao gồm: Ban quản lý, Quản lý kho hàng, Nhân viên điều phối giao vận và Bộ phận bán lẻ tại cửa hàng. Giao diện được thiết kế theo nguyên tắc mật độ thông tin cao (High Information Density), giảm thiểu số lần nhấp chuột và tối ưu hóa luồng thao tác nghiệp vụ hàng ngày:
+
+* **Thanh điều hướng bên trái (Navigation Sidebar)**: Cung cấp lối tắt truy cập nhanh vào các phân hệ nghiệp vụ độc lập: Tổng quan hệ thống, Báo cáo & Phân tích, Quản trị đơn hàng, Quản lý danh mục & sản phẩm, Quản trị nhập kho & tồn kho, Điều phối giao vận, Tiếp nhận đổi trả, và Quản lý mã giảm giá.
+
+Dưới đây là chi tiết thiết kế 2 màn hình quản trị nghiệp vụ cốt lõi:
+
+#### **1. Giao diện Quản lý đơn hàng (`/admin/orders`)**
+* **Thanh công cụ lọc và tìm kiếm đa năng**:
+  * Tìm kiếm nhanh theo mã đơn hàng (`order_number`), tên khách hàng hoặc số điện thoại người nhận.
+  * Bộ lọc trạng thái đơn hàng trực quan: Toàn bộ, Chờ xác nhận (`PENDING`), Đã xác nhận (`CONFIRMED`), Đang giao hàng (`SHIPPING`), Đã giao thành công (`DELIVERED`), Đã hủy (`CANCELLED`).
+  * Bộ lọc phân kênh: Kênh trực tuyến Storefront hoặc Cửa hàng bán lẻ vật lý (kèm chọn điểm bán cụ thể).
+* **Bảng dữ liệu danh sách đơn hàng (Orders Data Grid)**:
+  * Trình bày danh sách đơn hàng có cấu trúc: Mã đơn, Thời gian tạo, Khách hàng, Kênh bán, Trạng thái thanh toán (huy hiệu màu phân định rõ: Đã thanh toán, Chưa thanh toán, Đã hoàn tiền), Trạng thái vận chuyển, và Tổng giá trị tiền tệ.
+* **Khung chi tiết đơn hàng (Drawer / Modal View)**:
+  * Khi nhân viên bấm chọn một đơn hàng, màn hình trượt hiển thị toàn bộ thông tin chi tiết: danh sách sản phẩm cấu thành, lịch sử dòng thời gian biến động trạng thái (Audit Timeline), thông tin người nhận và địa chỉ giao hàng.
+  * Các nút thao tác nghiệp vụ tương ứng với trạng thái hiện tại: "Xác nhận đơn", "Tạo phiếu giao vận", hoặc "Hủy đơn hàng kèm lý do".
+
+![Admin — Quản lý đơn hàng](docs/diagram/ui-admin-orders.svg)
+
+#### **2. Giao diện Nhập hàng và Cập nhật kho (`/admin/inbound`)**
+Giao diện phục vụ trực tiếp quy trình nhập hàng hóa từ nhà cung cấp về các kho vật lý và tự động kích hoạt thuật toán tính toán lại giá vốn bình quân gia quyền di động:
+* **Khối thông tin phiếu nhập hàng (Inbound Receipt Header)**:
+  * Lựa chọn kho tiếp nhận (Store / Central Warehouse).
+  * Nhập mã số phiếu nhập, số hóa đơn từ nhà cung cấp, ngày nhập kho thực tế và ghi chú nội bộ.
+* **Bảng kê chi tiết các mặt hàng nhập kho (Inbound Line Items)**:
+  * Thanh tra cứu nhanh SKU theo mã vạch hoặc tên sản phẩm.
+  * Bảng nhập liệu động cho phép thêm nhiều dòng sản phẩm, chỉ định chính xác biến thể SKU, số lượng thực nhận (`quantity`), và đơn giá nhập mua trước thuế (`cost_price_vnd`).
+  * Hệ thống tự động tính toán tổng số lượng mặt hàng và tổng giá trị lô hàng nhập kho.
+* **Nút xác nhận "Ghi nhận phiếu nhập kho"**:
+  * Kích hoạt giao dịch ACID tại máy chủ: tăng số lượng tồn kho khả dụng tại bảng `inventory_levels`, lưu lịch sử nhập hàng vào `inbound_receipts` và `inbound_items`, đồng thời tính toán lại giá vốn bình quân di động (Moving Weighted Average Cost) cho các SKU tương ứng để phục vụ tính toán lợi nhuận tại Lakehouse.
+
+![Admin — Nhập hàng và cập nhật kho](docs/diagram/ui-admin-inbound.svg)
+
+---
+
 ### **3.6.3. Thiết kế Dashboard BI theo vai trò**
+
+Hệ thống Dashboard phân tích kinh doanh (BI Hub) của D&K được thiết kế dựa trên các nguyên lý chuẩn mực về trực quan hóa dữ liệu kinh doanh của Tableau [19] và thư viện Apache ECharts [20], hướng tới mục tiêu: "Tổng quan trước, lọc và thu phóng theo nhu cầu, chi tiết theo yêu cầu" (Overview first, zoom and filter, then details-on-demand).
+
+Giao diện BI Hub kết nối trực tiếp đến động cơ truy vấn phân tán Trino [18] để khai thác các bảng Data Marts và Fact Tables tại tầng Gold của Lakehouse, đồng thời tích hợp cơ chế suy thoái có giới hạn (Bounded OLTP Fallback) giúp bảng điều khiển duy trì hoạt động ngay cả khi hồ dữ liệu đang trong chu kỳ bảo trì định kỳ.
+
+Hệ thống phân định bảng điều khiển theo 7 vai trò người dùng trong doanh nghiệp: Điều hành (Executive), Kinh doanh (Sales), Tiếp thị (Marketing), Quản lý cửa hàng (Store), Quản lý kho (Inventory), Vận hành (Operations), và Kỹ thuật hệ thống (System).
+
+#### **1. Bảng điều khiển Chiến lược và Kinh doanh (Executive & Sales Hub)**
+Dành riêng cho Ban Giám đốc điều hành (Executive) và Trưởng phòng kinh doanh (Sales Manager):
+* **Khối thẻ chỉ số hiệu suất trọng yếu (Executive KPI Cards)**:
+  * **Doanh thu gộp (Gross Revenue)**: Tổng giá trị hàng hóa ghi nhận trên toàn hệ thống, kèm phần trăm tăng trưởng so với kỳ đo trước (MoM / YoY).
+  * **Doanh thu thuần (Net Revenue)**: Doanh thu thực nhận sau khi trừ chiết khấu khuyến mãi và hoàn trả.
+  * **Lợi nhuận gộp danh nghĩa (Gross Margin %)**: Tỷ lệ chênh lệch giữa doanh thu thuần và giá vốn hàng bán snapshot (COGS).
+  * **Tổng số lượng đơn hàng (Total Orders)** và **Giá trị trung bình trên một đơn (AOV - Average Order Value)**.
+* **Biểu đồ xu hướng doanh thu và lợi nhuận (Revenue & Profit Trend)**:
+  * Trực quan hóa chuỗi thời gian doanh thu và chi phí vốn theo các khung thời gian linh hoạt (7 ngày, 30 ngày, 90 ngày) sử dụng biểu đồ vùng kết hợp đường (Area / Line Chart) [20].
+* **Biểu đồ phân rã kênh và điểm bán (Channel & Store Distribution)**:
+  * Biểu đồ tỷ trọng doanh thu giữa kênh trực tuyến Storefront và hệ thống các cửa hàng vật lý, giúp nhà điều hành so sánh hiệu quả đa kênh (Omnichannel Performance).
+* **Bảng chi tiết số liệu kinh doanh**: Cho phép tìm kiếm, lọc nhanh theo từng chi nhánh/kênh bán và xuất tệp dữ liệu báo cáo dạng CSV/Excel.
+
+![BI Hub — Executive / Sales](docs/diagram/ui-dashboard-sales.svg)
+
+#### **2. Bảng điều khiển Vận hành đa phân hệ (Operations, Store, Inventory & System Hub)**
+Thiết kế chuyên biệt cho các nhà quản lý nghiệp vụ vận hành hàng ngày:
+* **Góc nhìn Quản lý cửa hàng (Store Manager View)**:
+  * Theo dõi doanh số bán hàng tại quầy thu ngân POS theo ca làm việc của từng chi nhánh.
+  * Giám sát danh sách các mặt hàng bán chạy nhất tại cửa hàng (Top-Selling Items) và mức tồn kho sẵn có trên quầy để kịp thời luân chuyển hàng từ kho trung tâm.
+* **Góc nhìn Quản trị kho hàng (Inventory Health View)**:
+  * Giám sát chỉ số ngày tồn kho bình quân (Days of Inventory On-Hand - DIO) và tốc độ quay vòng tồn kho.
+  * Khối cảnh báo rủi ro hết hàng (Stock-out Risk Alert): Tự động phát hiện các SKU có tốc độ bán cao nhưng lượng tồn kho dưới ngưỡng an toàn 7 ngày để nhân viên chủ động lập phiếu nhập hàng.
+  * Khối nhận diện hàng chậm luân chuyển (Dead Stock / Slow-moving Items): Liệt kê các mã hàng không phát sinh giao dịch trên 60 ngày để đề xuất chương trình khuyến mãi giải phóng mặt bằng kho.
+* **Góc nhìn Điều phối giao vận & Xử lý đổi trả (Logistics & Returns View)**:
+  * Theo dõi tỷ lệ đơn giao thành công ngay lần đầu (First-Attempt Delivery Rate) và thời gian giao hàng trung bình (Lead Time).
+  * Bảng xếp hạng hiệu suất đối tác giao hàng (3PL SLA Performance), cảnh báo tỷ lệ giao trễ hẹn theo từng khu vực địa lý.
+  * Biểu đồ phân tích cơ cấu lý do trả hàng (Hàng lỗi nhà sản xuất, khách thử không vừa kích cỡ, giao sai màu), cung cấp thông tin phản hồi giá trị cho bộ phận kiểm định chất lượng sản phẩm.
+* **Góc nhìn Kỹ thuật & Chất lượng hệ thống (System & Quality View)**:
+  * Theo dõi lưu lượng yêu cầu (Request Volume), thời gian xử lý phân vị p95/p99 của API và tỷ lệ mã lỗi 4xx/5xx theo từng endpoint.
+  * Giám sát trạng thái thực thi của 18 chỉ tiêu Quality Gate và kết quả đối soát tự động của Lakehouse.
+
+![BI Hub — Vận hành theo vai trò](docs/diagram/ui-dashboard-operations.svg)
 
 # **TÀI LIỆU THAM KHẢO**
 
