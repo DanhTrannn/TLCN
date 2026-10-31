@@ -1384,7 +1384,104 @@ Nhằm phục vụ phân tích hành vi người dùng, tối ưu hóa tỷ lệ
 
 ### **4.3.1. Giao diện Storefront**
 
+Phân hệ giao diện cửa hàng trực tuyến (Storefront) được phát triển bằng khung làm việc **Next.js 15 App Router** kết hợp thư viện **React 19**, ngôn ngữ **TypeScript** và tiện ích thiết kế **TailwindCSS v3** [2]. Ứng dụng khai thác tối đa mô hình kết xuất hỗn hợp (Hybrid Rendering): tận dụng Server Components để kết xuất trước mã HTML tĩnh ở phía máy chủ nhằm tối ưu hóa chỉ số SEO và tốc độ hiển thị nội dung đầu tiên (First Contentful Paint - FCP), đồng thời kết hợp linh hoạt Client Components (`'use client'`) cho các khối giao diện đòi hỏi tính tương tác cao và quản lý trạng thái phức tạp.
+
+Chi tiết hiện thực hóa các màn hình nghiệp vụ trọng tâm trên Storefront:
+
+#### **1. Màn hình Danh mục và Tìm kiếm sản phẩm đa chiều (`/products`)**
+* **Đồng bộ trạng thái tìm kiếm qua URL (Deep Linking & Bookmarkable URLs)**: Toàn bộ trạng thái của bộ lọc (từ khóa `q`, danh mục `category`, mảng kích thước `size`, mảng màu sắc `color`, khoảng giá `min_price`/`max_price`, trạng thái tồn kho `in_stock`, và tiêu chí sắp xếp `sort`) được đồng bộ hai chiều trực tiếp lên thanh địa chỉ trình duyệt qua `useSearchParams` và `useRouter`. Điều này cho phép khách hàng dễ dàng sao chép đường dẫn chia sẻ hoặc lưu lại kết quả tìm kiếm mà không bị mất trạng thái lọc.
+* **Bộ lọc thuộc tính đa diện (Faceted Filter Sidebar)**: Dữ liệu bộ lọc được nạp động từ backend qua API `GET /api/v1/catalog/facets`, hiển thị chính xác số lượng sản phẩm khả dụng theo từng phân loại. Thành phần màu sắc được trực quan hóa thông qua các ô tròn màu chuẩn xác nhờ bộ tiện ích `getColorHex` và `getColorLabel`.
+* **Cơ chế giảm tải truy vấn (Debounced Search)**: Khi người dùng gõ từ khóa vào thanh tìm kiếm, hệ thống áp dụng cơ chế trì hoãn (Debounce $300\text{ms}$) trước khi phát sinh yêu cầu API, ngăn chặn tình trạng gửi hàng chục request dư thừa gây nghẽn máy chủ.
+* **Tối ưu hóa hình ảnh sản phẩm (Next.js Image Optimization)**: Sử dụng thành phần `next/image` với cơ chế tải lười (Lazy Loading), tự động chuyển đổi định dạng ảnh sang WebP/AVIF và tự điều chỉnh kích thước theo mật độ điểm ảnh của thiết bị (Responsive srcset), giảm trên $60\%$ dung lượng tải mạng.
+* **Tương tác nhanh**: Tích hợp cửa sổ xem nhanh sản phẩm (`QuickViewModal`) và tính năng thêm vào danh sách yêu thích (`Wishlist`) cập nhật giao diện lạc quan (Optimistic UI Update) mang lại cảm giác mượt mà tức thời cho người dùng.
+
+#### **2. Màn hình Chi tiết sản phẩm (`/products/[slug]`)**
+* **Định tuyến động theo Slug thân thiện SEO**: Sử dụng tham số đường dẫn `params.slug` để truy xuất chi tiết sản phẩm qua API `GET /api/v1/products/{slug}`.
+* **Bộ chọn biến thể thông minh hai chiều (Bidirectional Variant Selector)**:
+  * Khi khách hàng chọn một kích thước (ví dụ: Size L), hệ thống tự động tính toán lại và làm mờ (disable) các tùy chọn màu sắc đã hết hàng của kích cỡ đó trong cơ sở dữ liệu.
+  * Ngược lại, khi chọn một màu sắc, danh sách kích thước tương ứng cũng được cập nhật trạng thái khả dụng tức thời dựa trên dữ liệu thành phần `StoreAvailabilityBox`.
+* **Thư viện ảnh sản phẩm độ nét cao (Zoom & Gallery)**: Cho phép chuyển đổi linh hoạt giữa các góc chụp thông qua danh sách ảnh thu nhỏ (Thumbnails) và phóng to chi tiết bề mặt vải khi di chuột.
+* **Bảng hướng dẫn chọn cỡ (`SizeGuideModal`)**: Cung cấp số đo chi tiết (chiều cao, cân nặng, vòng ngực, vòng eo) giúp giảm thiểu tối đa tỷ lệ đổi trả hàng do chọn sai kích cỡ.
+* **Ngăn kéo giỏ hàng động (`CartDrawer`)**: Khi người dùng nhấn nút "Thêm vào giỏ hàng", ứng dụng không chuyển trang mà kích hoạt ngăn kéo trượt mượt mà từ cạnh phải màn hình thông qua React Context (`useCartDrawer`), hiển thị tóm tắt giỏ hàng và nút tiến hành thanh toán nhanh.
+* **Khối phản hồi và đánh giá cộng đồng (`ProductReviews`)**: Hiển thị điểm số trung bình (Star Rating), tỷ lệ phần trăm phân bổ sao và danh sách bình luận đã được quản trị viên kiểm duyệt (`status = 'APPROVED'`).
+
+#### **3. Màn hình Giỏ hàng và Thanh toán hai cột (`/cart` & `/checkout`)**
+* **Quản trị giỏ hàng trực quan (`/cart`)**: Cho phép người mua điều chỉnh tăng giảm số lượng mua theo thời gian thực, tự động tính toán lại mức giá ưu đãi và hiển thị thanh tiến trình thông báo điều kiện đạt mức miễn phí vận chuyển toàn quốc (Freeship).
+* **Màn hình Thanh toán tinh gọn hai cột (`/checkout`)**:
+  * **Cột trái (Địa chỉ nhận hàng & Phương thức)**: Tích hợp thư viện dữ liệu hành chính Việt Nam (`vietnam-addresses.ts`) hỗ trợ chọn liên hoàn: Tỉnh/Thành phố $\rightarrow$ Quận/Huyện $\rightarrow$ Phường/Xã. Khách hàng lựa chọn giữa hai hình thức: Trả tiền mặt khi nhận hàng (COD) hoặc Chuyển khoản nhanh qua VietQR.
+  * **Cột phải (Báo giá thời gian thực & Mã giảm giá)**: Khi khách hàng thay đổi địa chỉ hoặc áp dụng voucher qua `CouponPickerModal`, ứng dụng gọi API báo giá `quoteCheckout` để nhận bảng phân rã chi phí minh bạch gồm: Tạm tính, Mức giảm giá voucher, Phí vận chuyển, và Tổng số tiền thanh toán cuối cùng.
+  * **Thanh toán VietQR động**: Nếu chọn chuyển khoản, hệ thống tự động sinh và hiển thị mã QR theo chuẩn NAPAS 247 chứa đầy đủ thông tin: Ngân hàng thụ hưởng, Số tài khoản, Số tiền chính xác và Nội dung chuyển khoản chứa mã đơn hàng, giúp người mua quét mã thanh toán trong 3 giây mà không cần nhập liệu thủ công.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.11: Giao diện Storefront trên trình duyệt Web (Desktop & Mobile Responsive)]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập trang chủ hoặc trang danh mục sản phẩm `http://localhost:3000/products`:
+>   * Cửa sổ hiển thị thanh điều hướng Header, ô tìm kiếm từ khóa, danh mục sản phẩm.
+>   * Cột bên trái hiển thị bộ lọc đa chiều (Faceted Sidebar: Danh mục, Kích thước, Màu sắc trực quan).
+>   * Lưới hiển thị danh sách thẻ sản phẩm thời trang với hình ảnh WebP sắc nét, đơn giá niêm yết và nhãn giảm giá.
+>   * (Tùy chọn): Bật chế độ Responsive Mode (F12 trên Chrome) cạnh bên để minh họa giao diện co giãn tối ưu trên thiết bị di động (iPhone / Android).
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.12: Quy trình chọn biến thể sản phẩm và đặt hàng thanh toán VietQR]**
+> * **Nội dung cần chụp**: Ảnh ghép hoặc 2 ảnh thành phần:
+>   1. Trang chi tiết sản phẩm `http://localhost:3000/products/[slug]`: Đang chọn màu sắc/kích cỡ và ngăn kéo giỏ hàng trượt ra từ bên phải màn hình (`CartDrawer`) hiển thị mặt hàng vừa chọn.
+>   2. Màn hình thanh toán `http://localhost:3000/checkout`: Đã điền đầy đủ form thông tin người nhận, hiển thị khung tóm tắt đơn hàng bên phải và mã VietQR động thanh toán ngân hàng tự động.
+
+---
+
 ### **4.3.2. Giao diện Admin**
+
+Phân hệ Quản trị (Admin Web Console) được đặt tại không gian tuyến đường `/admin` và `/store`, phục vụ toàn bộ các hoạt động vận hành nội bộ của doanh nghiệp. Giao diện được thiết kế theo phong cách hiện đại với mật độ hiển thị dữ liệu cao, ưu tiên khả năng nắm bắt thông tin nhanh và thao tác nghiệp vụ một chạm cho nhân viên:
+
+#### **1. Kiến trúc bố cục và Kiểm soát phân quyền (`AdminLayout`)**
+* Toàn bộ các trang con trong phân hệ quản trị đều được bao bọc bởi `AdminLayout` (`apps/storefront/src/app/admin/layout.tsx`).
+* **Kiểm tra phiên đăng nhập và định tuyến tự động**: Thành phần sử dụng hook `useAuth()`. Nếu phát hiện người dùng chưa đăng nhập hoặc không có vai trò nhân sự thuộc `STAFF_ROLES`, giao diện lập tức kích hoạt hiệu ứng tải bảo vệ (Security Pulse Skeleton) và chuyển hướng người dùng về trang đăng nhập `/login?returnTo=...`.
+* **Thanh điều hướng Sidebar (`AdminNav`)**: Phân nhóm trực quan các phân hệ chức năng:
+  * Nhóm Báo cáo: Tổng quan hệ thống (`/admin/overview`), Trung tâm phân tích BI (`/admin/analytics`).
+  * Nhóm Thương mại: Quản lý đơn hàng (`/admin/orders`), Bán hàng tại quầy (`/admin/pos`), Mã giảm giá (`/admin/coupons`), Đánh giá khách hàng (`/admin/reviews`).
+  * Nhóm Kho vận: Quản lý sản phẩm (`/admin/products`), Quản lý nhập kho (`/admin/inbound`), Điều phối giao vận (`/admin/logistics`), Tiếp nhận đổi trả (`/admin/returns`), Danh sách khách hàng (`/admin/customers`).
+  * Tùy theo vai trò của người đăng nhập (ví dụ: nhân viên thu ngân chỉ thấy POS, quản lý kho chỉ thấy Inbound/Products), Sidebar sẽ tự động ẩn các phân hệ nằm ngoài phạm vi phân quyền.
+
+#### **2. Màn hình Quản trị và Điều phối đơn hàng (`/admin/orders`)**
+* **Hệ thống Tab trạng thái đơn hàng**: Phân chia đơn hàng thành các danh mục trực quan kèm số lượng: *Tất cả*, *Chờ xác nhận*, *Đã xác nhận*, *Đang giao hàng*, *Hoàn tất*, và *Đã hủy*.
+* **Công cụ tìm kiếm và lọc kết hợp**: Hỗ trợ tìm kiếm theo mã đơn hàng (`order_number`), họ tên khách hàng, số điện thoại; kết hợp bộ lọc kênh bán lẻ (Kênh trực tuyến Storefront hoặc Cửa hàng vật lý) và khoảng thời gian tạo đơn.
+* **Bảng dữ liệu tương tác (Interactive Orders Data Grid)**:
+  * Hiển thị danh sách đơn hàng có cấu trúc: Mã đơn, Thời gian tạo (định dạng múi giờ Việt Nam qua `formatVietnamDateTime`), Khách hàng, Kênh bán, Trạng thái thanh toán, Trạng thái vận chuyển, và Tổng giá trị tiền tệ.
+  * Các trạng thái được hiển thị dưới dạng huy hiệu màu trực quan (`OrderStatusBadge`): Xanh lá cho Đã thanh toán / Giao thành công, Vàng cam cho Đang xử lý, Đỏ cho Đã hủy.
+* **Ngăn trượt / Hộp thoại xử lý đơn hàng (`AdminModal`)**:
+  * Khi bấm chọn một đơn hàng, cửa sổ hiển thị đầy đủ danh sách SKU cấu thành kèm số lượng, đơn giá, địa chỉ nhận hàng và dòng thời gian lịch sử trạng thái đơn (Timeline).
+  * Cung cấp các nút hành động nghiệp vụ trực tiếp tương ứng:
+    * "Xác nhận đơn hàng" (`confirmAdminOrder`): Chuyển đơn sang trạng thái sẵn sàng đóng gói xuất kho.
+    * "Điều phối giao vận" (`dispatchAdminOrder`): Mở danh sách chọn shipper nội bộ hoặc đối tác 3PL, gán mã vận đơn và chuyển trạng thái giao hàng.
+    * "Hủy đơn hàng": Yêu cầu nhập lý do hủy đơn và tự động hoàn trả số lượng tồn kho khả dụng.
+* **Tính năng xuất báo cáo CSV (`exportToCsv`)**: Cho phép nhân viên tải về toàn bộ danh sách đơn hàng theo bộ lọc hiện tại phục vụ công tác đối soát kế toán offline.
+
+#### **3. Màn hình Quản trị Nhập kho và Cập nhật tồn (`/admin/inbound`)**
+* **Khối thẻ chỉ số tổng quan (Header Metric Cards)**: Hiển thị 3 chỉ số then chốt trên đầu trang: Tổng số phiếu nhập kho (`totalCount`), Tổng số lượng sản phẩm nhập (`totalItems`), và Tổng giá trị vốn đã nhập kho (`totalCost` định dạng tiền tệ VND).
+* **Bảng danh sách phiếu nhập kho phân trang**: Hỗ trợ tìm kiếm nhanh theo mã phiếu nhập hoặc số hóa đơn nhà cung cấp, hiển thị ngày nhập, kho tiếp nhận, người lập phiếu và trạng thái xử lý.
+* **Hộp thoại lập phiếu nhập kho động (`CreateInboundModal`)**:
+  * Giao diện cho phép chọn kho tiếp nhận (Kho trung tâm hoặc các chi nhánh cửa hàng), ngày nhập thực tế và ghi chú nguồn gốc lô hàng.
+  * Bảng nhập liệu mặt hàng động (Dynamic Item Rows): Cho phép thêm/xóa nhiều dòng sản phẩm, hỗ trợ tìm kiếm nhanh theo mã vạch SKU hoặc tên sản phẩm, nhập số lượng thực nhận (`quantity`) và đơn giá nhập mua trước thuế (`cost_price_vnd`).
+  * Thành phần tự động tính toán tổng thành tiền từng dòng và tổng giá trị phiếu nhập theo thời gian thực. Khi nhân viên nhấn "Ghi nhận phiếu nhập", hệ thống gửi yêu cầu API lên backend để đồng thời tăng số lượng tồn kho và tính toán lại giá vốn bình quân di động.
+
+#### **4. Màn hình Bán lẻ tại quầy POS (`/admin/pos` hoặc `/store/pos`)**
+* Được tối ưu hóa cho màn hình cảm ứng tại quầy thu ngân của các chi nhánh cửa hàng:
+  * Ô quét mã vạch sản phẩm tự động thêm SKU vào giỏ hàng quầy với số lượng mặc định là 1.
+  * Cột bên trái hiển thị danh mục sản phẩm trực quan kèm ảnh đại diện và số lượng tồn sẵn có tại quầy.
+  * Cột bên phải là giỏ hàng quầy thu ngân: hiển thị danh sách mặt hàng, ô điều chỉnh số lượng, nút áp dụng mã giảm giá trực tiếp.
+  * Khu vực thanh toán một chạm: Tự động tính tiền hàng, ô nhập số tiền khách đưa, tính tiền thừa thối lại và các nút chọn nhanh phương thức (Tiền mặt / Thẻ ngân hàng). Khi hoàn tất, hệ thống tự động ghi nhận đơn hàng POS thành công và in hóa đơn bán lẻ.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.13: Giao diện quản trị đơn hàng `/admin/orders` và modal điều phối giao vận]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập `http://localhost:3000/admin/orders`:
+>   * Thanh điều hướng Sidebar bên trái thể hiện đầy đủ các phân hệ quản trị.
+>   * Bảng danh sách đơn hàng với các huy hiệu trạng thái màu sắc (`PENDING`, `CONFIRMED`, `SHIPPING`, `DELIVERED`).
+>   * Cửa sổ Modal chi tiết đơn hàng đang mở hiển thị danh sách sản phẩm cấu thành, thông tin người nhận và các nút hành động "Xác nhận đơn" / "Điều phối giao vận".
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.14: Giao diện nhập kho `/admin/inbound` và màn hình bán hàng POS `/admin/pos`]**
+> * **Nội dung cần chụp**: Ảnh ghép hoặc 2 ảnh thành phần:
+>   1. Giao diện Nhập kho `http://localhost:3000/admin/inbound`: Hiển thị 3 thẻ chỉ số tổng quan (Tổng số phiếu, Tổng số lượng, Tổng giá trị vốn) và cửa sổ modal tạo phiếu nhập `CreateInboundModal` đang điền danh sách SKU nhập kèm số lượng và đơn giá.
+>   2. Màn hình Bán hàng tại quầy POS `http://localhost:3000/admin/pos`: Hiển thị danh mục sản phẩm thời trang dạng lưới, giỏ hàng tại quầy thu ngân bên phải kèm các phím chức năng thanh toán nhanh.
 
 ## **4.4. Xây dựng hệ thống thu thập dữ liệu**
 
