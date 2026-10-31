@@ -68,7 +68,7 @@ Response KPI có `data_source`, `is_degraded`, `degraded_reason`. Thời điểm
 
 - [Phạm vi](../project/SCOPE.md), [kiến trúc hiện tại](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md), [Lakehouse](../project/LAKEHOUSE_DESIGN_PLAN.md), [OLTP](../architecture/OLTP_SCHEMA.md).
 - [MySQL DDL](../../database/schema.sql), [backend](../../services/ecommerce-api/app/modules), [frontend](../../apps/storefront/src/app).
-- [DAG batch](../../airflow/dags/lakehouse_oltp_pipeline.py), [cấu hình extract](../../pipelines/config/default.yml), [Gold DDL](../../pipelines/src/lakehouse/oltp/gold_ddl.py), [Gold transforms](../../pipelines/src/lakehouse/oltp/gold.py), [log marts](../../pipelines/src/lakehouse/logs/gold.py).
+- [DAG batch](../../airflow/dags/lakehouse_oltp_pipeline.py), [cấu hình extract](../../pipelines/config/default.yml), [Gold DDL](../../pipelines/src/lakehouse/oltp/gold_ddl.py), [Gold transforms](../../pipelines/src/lakehouse/oltp/gold/), [log marts](../../pipelines/src/lakehouse/logs/gold.py).
 - [Polaris RBAC](../../infrastructure/polaris/rbac.yml), [Compose](../../docker-compose.yml), [CDC](../architecture/CDC_DASHBOARD_DATA_SPEC.md).
 
 Các sơ đồ là tài liệu thiết kế được đối chiếu tĩnh với mã nguồn; không phải bằng chứng chạy thành công pipeline, kiểm thử tải hoặc hiệu năng production. Phần ML không nằm trong bộ sơ đồ này.
@@ -77,5 +77,5 @@ Các sơ đồ là tài liệu thiết kế được đối chiếu tĩnh với 
 
 - Các hình nghiệp vụ chọn luồng chính. Mốc trả hàng hiện dùng `completed_at` hoặc `updated_at`, không cố định riêng `shipment.delivered_at`. Order chỉ returned khi trả đủ lượng đạt kiểm định.
 - Có các route chỉnh/cấp tồn chi nhánh mới flush mà chưa commit; xem [kiến trúc](../architecture/SYSTEM_ARCHITECTURE_VISUAL.md). Hình vẽ không chứng minh thao tác đã lưu thành công.
-- Log Flink xử lý ngày theo Asia/Ho_Chi_Minh trước SQL cast; Spark dùng UTC. Tránh mặc định mọi bucket ngày/giờ là UTC.
+- Code log mới đã chuẩn hóa UTC như Spark; hình vẽ cũ chưa phản ánh refactor module và dữ liệu cũ chưa được migrate.
 - Dashboard system đã tách biểu đồ số đơn và tiền theo từng trục độc lập. Wireframe là bố cục minh họa, không thay thế giao diện runtime hiện tại.

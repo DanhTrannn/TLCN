@@ -30,7 +30,7 @@
 |---|---|
 | Launcher | [start_all.sh](../../scripts/start_all.sh) |
 | Batch DAG | [lakehouse_oltp_pipeline.py](../../airflow/dags/lakehouse_oltp_pipeline.py) |
-| OLTP Gold | [gold.py](../../pipelines/src/lakehouse/oltp/gold.py), [gold_ddl.py](../../pipelines/src/lakehouse/oltp/gold_ddl.py) |
+| OLTP Gold | [gold.py](../../pipelines/src/lakehouse/oltp/gold/), [gold_ddl.py](../../pipelines/src/lakehouse/oltp/gold_ddl.py) |
 | Access log stream | [kafka_to_lakehouse.py](../../pipelines/src/jobs/logs/kafka_to_lakehouse.py) |
 | CDC stream | [mysql_cdc_to_bronze.py](../../pipelines/src/jobs/cdc/mysql_cdc_to_bronze.py) |
 | Query serving | [analytics service](../../services/ecommerce-api/app/modules/analytics/service.py) |

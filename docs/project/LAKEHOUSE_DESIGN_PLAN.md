@@ -23,7 +23,7 @@ Nguồn là 27 bảng trong [default.yml](../../pipelines/config/default.yml), l
 
 - **Extract:** Spark dùng cursor `(cursor_field, pk)`, lookback mặc định 10 phút, giới hạn high watermark và ghi manifest.
 - **Bronze:** Đọc Landing, giữ lịch sử/lineage, kiểm tra bản ghi hỏng và đưa dữ liệu lỗi vào quarantine.
-- **Silver:** Chuẩn hóa kiểu, khử trùng, MERGE dữ liệu mutable, xử lý PII và kiểm tra ràng buộc.
+- **Silver:** Chuẩn hóa kiểu, khử trùng và ghi đè trạng thái hợp nhất, xử lý PII và kiểm tra ràng buộc.
 - **Gold:** Xây dimension/fact/mart từ Silver và gắn `_gold_ingested_at`, `_source_run_id`.
 - **Gates:** Đối soát MySQL–Silver trước Gold và parity/khóa/lineage sau Gold. Vi phạm làm tác vụ thất bại và được ghi vào bảng audit.
 
@@ -35,7 +35,7 @@ Cursor không tự phát hiện mọi hard delete ở nguồn. `payments` dùng 
 
 ## 3. Gold OLTP: 15 bảng
 
-Nguồn DDL: [gold_ddl.py](../../pipelines/src/lakehouse/oltp/gold_ddl.py). Nguồn biến đổi: [gold.py](../../pipelines/src/lakehouse/oltp/gold.py).
+Nguồn DDL: [gold_ddl.py](../../pipelines/src/lakehouse/oltp/gold_ddl.py). Nguồn biến đổi: [gold.py](../../pipelines/src/lakehouse/oltp/gold/).
 
 ### Sáu dimension
 
@@ -84,7 +84,7 @@ Order count ở mart sales không được cộng qua các danh mục để suy 
 
 Job Flink access log sử dụng StatementSet để ghi các tầng của log. Spark `build_logs_gold` thực hiện rollup mart; DAG streaming maintenance chạy mỗi hai giờ.
 
-Ba mart log lần lượt có grain ngày × giờ × route × method, ngày × product, và **một dòng/ngày** chứa các cột bước phễu. DAG truyền ngày hiện tại giờ Việt Nam vào rollup; không tự backfill mọi ngày log. Flink tạo event_date theo giờ Việt Nam trước SQL cast, còn Spark session dùng UTC; xem [Access Log Design](../architecture/ACCESS_LOG_DESIGN.md) khi đối chiếu mốc ngày/giờ.
+Ba mart log lần lượt có grain ngày × giờ × route × method, ngày × product, và **một dòng/ngày** chứa các cột bước phễu. DAG truyền ngày UTC của interval vào rollup; không tự backfill mọi ngày log. Flink và Spark chuẩn hóa UTC; dữ liệu log cũ theo giờ Việt Nam chưa được tự động chuyển đổi; xem [Access Log Design](../architecture/ACCESS_LOG_DESIGN.md) khi đối chiếu mốc ngày/giờ.
 
 CDC log có thể chứa nhiều thay đổi của cùng khóa nguồn. Đếm sự kiện không tương đương đếm bản ghi hiện tại. CDC chưa nối trực tiếp vào các Silver/Gold OLTP ở mục 3.
 

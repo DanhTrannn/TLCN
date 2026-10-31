@@ -79,5 +79,5 @@ Khi trình bày kết quả, ghi rõ dataset, kỳ dữ liệu, grain, công th�
 
 - [Analytics service](../../services/ecommerce-api/app/modules/analytics/service.py), [response schemas](../../services/ecommerce-api/app/modules/analytics/schemas.py), [router](../../services/ecommerce-api/app/modules/analytics/router.py).
 - [Dashboard components](../../apps/storefront/src/components/analytics), [BI page](../../apps/storefront/src/app/admin/analytics/page.tsx).
-- [Gold OLTP](../../pipelines/src/lakehouse/oltp/gold.py), [Gold logs](../../pipelines/src/lakehouse/logs/gold.py).
+- [Gold OLTP](../../pipelines/src/lakehouse/oltp/gold/), [Gold logs](../../pipelines/src/lakehouse/logs/gold.py).
 - [Kiến trúc](SYSTEM_ARCHITECTURE_VISUAL.md), [nghiệp vụ nguồn](../project/BUSINESS_REQUIREMENTS.md).

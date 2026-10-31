@@ -50,7 +50,7 @@ These rules reduce accidental disclosure; pattern sanitization does not prove th
 
 `send_access_event` schedules background enqueueing. If the producer is offline, enqueueing raises or the event loop is unavailable, the code increments a process-local counter and attempts a local JSONL DLQ write. The producer awaits `send`, without awaiting each broker-delivery future; it does not establish confirmed delivery for every HTTP event. DLQ writing may also fail and is logged. There is no automatic DLQ replay job, durable outbox, or end-to-end exactly-once guarantee. Compose does not currently mount a dedicated persistent volume for this API-local DLQ path.
 
-Compose forwards the producer topic variable, but the Flink access job currently uses the literal `ecommerce.access_logs`. Changing only the producer topic would disconnect ingestion; keep them aligned.
+Compose forwards the producer topic variable, but the Flink access job reads the same `KAFKA_ACCESS_LOG_TOPIC` variable. Keep the producer and consumer values aligned.
 
 ## 5. Flink processing and tables
 
@@ -65,13 +65,13 @@ A single StatementSet writes four sinks from the same parsed source. These are p
 | `silver.silver_logs` | Flattened typed fields; event_id identifier/upsert configuration |
 | `gold.fact_web_events` | Event facts, duration_ms, HTTP success/error/slow flags; event_id identifier/upsert configuration |
 
-The job uses `request.id` as event_id, generating a UUID if missing. Silver/Gold tables are configured with an identifier and upsert; existing table metadata still matters. `ecommerce.filters` is currently set to NULL in the typed inserts, while raw Landing retains the original payload. Invalid JSON is logged and filtered out; this path does not route every malformed event to an Iceberg quarantine table. Other parsing/type failures are not a complete per-record recovery workflow.
+The job uses `request.id` as event_id, rejecting messages with missing or malformed identity. Silver/Gold tables are configured with an identifier and upsert; existing table metadata still matters. `ecommerce.filters` is currently set to NULL in the typed inserts, while raw Landing retains the original payload. Invalid JSON is logged and filtered out; this path does not route every malformed event to an Iceberg quarantine table. Other parsing/type failures are not a complete per-record recovery workflow.
 
-The parser converts timestamps to Asia/Ho_Chi_Minh and formats timestamp strings before SQL casts; `event_date` comes from that local date. Spark sessions use UTC. Avoid describing all log date/hour buckets as UTC without checking stored values and engine timezone behavior. A checkpoint interval is not a measured end-to-end latency SLA.
+The parser now normalizes timezone-aware timestamps to UTC before SQL casts; the Flink session and event-date buckets use UTC, matching Spark. Previously stored VN-local timestamp strings are not migrated automatically; replay/rebuild affected log partitions explicitly. Malformed timestamps are rejected rather than replaced with the current time. A checkpoint interval is not a measured end-to-end latency SLA.
 
 ## 6. Spark marts and historical files
 
-[build_logs_gold](../../pipelines/src/jobs/logs/build_logs_gold.py) reads `gold.fact_web_events` and writes `mart_hourly_route_metrics`, `mart_daily_product_demand`, and `mart_marketing_funnel_daily`. The streaming maintenance DAG rolls up the current VN date every two hours; the CLI can omit `--ingest-date` to process all available facts. Counts, percentiles and event-funnel limits are in [Metrics Catalog](METRICS_CATALOG.md).
+[build_logs_gold](../../pipelines/src/jobs/logs/build_logs_gold.py) reads `gold.fact_web_events` and writes `mart_hourly_route_metrics`, `mart_daily_product_demand`, and `mart_marketing_funnel_daily`. The streaming maintenance DAG rolls up the interval UTC date every two hours; the CLI can omit `--ingest-date` to process all available facts. Counts, percentiles and event-funnel limits are in [Metrics Catalog](METRICS_CATALOG.md).
 
 Generator output can be uploaded to this raw prefix:
 

@@ -2,7 +2,7 @@
 
 Tài liệu mô tả công thức trong pipeline và API hiện tại. Đây là định nghĩa tính toán, không phải kết quả benchmark hay cam kết SLA. Dữ liệu tổng hợp cần được ghi rõ khi dùng để minh họa kết quả đồ án.
 
-Nguồn chính: [Gold OLTP](../../pipelines/src/lakehouse/oltp/gold.py), [Gold logs](../../pipelines/src/lakehouse/logs/gold.py), [analytics service](../../services/ecommerce-api/app/modules/analytics/service.py).
+Nguồn chính: [Gold OLTP](../../pipelines/src/lakehouse/oltp/gold/), [Gold logs](../../pipelines/src/lakehouse/logs/gold.py), [analytics service](../../services/ecommerce-api/app/modules/analytics/service.py).
 
 Vai trò dashboard, API và phạm vi truy cập được mô tả trong [kiến trúc serving](SYSTEM_ARCHITECTURE_VISUAL.md#5-serving-và-phân-quyền).
 
@@ -12,7 +12,7 @@ Vai trò dashboard, API và phạm vi truy cập được mô tả trong [kiến
 - Phải kiểm tra grain trước khi SUM hoặc JOIN. `fact_order` có một dòng/đơn; `fact_order_item` có một dòng/chi tiết đơn.
 - Đếm đơn toàn hệ thống bằng `COUNT(DISTINCT order_id)` trên fact. Một đơn có nhiều nhóm sản phẩm sẽ xuất hiện ở nhiều dòng `mart_sales_daily`.
 - `data_source` cho biết `lakehouse`, `oltp` hoặc `oltp_fallback`. `is_degraded` và `degraded_reason` cho biết nguồn thay thế hoặc dữ liệu chưa đầy đủ.
-- Ngày hôm nay ở chỉ số cửa hàng dùng Asia/Ho_Chi_Minh. Log Flink chuyển timestamp sang giờ Việt Nam trước SQL cast và tạo event_date theo ngày đó; Spark session dùng UTC. Kiểm tra timestamp lưu và múi giờ engine khi đối chiếu ngày/giờ, không mặc định tất cả bucket là UTC.
+- Ngày hôm nay ở chỉ số cửa hàng dùng Asia/Ho_Chi_Minh. Log Flink mới và Spark dùng UTC. Các partition log cũ theo giờ Việt Nam cần được replay/migrate rõ ràng trước khi so sánh chuỗi thời gian.
 
 ## 2. Doanh thu, giá vốn và lợi nhuận
 
