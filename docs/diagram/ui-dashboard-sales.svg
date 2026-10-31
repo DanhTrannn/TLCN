@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="ui-dashboard-sales-root" viewBox="0 0 1552 1160" role="img" aria-labelledby="ui-dashboard-sales-title">
+<title id="ui-dashboard-sales-title">BI Hub — Executive / Sales</title>
+<defs><marker id="ui-dashboard-sales-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1552" height="1160" fill="#ffffff"/>
+<rect x="40" y="40" width="1472" height="84" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="68" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Báo cáo kinh doanh</text>
+<line x1="40" y1="84" x2="1512" y2="84" stroke="#222222" stroke-width="1"/>
+<text x="56" y="110" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Làm mới</text>
+<rect x="40" y="156" width="1456" height="80" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="184" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Góc nhìn</text>
+<line x1="40" y1="200" x2="1496" y2="200" stroke="#222222" stroke-width="1"/>
+<text x="56" y="226" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Executive · Sales · Marketing · Store · Inventory · Operations · System</text>
+<rect x="40" y="284" width="1456" height="92" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="312" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Phạm vi báo cáo</text>
+<line x1="40" y1="328" x2="1496" y2="328" stroke="#222222" stroke-width="1"/>
+<text x="56" y="354" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Nguồn dữ liệu · Kỳ đo · Thời điểm tải</text>
+<rect x="40" y="424" width="1456" height="120" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="452" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Tổng quan</text>
+<line x1="40" y1="468" x2="1496" y2="468" stroke="#222222" stroke-width="1"/>
+<text x="56" y="494" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Doanh thu · Lợi nhuận · Số đơn</text>
+<rect x="40" y="592" width="880" height="228" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="620" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Xu hướng doanh thu</text>
+<line x1="40" y1="636" x2="920" y2="636" stroke="#222222" stroke-width="1"/>
+<text x="56" y="662" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">7 ngày · 30 ngày · 90 ngày</text>
+<rect x="984" y="592" width="512" height="228" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1000" y="620" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Phân nhóm</text>
+<line x1="984" y1="636" x2="1496" y2="636" stroke="#222222" stroke-width="1"/>
+<text x="1000" y="662" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Kênh bán · Cửa hàng</text>
+<rect x="40" y="868" width="1456" height="112" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="896" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Chi tiết</text>
+<line x1="40" y1="912" x2="1496" y2="912" stroke="#222222" stroke-width="1"/>
+<text x="56" y="938" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tìm kiếm · Sắp xếp · CSV</text>
+<rect x="40" y="1028" width="1456" height="92" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="768" y="1080.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Định nghĩa chỉ số / Tác vụ</text>
+</svg>

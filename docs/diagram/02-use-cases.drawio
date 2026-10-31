@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="uc-storefront" name="Người mua hàng">
+    <mxGraphModel dx="1000" dy="900" grid="1" gridSize="4" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="900" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="system" value="Website bán hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;rounded=0;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=23;verticalAlign=top;spacingTop=18;" vertex="1" parent="1">
+          <mxGeometry x="240" y="32" width="520" height="836" as="geometry" />
+        </mxCell>
+        <mxCell id="association-0" value="" edge="1" parent="1" source="guest" target="browse" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-1" value="" edge="1" parent="1" source="guest" target="auth" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-2" value="" edge="1" parent="1" source="customer" target="browse" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-3" value="" edge="1" parent="1" source="customer" target="cart" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-4" value="" edge="1" parent="1" source="customer" target="checkout" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-5" value="" edge="1" parent="1" source="customer" target="orders" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-6" value="" edge="1" parent="1" source="customer" target="returns" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="browse" value="Tìm kiếm sản phẩm" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="72" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" value="Đăng ký / đăng nhập" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="192" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cart" value="Quản lý giỏ hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="312" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="checkout" value="Đặt hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="432" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="orders" value="Theo dõi đơn hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="552" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="returns" value="Yêu cầu trả hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="672" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="guest" value="Khách truy cập" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="138" width="48" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="customer" value="Khách hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=40;" vertex="1" parent="1">
+          <mxGeometry x="864" y="498" width="48" height="88" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-admin" name="Quản trị và cửa hàng">
+    <mxGraphModel dx="1000" dy="1000" grid="1" gridSize="4" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="1000" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="system" value="Quản trị bán hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;rounded=0;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=23;verticalAlign=top;spacingTop=18;" vertex="1" parent="1">
+          <mxGeometry x="240" y="32" width="520" height="936" as="geometry" />
+        </mxCell>
+        <mxCell id="association-0" value="" edge="1" parent="1" source="store" target="pos" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-1" value="" edge="1" parent="1" source="store" target="stock" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-2" value="" edge="1" parent="1" source="inventory" target="catalog" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-3" value="" edge="1" parent="1" source="marketing" target="marketing-case" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-4" value="" edge="1" parent="1" source="admin" target="pos" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-5" value="" edge="1" parent="1" source="admin" target="stock" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-6" value="" edge="1" parent="1" source="admin" target="catalog" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-7" value="" edge="1" parent="1" source="admin" target="fulfil" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-8" value="" edge="1" parent="1" source="admin" target="return" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-9" value="" edge="1" parent="1" source="admin" target="marketing-case" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pos" value="Bán hàng POS" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="68" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="stock" value="Xem đơn và tồn kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="208" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="catalog" value="Quản lý sản phẩm và&lt;br&gt;nhập kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="348" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="fulfil" value="Điều phối đơn hàng và&lt;br&gt;giao vận" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="488" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="return" value="Xử lý trả hàng và hoàn&lt;br&gt;tiền" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="628" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="marketing-case" value="Quản lý coupon và đánh&lt;br&gt;giá" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="768" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="store" value="Quản lý cửa hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="166" width="48" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory" value="Quản lý kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="376" width="48" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="marketing" value="Quản lý marketing" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="796" width="48" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" value="Quản trị viên" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=40;" vertex="1" parent="1">
+          <mxGeometry x="864" y="446" width="48" height="88" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-data-bi" name="Data Lakehouse và BI">
+    <mxGraphModel dx="1000" dy="700" grid="1" gridSize="4" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="700" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="system" value="Data Lakehouse và BI" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;rounded=0;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=23;verticalAlign=top;spacingTop=18;" vertex="1" parent="1">
+          <mxGeometry x="240" y="32" width="520" height="636" as="geometry" />
+        </mxCell>
+        <mxCell id="association-0" value="" edge="1" parent="1" source="engineer" target="run" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-1" value="" edge="1" parent="1" source="engineer" target="quality" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-2" value="" edge="1" parent="1" source="engineer" target="query" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="association-3" value="" edge="1" parent="1" source="analyst" target="dashboard" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;edgeStyle=none;rounded=0;strokeColor=#222222;strokeWidth=1.2;startArrow=none;endArrow=none;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="run" value="Vận hành pipeline" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="68" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="quality" value="Kiểm soát chất lượng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="208" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="query" value="Truy vấn Lakehouse" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="348" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="dashboard" value="Xem dashboard" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;ellipse;perimeter=ellipsePerimeter;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.2;fontSize=22;spacing=12;" vertex="1" parent="system">
+          <mxGeometry x="84" y="488" width="352" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="engineer" value="Người vận hành dữ liệu" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=0;" vertex="1" parent="1">
+          <mxGeometry x="88" y="236" width="48" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="analyst" value="Người dùng BI" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontColor=#222222;shape=umlActor;fillColor=#ffffff;strokeColor=#222222;strokeWidth=1.3;fontSize=20;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;labelWidth=200;spacingTop=12;spacingLeft=40;" vertex="1" parent="1">
+          <mxGeometry x="864" y="516" width="48" height="88" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

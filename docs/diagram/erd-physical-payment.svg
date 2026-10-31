@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="erd-physical-payment-root" viewBox="0 0 1660 692" role="img" aria-labelledby="erd-physical-payment-title">
+<title id="erd-physical-payment-title">MySQL — Thanh toán, coupon và hoàn tiền</title>
+<defs><marker id="erd-physical-payment-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1660" height="692" fill="#ffffff"/>
+<path d="M 1164 130 L 1144 130 L 1144 99 L 1068 99" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<path d="M 516 554 L 536 554 L 536 208 L 1132 208 L 1132 102 L 1164 102" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<path d="M 516 582 L 532 582 L 532 224 L 40 224 L 40 102 L 60 102" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<circle cx="592" cy="208" r="4" fill="#ffffff"/>
+<path d="M 612 554 L 592 554 L 592 99 L 516 99" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<path d="M 1164 554 L 1144 554 L 1144 526 L 1068 526" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<circle cx="596" cy="208" r="4" fill="#ffffff"/>
+<path d="M 1164 610 L 596 610 L 596 105 L 516 105" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<circle cx="1088" cy="208" r="4" fill="#ffffff"/>
+<circle cx="1088" cy="526" r="4" fill="#ffffff"/>
+<path d="M 1164 582 L 1088 582 L 1088 105 L 1068 105" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-physical-payment-arrow)"/>
+<rect x="60" y="40" width="456" height="76" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><line x1="60" y1="88" x2="516" y2="88" stroke="#222222"/>
+<text x="72" y="70" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="600">customers</text>
+<text x="72" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">PK customer_id</text>
+<text x="504" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<rect x="612" y="40" width="456" height="76" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><line x1="612" y1="88" x2="1068" y2="88" stroke="#222222"/>
+<text x="624" y="70" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="600">orders</text>
+<text x="624" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">PK order_id</text>
+<text x="1056" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<rect x="1164" y="40" width="456" height="160" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><line x1="1164" y1="88" x2="1620" y2="88" stroke="#222222"/>
+<text x="1176" y="70" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="600">payments</text>
+<text x="1176" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">PK payment_id</text>
+<text x="1608" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="1176" y="136" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK order_id</text>
+<text x="1608" y="136" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="1176" y="164" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">status</text>
+<text x="1608" y="164" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">varchar(16) NOT NULL</text>
+<text x="1176" y="192" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">amount_vnd</text>
+<text x="1608" y="192" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<rect x="60" y="464" width="456" height="188" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><line x1="60" y1="512" x2="516" y2="512" stroke="#222222"/>
+<text x="72" y="494" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="600">refunds</text>
+<text x="72" y="532" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">PK refund_id</text>
+<text x="504" y="532" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="72" y="560" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK payment_id</text>
+<text x="504" y="560" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="72" y="588" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK requested_by_customer_id</text>
+<text x="504" y="588" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="72" y="616" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">status</text>
+<text x="504" y="616" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">varchar(16) NOT NULL</text>
+<text x="72" y="644" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">amount_vnd</text>
+<text x="504" y="644" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<rect x="612" y="464" width="456" height="104" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><line x1="612" y1="512" x2="1068" y2="512" stroke="#222222"/>
+<text x="624" y="494" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="600">coupons</text>
+<text x="624" y="532" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">PK coupon_id</text>
+<text x="1056" y="532" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="624" y="560" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK archived_by_customer_id</text>
+<text x="1056" y="560" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NULL</text>
+<rect x="1164" y="464" width="456" height="188" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><line x1="1164" y1="512" x2="1620" y2="512" stroke="#222222"/>
+<text x="1176" y="494" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="600">coupon_redemptions</text>
+<text x="1176" y="532" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">PK coupon_redemption_id</text>
+<text x="1608" y="532" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="1176" y="560" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK coupon_id</text>
+<text x="1608" y="560" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="1176" y="588" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK order_id</text>
+<text x="1608" y="588" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="1176" y="616" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">FK customer_id</text>
+<text x="1608" y="616" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">bigint unsigned NOT NULL</text>
+<text x="1176" y="644" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="start" font-weight="400">status</text>
+<text x="1608" y="644" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#222222" text-anchor="end" font-weight="400">varchar(16) NOT NULL</text>
+</svg>

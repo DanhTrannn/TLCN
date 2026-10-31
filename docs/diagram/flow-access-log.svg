@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="flow-access-log-root" viewBox="0 0 1716 876" role="img" aria-labelledby="flow-access-log-title">
+<title id="flow-access-log-title">Luồng Access Log</title>
+<defs><marker id="flow-access-log-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1716" height="876" fill="#ffffff"/>
+<path d="M 780 372 L 780 168 L 1430 168 L 1430 148" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<path d="M 1000 416 L 1020 416 L 1020 286 L 1184 286" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<path d="M 1000 460 L 1020 460 L 1020 478 L 1184 478" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<path d="M 780 504 L 780 596 L 1430 596 L 1430 616" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<path d="M 224 172 L 224 372" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<path d="M 408 430 L 428 430 L 428 438 L 560 438" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<path d="M 1184 670 L 1164 670 L 1164 776 L 1000 776" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-access-log-arrow)"/>
+<rect x="1054.39" y="743" width="55.2188" height="23" fill="#ffffff"/>
+<text x="1082" y="760" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Rollup</text>
+<rect x="40" y="56" width="368" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="120.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">FastAPI Access Log</text>
+<rect x="40" y="372" width="368" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="436.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Kafka Access Log</text>
+<rect x="560" y="372" width="440" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="780" y="444.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Flink StatementSet</text>
+<rect x="1184" y="40" width="492" height="108" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1430" y="100.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">landing.access_logs</text>
+<rect x="1184" y="232" width="492" height="108" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1430" y="292.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">bronze.web_events</text>
+<rect x="1184" y="424" width="492" height="108" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1430" y="484.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">silver.silver_logs</text>
+<rect x="1184" y="616" width="492" height="108" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1430" y="676.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">gold.fact_web_events</text>
+<rect x="560" y="716" width="440" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="780" y="782.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Log Data Marts</text>
+</svg>

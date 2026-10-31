@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="ui-dashboard-sales" name="BI Hub — Executive / Sales">
+    <mxGraphModel dx="1552" dy="1160" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1552" pageHeight="1160" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="top" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="1472.0" height="84.0" as="geometry" />
+        </mxCell>
+        <mxCell id="top-label-0" value="Báo cáo kinh doanh" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="top">
+          <mxGeometry x="16" y="8" width="1440.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="top-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="top">
+          <mxGeometry x="0" y="44" width="1472.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="top-field-0" value="Làm mới" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="top">
+          <mxGeometry x="16" y="54" width="1440.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="roles" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="156.0" width="1456.0" height="80.0" as="geometry" />
+        </mxCell>
+        <mxCell id="roles-label-0" value="Góc nhìn" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="roles">
+          <mxGeometry x="16" y="8" width="1424.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="roles-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="roles">
+          <mxGeometry x="0" y="44" width="1456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="roles-field-0" value="Executive · Sales · Marketing · Store · Inventory · Operations · System" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="roles">
+          <mxGeometry x="16" y="54" width="1424.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="source" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="284.0" width="1456.0" height="92.0" as="geometry" />
+        </mxCell>
+        <mxCell id="source-label-0" value="Phạm vi báo cáo" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="source">
+          <mxGeometry x="16" y="8" width="1424.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="source-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="source">
+          <mxGeometry x="0" y="44" width="1456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="source-field-0" value="Nguồn dữ liệu · Kỳ đo · Thời điểm tải" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="source">
+          <mxGeometry x="16" y="54" width="1424.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="424.0" width="1456.0" height="120.0" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi-label-0" value="Tổng quan" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="kpi">
+          <mxGeometry x="16" y="8" width="1424.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="kpi">
+          <mxGeometry x="0" y="44" width="1456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi-field-0" value="Doanh thu · Lợi nhuận · Số đơn" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="kpi">
+          <mxGeometry x="16" y="54" width="1424.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="trend" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="592.0" width="880.0" height="228.0" as="geometry" />
+        </mxCell>
+        <mxCell id="trend-label-0" value="Xu hướng doanh thu" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="trend">
+          <mxGeometry x="16" y="8" width="848.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="trend-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="trend">
+          <mxGeometry x="0" y="44" width="880.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="trend-field-0" value="7 ngày · 30 ngày · 90 ngày" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="trend">
+          <mxGeometry x="16" y="54" width="848.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="breakdown" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="984.0" y="592.0" width="512.0" height="228.0" as="geometry" />
+        </mxCell>
+        <mxCell id="breakdown-label-0" value="Phân nhóm" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="breakdown">
+          <mxGeometry x="16" y="8" width="480.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="breakdown-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="breakdown">
+          <mxGeometry x="0" y="44" width="512.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="breakdown-field-0" value="Kênh bán · Cửa hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="breakdown">
+          <mxGeometry x="16" y="54" width="480.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="table" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="868.0" width="1456.0" height="112.0" as="geometry" />
+        </mxCell>
+        <mxCell id="table-label-0" value="Chi tiết" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="table">
+          <mxGeometry x="16" y="8" width="1424.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="table-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="table">
+          <mxGeometry x="0" y="44" width="1456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="table-field-0" value="Tìm kiếm · Sắp xếp · CSV" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="table">
+          <mxGeometry x="16" y="54" width="1424.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="next" value="Định nghĩa chỉ số / Tác vụ" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="1028.0" width="1456.0" height="92.0" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="ui-dashboard-operations" name="BI Hub — vận hành theo vai trò">
+    <mxGraphModel dx="1552" dy="1128" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1552" pageHeight="1128" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="top" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="1472.0" height="84.0" as="geometry" />
+        </mxCell>
+        <mxCell id="top-label-0" value="Báo cáo vận hành" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="top">
+          <mxGeometry x="16" y="8" width="1440.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="top-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="top">
+          <mxGeometry x="0" y="44" width="1472.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="top-field-0" value="Làm mới" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="top">
+          <mxGeometry x="16" y="54" width="1440.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="role" value="Góc nhìn / Cửa hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="156.0" width="1456.0" height="92.0" as="geometry" />
+        </mxCell>
+        <mxCell id="source" value="Nguồn dữ liệu / Thời điểm tải" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="296.0" width="1456.0" height="92.0" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="436.0" width="1456.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi-label-0" value="KPI vận hành" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="kpi">
+          <mxGeometry x="16" y="8" width="1424.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="kpi">
+          <mxGeometry x="0" y="44" width="1456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kpi-field-0" value="Bán hàng · Tồn kho · Giao vận · Trả hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="kpi">
+          <mxGeometry x="16" y="54" width="1424.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="details" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="620.0" width="880.0" height="256.0" as="geometry" />
+        </mxCell>
+        <mxCell id="details-label-0" value="Chi tiết nghiệp vụ" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="details">
+          <mxGeometry x="16" y="8" width="848.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="details-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="details">
+          <mxGeometry x="0" y="44" width="880.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="details-field-0" value="Tìm kiếm · Sắp xếp · CSV" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="details">
+          <mxGeometry x="16" y="54" width="848.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="actions" value="Tác vụ nghiệp vụ" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="984.0" y="620.0" width="512.0" height="256.0" as="geometry" />
+        </mxCell>
+        <mxCell id="definitions" value="Định nghĩa chỉ số" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="924.0" width="1456.0" height="164.0" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="medallion-root" viewBox="0 0 1760 508" role="img" aria-labelledby="medallion-title">
+<title id="medallion-title">Các tầng dữ liệu Lakehouse</title>
+<defs><marker id="medallion-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1760" height="508" fill="#ffffff"/>
+<path d="M 400 102 L 480 102" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#medallion-arrow)"/>
+<path d="M 840 102 L 920 102" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#medallion-arrow)"/>
+<path d="M 1280 102 L 1360 102" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#medallion-arrow)"/>
+<path d="M 660 164 L 660 276 L 820 276 L 820 336" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#medallion-arrow)"/>
+<path d="M 1100 164 L 1100 292 L 940 292 L 940 336" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#medallion-arrow)"/>
+<path d="M 1540 164 L 1540 336" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#medallion-arrow)"/>
+<rect x="697.906" y="243" width="84.1875" height="23" fill="#ffffff"/>
+<text x="740" y="260" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Lỗi dữ liệu</text>
+<rect x="977.906" y="259" width="84.1875" height="23" fill="#ffffff"/>
+<text x="1020" y="276" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Lỗi dữ liệu</text>
+<rect x="1576.95" y="243" width="102.094" height="23" fill="#ffffff"/>
+<text x="1628" y="260" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Kết quả gate</text>
+<rect x="40" y="40" width="360" height="124" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="220" y="92" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Landing</text>
+<text x="220" y="128" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Parquet / manifest</text>
+<rect x="480" y="40" width="360" height="124" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="660" y="92" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Bronze</text>
+<text x="660" y="128" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Iceberg / append</text>
+<rect x="920" y="40" width="360" height="124" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1100" y="92" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Silver</text>
+<text x="1100" y="128" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Iceberg / MERGE</text>
+<rect x="1360" y="40" width="360" height="124" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1540" y="92" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Gold</text>
+<text x="1540" y="128" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Dimension / Fact / Mart</text>
+<rect x="700" y="336" width="360" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="880" y="408.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Quarantine</text>
+<rect x="1360" y="336" width="360" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1540" y="408.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">system.data_quality_results</text>
+</svg>

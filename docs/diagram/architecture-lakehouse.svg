@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="architecture-lakehouse-root" viewBox="0 0 1520 796" role="img" aria-labelledby="architecture-lakehouse-title">
+<title id="architecture-lakehouse-title">Kiến trúc nền tảng Lakehouse và BI</title>
+<defs><marker id="architecture-lakehouse-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1520" height="796" fill="#ffffff"/>
+<path d="M 200 156 L 200 340" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 360 398 L 380 398 L 380 406 L 544 406" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 200 640 L 200 492 L 677.333 492 L 677.333 472" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 1160 398 L 1140 398 L 1140 406 L 944 406" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 744 340 L 744 156" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 810.667 472 L 810.667 620 L 744 620 L 744 640" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 944 98 L 964 98 L 964 78.667 L 1160 78.667" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<circle cx="744" cy="220" r="4" fill="#ffffff"/>
+<path d="M 360 98 L 380 98 L 380 220 L 1140 220 L 1140 117.333 L 1160 117.333" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#architecture-lakehouse-arrow)"/>
+<path d="M 1320 640 L 1320 456" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-lakehouse-arrow)"/>
+<rect x="208.505" y="236" width="78.8906" height="23" fill="#ffffff"/>
+<text x="247.95" y="253" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Điều phối</text>
+<rect x="435.875" y="373" width="52.25" height="23" fill="#ffffff"/>
+<text x="462" y="390" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Batch</text>
+<rect x="396.519" y="459" width="84.2969" height="23" fill="#ffffff"/>
+<text x="438.667" y="476" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Streaming</text>
+<rect x="1022.45" y="373" width="39.1094" height="23" fill="#ffffff"/>
+<text x="1042" y="390" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Đọc</text>
+<rect x="751.967" y="236" width="65.7656" height="23" fill="#ffffff"/>
+<text x="784.85" y="253" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Catalog</text>
+<rect x="823.156" y="534" width="35.4219" height="23" fill="#ffffff"/>
+<text x="840.867" y="551" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">File</text>
+<rect x="1022.86" y="45.667" width="78.2812" height="23" fill="#ffffff"/>
+<text x="1062" y="62.667" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Metadata</text>
+<rect x="718.938" y="187" width="82.125" height="23" fill="#ffffff"/>
+<text x="760" y="204" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Task state</text>
+<rect x="1362.3" y="536" width="39.7031" height="23" fill="#ffffff"/>
+<text x="1382.15" y="553" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">SQL</text>
+<rect x="40" y="40" width="320" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="200" y="104.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Airflow</text>
+<rect x="40" y="340" width="320" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="200" y="404.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Spark</text>
+<rect x="40" y="640" width="320" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="200" y="704.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Flink</text>
+<rect x="544" y="340" width="400" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="412.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Iceberg</text>
+<rect x="544" y="40" width="400" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="104.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Polaris</text>
+<rect x="544" y="640" width="400" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="704.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MinIO</text>
+<rect x="1160" y="340" width="320" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1320" y="404.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Trino</text>
+<rect x="1160" y="640" width="320" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1320" y="704.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">FastAPI / BI Hub</text>
+<rect x="1160" y="40" width="320" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1320" y="104.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">PostgreSQL metadata</text>
+</svg>

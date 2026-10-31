@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="gold-log-marts-root" viewBox="0 0 1536 836" role="img" aria-labelledby="gold-log-marts-title">
+<title id="gold-log-marts-title">Gold — fact và mart Access Log</title>
+<defs><marker id="gold-log-marts-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1536" height="836" fill="#ffffff"/>
+<path d="M 260 340 L 260 216 L 1176 216 L 1176 196" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-log-marts-arrow)"/>
+<path d="M 480 418 L 856 418" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-log-marts-arrow)"/>
+<path d="M 260 496 L 260 620 L 1176 620 L 1176 640" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-log-marts-arrow)"/>
+<rect x="40" y="340" width="440" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="260" y="388" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_web_events</text>
+<text x="260" y="424" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">event_id</text>
+<text x="260" y="444" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">event_ts</text>
+<text x="260" y="464" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">ecommerce_action</text>
+<rect x="856" y="40" width="640" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1176" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_hourly_route_metrics</text>
+<text x="1176" y="144" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">metric_date × metric_hour × http_route × http_request_method</text>
+<rect x="856" y="340" width="640" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1176" y="408" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_daily_product_demand</text>
+<text x="1176" y="444" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">metric_date × product_key</text>
+<rect x="856" y="640" width="640" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1176" y="708" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_marketing_funnel_daily</text>
+<text x="1176" y="744" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">metric_date</text>
+</svg>

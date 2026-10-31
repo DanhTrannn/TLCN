@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="security-engines-root" viewBox="0 0 1536 908" role="img" aria-labelledby="security-engines-title">
+<title id="security-engines-title">Quyền engine, catalog và object storage</title>
+<defs><marker id="security-engines-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1536" height="908" fill="#ffffff"/>
+<path d="M 416 108 L 436 108 L 436 118 L 560 118" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<path d="M 228 176 L 228 196 L 496 196 L 496 692 L 701.333 692 L 701.333 712" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<circle cx="496" cy="216" r="4" fill="#ffffff"/>
+<path d="M 228 376 L 228 216 L 701.333 216 L 701.333 196" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<circle cx="496" cy="532" r="4" fill="#ffffff"/>
+<path d="M 228 512 L 228 532 L 842.667 532 L 842.667 712" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<circle cx="480" cy="532" r="4" fill="#ffffff"/>
+<circle cx="496" cy="240" r="4" fill="#ffffff"/>
+<path d="M 228 712 L 228 692 L 480 692 L 480 240 L 842.667 240 L 842.667 196" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<path d="M 416 780 L 436 780 L 436 790 L 560 790" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<path d="M 984 118 L 1004 118 L 1004 108 L 1168 108" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<path d="M 984 790 L 1004 790 L 1004 780 L 1168 780" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-engines-arrow)"/>
+<rect x="446.984" y="85" width="102.031" height="23" fill="#ffffff"/>
+<text x="498" y="102" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Catalog auth</text>
+<rect x="503.084" y="432" width="103.031" height="23" fill="#ffffff"/>
+<text x="554.6" y="449" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Storage auth</text>
+<rect x="413.651" y="183" width="102.031" height="23" fill="#ffffff"/>
+<text x="464.667" y="200" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Catalog auth</text>
+<rect x="483.817" y="499" width="103.031" height="23" fill="#ffffff"/>
+<text x="535.333" y="516" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Storage auth</text>
+<rect x="487.584" y="544.4" width="102.031" height="23" fill="#ffffff"/>
+<text x="538.6" y="561.4" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Catalog auth</text>
+<rect x="446.484" y="757" width="103.031" height="23" fill="#ffffff"/>
+<text x="498" y="774" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Storage auth</text>
+<rect x="1028.45" y="75" width="115.094" height="23" fill="#ffffff"/>
+<text x="1086" y="92" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Catalog grants</text>
+<rect x="1048.27" y="747" width="75.4688" height="23" fill="#ffffff"/>
+<text x="1086" y="764" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">S3 policy</text>
+<rect x="40" y="40" width="376" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="228" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">spark_writer</text>
+<rect x="40" y="376" width="376" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="228" y="450.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">flink_writer</text>
+<rect x="40" y="712" width="376" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="228" y="786.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">trino_reader</text>
+<rect x="560" y="40" width="424" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="772" y="124.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Polaris RBAC</text>
+<rect x="560" y="712" width="424" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="772" y="796.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MinIO Policy</text>
+<rect x="1168" y="40" width="328" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1332" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Catalog lakehouse</text>
+<rect x="1168" y="712" width="328" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1332" y="786.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MinIO storage</text>
+</svg>

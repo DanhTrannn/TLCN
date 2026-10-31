@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="security-app-root" viewBox="0 0 1488 880" role="img" aria-labelledby="security-app-title">
+<title id="security-app-title">Quyền ứng dụng và dữ liệu người dùng</title>
+<defs><marker id="security-app-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1488" height="880" fill="#ffffff"/>
+<path d="M 408 106 L 560 106" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-app-arrow)"/>
+<path d="M 928 106 L 1080 106" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-app-arrow)"/>
+<path d="M 1202.67 172 L 1202.67 356 L 1264 356 L 1264 376" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-app-arrow)"/>
+<circle cx="1202.67" cy="192" r="4" fill="#ffffff"/>
+<path d="M 1325.33 172 L 1325.33 192 L 744 192 L 744 376" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-app-arrow)"/>
+<path d="M 560 442 L 408 442" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#security-app-arrow)"/>
+<path d="M 744 708 L 744 508" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#security-app-arrow)"/>
+<rect x="1205.82" y="252" width="125.094" height="23" fill="#ffffff"/>
+<text x="1268.37" y="269" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Không có quyền</text>
+<rect x="990.818" y="159" width="87.7031" height="23" fill="#ffffff"/>
+<text x="1034.67" y="176" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Được phép</text>
+<rect x="754.623" y="596" width="131.453" height="23" fill="#ffffff"/>
+<text x="820.35" y="613" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Dữ liệu phân tích</text>
+<rect x="40" y="40" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="112.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">BI Hub</text>
+<rect x="560" y="40" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="112.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Xác thực</text>
+<rect x="1080" y="40" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="112.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Phân quyền role / store</text>
+<rect x="1080" y="376" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="448.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Từ chối truy cập</text>
+<rect x="560" y="376" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="448.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Truy vấn theo quyền</text>
+<rect x="40" y="376" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="448.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Dashboard</text>
+<rect x="560" y="708" width="368" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="780.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Pseudonym hóa PII</text>
+</svg>

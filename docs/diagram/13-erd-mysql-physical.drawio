@@ -1,0 +1,980 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="erd-physical-identity" name="MySQL — Tài khoản và địa điểm">
+    <mxGraphModel dx="1660" dy="624" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1660" pageHeight="624" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cities" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="84.0" width="456.0" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="cities-header" value="&lt;b&gt;cities&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="cities">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cities-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="cities">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cities--city_id" value="PK city_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cities">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cities--code" value="code &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cities">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cities--name" value="name &lt;font style=&quot;font-size:12px&quot;&gt;varchar(120) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cities">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stores" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="84.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="stores-header" value="&lt;b&gt;stores&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="stores-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="stores--store_id" value="PK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stores--city_id" value="FK city_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stores--code" value="code &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stores--name" value="name &lt;font style=&quot;font-size:12px&quot;&gt;varchar(120) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="84.0" width="456.0" height="216" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-header" value="&lt;b&gt;customers&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--customer_id" value="PK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--city_id" value="FK city_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--store_id" value="FK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--cod_reinstated_by" value="FK cod_reinstated_by &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="160" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--role" value="role &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="188" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customer_credentials" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="508.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="customer_credentials-header" value="&lt;b&gt;customer_credentials&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customer_credentials">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customer_credentials-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customer_credentials">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customer_credentials--customer_id" value="PK/FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customer_credentials">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="stores--city_id" target="cities--city_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="SET NULL" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="customers--city_id" target="cities--city_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="SET NULL" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="customers" source="customers--cod_reinstated_by" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="SET NULL" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="customers--store_id" target="stores--store_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="customer_credentials--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="erd-physical-catalog" name="MySQL — Danh mục, wishlist và đánh giá">
+    <mxGraphModel dx="2192" dy="792" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="2192" pageHeight="792" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="customers" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="84.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-header" value="&lt;b&gt;customers&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--customer_id" value="PK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="84.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items-header" value="&lt;b&gt;order_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items--order_item_id" value="PK order_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="categories" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="84.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="categories-header" value="&lt;b&gt;categories&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="categories">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="categories-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="categories">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="categories--category_id" value="PK category_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="categories">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="categories--parent_category_id" value="FK parent_category_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="categories">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="categories--code" value="code &lt;font style=&quot;font-size:12px&quot;&gt;varchar(64) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="categories">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="categories--name" value="name &lt;font style=&quot;font-size:12px&quot;&gt;varchar(160) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="categories">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="products" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1696.0" y="84.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="products-header" value="&lt;b&gt;products&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="products">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="products-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="products">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="products--product_id" value="PK product_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="products">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="products--category_id" value="FK category_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="products">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="products--archived_by_customer_id" value="FK archived_by_customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="products">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="products--name" value="name &lt;font style=&quot;font-size:12px&quot;&gt;varchar(200) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="products">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="508.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-header" value="&lt;b&gt;product_variants&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--variant_id" value="PK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--product_id" value="FK product_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--sku" value="sku &lt;font style=&quot;font-size:12px&quot;&gt;varchar(64) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--price_vnd" value="price_vnd &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="wishlist_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="508.0" width="456.0" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="wishlist_items-header" value="&lt;b&gt;wishlist_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="wishlist_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="wishlist_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="wishlist_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="wishlist_items--wishlist_item_id" value="PK wishlist_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="wishlist_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="wishlist_items--customer_id" value="FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="wishlist_items">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="wishlist_items--product_id" value="FK product_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="wishlist_items">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="508.0" width="456.0" height="244" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews-header" value="&lt;b&gt;product_reviews&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--review_id" value="PK review_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--order_item_id" value="FK order_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--customer_id" value="FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--product_id" value="FK product_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--moderated_by_customer_id" value="FK moderated_by_customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="160" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="188" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_reviews--rating" value="rating &lt;font style=&quot;font-size:12px&quot;&gt;int unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_reviews">
+          <mxGeometry x="0" y="216" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="categories" source="categories--parent_category_id" target="categories--category_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.178571;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="products--archived_by_customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="products--category_id" target="categories--category_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.285714;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="product_variants--product_id" target="products--product_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="wishlist_items--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="wishlist_items--product_id" target="products--product_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="product_reviews--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-7" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.821429;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="product_reviews--moderated_by_customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-8" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="product_reviews--order_item_id" target="order_items--order_item_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-9" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.714286;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="product_reviews--product_id" target="products--product_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="erd-physical-orders" name="MySQL — Giỏ hàng và đơn hàng">
+    <mxGraphModel dx="2192" dy="1032" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="2192" pageHeight="1032" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="coupons" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons-header" value="&lt;b&gt;coupons&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons--coupon_id" value="PK coupon_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="customers" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-header" value="&lt;b&gt;customers&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--customer_id" value="PK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-header" value="&lt;b&gt;product_variants&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--variant_id" value="PK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stores" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1696.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="stores-header" value="&lt;b&gt;stores&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="stores-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="stores--store_id" value="PK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="carts" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="464.0" width="456.0" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="carts-header" value="&lt;b&gt;carts&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="carts">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="carts-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="carts">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="carts--cart_id" value="PK cart_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="carts">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="carts--customer_id" value="FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="carts">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="carts--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="carts">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items-header" value="&lt;b&gt;cart_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="cart_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="cart_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items--cart_item_id" value="PK cart_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cart_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items--cart_id" value="FK cart_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cart_items">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items--variant_id" value="FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cart_items">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cart_items--quantity" value="quantity &lt;font style=&quot;font-size:12px&quot;&gt;int unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="cart_items">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="464.0" width="456.0" height="244" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-header" value="&lt;b&gt;orders&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--order_id" value="PK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--cart_id" value="FK cart_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--customer_id" value="FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--coupon_id" value="FK coupon_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--store_id" value="FK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="160" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(24) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="188" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--total_vnd" value="total_vnd &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="216" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1696.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items-header" value="&lt;b&gt;order_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items--order_item_id" value="PK order_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items--order_id" value="FK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items--variant_id" value="FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items--quantity" value="quantity &lt;font style=&quot;font-size:12px&quot;&gt;int unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_status_history" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="888.0" width="456.0" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="order_status_history-header" value="&lt;b&gt;order_status_history&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="order_status_history">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="order_status_history-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="order_status_history">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="order_status_history--order_status_history_id" value="PK order_status_history_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_status_history">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_status_history--order_id" value="FK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_status_history">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="carts--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="cart_items--cart_id" target="carts--cart_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="cart_items--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="orders--cart_id" target="carts--cart_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="orders--coupon_id" target="coupons--coupon_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="orders--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="orders--store_id" target="stores--store_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-7" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="order_items--order_id" target="orders--order_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-8" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="order_items--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-9" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="order_status_history--order_id" target="orders--order_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="erd-physical-payment" name="MySQL — Thanh toán, coupon và hoàn tiền">
+    <mxGraphModel dx="1660" dy="692" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1660" pageHeight="692" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="customers" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-header" value="&lt;b&gt;customers&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--customer_id" value="PK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="612.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-header" value="&lt;b&gt;orders&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--order_id" value="PK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="payments" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1164.0" y="40.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="payments-header" value="&lt;b&gt;payments&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="payments">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="payments-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="payments">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="payments--payment_id" value="PK payment_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="payments">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="payments--order_id" value="FK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="payments">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="payments--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="payments">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="payments--amount_vnd" value="amount_vnd &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="payments">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60.0" y="464.0" width="456.0" height="188" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds-header" value="&lt;b&gt;refunds&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds--refund_id" value="PK refund_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds--payment_id" value="FK payment_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds--requested_by_customer_id" value="FK requested_by_customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="refunds--amount_vnd" value="amount_vnd &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="refunds">
+          <mxGeometry x="0" y="160" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="612.0" y="464.0" width="456.0" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons-header" value="&lt;b&gt;coupons&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons--coupon_id" value="PK coupon_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupons--archived_by_customer_id" value="FK archived_by_customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupons">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1164.0" y="464.0" width="456.0" height="188" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions-header" value="&lt;b&gt;coupon_redemptions&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions--coupon_redemption_id" value="PK coupon_redemption_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions--coupon_id" value="FK coupon_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions--order_id" value="FK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions--customer_id" value="FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="coupon_redemptions--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="coupon_redemptions">
+          <mxGeometry x="0" y="160" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="payments--order_id" target="orders--order_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="refunds--payment_id" target="payments--payment_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="refunds--requested_by_customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="coupons--archived_by_customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="coupon_redemptions--coupon_id" target="coupons--coupon_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="coupon_redemptions--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="coupon_redemptions--order_id" target="orders--order_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="erd-physical-inventory" name="MySQL — Tồn kho và nhập hàng">
+    <mxGraphModel dx="2192" dy="664" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="2192" pageHeight="664" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="customers" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-header" value="&lt;b&gt;customers&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--customer_id" value="PK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-header" value="&lt;b&gt;product_variants&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--variant_id" value="PK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="stores" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="stores-header" value="&lt;b&gt;stores&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="stores-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="stores--store_id" value="PK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="stores">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1696.0" y="40.0" width="456.0" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory-header" value="&lt;b&gt;inventory&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="inventory">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="inventory">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory--variant_id" value="PK/FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inventory">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory--on_hand" value="on_hand &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inventory">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="store_inventory" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="464.0" width="456.0" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="store_inventory-header" value="&lt;b&gt;store_inventory&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="store_inventory">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="store_inventory-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="store_inventory">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="store_inventory--store_id" value="PK/FK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="store_inventory">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="store_inventory--variant_id" value="PK/FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="store_inventory">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="store_inventory--on_hand" value="on_hand &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="store_inventory">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions-header" value="&lt;b&gt;inventory_transactions&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="inventory_transactions">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="inventory_transactions">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions--transaction_id" value="PK transaction_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inventory_transactions">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions--variant_id" value="FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inventory_transactions">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions--store_id" value="FK store_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inventory_transactions">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inventory_transactions--movement_type" value="movement_type &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inventory_transactions">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts-header" value="&lt;b&gt;inbound_receipts&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="inbound_receipts">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="inbound_receipts">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts--receipt_id" value="PK receipt_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipts">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts--created_by_customer_id" value="FK created_by_customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipts">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(24) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipts">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipts--receipt_code" value="receipt_code &lt;font style=&quot;font-size:12px&quot;&gt;varchar(64) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipts">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1696.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items-header" value="&lt;b&gt;inbound_receipt_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="inbound_receipt_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="inbound_receipt_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items--item_id" value="PK item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipt_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items--receipt_id" value="FK receipt_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipt_items">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items--variant_id" value="FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipt_items">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="inbound_receipt_items--quantity" value="quantity &lt;font style=&quot;font-size:12px&quot;&gt;int unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="inbound_receipt_items">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="inventory--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="store_inventory--store_id" target="stores--store_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="store_inventory--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="inventory_transactions--store_id" target="stores--store_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="inventory_transactions--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="inbound_receipts--created_by_customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="CASCADE" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="inbound_receipt_items--receipt_id" target="inbound_receipts--receipt_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-7" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="inbound_receipt_items--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="erd-physical-logistics" name="MySQL — Giao vận">
+    <mxGraphModel dx="1640" dy="664" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1640" pageHeight="664" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-header" value="&lt;b&gt;orders&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--order_id" value="PK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="delivery_staff" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="delivery_staff-header" value="&lt;b&gt;delivery_staff&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="delivery_staff">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="delivery_staff-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="delivery_staff">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="delivery_staff--staff_id" value="PK staff_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="delivery_staff">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="40.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments-header" value="&lt;b&gt;shipments&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="shipments">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="shipments">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments--shipment_id" value="PK shipment_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipments">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments--order_id" value="FK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipments">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments--delivery_staff_id" value="FK delivery_staff_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipments">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipments--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipments">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts-header" value="&lt;b&gt;shipment_attempts&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="shipment_attempts">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="shipment_attempts">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts--attempt_id" value="PK attempt_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipment_attempts">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts--shipment_id" value="FK shipment_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipment_attempts">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts--delivery_staff_id" value="FK delivery_staff_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipment_attempts">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="shipment_attempts--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="shipment_attempts">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="shipments--order_id" target="orders--order_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="SET NULL" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="shipments--delivery_staff_id" target="delivery_staff--staff_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="SET NULL" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="shipment_attempts--delivery_staff_id" target="delivery_staff--staff_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="shipment_attempts--shipment_id" target="shipments--shipment_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="erd-physical-returns" name="MySQL — Trả hàng">
+    <mxGraphModel dx="1640" dy="772" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1640" pageHeight="772" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="customers" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-header" value="&lt;b&gt;customers&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="customers-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="customers--customer_id" value="PK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="customers">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items-header" value="&lt;b&gt;order_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="order_items--order_item_id" value="PK order_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="order_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="40.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-header" value="&lt;b&gt;orders&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="orders--order_id" value="PK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="orders">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="464.0" width="456.0" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-header" value="&lt;b&gt;product_variants&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="product_variants--variant_id" value="PK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="product_variants">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="592.0" y="464.0" width="456.0" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests-header" value="&lt;b&gt;return_requests&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="return_requests">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="return_requests">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests--return_id" value="PK return_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_requests">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests--order_id" value="FK order_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_requests">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests--customer_id" value="FK customer_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_requests">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_requests--status" value="status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(32) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_requests">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="1144.0" y="464.0" width="456.0" height="244" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items-header" value="&lt;b&gt;return_items&lt;/b&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=18;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="0" width="456.0" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="48" width="456.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--return_item_id" value="PK return_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="48" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--return_id" value="FK return_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="76" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--order_item_id" value="FK order_item_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="104" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--variant_id" value="FK variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="132" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--exchange_variant_id" value="FK exchange_variant_id &lt;font style=&quot;font-size:12px&quot;&gt;bigint unsigned NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="160" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--quantity" value="quantity &lt;font style=&quot;font-size:12px&quot;&gt;int unsigned NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="188" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="return_items--inspection_status" value="inspection_status &lt;font style=&quot;font-size:12px&quot;&gt;varchar(16) NOT NULL&lt;/font&gt;" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;strokeColor=none;align=left;spacingLeft=12;fontSize=14;" vertex="1" parent="return_items">
+          <mxGeometry x="0" y="216" width="456.0" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="return_requests--customer_id" target="customers--customer_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="return_requests--order_id" target="orders--order_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.392857;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="return_items--exchange_variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="return_items--order_item_id" target="order_items--order_item_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="CASCADE" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="return_items--return_id" target="return_requests--return_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.607143;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="return_items--variant_id" target="product_variants--variant_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

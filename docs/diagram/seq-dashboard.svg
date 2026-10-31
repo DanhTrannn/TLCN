@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="seq-dashboard-root" viewBox="0 0 1440 812" role="img" aria-labelledby="seq-dashboard-title">
+<title id="seq-dashboard-title">Sequence — đọc KPI theo vai trò</title>
+<defs><marker id="seq-dashboard-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1440" height="812" fill="#ffffff"/>
+<path d="M 140 176 L 430 176" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 430 252 L 720 252" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 720 328 L 1010 328" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 1010 404 L 720 404" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 720 480 L 430 480" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 430 556 L 1300 556" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 1300 632 L 430 632" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-dashboard-arrow)"/>
+<path d="M 430 708 L 140 708" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-dashboard-arrow)"/>
+<rect x="220.695" y="143" width="128.609" height="23" fill="#ffffff"/>
+<text x="285" y="160" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">GET role-metrics</text>
+<rect x="512.586" y="219" width="124.828" height="23" fill="#ffffff"/>
+<text x="575" y="236" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">SQL theo vai trò</text>
+<rect x="811.289" y="295" width="107.422" height="23" fill="#ffffff"/>
+<text x="865" y="312" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Đọc snapshot</text>
+<rect x="815.992" y="371" width="98.0156" height="23" fill="#ffffff"/>
+<text x="865" y="388" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Dữ liệu Gold</text>
+<rect x="525.883" y="447" width="98.2344" height="23" fill="#ffffff"/>
+<text x="575" y="464" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Kết quả SQL</text>
+<rect x="811.555" y="523" width="106.891" height="23" fill="#ffffff"/>
+<text x="865" y="540" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Bổ sung OLTP</text>
+<rect x="809.016" y="599" width="111.969" height="23" fill="#ffffff"/>
+<text x="865" y="616" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Chỉ số hiện tại</text>
+<rect x="229.391" y="675" width="111.219" height="23" fill="#ffffff"/>
+<text x="285" y="692" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">JSON + nguồn</text>
+<rect x="40" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="140" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">BI Hub</text>
+<line x1="140" y1="112" x2="140" y2="772" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="330" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="430" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">FastAPI / RBAC</text>
+<line x1="430" y1="112" x2="430" y2="772" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="620" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="720" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Trino</text>
+<line x1="720" y1="112" x2="720" y2="772" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="910" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1010" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Iceberg / MinIO</text>
+<line x1="1010" y1="112" x2="1010" y2="772" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="1200" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1300" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">MySQL</text>
+<line x1="1300" y1="112" x2="1300" y2="772" stroke="#222222" stroke-dasharray="6 5"/>
+</svg>

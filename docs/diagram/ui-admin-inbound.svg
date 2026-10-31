@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="ui-admin-inbound-root" viewBox="0 0 1552 904" role="img" aria-labelledby="ui-admin-inbound-title">
+<title id="ui-admin-inbound-title">Admin — nhập hàng và cập nhật kho</title>
+<defs><marker id="ui-admin-inbound-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1552" height="904" fill="#ffffff"/>
+<rect x="40" y="40" width="1472" height="84" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="776" y="88.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Quản trị kho</text>
+<rect x="40" y="164" width="248" height="700" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="192" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Điều hướng</text>
+<line x1="40" y1="208" x2="288" y2="208" stroke="#222222" stroke-width="1"/>
+<text x="56" y="234" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tổng quan</text>
+<text x="56" y="258" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Báo cáo</text>
+<text x="56" y="282" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Sản phẩm</text>
+<text x="56" y="306" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Nhập kho</text>
+<text x="56" y="330" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tồn kho</text>
+<rect x="352" y="168" width="1128" height="112" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="368" y="196" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Phiếu nhập</text>
+<line x1="352" y1="212" x2="1480" y2="212" stroke="#222222" stroke-width="1"/>
+<text x="368" y="238" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tìm kiếm · Trạng thái · Ngày nhập</text>
+<rect x="352" y="344" width="1128" height="112" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="368" y="372" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Thông tin phiếu</text>
+<line x1="352" y1="388" x2="1480" y2="388" stroke="#222222" stroke-width="1"/>
+<text x="368" y="414" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tên đợt nhập · Ghi chú</text>
+<rect x="352" y="520" width="1128" height="172" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="368" y="548" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Chi tiết nhập kho</text>
+<line x1="352" y1="564" x2="1480" y2="564" stroke="#222222" stroke-width="1"/>
+<text x="368" y="590" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">SKU · Số lượng · Đơn giá · Thành tiền</text>
+<rect x="352" y="756" width="1128" height="84" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="916" y="804.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Ghi nhận phiếu nhập</text>
+</svg>

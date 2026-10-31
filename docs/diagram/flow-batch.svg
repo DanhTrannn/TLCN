@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="flow-batch-root" viewBox="0 0 1488 812" role="img" aria-labelledby="flow-batch-title">
+<title id="flow-batch-title">Luồng Batch OLTP</title>
+<defs><marker id="flow-batch-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1488" height="812" fill="#ffffff"/>
+<path d="M 408 100 L 560 100" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<path d="M 928 100 L 1080 100" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<path d="M 1264 160 L 1264 344" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<path d="M 1080 404 L 928 404" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<path d="M 560 404 L 408 404" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<path d="M 224 464 L 224 652" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<path d="M 408 712 L 560 712" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-batch-arrow)"/>
+<rect x="40" y="40" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="106.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MySQL / Spark JDBC</text>
+<rect x="560" y="40" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="106.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Landing (Parquet)</text>
+<rect x="1080" y="40" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="106.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Bronze (append)</text>
+<rect x="1080" y="344" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="410.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Commit cursor</text>
+<rect x="560" y="344" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="410.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Silver (MERGE)</text>
+<rect x="40" y="344" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="410.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Đối soát MySQL–Silver</text>
+<rect x="40" y="652" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="718.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Gold</text>
+<rect x="560" y="652" width="368" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="718.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Kiểm tra chất lượng Gold</text>
+</svg>

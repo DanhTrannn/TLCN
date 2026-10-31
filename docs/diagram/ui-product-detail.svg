@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="ui-product-detail-root" viewBox="0 0 1392 868" role="img" aria-labelledby="ui-product-detail-title">
+<title id="ui-product-detail-title">Storefront — chi tiết sản phẩm</title>
+<defs><marker id="ui-product-detail-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1392" height="868" fill="#ffffff"/>
+<rect x="40" y="40" width="1312" height="84" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="68" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">D&amp;K</text>
+<line x1="40" y1="84" x2="1352" y2="84" stroke="#222222" stroke-width="1"/>
+<text x="56" y="110" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tìm kiếm · Giỏ hàng · Tài khoản</text>
+<rect x="40" y="180" width="600" height="492" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="340" y="432.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Ảnh sản phẩm</text>
+<rect x="720" y="180" width="608" height="136" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="736" y="208" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Thông tin sản phẩm</text>
+<line x1="720" y1="224" x2="1328" y2="224" stroke="#222222" stroke-width="1"/>
+<text x="736" y="250" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tên sản phẩm · Giá · Mô tả</text>
+<rect x="720" y="372" width="608" height="120" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="736" y="400" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Biến thể</text>
+<line x1="720" y1="416" x2="1328" y2="416" stroke="#222222" stroke-width="1"/>
+<text x="736" y="442" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Kích thước · Màu sắc · Số lượng</text>
+<rect x="720" y="552" width="608" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1024" y="614.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Thêm vào giỏ / Yêu thích</text>
+<rect x="40" y="728" width="1288" height="100" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="684" y="784.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Đánh giá sản phẩm</text>
+</svg>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="uc-admin-root" viewBox="0 0 1000 1000" role="img" aria-labelledby="uc-admin-title">
+<title id="uc-admin-title">Quản trị bán hàng</title>
+<rect width="1000" height="1000" fill="#ffffff"/>
+<rect x="240" y="32" width="520" height="936" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="70" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="23" fill="#222222">Quản trị bán hàng</text>
+<line x1="136" y1="210" x2="324" y2="140" stroke="#222222" stroke-width="1.2"/>
+<line x1="136" y1="210" x2="324" y2="280" stroke="#222222" stroke-width="1.2"/>
+<line x1="136" y1="420" x2="324" y2="420" stroke="#222222" stroke-width="1.2"/>
+<line x1="136" y1="840" x2="324" y2="840" stroke="#222222" stroke-width="1.2"/>
+<line x1="864" y1="490" x2="676" y2="140" stroke="#222222" stroke-width="1.2"/>
+<line x1="864" y1="490" x2="676" y2="280" stroke="#222222" stroke-width="1.2"/>
+<line x1="864" y1="490" x2="676" y2="420" stroke="#222222" stroke-width="1.2"/>
+<line x1="864" y1="490" x2="676" y2="560" stroke="#222222" stroke-width="1.2"/>
+<line x1="864" y1="490" x2="676" y2="700" stroke="#222222" stroke-width="1.2"/>
+<line x1="864" y1="490" x2="676" y2="840" stroke="#222222" stroke-width="1.2"/>
+<ellipse cx="500" cy="140" rx="176" ry="40" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="148" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Bán hàng POS</text>
+<ellipse cx="500" cy="280" rx="176" ry="40" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="288" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Xem đơn và tồn kho</text>
+<ellipse cx="500" cy="420" rx="176" ry="40" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="415" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Quản lý sản phẩm và</text>
+<text x="500" y="441" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">nhập kho</text>
+<ellipse cx="500" cy="560" rx="176" ry="40" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="555" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Điều phối đơn hàng và</text>
+<text x="500" y="581" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">giao vận</text>
+<ellipse cx="500" cy="700" rx="176" ry="40" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="695" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Xử lý trả hàng và hoàn</text>
+<text x="500" y="721" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">tiền</text>
+<ellipse cx="500" cy="840" rx="176" ry="40" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="500" y="835" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Quản lý coupon và đánh</text>
+<text x="500" y="861" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">giá</text>
+<circle cx="112" cy="178" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.3"/>
+<path d="M 112 190 V 228 M 88 210 H 136 M 112 228 L 90 254 M 112 228 L 134 254" fill="none" stroke="#222222" stroke-width="1.3"/>
+<text x="112" y="282" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222">Quản lý</text>
+<text x="112" y="308" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222">cửa hàng</text>
+<circle cx="112" cy="388" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.3"/>
+<path d="M 112 400 V 438 M 88 420 H 136 M 112 438 L 90 464 M 112 438 L 134 464" fill="none" stroke="#222222" stroke-width="1.3"/>
+<text x="112" y="492" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222">Quản lý kho</text>
+<circle cx="112" cy="808" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.3"/>
+<path d="M 112 820 V 858 M 88 840 H 136 M 112 858 L 90 884 M 112 858 L 134 884" fill="none" stroke="#222222" stroke-width="1.3"/>
+<text x="112" y="912" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222">Quản lý</text>
+<text x="112" y="938" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222">marketing</text>
+<circle cx="888" cy="458" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.3"/>
+<path d="M 888 470 V 508 M 864 490 H 912 M 888 508 L 866 534 M 888 508 L 910 534" fill="none" stroke="#222222" stroke-width="1.3"/>
+<text x="908" y="562" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222">Quản trị viên</text>
+</svg>

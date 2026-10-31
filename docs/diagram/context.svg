@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="context-root" viewBox="0 0 1280 800" role="img" aria-labelledby="context-title">
+<title id="context-title">Bối cảnh hệ thống</title>
+<defs><marker id="context-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1280" height="800" fill="#ffffff"/>
+<path d="M 154 160 L 400 160" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#context-arrow)"/>
+<path d="M 154 596 L 296 596 L 296 196 L 400 196" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#context-arrow)"/>
+<path d="M 572 216 L 572 536" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#context-arrow)"/>
+<path d="M 744 160 L 816 160 L 816 348 L 896 348" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#context-arrow)"/>
+<path d="M 744 592 L 816 592 L 816 404 L 896 404" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#context-arrow)"/>
+<path d="M 1052 180 L 1224 180 L 1224 376 L 1160 376" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#context-arrow)"/>
+<rect x="600.578" y="359" width="134.844" height="23" fill="#ffffff"/>
+<text x="668" y="376" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Batch / CDC / Log</text>
+<rect x="799.062" y="257" width="45.875" height="23" fill="#ffffff"/>
+<text x="822" y="274" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">OLTP</text>
+<rect x="825.219" y="489" width="45.5625" height="23" fill="#ffffff"/>
+<text x="848" y="506" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Trino</text>
+<circle cx="130" cy="132" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><path d="M 130 144 V 182 M 106 160 H 154 M 130 182 L 108 204 M 130 182 L 152 204" fill="none" stroke="#222222" stroke-width="1.2"/>
+<text x="130" y="232" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Khách hàng</text>
+<circle cx="130" cy="568" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><path d="M 130 580 V 618 M 106 596 H 154 M 130 618 L 108 640 M 130 618 L 152 640" fill="none" stroke="#222222" stroke-width="1.2"/>
+<text x="130" y="668" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Nhân viên cửa hàng</text>
+<rect x="400" y="104" width="344" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="572" y="166.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Web / POS / Admin</text>
+<rect x="400" y="536" width="344" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="572" y="598.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Data Lakehouse</text>
+<rect x="896" y="320" width="264" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1028" y="382.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">BI Hub</text>
+<circle cx="1028" cy="152" r="12" fill="#ffffff" stroke="#222222" stroke-width="1.2"/><path d="M 1028 164 V 202 M 1004 180 H 1052 M 1028 202 L 1006 224 M 1028 202 L 1050 224" fill="none" stroke="#222222" stroke-width="1.2"/>
+<text x="1028" y="252" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Người quản lý</text>
+</svg>

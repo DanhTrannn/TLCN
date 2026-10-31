@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="activity-checkout-validate-root" viewBox="0 0 960 1200" role="img" aria-labelledby="activity-checkout-validate-title">
+<title id="activity-checkout-validate-title">Đặt hàng trực tuyến</title>
+<defs><marker id="activity-checkout-validate-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="960" height="1200" fill="#ffffff"/>
+<path d="M 600 52 L 600 96" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 600 176 L 600 220" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 500 276 L 344 276" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<text x="422" y="260" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222">[Không]</text>
+<path d="M 204 312 L 204 382" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 600 332 L 600 400" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<text x="634" y="374" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222">[Có]</text>
+<path d="M 600 472 L 600 528" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 600 608 L 600 664" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 500 720 L 344 720" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<text x="422" y="704" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222">[Không]</text>
+<path d="M 204 756 L 204 872" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 204 944 L 204 1006" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 600 776 L 600 872" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<text x="634" y="830" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222">[Có]</text>
+<path d="M 600 944 L 600 1000" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<path d="M 600 1072 L 600 1134" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#activity-checkout-validate-arrow)"/>
+<circle cx="600.0" cy="40.0" r="12.0" fill="#222222" stroke="#222222" stroke-width="1.2"/>
+<rect x="440" y="96" width="320" height="80" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="144.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Xác thực yêu cầu</text>
+<path d="M 600.0 220 L 700 276.0 L 600.0 332 L 500 276.0 Z" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="284.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Hợp lệ?</text>
+<rect x="64" y="240" width="280" height="72" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="204.0" y="284.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Từ chối yêu cầu</text>
+<circle cx="204.0" cy="396.0" r="14.0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<circle cx="204.0" cy="396.0" r="8.0" fill="#222222"/>
+<rect x="440" y="400" width="320" height="72" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="444.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">BEGIN</text>
+<rect x="440" y="528" width="320" height="80" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="570.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Xử lý đặt hàng</text>
+<path d="M 590.0 589 H 610.0 M 590.0 589 V 599 M 600.0 589 V 599 M 610.0 589 V 599" fill="none" stroke="#222222" stroke-width="1.2"/>
+<path d="M 600.0 664 L 700 720.0 L 600.0 776 L 500 720.0 Z" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="728.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Thành công?</text>
+<rect x="64" y="684" width="280" height="72" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="204.0" y="728.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">ROLLBACK</text>
+<rect x="64" y="872" width="280" height="72" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="204.0" y="916.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Trả lỗi giao dịch</text>
+<circle cx="204.0" cy="1020.0" r="14.0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<circle cx="204.0" cy="1020.0" r="8.0" fill="#222222"/>
+<rect x="440" y="872" width="320" height="72" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="916.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">COMMIT</text>
+<rect x="440" y="1000" width="320" height="72" rx="8" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="600.0" y="1044.0" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" fill="#222222">Trả kết quả đặt hàng</text>
+<circle cx="600.0" cy="1148.0" r="14.0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<circle cx="600.0" cy="1148.0" r="8.0" fill="#222222"/>
+</svg>

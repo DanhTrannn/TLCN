@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="gold-sales-root" viewBox="0 0 1704 988" role="img" aria-labelledby="gold-sales-title">
+<title id="gold-sales-title">Gold — mô hình phân tích bán hàng</title>
+<defs><marker id="gold-sales-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1704" height="988" fill="#ffffff"/>
+<path d="M 224 196 L 224 384 L 474.667 384 L 474.667 404" fill="none" stroke="#222222" stroke-width="1.2"/>
+<path d="M 408 118 L 428 118 L 428 340 L 960 340 L 960 456 L 980 456" fill="none" stroke="#222222" stroke-width="1.2"/>
+<circle cx="790.667" cy="340" r="4" fill="#ffffff"/>
+<path d="M 790.667 196 L 790.667 384 L 597.333 384 L 597.333 404" fill="none" stroke="#222222" stroke-width="1.2"/>
+<circle cx="913.333" cy="340" r="4" fill="#ffffff"/>
+<circle cx="960" cy="384" r="4" fill="#ffffff"/>
+<path d="M 913.333 196 L 913.333 384 L 1102.67 384 L 1102.67 404" fill="none" stroke="#222222" stroke-width="1.2"/>
+<circle cx="790.667" cy="260" r="4" fill="#ffffff"/>
+<circle cx="913.333" cy="260" r="4" fill="#ffffff"/>
+<circle cx="740" cy="340" r="4" fill="#ffffff"/>
+<circle cx="740" cy="384" r="4" fill="#ffffff"/>
+<path d="M 1296 118 L 1276 118 L 1276 260 L 740 260 L 740 456 L 720 456" fill="none" stroke="#222222" stroke-width="1.2"/>
+<path d="M 1480 196 L 1480 384 L 1225.33 384 L 1225.33 404" fill="none" stroke="#222222" stroke-width="1.2"/>
+<path d="M 852 792 L 852 580 L 1102.67 580 L 1102.67 560" fill="none" stroke="#222222" stroke-width="1.2"/>
+<path d="M 1480 792 L 1480 580 L 1225.33 580 L 1225.33 560" fill="none" stroke="#222222" stroke-width="1.2"/>
+<path d="M 720 508 L 980 508" fill="none" stroke="#222222" stroke-width="1.2"/>
+<rect x="815.453" y="475" width="69.0938" height="23" fill="#ffffff"/>
+<text x="850" y="492" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">order_id</text>
+<rect x="40" y="40" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">dim_date</text>
+<text x="224" y="144" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">date_key</text>
+<rect x="668" y="40" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="852" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">dim_customer</text>
+<text x="852" y="144" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">customer_key</text>
+<rect x="1296" y="40" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1480" y="108" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">dim_store</text>
+<text x="1480" y="144" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">store_key</text>
+<rect x="352" y="404" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="536" y="442" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_order</text>
+<text x="536" y="478" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">order_id</text>
+<text x="536" y="498" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">order_date_key</text>
+<text x="536" y="518" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">customer_key</text>
+<text x="536" y="538" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">store_key</text>
+<rect x="980" y="404" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1164" y="442" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_order_item</text>
+<text x="1164" y="478" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">order_item_id</text>
+<text x="1164" y="498" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">order_id</text>
+<text x="1164" y="518" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">product_key</text>
+<text x="1164" y="538" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">variant_key</text>
+<rect x="668" y="792" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="852" y="860" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">dim_product</text>
+<text x="852" y="896" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">product_key</text>
+<rect x="1296" y="792" width="368" height="156" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1480" y="860" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">dim_variant</text>
+<text x="1480" y="896" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">variant_key</text>
+</svg>

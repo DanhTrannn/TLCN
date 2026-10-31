@@ -17,7 +17,8 @@ Bộ tài liệu lấy phần Data Engineering làm trọng tâm. Kiến trúc, 
 | [PROJECT_STRUCTURE](architecture/PROJECT_STRUCTURE.md) | Thư mục và điểm vào của mã nguồn |
 | [SETUP](runbook/SETUP.md) | Cài đặt, thứ tự khởi động, vận hành batch/streaming, quyền truy cập và xử lý lỗi |
 | [Phát triển và CI](../README.md#development-commands) | Lệnh kiểm tra cục bộ và các job GitHub Actions |
-| [Diagrams](diagrams/README.md) | Draw.io, ERD DBML, Use Case, Activity và Sequence |
+| [Sơ đồ Chương 3](diagram/README.md) | Bộ sơ đồ theo dàn ý: Use Case, Activity, Sequence, kiến trúc, ERD MySQL, Lakehouse và wireframe; có trang HTML xem nhanh |
+| [Sơ đồ cũ](diagrams/README.md) | Bản kiến trúc ban đầu, ERD DBML và các sơ đồ PlantUML |
 | [Access log schema](contracts/ecommerce-access-v1.schema.json) | JSON Schema cho hợp đồng dữ liệu |
 
 ## Tài liệu giữ để phân tích và viết tiểu luận

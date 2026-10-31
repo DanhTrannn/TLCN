@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="seq-dashboard" name="Sequence — đọc KPI theo vai trò">
+    <mxGraphModel dx="1440" dy="812" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1440" pageHeight="812" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ui" value="BI Hub" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="ui-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="138.0" y="112.0" width="4.0" height="660.0" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="FastAPI / RBAC" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="330.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="api-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="428.0" y="112.0" width="4.0" height="660.0" as="geometry" />
+        </mxCell>
+        <mxCell id="trino" value="Trino" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="620.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="trino-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="718.0" y="112.0" width="4.0" height="660.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lake" value="Iceberg / MinIO" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="910.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lake-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="1008.0" y="112.0" width="4.0" height="660.0" as="geometry" />
+        </mxCell>
+        <mxCell id="mysql" value="MySQL" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="1200.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="mysql-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="1298.0" y="112.0" width="4.0" height="660.0" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="GET role-metrics" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.0969697;exitPerimeter=0;entryX=0.5;entryY=0.0969697;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="ui-life" target="api-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="SQL theo vai trò" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.212121;exitPerimeter=0;entryX=0.5;entryY=0.212121;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="api-life" target="trino-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="Đọc snapshot" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.327273;exitPerimeter=0;entryX=0.5;entryY=0.327273;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="trino-life" target="lake-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="Dữ liệu Gold" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.442424;exitPerimeter=0;entryX=0.5;entryY=0.442424;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="lake-life" target="trino-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="Kết quả SQL" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.557576;exitPerimeter=0;entryX=0.5;entryY=0.557576;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="trino-life" target="api-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="Bổ sung OLTP" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.672727;exitPerimeter=0;entryX=0.5;entryY=0.672727;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="api-life" target="mysql-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="Chỉ số hiện tại" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.787879;exitPerimeter=0;entryX=0.5;entryY=0.787879;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="mysql-life" target="api-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-7" value="JSON + nguồn" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.90303;exitPerimeter=0;entryX=0.5;entryY=0.90303;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="api-life" target="ui-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

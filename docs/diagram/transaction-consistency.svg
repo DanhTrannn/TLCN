@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="transaction-consistency-root" viewBox="0 0 1552 856" role="img" aria-labelledby="transaction-consistency-title">
+<title id="transaction-consistency-title">Thiết kế bảo toàn giao dịch OLTP</title>
+<defs><marker id="transaction-consistency-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1552" height="856" fill="#ffffff"/>
+<rect x="496" y="40" width="1016" height="776" fill="#ffffff" stroke="#222222" stroke-width="1"/>
+<text x="512" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="400">Giao dịch MySQL</text>
+<path d="M 368 136 L 388 136 L 388 142 L 544 142" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#transaction-consistency-arrow)"/>
+<path d="M 944 142 L 1056 142" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#transaction-consistency-arrow)"/>
+<path d="M 1256 208 L 1256 404" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#transaction-consistency-arrow)"/>
+<path d="M 1056 472 L 944 472" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#transaction-consistency-arrow)"/>
+<path d="M 677.333 540 L 677.333 636 L 744 636 L 744 656" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#transaction-consistency-arrow)"/>
+<path d="M 810.667 540 L 810.667 636 L 1189.33 636 L 1189.33 656" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#transaction-consistency-arrow)"/>
+<path d="M 1256 540 L 1256 636 L 1322.67 636 L 1322.67 656" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#transaction-consistency-arrow)"/>
+<rect x="686.164" y="576" width="56.9375" height="23" fill="#ffffff"/>
+<text x="714.633" y="593" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Hợp lệ</text>
+<rect x="983.875" y="603" width="32.25" height="23" fill="#ffffff"/>
+<text x="1000" y="620" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Lỗi</text>
+<rect x="1263.5" y="576" width="80.8906" height="23" fill="#ffffff"/>
+<text x="1303.95" y="593" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Exception</text>
+<rect x="40" y="76" width="328" height="120" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="204" y="142.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Yêu cầu ghi</text>
+<rect x="544" y="76" width="400" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="148.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Kiểm tra nghiệp vụ</text>
+<rect x="1056" y="76" width="400" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1256" y="148.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Khóa dòng</text>
+<rect x="1056" y="404" width="400" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1256" y="478.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Ghi giao dịch</text>
+<rect x="544" y="404" width="400" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="478.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">PK / FK / UNIQUE / CHECK</text>
+<rect x="544" y="656" width="400" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="718.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">COMMIT</text>
+<rect x="1056" y="656" width="400" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1256" y="718.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">ROLLBACK</text>
+</svg>

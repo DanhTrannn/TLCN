@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="ui-admin-orders" name="Admin — quản lý đơn hàng">
+    <mxGraphModel dx="1552" dy="904" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1552" pageHeight="904" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="top" value="Quản trị bán hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="1472.0" height="84.0" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="164.0" width="248.0" height="700.0" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-label-0" value="Điều hướng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="8" width="216.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="sidebar">
+          <mxGeometry x="0" y="44" width="248.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-0" value="Tổng quan" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="54" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-1" value="Báo cáo" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="78" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-2" value="Đơn hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="102" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-3" value="Sản phẩm" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="126" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-4" value="Nhập kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="150" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-5" value="Giao vận" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="174" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-6" value="Trả hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="198" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="title-orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="168.0" width="1128.0" height="112.0" as="geometry" />
+        </mxCell>
+        <mxCell id="title-orders-label-0" value="Đơn hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="title-orders">
+          <mxGeometry x="16" y="8" width="1096.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="title-orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="title-orders">
+          <mxGeometry x="0" y="44" width="1128.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="title-orders-field-0" value="Tìm kiếm · Trạng thái" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="title-orders">
+          <mxGeometry x="16" y="54" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="table-orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="344.0" width="1128.0" height="280.0" as="geometry" />
+        </mxCell>
+        <mxCell id="table-orders-label-0" value="Danh sách đơn hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="table-orders">
+          <mxGeometry x="16" y="8" width="1096.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="table-orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="table-orders">
+          <mxGeometry x="0" y="44" width="1128.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="table-orders-field-0" value="Mã đơn · Kênh · Khách hàng · Trạng thái · Tổng tiền" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="table-orders">
+          <mxGeometry x="16" y="54" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="detail-orders" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="688.0" width="1128.0" height="152.0" as="geometry" />
+        </mxCell>
+        <mxCell id="detail-orders-label-0" value="Chi tiết đơn hàng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="detail-orders">
+          <mxGeometry x="16" y="8" width="1096.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="detail-orders-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="detail-orders">
+          <mxGeometry x="0" y="44" width="1128.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="detail-orders-field-0" value="Sản phẩm · Thanh toán · Lịch sử" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="detail-orders">
+          <mxGeometry x="16" y="54" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="detail-orders-field-1" value="Xác nhận · Hủy · Giao vận" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="detail-orders">
+          <mxGeometry x="16" y="78" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="ui-admin-inbound" name="Admin — nhập hàng và cập nhật kho">
+    <mxGraphModel dx="1552" dy="904" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1552" pageHeight="904" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="top" value="Quản trị kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="1472.0" height="84.0" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="164.0" width="248.0" height="700.0" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-label-0" value="Điều hướng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="8" width="216.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="sidebar">
+          <mxGeometry x="0" y="44" width="248.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-0" value="Tổng quan" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="54" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-1" value="Báo cáo" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="78" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-2" value="Sản phẩm" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="102" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-3" value="Nhập kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="126" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="sidebar-field-4" value="Tồn kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="sidebar">
+          <mxGeometry x="16" y="150" width="216.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="receipts" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="168.0" width="1128.0" height="112.0" as="geometry" />
+        </mxCell>
+        <mxCell id="receipts-label-0" value="Phiếu nhập" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="receipts">
+          <mxGeometry x="16" y="8" width="1096.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="receipts-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="receipts">
+          <mxGeometry x="0" y="44" width="1128.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="receipts-field-0" value="Tìm kiếm · Trạng thái · Ngày nhập" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="receipts">
+          <mxGeometry x="16" y="54" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="header-receipt" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="344.0" width="1128.0" height="112.0" as="geometry" />
+        </mxCell>
+        <mxCell id="header-receipt-label-0" value="Thông tin phiếu" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="header-receipt">
+          <mxGeometry x="16" y="8" width="1096.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="header-receipt-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="header-receipt">
+          <mxGeometry x="0" y="44" width="1128.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="header-receipt-field-0" value="Tên đợt nhập · Ghi chú" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="header-receipt">
+          <mxGeometry x="16" y="54" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="receipt-items" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="520.0" width="1128.0" height="172.0" as="geometry" />
+        </mxCell>
+        <mxCell id="receipt-items-label-0" value="Chi tiết nhập kho" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=20;" vertex="1" parent="receipt-items">
+          <mxGeometry x="16" y="8" width="1096.0" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="receipt-items-rule" value="" style="shape=line;strokeColor=#222222;" vertex="1" parent="receipt-items">
+          <mxGeometry x="0" y="44" width="1128.0" height="1" as="geometry" />
+        </mxCell>
+        <mxCell id="receipt-items-field-0" value="SKU · Số lượng · Đơn giá · Thành tiền" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;align=left;fontSize=16;" vertex="1" parent="receipt-items">
+          <mxGeometry x="16" y="54" width="1096.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="save-receipt" value="Ghi nhận phiếu nhập" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="352.0" y="756.0" width="1128.0" height="84.0" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

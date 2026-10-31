@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="architecture-system-root" viewBox="0 0 1920 908" role="img" aria-labelledby="architecture-system-title">
+<title id="architecture-system-title">Kiến trúc tổng thể D&amp;K</title>
+<defs><marker id="architecture-system-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1920" height="908" fill="#ffffff"/>
+<rect x="40" y="40" width="520" height="828" fill="#ffffff" stroke="#222222" stroke-width="1"/>
+<text x="56" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="400">Ứng dụng</text>
+<rect x="656" y="40" width="612" height="828" fill="#ffffff" stroke="#222222" stroke-width="1"/>
+<text x="672" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="400">Lakehouse</text>
+<rect x="1364" y="40" width="516" height="828" fill="#ffffff" stroke="#222222" stroke-width="1"/>
+<text x="1380" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="400">Phân tích</text>
+<path d="M 300 248 L 300 364 L 229.333 364 L 229.333 384" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<path d="M 300 520 L 300 636 L 194 636 L 194 656" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<path d="M 370.667 384 L 370.667 284 L 833 284 L 833 264" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<path d="M 300 656 L 300 636 L 656 636 L 656 296 L 962 296 L 962 264" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<circle cx="406" cy="636" r="4" fill="#ffffff"/>
+<circle cx="656" cy="552" r="4" fill="#ffffff"/>
+<path d="M 406 656 L 406 552 L 833 552 L 833 532" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<path d="M 1091 264 L 1091 284 L 1300 284 L 1300 644 L 833 644 L 833 664" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<circle cx="962" cy="644" r="4" fill="#ffffff"/>
+<path d="M 962 532 L 962 664" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<circle cx="656" cy="332" r="4" fill="#ffffff"/>
+<circle cx="1300" cy="332" r="4" fill="#ffffff"/>
+<path d="M 512 452 L 532 452 L 532 332 L 1392 332 L 1392 448 L 1412 448" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<circle cx="1300" cy="612" r="4" fill="#ffffff"/>
+<circle cx="1091" cy="644" r="4" fill="#ffffff"/>
+<path d="M 1622 516 L 1622 612 L 1091 612 L 1091 664" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-system-arrow)"/>
+<rect x="306.98" y="294" width="96.1406" height="23" fill="#ffffff"/>
+<text x="355.05" y="311" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">REST / JSON</text>
+<rect x="307.262" y="566" width="45.875" height="23" fill="#ffffff"/>
+<text x="330.2" y="583" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">OLTP</text>
+<rect x="558.966" y="251" width="85.7344" height="23" fill="#ffffff"/>
+<text x="601.833" y="268" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Access log</text>
+<rect x="432.742" y="603" width="90.5156" height="23" fill="#ffffff"/>
+<text x="478" y="620" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Binlog CDC</text>
+<rect x="593.375" y="519" width="52.25" height="23" fill="#ffffff"/>
+<text x="619.5" y="536" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Batch</text>
+<rect x="1020.3" y="611" width="92.3906" height="23" fill="#ffffff"/>
+<text x="1066.5" y="628" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Ghi Iceberg</text>
+<rect x="843.652" y="586" width="105.297" height="23" fill="#ffffff"/>
+<text x="896.3" y="603" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Ghi / biến đổi</text>
+<rect x="908.633" y="299" width="106.734" height="23" fill="#ffffff"/>
+<text x="962" y="316" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">SQL analytics</text>
+<rect x="1291.41" y="579" width="130.188" height="23" fill="#ffffff"/>
+<text x="1356.5" y="596" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Đọc catalog / file</text>
+<rect x="88" y="112" width="424" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="300" y="186.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Next.js / React</text>
+<rect x="88" y="384" width="424" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="300" y="458.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">FastAPI</text>
+<rect x="88" y="656" width="424" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="300" y="730.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MySQL</text>
+<rect x="704" y="128" width="516" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="962" y="202.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Debezium · Kafka · Flink</text>
+<rect x="704" y="396" width="516" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="962" y="470.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Airflow · Spark</text>
+<rect x="704" y="664" width="516" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="962" y="738.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MinIO · Iceberg · Polaris</text>
+<rect x="1412" y="380" width="420" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1622" y="454.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Trino</text>
+</svg>

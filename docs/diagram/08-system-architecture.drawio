@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="architecture-system" name="Kiến trúc tổng thể D&amp;K">
+    <mxGraphModel dx="1920" dy="908" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1920" pageHeight="908" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="zone-0" value="Ứng dụng" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;verticalAlign=top;align=left;fontSize=18;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="520.0" height="828.0" as="geometry" />
+        </mxCell>
+        <mxCell id="zone-1" value="Lakehouse" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;verticalAlign=top;align=left;fontSize=18;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="656.0" y="40.0" width="612.0" height="828.0" as="geometry" />
+        </mxCell>
+        <mxCell id="zone-2" value="Phân tích" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;verticalAlign=top;align=left;fontSize=18;spacing=14;" vertex="1" parent="1">
+          <mxGeometry x="1364.0" y="40.0" width="516.0" height="828.0" as="geometry" />
+        </mxCell>
+        <mxCell id="ui" value="Next.js / React" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-0">
+          <mxGeometry x="48.0" y="72.0" width="424.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="FastAPI" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-0">
+          <mxGeometry x="48.0" y="344.0" width="424.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="mysql" value="MySQL" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-0">
+          <mxGeometry x="48.0" y="616.0" width="424.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="stream" value="Debezium · Kafka · Flink" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-1">
+          <mxGeometry x="48.0" y="88.0" width="516.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="batch" value="Airflow · Spark" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-1">
+          <mxGeometry x="48.0" y="356.0" width="516.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="lake" value="MinIO · Iceberg · Polaris" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-1">
+          <mxGeometry x="48.0" y="624.0" width="516.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="trino" value="Trino" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="zone-2">
+          <mxGeometry x="48.0" y="340.0" width="420.0" height="136.0" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="REST / JSON" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.333333;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="zone-0" source="ui" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="OLTP" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.25;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="zone-0" source="api" target="mysql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="Access log" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.666667;exitY=0;exitPerimeter=0;entryX=0.25;entryY=1;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="api" target="stream">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="Binlog CDC" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0;exitPerimeter=0;entryX=0.5;entryY=1;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="mysql" target="stream">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="Batch" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.75;exitY=0;exitPerimeter=0;entryX=0.25;entryY=1;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="mysql" target="batch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="Ghi Iceberg" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.75;exitY=1;exitPerimeter=0;entryX=0.25;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="zone-1" source="stream" target="lake">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="Ghi / biến đổi" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.5;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="zone-1" source="batch" target="lake">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-7" value="SQL analytics" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="api" target="trino">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-8" value="Đọc catalog / file" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.75;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="trino" target="lake">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="seq-checkout-root" viewBox="0 0 1440 1040" role="img" aria-labelledby="seq-checkout-title">
+<title id="seq-checkout-title">Sequence — checkout thành công</title>
+<defs><marker id="seq-checkout-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1440" height="1040" fill="#ffffff"/>
+<rect x="800" y="296" width="560" height="552" fill="none" stroke="#222222" stroke-width="1"/>
+<text x="812" y="320" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Giao dịch MySQL</text>
+<path d="M 140 176 L 526.667 176" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 526.667 252 L 913.333 252" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 913.333 328 L 1300 328" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 1300 404 L 913.333 404" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 913.333 480 L 1300 480" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 1300 556 L 913.333 556" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 913.333 632 L 1300 632" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 913.333 708 L 1300 708" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 913.333 784 L 1300 784" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 913.333 860 L 526.667 860" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-checkout-arrow)"/>
+<path d="M 526.667 936 L 140 936" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#seq-checkout-arrow)"/>
+<rect x="272.591" y="143" width="121.484" height="23" fill="#ffffff"/>
+<text x="333.333" y="160" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">POST /checkout</text>
+<rect x="658.469" y="219" width="123.062" height="23" fill="#ffffff"/>
+<text x="720" y="236" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">customer + key</text>
+<rect x="1049.76" y="295" width="113.812" height="23" fill="#ffffff"/>
+<text x="1106.67" y="312" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">BEGIN + LOCK</text>
+<rect x="1046.1" y="371" width="121.141" height="23" fill="#ffffff"/>
+<text x="1106.67" y="388" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Customer / cart</text>
+<rect x="1056.47" y="447" width="100.406" height="23" fill="#ffffff"/>
+<text x="1106.67" y="464" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Giá / coupon</text>
+<rect x="1052.12" y="523" width="109.109" height="23" fill="#ffffff"/>
+<text x="1106.67" y="540" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Dữ liệu hợp lệ</text>
+<rect x="1046.72" y="599" width="119.891" height="23" fill="#ffffff"/>
+<text x="1106.67" y="616" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Order + trừ tồn</text>
+<rect x="1043.1" y="675" width="127.141" height="23" fill="#ffffff"/>
+<text x="1106.67" y="692" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Items / payment</text>
+<rect x="1071.86" y="751" width="69.625" height="23" fill="#ffffff"/>
+<text x="1106.67" y="768" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">COMMIT</text>
+<rect x="671.57" y="827" width="96.8594" height="23" fill="#ffffff"/>
+<text x="720" y="844" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Kết quả đơn</text>
+<rect x="281.356" y="903" width="103.953" height="23" fill="#ffffff"/>
+<text x="333.333" y="920" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">JSON kết quả</text>
+<rect x="40" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="140" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Storefront</text>
+<line x1="140" y1="112" x2="140" y2="1000" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="426" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="526" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">FastAPI</text>
+<line x1="526" y1="112" x2="526" y2="1000" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="813" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="913" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">Checkout Service</text>
+<line x1="913" y1="112" x2="913" y2="1000" stroke="#222222" stroke-dasharray="6 5"/>
+<rect x="1200" y="40" width="200" height="72" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1300" y="82.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">MySQL</text>
+<line x1="1300" y1="112" x2="1300" y2="1000" stroke="#222222" stroke-dasharray="6 5"/>
+</svg>

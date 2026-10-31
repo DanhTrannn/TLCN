@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="seq-checkout" name="Sequence — checkout thành công">
+    <mxGraphModel dx="1440" dy="1040" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1440" pageHeight="1040" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="fragment-0" value="Giao dịch MySQL" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=0;verticalAlign=top;align=left;fontSize=16;fillColor=none;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="800.0" y="296.0" width="560.0" height="552.0" as="geometry" />
+        </mxCell>
+        <mxCell id="ui" value="Storefront" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="ui-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="138.0" y="112.0" width="4.0" height="888.0" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="FastAPI" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="426.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="api-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="524.0" y="112.0" width="4.0" height="888.0" as="geometry" />
+        </mxCell>
+        <mxCell id="service" value="Checkout Service" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="813.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="service-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="911.0" y="112.0" width="4.0" height="888.0" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="MySQL" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="1200.0" y="40.0" width="200.0" height="72.0" as="geometry" />
+        </mxCell>
+        <mxCell id="db-life" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;shape=line;direction=south;dashed=1;fillColor=none;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="1298.0" y="112.0" width="4.0" height="888.0" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="POST /checkout" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.0720721;exitPerimeter=0;entryX=0.66675;entryY=0.0720721;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="ui-life" target="api-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="customer + key" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.66675;exitY=0.157658;exitPerimeter=0;entryX=0.58325;entryY=0.157658;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="api-life" target="service-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="BEGIN + LOCK" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.58325;exitY=0.243243;exitPerimeter=0;entryX=0.5;entryY=0.243243;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="service-life" target="db-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="Customer / cart" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.328829;exitPerimeter=0;entryX=0.58325;entryY=0.328829;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="db-life" target="service-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="Giá / coupon" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.58325;exitY=0.414414;exitPerimeter=0;entryX=0.5;entryY=0.414414;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="service-life" target="db-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="Dữ liệu hợp lệ" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0.5;exitPerimeter=0;entryX=0.58325;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="db-life" target="service-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-6" value="Order + trừ tồn" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.58325;exitY=0.585586;exitPerimeter=0;entryX=0.5;entryY=0.585586;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="service-life" target="db-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-7" value="Items / payment" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.58325;exitY=0.671171;exitPerimeter=0;entryX=0.5;entryY=0.671171;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="service-life" target="db-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-8" value="COMMIT" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.58325;exitY=0.756757;exitPerimeter=0;entryX=0.5;entryY=0.756757;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="service-life" target="db-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-9" value="Kết quả đơn" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.58325;exitY=0.842342;exitPerimeter=0;entryX=0.66675;entryY=0.842342;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="service-life" target="api-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-10" value="JSON kết quả" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.66675;exitY=0.927928;exitPerimeter=0;entryX=0.5;entryY=0.927928;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="api-life" target="ui-life">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

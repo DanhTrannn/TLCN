@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="erd-conceptual-stock-root" viewBox="0 0 1368 820" role="img" aria-labelledby="erd-conceptual-stock-title">
+<title id="erd-conceptual-stock-title">ERD quan niệm — danh mục và tồn kho</title>
+<defs><marker id="erd-conceptual-stock-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1368" height="820" fill="#ffffff"/>
+<path d="M 336 98 L 528 98" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<path d="M 824 98 L 1032 98" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<path d="M 1106 156 L 1106 332 L 1180 332 L 1180 352" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<path d="M 336 410 L 528 410" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<circle cx="1106" cy="176" r="4" fill="#ffffff"/>
+<path d="M 1180 156 L 1180 176 L 676 176 L 676 352" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<path d="M 336 722 L 528 722" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<circle cx="1106" cy="304" r="4" fill="#ffffff"/>
+<path d="M 1254 156 L 1254 304 L 872 304 L 872 644 L 676 644 L 676 664" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#erd-conceptual-stock-arrow)"/>
+<rect x="397.086" y="65" width="69.8281" height="23" fill="#ffffff"/>
+<text x="432" y="82" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..N</text>
+<rect x="893.086" y="65" width="69.8281" height="23" fill="#ffffff"/>
+<text x="928" y="82" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..N</text>
+<rect x="1116.27" y="232" width="68.2656" height="23" fill="#ffffff"/>
+<text x="1150.4" y="249" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..1</text>
+<rect x="397.086" y="377" width="69.8281" height="23" fill="#ffffff"/>
+<text x="432" y="394" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..N</text>
+<rect x="893.086" y="143" width="69.8281" height="23" fill="#ffffff"/>
+<text x="928" y="160" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..N</text>
+<rect x="397.086" y="689" width="69.8281" height="23" fill="#ffffff"/>
+<text x="432" y="706" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..N</text>
+<rect x="1028.09" y="271" width="69.8281" height="23" fill="#ffffff"/>
+<text x="1063" y="288" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">1 → 0..N</text>
+<rect x="40" y="40" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="188" y="104.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Danh mục</text>
+<rect x="528" y="40" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="676" y="104.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Sản phẩm</text>
+<rect x="1032" y="40" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1180" y="104.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Biến thể sản phẩm</text>
+<rect x="1032" y="352" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1180" y="416.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Tồn kho trung tâm</text>
+<rect x="40" y="352" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="188" y="416.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Cửa hàng</text>
+<rect x="528" y="352" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="676" y="416.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Tồn cửa hàng</text>
+<rect x="40" y="664" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="188" y="728.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Phiếu nhập kho</text>
+<rect x="528" y="664" width="296" height="116" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="676" y="728.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Chi tiết nhập</text>
+</svg>

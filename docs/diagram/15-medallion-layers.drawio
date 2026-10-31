@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" type="device" version="24.7.17">
+  <diagram id="medallion" name="Các tầng dữ liệu Lakehouse">
+    <mxGraphModel dx="1760" dy="508" grid="1" gridSize="4" page="1" pageScale="1" pageWidth="1760" pageHeight="508" background="#ffffff" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="landing" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40.0" y="40.0" width="360.0" height="124" as="geometry" />
+        </mxCell>
+        <mxCell id="landing-label-0" value="Landing" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=20;" vertex="1" parent="landing">
+          <mxGeometry x="8" y="32.0" width="344.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="landing-field-0" value="Parquet / manifest" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=14;" vertex="1" parent="landing">
+          <mxGeometry x="8" y="74.0" width="344.0" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="480.0" y="40.0" width="360.0" height="124" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze-label-0" value="Bronze" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=20;" vertex="1" parent="bronze">
+          <mxGeometry x="8" y="32.0" width="344.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="bronze-field-0" value="Iceberg / append" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=14;" vertex="1" parent="bronze">
+          <mxGeometry x="8" y="74.0" width="344.0" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="silver" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="920.0" y="40.0" width="360.0" height="124" as="geometry" />
+        </mxCell>
+        <mxCell id="silver-label-0" value="Silver" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=20;" vertex="1" parent="silver">
+          <mxGeometry x="8" y="32.0" width="344.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="silver-field-0" value="Iceberg / MERGE" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=14;" vertex="1" parent="silver">
+          <mxGeometry x="8" y="74.0" width="344.0" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="gold" value="" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="1360.0" y="40.0" width="360.0" height="124" as="geometry" />
+        </mxCell>
+        <mxCell id="gold-label-0" value="Gold" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=20;" vertex="1" parent="gold">
+          <mxGeometry x="8" y="32.0" width="344.0" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="gold-field-0" value="Dimension / Fact / Mart" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;text;strokeColor=none;fontSize=14;" vertex="1" parent="gold">
+          <mxGeometry x="8" y="74.0" width="344.0" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="q" value="Quarantine" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="700" y="336" width="360.0" height="132.0" as="geometry" />
+        </mxCell>
+        <mxCell id="sys" value="system.data_quality_results" style="html=1;whiteSpace=wrap;fontFamily=DejaVu Sans;fontSize=20;fontColor=#222222;strokeColor=#222222;strokeWidth=1.2;fillColor=#ffffff;rounded=1;arcSize=6;spacing=12;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="336" width="360.0" height="132.0" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-0" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="landing" target="bronze">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-1" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="bronze" target="silver">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-2" value="" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;exitPerimeter=0;entryX=0;entryY=0.5;entryPerimeter=0;endArrow=open;endFill=0;" edge="1" parent="1" source="silver" target="gold">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-3" value="Lỗi dữ liệu" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.333333;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="bronze" target="q">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-4" value="Lỗi dữ liệu" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.666667;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="silver" target="q">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-5" value="Kết quả gate" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#222222;strokeWidth=1.2;fontColor=#222222;fontSize=14;fontFamily=DejaVu Sans;labelBackgroundColor=#ffffff;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;exitPerimeter=0;entryX=0.5;entryY=0;entryPerimeter=0;endArrow=open;endFill=0;dashed=1;dashPattern=6 5;" edge="1" parent="1" source="gold" target="sys">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

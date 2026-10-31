@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="ui-admin-orders-root" viewBox="0 0 1552 904" role="img" aria-labelledby="ui-admin-orders-title">
+<title id="ui-admin-orders-title">Admin — quản lý đơn hàng</title>
+<defs><marker id="ui-admin-orders-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1552" height="904" fill="#ffffff"/>
+<rect x="40" y="40" width="1472" height="84" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="776" y="88.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Quản trị bán hàng</text>
+<rect x="40" y="164" width="248" height="700" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="56" y="192" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Điều hướng</text>
+<line x1="40" y1="208" x2="288" y2="208" stroke="#222222" stroke-width="1"/>
+<text x="56" y="234" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tổng quan</text>
+<text x="56" y="258" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Báo cáo</text>
+<text x="56" y="282" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Đơn hàng</text>
+<text x="56" y="306" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Sản phẩm</text>
+<text x="56" y="330" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Nhập kho</text>
+<text x="56" y="354" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Giao vận</text>
+<text x="56" y="378" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Trả hàng</text>
+<rect x="352" y="168" width="1128" height="112" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="368" y="196" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Đơn hàng</text>
+<line x1="352" y1="212" x2="1480" y2="212" stroke="#222222" stroke-width="1"/>
+<text x="368" y="238" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Tìm kiếm · Trạng thái</text>
+<rect x="352" y="344" width="1128" height="280" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="368" y="372" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Danh sách đơn hàng</text>
+<line x1="352" y1="388" x2="1480" y2="388" stroke="#222222" stroke-width="1"/>
+<text x="368" y="414" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Mã đơn · Kênh · Khách hàng · Trạng thái · Tổng tiền</text>
+<rect x="352" y="688" width="1128" height="152" rx="0" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="368" y="716" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="start" font-weight="400">Chi tiết đơn hàng</text>
+<line x1="352" y1="732" x2="1480" y2="732" stroke="#222222" stroke-width="1"/>
+<text x="368" y="758" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Sản phẩm · Thanh toán · Lịch sử</text>
+<text x="368" y="782" font-family="DejaVu Sans, Arial, sans-serif" font-size="16" fill="#222222" text-anchor="start" font-weight="400">Xác nhận · Hủy · Giao vận</text>
+</svg>

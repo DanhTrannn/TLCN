@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="architecture-web-root" viewBox="0 0 1560 840" role="img" aria-labelledby="architecture-web-title">
+<title id="architecture-web-title">Kiến trúc website thương mại điện tử</title>
+<defs><marker id="architecture-web-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1560" height="840" fill="#ffffff"/>
+<rect x="40" y="40" width="400" height="760" fill="#ffffff" stroke="#222222" stroke-width="1"/>
+<text x="56" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="400">Giao diện</text>
+<rect x="520" y="40" width="600" height="760" fill="#ffffff" stroke="#222222" stroke-width="1"/>
+<text x="536" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="start" font-weight="400">FastAPI</text>
+<path d="M 392 168 L 412 168 L 412 178 L 568 178" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-web-arrow)"/>
+<path d="M 240 584 L 240 264 L 694 264 L 694 244" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-web-arrow)"/>
+<path d="M 820 244 L 820 376" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-web-arrow)"/>
+<path d="M 820 508 L 820 640" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-web-arrow)"/>
+<path d="M 1072 696 L 1240 696" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-web-arrow)"/>
+<path d="M 1072 178 L 1240 178" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#architecture-web-arrow)"/>
+<path d="M 946 244 L 946 356 L 1380 356 L 1380 376" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#architecture-web-arrow)"/>
+<rect x="465.992" y="145" width="48.0156" height="23" fill="#ffffff"/>
+<text x="490" y="162" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">REST</text>
+<rect x="442.992" y="231" width="48.0156" height="23" fill="#ffffff"/>
+<text x="467" y="248" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">REST</text>
+<rect x="1123.34" y="145" width="65.3125" height="23" fill="#ffffff"/>
+<text x="1156" y="162" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Đọc KPI</text>
+<rect x="1117.91" y="323" width="90.1719" height="23" fill="#ffffff"/>
+<text x="1163" y="340" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Ghi sự kiện</text>
+<rect x="88" y="112" width="304" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="240" y="174.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Storefront</text>
+<rect x="88" y="584" width="304" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="240" y="646.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Admin / POS / BI</text>
+<rect x="568" y="112" width="504" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="820" y="184.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Router / Xác thực / RBAC</text>
+<rect x="568" y="376" width="504" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="820" y="448.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Service nghiệp vụ</text>
+<rect x="568" y="640" width="504" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="820" y="702.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">SQLAlchemy / Transaction</text>
+<rect x="1240" y="640" width="280" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1380" y="702.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MySQL</text>
+<rect x="1240" y="112" width="280" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1380" y="184.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Analytics API</text>
+<rect x="1240" y="376" width="280" height="112" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1380" y="438.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Access Log</text>
+</svg>

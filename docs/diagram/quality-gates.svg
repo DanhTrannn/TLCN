@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="quality-gates-root" viewBox="0 0 1488 904" role="img" aria-labelledby="quality-gates-title">
+<title id="quality-gates-title">Quality gate và xử lý dữ liệu lỗi</title>
+<defs><marker id="quality-gates-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1488" height="904" fill="#ffffff"/>
+<path d="M 408 108 L 560 108" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#quality-gates-arrow)"/>
+<path d="M 928 108 L 1080 108" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#quality-gates-arrow)"/>
+<path d="M 1202.67 176 L 1202.67 356 L 1264 356 L 1264 376" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#quality-gates-arrow)"/>
+<path d="M 1080 444 L 928 444" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#quality-gates-arrow)"/>
+<path d="M 560 444 L 408 444" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#quality-gates-arrow)"/>
+<circle cx="488" cy="444" r="4" fill="#ffffff"/>
+<path d="M 744 176 L 744 196 L 488 196 L 488 708 L 744 708 L 744 728" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#quality-gates-arrow)"/>
+<circle cx="1202.67" cy="196" r="4" fill="#ffffff"/>
+<circle cx="1032" cy="444" r="4" fill="#ffffff"/>
+<path d="M 1325.33 176 L 1325.33 196 L 1032 196 L 1032 708 L 1202.67 708 L 1202.67 728" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#quality-gates-arrow)"/>
+<circle cx="1032" cy="532" r="4" fill="#ffffff"/>
+<path d="M 744 512 L 744 532 L 1325.33 532 L 1325.33 728" fill="none" stroke="#222222" stroke-width="1.2" stroke-dasharray="6 5" marker-end="url(#quality-gates-arrow)"/>
+<rect x="501.964" y="337.6" width="82.1719" height="23" fill="#ffffff"/>
+<text x="543.05" y="354.6" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Dữ liệu lỗi</text>
+<rect x="1039.55" y="337.6" width="102.094" height="23" fill="#ffffff"/>
+<text x="1090.6" y="354.6" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Kết quả gate</text>
+<rect x="983.623" y="541" width="102.094" height="23" fill="#ffffff"/>
+<text x="1034.67" y="558" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">Kết quả gate</text>
+<rect x="40" y="40" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Kiểm tra Landing</text>
+<rect x="560" y="40" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Bronze → Silver</text>
+<rect x="1080" y="40" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Đối soát MySQL–Silver</text>
+<rect x="1080" y="376" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="450.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Xây Gold</text>
+<rect x="560" y="376" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="450.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Kiểm tra Gold</text>
+<rect x="40" y="376" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="450.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Truy vấn BI</text>
+<rect x="560" y="728" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="802.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Quarantine</text>
+<rect x="1080" y="728" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="802.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">system.data_quality_results</text>
+</svg>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="flow-cdc-root" viewBox="0 0 1488 596" role="img" aria-labelledby="flow-cdc-title">
+<title id="flow-cdc-title">Luồng CDC OLTP</title>
+<defs><marker id="flow-cdc-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1488" height="596" fill="#ffffff"/>
+<path d="M 408 108 L 560 108" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-cdc-arrow)"/>
+<path d="M 928 108 L 1080 108" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-cdc-arrow)"/>
+<path d="M 1264 176 L 1264 420" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-cdc-arrow)"/>
+<path d="M 1080 488 L 928 488" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#flow-cdc-arrow)"/>
+<rect x="40" y="40" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="224" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">MySQL binlog</text>
+<rect x="560" y="40" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Debezium / Kafka Connect</text>
+<rect x="1080" y="40" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="114.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Kafka CDC</text>
+<rect x="1080" y="420" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1264" y="494.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">Flink CDC</text>
+<rect x="560" y="420" width="368" height="136" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="744" y="494.8" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" fill="#222222" text-anchor="middle" font-weight="400">bronze.oltp_cdc_events</text>
+</svg>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" id="gold-marts-root" viewBox="0 0 1708 932" role="img" aria-labelledby="gold-marts-title">
+<title id="gold-marts-title">Gold — lineage các Data Mart OLTP</title>
+<defs><marker id="gold-marts-arrow" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8" fill="none" stroke="#222222" stroke-width="1.2"/></marker></defs>
+<rect width="1708" height="932" fill="#ffffff"/>
+<path d="M 676 106 L 960 106" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-marts-arrow)"/>
+<path d="M 676 346 L 960 346" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-marts-arrow)"/>
+<path d="M 676 586 L 960 586" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-marts-arrow)"/>
+<path d="M 676 826 L 960 826" fill="none" stroke="#222222" stroke-width="1.2" marker-end="url(#gold-marts-arrow)"/>
+<rect x="40" y="40" width="636" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="358" y="112.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_order + fact_order_item+ dim_product</text>
+<rect x="960" y="40" width="708" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1314" y="96" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_sales_daily</text>
+<text x="1314" y="132" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">order_date × channel × store_key × category_id</text>
+<rect x="40" y="280" width="636" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="358" y="352.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_shipment + dim_delivery_staff</text>
+<rect x="960" y="280" width="708" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1314" y="336" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_logistics_performance</text>
+<text x="1314" y="372" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">shipment_date × staff_key</text>
+<rect x="40" y="520" width="636" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="358" y="592.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_return_exchange + dim_variant</text>
+<rect x="960" y="520" width="708" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1314" y="576" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_product_returns</text>
+<text x="1314" y="612" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">return_date × returned_variant_key × action_type × reason</text>
+<rect x="40" y="760" width="636" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="358" y="832.12" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">fact_inventory_daily_snapshot+ dim_product</text>
+<rect x="960" y="760" width="708" height="132" rx="6" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+<text x="1314" y="816" font-family="DejaVu Sans, Arial, sans-serif" font-size="18" fill="#222222" text-anchor="middle" font-weight="400">mart_inventory_health</text>
+<text x="1314" y="852" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" fill="#222222" text-anchor="middle" font-weight="400">snapshot_date × location_type × location_id × category_id</text>
+</svg>
