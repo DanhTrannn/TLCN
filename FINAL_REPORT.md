@@ -188,6 +188,9 @@ Hệ thống xác định 4 nhóm tác nhân chính tham gia tương tác:
   * Không kết nối trực tiếp với phần cứng máy in nhiệt hoặc máy quét mã vạch chuyên dụng tại điểm bán vật lý.
   * Không triển khai các mô hình Machine Learning gợi ý sản phẩm theo thời gian thực (chỉ tập trung vào phân tích mô tả và chẩn đoán kinh doanh).
 
+![Bối cảnh và phạm vi hệ thống](docs/diagram/context.svg)
+*Hình 3.0: Bối cảnh, tác nhân và phạm vi hệ thống D&K (docs/diagram/context.svg).*
+
 ### **3.1.3. Yêu cầu chức năng**
 
 Yêu cầu chức năng của hệ thống được phân rã theo 3 phân hệ chủ chốt:
@@ -251,42 +254,8 @@ Tác nhân Khách vãng lai (*Guest*) và Khách hàng đã đăng nhập (*Auth
 * **Khách vãng lai**: Duyệt danh mục phân cấp, tìm kiếm sản phẩm theo từ khóa/bộ lọc, xem chi tiết biến thể và bảng giá, tra cứu danh sách cửa hàng còn hàng gần nhất theo khu vực, và xem đánh giá công khai.
 * **Khách hàng đã đăng nhập**: Quản lý giỏ hàng và danh sách yêu thích (*Wishlist*); thực hiện đặt hàng trực tuyến (*Checkout*); tra cứu trạng thái đơn hàng và lịch sử mua sắm; xác nhận đã nhận hàng (`delivered` $\rightarrow$ `completed`); gửi yêu cầu hoàn trả/đổi hàng trong thời hạn 7 ngày; viết bài đánh giá kèm điểm số xếp hạng cho từng sản phẩm đã mua.
 
-```mermaid
-flowchart LR
-    subgraph Actors["Tác nhân"]
-        Guest["Khách vãng lai"]
-        Customer["Khách hàng đăng nhập"]
-    end
-
-    subgraph StorefrontUC["Phân hệ Storefront"]
-        UC01["Duyệt danh mục & Tìm kiếm sản phẩm"]
-        UC02["Tra cứu cửa hàng còn hàng"]
-        UC03["Quản lý Giỏ hàng & Wishlist"]
-        UC04["Đặt hàng trực tuyến (Checkout)"]
-        UC05["Áp dụng mã giảm giá (Coupon)"]
-        UC06["Kiểm tra rủi ro COD"]
-        UC07["Theo dõi & Hủy đơn hàng"]
-        UC08["Xác nhận nhận hàng"]
-        UC09["Yêu cầu hoàn trả (7 ngày)"]
-        UC10["Đánh giá sản phẩm đã mua"]
-    end
-
-    Guest --> UC01
-    Guest --> UC02
-    Customer --> UC01
-    Customer --> UC02
-    Customer --> UC03
-    Customer --> UC04
-    Customer --> UC07
-    Customer --> UC08
-    Customer --> UC09
-    Customer --> UC10
-
-    UC04 -.->|"<<include>>"| UC05
-    UC04 -.->|"<<extend>>"| UC06
-```
-
-*Sơ đồ chi tiết: [docs/diagram/uc-storefront.svg](docs/diagram/uc-storefront.svg).*
+![Use Case — Người mua hàng](docs/diagram/uc-storefront.svg)
+*Hình 3.1: Sơ đồ Use Case phân hệ người mua hàng (docs/diagram/uc-storefront.svg).*
 
 #### **b. Phân hệ Quản trị & Bán lẻ tại quầy (Admin & POS Use Cases)**
 Hệ thống quản trị áp dụng cơ chế kiểm soát truy cập dựa trên vai trò (RBAC) nghiêm ngặt [6]:
@@ -296,70 +265,16 @@ Hệ thống quản trị áp dụng cơ chế kiểm soát truy cập dựa tr�
 * **Quản lý tiếp thị (`marketing_manager`)**: Quản lý chiến dịch khuyến mại, phát hành mã giảm giá (Coupon) và kiểm duyệt nội dung đánh giá sản phẩm.
 * **Quản trị hệ thống (`admin`)**: Quản lý tài khoản nhân viên, cấu hình phân quyền và mở lại quyền COD cho khách hàng sau khi đối soát rủi ro.
 
-```mermaid
-flowchart LR
-    subgraph AdminActors["Nhân sự quản trị"]
-        Cashier["Thu ngân / Store Manager"]
-        InvMgr["Inventory Manager"]
-        OpsAdmin["Admin / Operations Manager"]
-        MktMgr["Marketing Manager"]
-    end
-
-    subgraph AdminPOSUC["Phân hệ Quản trị & POS"]
-        UC11["Bán lẻ tại quầy POS"]
-        UC12["Quản lý Sản phẩm & Biến thể"]
-        UC13["Lập phiếu nhập kho & Tính giá vốn"]
-        UC14["Điều phối vận chuyển (Logistics)"]
-        UC15["Thẩm định & Duyệt trả hàng"]
-        UC16["Quản lý Coupon & Kiểm duyệt Review"]
-        UC17["Quản trị người dùng & Mở khóa COD"]
-    end
-
-    Cashier --> UC11
-    InvMgr --> UC12
-    InvMgr --> UC13
-    OpsAdmin --> UC14
-    OpsAdmin --> UC15
-    MktMgr --> UC16
-    OpsAdmin --> UC17
-```
-
-*Sơ đồ chi tiết: [docs/diagram/uc-admin.svg](docs/diagram/uc-admin.svg).*
+![Use Case — Quản trị và cửa hàng](docs/diagram/uc-admin.svg)
+*Hình 3.2: Sơ đồ Use Case phân hệ quản trị và cửa hàng (docs/diagram/uc-admin.svg).*
 
 #### **c. Phân hệ Kỹ thuật dữ liệu & Báo cáo BI (Data & Analytics Use Cases)**
 Phân hệ phục vụ hai nhóm đối tượng: Đội ngũ kỹ sư dữ liệu vận hành nền tảng Lakehouse và các cấp quản lý nghiệp vụ khai thác thông tin phân tích [7], [18]:
 * **Kỹ sư dữ liệu (Data Engineer)**: Khởi chạy và giám sát đường ống trích xuất mẻ định kỳ (Batch ETL); kiểm soát luồng thu thập CDC từ MySQL binlog qua Debezium/Kafka/Flink; điều phối dòng Access Log từ Storefront; thực thi kiểm tra chất lượng tự động (Data Quality Gate) và chạy các tác vụ bảo trì định dạng bảng Iceberg (Compaction, Expire Snapshots) [9], [13], [16].
 * **Các cấp quản lý nghiệp vụ (Business Managers)**: Tiếp cận báo cáo Dashboard đa chiều được lọc và bảo mật theo vai trò: Executive Dashboard (`admin`), Sales Trend (`sales_manager`), Funnel & Traffic (`marketing_manager`), Store Performance (`store_manager`), Inventory Aging (`inventory_manager`), Logistics & COD Risk (`operations_manager`), và System Reconciliation (`system_admin`).
 
-```mermaid
-flowchart LR
-    subgraph DataActors["Tác nhân Dữ liệu & Quản lý"]
-        DE["Kỹ sư dữ liệu (Data Engineer)"]
-        Mgr["Quản lý nghiệp vụ (Managers)"]
-    end
-
-    subgraph DataBIUC["Phân hệ Kỹ thuật dữ liệu & BI"]
-        UC21["Vận hành Batch ETL (Airflow/Spark)"]
-        UC22["Thu thập CDC & Access Log (Kafka/Flink)"]
-        UC23["Kiểm định chất lượng dữ liệu (DQ Gates)"]
-        UC24["Bảo trì Iceberg (Compaction & Expire)"]
-        UC25["Khai thác Dashboard Sales & Doanh thu"]
-        UC26["Phân tích Phễu chuyển đổi & Marketing"]
-        UC27["Giám sát Sức khỏe tồn kho & Vận chuyển"]
-        UC28["Đối soát dữ liệu hệ thống (System Audit)"]
-    end
-
-    DE --> UC21
-    DE --> UC22
-    DE --> UC23
-    DE --> UC24
-    Mgr --> UC25
-    Mgr --> UC26
-    Mgr --> UC27
-    Mgr --> UC28
-```
-
-*Sơ đồ chi tiết: [docs/diagram/uc-data-bi.svg](docs/diagram/uc-data-bi.svg).*
+![Use Case — Data Engineering và BI](docs/diagram/uc-data-bi.svg)
+*Hình 3.3: Sơ đồ Use Case phân hệ Data Engineering và BI (docs/diagram/uc-data-bi.svg).*
 
 ---
 
@@ -373,38 +288,11 @@ Quy trình đặt hàng trực tuyến được thực thi theo mô hình hai ph
 1. **Pha thẩm định**: Khách hàng gửi yêu cầu kèm mã bảo vệ `Idempotency-Key`. Hệ thống xác thực danh tính qua JWT và chống giả mạo với CSRF Token. Mở giao dịch, khóa dòng bản ghi khách hàng (`Customer`) bằng cơ chế `SELECT ... FOR UPDATE` [4]. Nếu khách hàng chọn thanh toán COD nhưng cờ `is_cod_blocked = True` (do có số lần từ chối nhận hàng $\ge 3$), hệ thống lập tức từ chối và yêu cầu chuyển sang thanh toán chuyển khoản VietQR. Khóa dòng kiểm tra tồn kho sẵn sàng bán (`available_quantity`) của từng SKU trong kho tổng. Xác thực điều kiện sử dụng mã giảm giá và tính toán số tiền thanh toán cuối cùng.
 2. **Pha cam kết**: Khởi tạo bản ghi `orders` (trạng thái ban đầu `pending_payment` hoặc `paid` đối với VietQR), sinh các dòng `order_items` lưu vết ảnh chụp giá bán và giá vốn tại thời điểm giao dịch (`cost_price_snapshot`). Khởi tạo bản ghi thanh toán `payments`. Giảm trừ số lượng tồn kho khả dụng và ghi nhật ký biến động kho `inventory_transactions`. Đóng phiên giỏ hàng hiện tại (`status = closed`) và thực hiện `COMMIT` giao dịch. Nếu xảy ra bất kỳ lỗi hoặc xung đột khóa nào, toàn bộ giao dịch được `ROLLBACK` an toàn [5].
 
-```mermaid
-flowchart TD
-    Start([Khách hàng nhấn Thanh toán]) --> AuthCheck{"Xác thực JWT & CSRF?"}
-    AuthCheck -- Không --> Return401["Trả lỗi 401/403 Unauthorized"]
-    AuthCheck -- Hợp lệ --> IdempCheck{"Kiểm tra Idempotency Key?"}
-    IdempCheck -- Đã xử lý --> ReturnCached["Trả lại kết quả đơn hàng cũ"]
-    IdempCheck -- Yêu cầu mới --> BeginTx["Bắt đầu Unit of Work Transaction"]
-    
-    BeginTx --> LockCust["Khóa dòng Customer (FOR UPDATE)"]
-    LockCust --> MethodCheck{"Phương thức COD?"}
-    MethodCheck -- Có --> BoomCheck{"is_cod_blocked == True?"}
-    BoomCheck -- Đúng --> AbortCOD["Từ chối COD: Bắt buộc chọn VietQR"]
-    BoomCheck -- Sai --> LockStock["Khóa tồn kho SKU tại Kho tổng (FOR UPDATE)"]
-    MethodCheck -- Không (VietQR) --> LockStock
-    
-    LockStock --> StockCheck{"Đủ tồn kho khả dụng?"}
-    StockCheck -- Không đủ --> AbortStock["Báo lỗi OUT_OF_STOCK & Rollback"]
-    StockCheck -- Đủ hàng --> ApplyCoupon["Xác thực Coupon & Tính tổng thanh toán"]
-    
-    ApplyCoupon --> CreateOrder["Tạo Order, OrderItems (Snapshot giá bán & giá vốn)"]
-    CreateOrder --> CreatePayment["Tạo Payment (Trạng thái pending hoặc succeeded)"]
-    CreatePayment --> DeductStock["Trừ tồn kho & Ghi sổ nhật ký InventoryTransaction"]
-    DeductStock --> CloseCart["Đóng giỏ hàng hiện tại (status = 'closed')"]
-    CloseCart --> CommitTx["COMMIT Transaction"]
-    CommitTx --> ReturnSuccess([Trả kết quả Checkout thành công])
-    
-    AbortCOD --> RollbackTx["ROLLBACK Transaction"]
-    AbortStock --> RollbackTx
-    RollbackTx --> ReturnError([Trả thông báo lỗi cho người dùng])
-```
+![Activity — Đặt hàng trực tuyến](docs/diagram/activity-checkout-validate.svg)
+*Hình 3.4: Sơ đồ hoạt động xác thực yêu cầu đặt hàng (docs/diagram/activity-checkout-validate.svg).*
 
-*Sơ đồ chi tiết: [docs/diagram/activity-checkout-validate.svg](docs/diagram/activity-checkout-validate.svg) và [docs/diagram/activity-checkout-commit.svg](docs/diagram/activity-checkout-commit.svg).*
+![Activity — Xử lý đặt hàng](docs/diagram/activity-checkout-commit.svg)
+*Hình 3.5: Sơ đồ hoạt động cam kết giao dịch đặt hàng và trừ tồn kho (docs/diagram/activity-checkout-commit.svg).*
 
 #### **b. Quy trình Bán lẻ tại quầy POS (In-store POS Activity)**
 Quy trình bán hàng tại quầy được thiết kế tối ưu cho tốc độ và tính tức thời của cửa hàng vật lý [docs/diagram/04-activity-pos.drawio](docs/diagram/04-activity-pos.drawio):
@@ -414,26 +302,8 @@ Quy trình bán hàng tại quầy được thiết kế tối ưu cho tốc đ�
 4. Khi khách thanh toán thành công (tiền mặt hoặc quét mã QR), hệ thống tạo đơn hàng với trạng thái hoàn tất tức thì (`status = 'completed'`), thanh toán ghi nhận `status = 'succeeded'`.
 5. Tự động trừ số lượng tồn kho của chi nhánh, ghi sổ nhật ký biến động kho với loại giao dịch xuất bán quầy (`outbound_pos`), in hóa đơn bán lẻ và bàn giao hàng cho khách.
 
-```mermaid
-flowchart TD
-    POSStart([Thu ngân mở ca & Chọn Cửa hàng]) --> SearchSKU["Quét / Nhập mã SKU sản phẩm"]
-    SearchSKU --> LockStoreInv["Khóa dòng StoreInventory theo store_id (FOR UPDATE)"]
-    LockStoreInv --> CheckStoreStock{"Số lượng tồn tại quầy đủ?"}
-    CheckStoreStock -- Không đủ --> AlertStock["Báo hết hàng & Đề xuất tra cứu kho khác"]
-    CheckStoreStock -- Đủ hàng --> AddLineItem["Thêm dòng sản phẩm vào đơn hàng POS"]
-    
-    AddLineItem --> MoreItems{"Còn sản phẩm khác?"}
-    MoreItems -- Có --> SearchSKU
-    MoreItems -- Không --> SelectPay["Chọn hình thức thanh toán (Tiền mặt / VietQR)"]
-    
-    SelectPay --> ProcessPay["Thu ngân thu tiền / Xác nhận giao dịch thành công"]
-    ProcessPay --> CreatePOSOrder["Tạo Order ('completed') & Payment ('succeeded')"]
-    CreatePOSOrder --> DeductStoreStock["Trừ StoreInventory & Ghi sổ nhật ký 'outbound_pos'"]
-    DeductStoreStock --> PrintReceipt["In hóa đơn bán lẻ & Xuất kho trực tiếp"]
-    PrintReceipt --> POSEnd([Hoàn tất giao dịch tại quầy])
-```
-
-*Sơ đồ chi tiết: [docs/diagram/activity-pos.svg](docs/diagram/activity-pos.svg).*
+![Activity — Bán hàng POS tại cửa hàng](docs/diagram/activity-pos.svg)
+*Hình 3.6: Sơ đồ hoạt động bán lẻ tại quầy POS (docs/diagram/activity-pos.svg).*
 
 #### **c. Quy trình Tiếp nhận và Xử lý trả hàng (Returns & Refund Activity)**
 Quy trình xử lý hoàn trả hàng được kiểm soát chặt chẽ qua khung thời gian và kiểm định chất lượng sản phẩm thực tế [docs/diagram/05-activity-returns.drawio](docs/diagram/05-activity-returns.drawio):
@@ -444,36 +314,8 @@ Quy trình xử lý hoàn trả hàng được kiểm soát chặt chẽ qua khu
    * Nếu sản phẩm hư hại do khách hàng sử dụng: Đánh dấu `inspected_failed`, từ chối hoàn kho và không hoàn tiền cho sản phẩm đó.
 4. **Đóng đơn hoàn trả**: Đơn hàng ban đầu chỉ chuyển sang trạng thái đã hoàn trả (`status = 'returned'`) khi toàn bộ các sản phẩm trong đơn đã được xử lý hoàn tất và đạt kiểm định trả hàng.
 
-```mermaid
-flowchart TD
-    ReturnStart([Khách hàng gửi yêu cầu Trả hàng]) --> CheckOrderDelivered{"Đơn hàng đã giao (delivered)?"}
-    CheckOrderDelivered -- Sai --> DenyNotDelivered["Từ chối: Đơn hàng chưa hoàn tất giao"]
-    CheckOrderDelivered -- Đúng --> CheckWindow{"Thời gian nhận hàng <= 7 ngày?"}
-    CheckWindow -- Quá 7 ngày --> DenyExpired["Từ chối: Đã hết thời hạn đổi trả quy định"]
-    CheckWindow -- Hợp lệ --> CreateReturnReq["Tạo ReturnRequest (status = 'pending_review')"]
-    
-    CreateReturnReq --> AdminReview{"Admin thẩm định lý do & hình ảnh"}
-    AdminReview -- Không hợp lệ --> RejectReturn["Cập nhật 'rejected' & Đóng yêu cầu"]
-    AdminReview -- Chấp thuận --> ApproveReturn["Cập nhật 'approved' & Chờ khách gửi hàng"]
-    
-    ApproveReturn --> ReceiveGoods["Kho nhận kiện hàng (status = 'goods_received')"]
-    ReceiveGoods --> InspectItem{"Kiểm định chất lượng sản phẩm (Inspection)"}
-    InspectItem -- Không đạt (lỗi do khách) --> FailItem["Đánh dấu 'inspected_failed' (Không hoàn tiền/kho)"]
-    InspectItem -- Đạt tiêu chuẩn --> PassItem["Đánh dấu 'inspected_passed'"]
-    
-    PassItem --> RestockInventory["Cộng lại tồn kho Kho tổng (Movement: 'inbound_return')"]
-    RestockInventory --> IssueRefund["Tạo bản ghi Refund & Chuyển tiền hoàn cho khách"]
-    
-    FailItem --> CheckAllDone{"Toàn bộ mặt hàng đã xử lý xong?"}
-    IssueRefund --> CheckAllDone
-    CheckAllDone -- Hoàn tất --> CloseReturn["Cập nhật ReturnRequest 'completed'"]
-    CloseReturn --> UpdateOrderStatus{"Đơn hàng được trả 100%?"}
-    UpdateOrderStatus -- Đúng --> SetOrderReturned["Chuyển trạng thái Order sang 'returned'"]
-    UpdateOrderStatus -- Một phần --> ReturnEnd([Kết thúc quy trình trả hàng])
-    SetOrderReturned --> ReturnEnd
-```
-
-*Sơ đồ chi tiết: [docs/diagram/activity-returns.svg](docs/diagram/activity-returns.svg).*
+![Activity — Trả hàng và hoàn tiền](docs/diagram/activity-returns.svg)
+*Hình 3.7: Sơ đồ hoạt động tiếp nhận và xử lý trả hàng (docs/diagram/activity-returns.svg).*
 
 ---
 
@@ -484,120 +326,185 @@ flowchart TD
 #### **a. Biểu đồ tuần tự Đặt hàng trực tuyến (Online Checkout Sequence)**
 Biểu đồ mô tả sự phối hợp giữa Client Browser, API Router, Checkout Service, Transaction Manager (Unit of Work), các Repositories và Cơ sở dữ liệu MySQL [docs/diagram/06-sequence-checkout.drawio](docs/diagram/06-sequence-checkout.drawio):
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Customer as Khách hàng
-    participant UI as Next.js Storefront
-    participant Router as Checkout Router (FastAPI)
-    participant Service as Checkout Service
-    participant UoW as Unit of Work (DB Session)
-    participant DB as MySQL InnoDB
-
-    Customer->>UI: Nhấn xác nhận "Đặt hàng"
-    UI->>Router: POST /api/v1/checkout (Header: Idempotency-Key, Cookie: JWT & CSRF)
-    Router->>Router: Xác thực JWT token & Double-submit CSRF cookie
-    Router->>Service: checkout(customer_id, idempotency_key, payload)
-    
-    Service->>UoW: run_in_transaction(_work)
-    UoW->>DB: BEGIN TRANSACTION
-    
-    UoW->>DB: SELECT * FROM customers WHERE id = ? FOR UPDATE
-    DB-->>UoW: customer_record
-    Note over Service,DB: Kiểm tra quyền COD: nếu is_cod_blocked=True -> Báo lỗi 403
-    
-    UoW->>DB: SELECT * FROM orders WHERE checkout_idempotency_key = ?
-    alt Khóa Idempotency đã tồn tại
-        DB-->>UoW: existing_order
-        UoW->>DB: SELECT * FROM payments WHERE order_id = ?
-        DB-->>UoW: payment_record
-        UoW-->>Service: Trả kết quả đơn hàng đã tạo trước đó
-        Service-->>Router: CheckoutResultResponse (Cached)
-        Router-->>UI: 200 OK (Thông tin đơn hàng cũ)
-    else Khóa mới hợp lệ
-        UoW->>DB: SELECT * FROM cart_items JOIN inventories FOR UPDATE
-        DB-->>UoW: Danh sách SKU & tồn kho khả dụng
-        Note over Service,DB: Kiểm tra on_hand >= quantity & Coupon hợp lệ
-        
-        UoW->>DB: INSERT INTO orders (...) VALUES (...)
-        UoW->>DB: INSERT INTO order_items (...) VALUES (...) [Snapshot giá & vốn]
-        UoW->>DB: INSERT INTO payments (...) VALUES (...)
-        UoW->>DB: UPDATE inventories SET on_hand = on_hand - ? WHERE variant_id = ?
-        UoW->>DB: INSERT INTO inventory_transactions (...) [Ghi ledger xuất kho]
-        UoW->>DB: UPDATE carts SET status = 'closed' WHERE cart_id = ?
-        
-        UoW->>DB: COMMIT TRANSACTION
-        DB-->>UoW: Commit thành công
-        UoW-->>Service: CheckoutResultResponse (Mới)
-        Service-->>Router: 200 OK (Chi tiết đơn hàng & trạng thái thanh toán)
-        Router-->>UI: Hiển thị màn hình Xác nhận đơn hàng thành công
-        UI-->>Customer: Thông báo đặt hàng thành công & Mã đơn hàng
-    end
-```
-
-*Sơ đồ chi tiết: [docs/diagram/seq-checkout.svg](docs/diagram/seq-checkout.svg).*
+![Sequence — Checkout thành công](docs/diagram/seq-checkout.svg)
+*Hình 3.8: Sơ đồ tuần tự đặt hàng trực tuyến thành công (docs/diagram/seq-checkout.svg).*
 
 #### **b. Biểu đồ tuần tự Tải Dashboard BI theo vai trò với cơ chế Fallback (Role-based Dashboard Query Sequence)**
 Biểu đồ thể hiện cơ chế phục vụ dữ liệu phân tích thông minh: định tuyến quyền truy cập tại API Layer, truy vấn tầng Gold Lakehouse thông qua Trino, và tự động chuyển đổi dự phòng (Graceful Degradation / OLTP Fallback) sang MySQL khi Trino gặp sự cố [docs/diagram/07-sequence-dashboard.drawio](docs/diagram/07-sequence-dashboard.drawio):
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Manager as Quản lý nghiệp vụ
-    participant UI as Next.js BI Hub (ECharts)
-    participant Router as Analytics Router
-    participant Security as RBAC Validator
-    participant Service as Analytics Service
-    participant Trino as Trino Engine (Iceberg Gold)
-    participant MySQL as MySQL (OLTP Replica)
-
-    Manager->>UI: Truy cập Dashboard Phân tích (/admin/analytics)
-    UI->>Router: GET /api/v1/admin/analytics/role-metrics?target_role=sales_manager
-    Router->>Security: validate_role_access(actor, target_role, store_id)
-    
-    alt Không đủ quyền hạn
-        Security-->>Router: Báo lỗi FORBIDDEN (403)
-        Router-->>UI: 403 Forbidden (Không có quyền truy cập góc nhìn này)
-    else Hợp lệ
-        Security->>Security: resolve_effective_store_id(actor, store_id)
-        Security-->>Router: Phê duyệt quyền & Trả store_id hiệu lực
-        Router->>Service: get_role_metrics_data(target_role, store_id)
-        
-        alt Nguồn ưu tiên Lakehouse (Sales / Executive / Marketing)
-            Service->>Trino: Thực thi SQL trên Gold Marts (mart_sales_overview / fact_order)
-            alt Trino hoạt động bình thường
-                Trino-->>Service: Bộ số liệu KPI tổng hợp & Doanh thu theo chiều phân tích
-                Service-->>Router: RoleMetricsResponse (data_source = 'lakehouse', is_degraded = False)
-            else Trino gián đoạn hoặc quá thời gian chờ (Timeout)
-                Note over Service,MySQL: Kích hoạt cơ chế Fallback sang MySQL OLTP
-                Service->>MySQL: Thực thi truy vấn tính toán rút gọn trên bảng giao dịch
-                MySQL-->>Service: Dữ liệu giao dịch tính toán trực tiếp
-                Service-->>Router: RoleMetricsResponse (data_source = 'oltp_fallback', is_degraded = True, degraded_reason = 'Trino unreachable')
-            end
-        else Nguồn nghiệp vụ trực tiếp (Store / Inventory / Operations)
-            Service->>MySQL: Truy vấn trạng thái thực tế từ MySQL (StoreInventory, Inbound)
-            MySQL-->>Service: Dữ liệu vận hành thời gian thực
-            Service-->>Router: RoleMetricsResponse (data_source = 'oltp', is_degraded = False)
-        end
-        
-        Router-->>UI: JSON Response kèm Metadata trạng thái nguồn dữ liệu
-        UI->>UI: Adapter định dạng dữ liệu cho thư viện Apache ECharts
-        Note over UI: Hiển thị biểu đồ & gắn huy hiệu cảnh báo (Degraded Badge) nếu nguồn là Fallback
-        UI-->>Manager: Hiển thị đầy đủ biểu đồ KPI & bảng số liệu chi tiết
-    end
-```
-
-*Sơ đồ chi tiết: [docs/diagram/seq-dashboard.svg](docs/diagram/seq-dashboard.svg).*
+![Sequence — Đọc KPI theo vai trò](docs/diagram/seq-dashboard.svg)
+*Hình 3.9: Sơ đồ tuần tự đọc KPI Dashboard theo vai trò với cơ chế Fallback (docs/diagram/seq-dashboard.svg).*
 
 ## **3.3. Thiết kế kiến trúc tổng thể**
 
 ### **3.3.1. Kiến trúc tổng thể hệ thống**
 
+Hệ thống được thiết kế theo mô hình kiến trúc lai hợp nhất (Enterprise Hybrid Platform) kết hợp chặt chẽ giữa hai trụ cột: Phân hệ ứng dụng giao dịch thương mại điện tử đa kênh (Online & POS OLTP) và Phân hệ dữ liệu lớn mở (Modern Data Lakehouse) [docs/diagram/08-system-architecture.drawio](docs/diagram/08-system-architecture.drawio). Mô hình này giải quyết triệt để sự đánh đổi truyền thống giữa tốc độ giao dịch thời gian thực và năng lực phân tích báo cáo chuyên sâu.
+
+![Kiến trúc tổng thể D&K](docs/diagram/architecture-system.svg)
+*Hình 3.10: Kiến trúc tổng thể hệ thống D&K (docs/diagram/architecture-system.svg).*
+
+Kiến trúc tổng thể được cấu thành từ ba phân lớp chức năng rõ ràng:
+
+1. **Khối Ứng dụng giao dịch (Transactional Application Tier)**:
+   * **Giao diện đa kênh (Client Interfaces)**: Phát triển trên nền tảng Next.js 15 kết hợp React 19 [2], cung cấp giao diện Storefront cho khách hàng duyệt hàng/đặt hàng trực tuyến, giao diện POS bán hàng nhanh tại quầy cho thu ngân, và bảng điều khiển quản trị tổng thể (Admin Panel).
+   * **Tầng dịch vụ ứng dụng (FastAPI Backend)**: Giao tiếp qua chuẩn REST/JSON không trạng thái [3]. Phụ trách xác thực phiên làm việc, phân quyền RBAC [6], thực thi nghiệp vụ bán hàng, quản lý đơn hàng, điều phối giao vận và kiểm soát rủi ro COD.
+   * **Cơ sở dữ liệu vận hành (Operational Database)**: Sử dụng hệ quản trị MySQL 8.4 với công cụ lưu trữ InnoDB [4], lưu trữ 28 bảng quan hệ chuẩn hóa cao nhằm đảm bảo tính toàn vẹn giao dịch (ACID) và hiệu năng ghi tối đa qua cơ chế khóa dòng (Row-level Locking) và MVCC.
+
+2. **Khối Nền tảng Dữ liệu Lakehouse (Lakehouse Core Tier)**:
+   * **Thu thập dữ liệu thời gian thực (Real-time Stream Ingestion)**:
+     * *Luồng thay đổi dữ liệu (CDC)*: Debezium MySQL Connector [13] lắng nghe trực tiếp từ MySQL binary log (binlog) ở định dạng bản ghi hàng chi tiết (`ROW`), chuyển tiếp các sự kiện thay đổi (`INSERT`, `UPDATE`, `DELETE`) vào cụm Apache Kafka [14].
+     * *Luồng nhật ký truy cập (Access Log)*: Middleware tích hợp trên FastAPI thu thập toàn bộ sự kiện truy cập HTTP (clickstream) và phát tán trực tiếp vào Kafka topic tương ứng.
+     * *Động cơ xử lý luồng*: Apache Flink 1.19 [15] tiêu thụ liên tục các dòng dữ liệu từ Kafka, thực hiện chuẩn hóa và nạp dữ liệu vào các bảng Apache Iceberg tương ứng với cơ chế bảo vệ kiểm tra điểm (Checkpointing) chu kỳ 10 giây.
+   * **Thu thập và xử lý theo mẻ (Batch Processing & Orchestration)**:
+     * Apache Airflow 2.10 [16] điều phối định kỳ các pipeline dữ liệu theo lịch trình và thứ tự phụ thuộc.
+     * Apache Spark 3.5 [12] trích xuất mẻ định kỳ từ 27 bảng nghiệp vụ MySQL qua JDBC sang vùng lưu trữ trung gian (Landing Parquet) trên MinIO, sau đó thực hiện các biến đổi phức tạp, khử trùng lặp và làm giàu dữ liệu để nạp vào các tầng Bronze, Silver và Gold.
+   * **Hạ tầng lưu trữ và quản trị bảng mở (Storage & Open Table Format)**:
+     * MinIO Object Storage [8] cung cấp kho lưu trữ đối tượng tương thích chuẩn Amazon S3 API, đóng vai trò là kho dữ liệu thô và kho lưu trữ tệp dữ liệu phân tích Parquet.
+     * Apache Iceberg v2 [9] định nghĩa cấu trúc bảng mở, quản lý cây snapshot, hỗ trợ tính năng time-travel, và bảo đảm tính chất ACID cho toàn bộ các thao tác ghi/đọc dữ liệu lớn.
+     * Apache Polaris Catalog [10] đóng vai trò là máy chủ REST Catalog tập trung, sử dụng PostgreSQL nội bộ để quản trị siêu dữ liệu, phân quyền truy cập danh tính workload độc lập và cô lập tài nguyên lưu trữ.
+
+3. **Khối Phân tích và Phục vụ (Analytics & Serving Tier)**:
+   * **Động cơ truy vấn SQL phân tán (MPP Engine)**: Trino 483 [18] đóng vai trò là công cụ tính toán phân tán hiệu năng cao, đọc siêu dữ liệu từ Polaris Catalog và trực tiếp quét các tệp dữ liệu Parquet của Iceberg trên MinIO để phục vụ các truy vấn phân tích tổng hợp phức tạp với độ trễ thấp ($< 2\text{s}$).
+   * **Cổng phục vụ phân tích (Analytics API & Semantic Serving)**: Tầng API của FastAPI tiếp nhận yêu cầu từ Dashboard quản trị, thẩm định quyền truy cập RBAC, thực thi truy vấn tới Trino trên các bảng Data Mart tầng Gold, và cung cấp cơ chế tự động chuyển đổi dự phòng (Graceful Degradation / OLTP Fallback) sang MySQL khi Trino gián đoạn [19].
+   * **Trực quan hóa dữ liệu (BI Dashboard Hub)**: Tích hợp thư viện Apache ECharts [20] trên giao diện Next.js, hiển thị các biểu đồ tương tác, phễu chuyển đổi và chỉ số KPI kinh doanh trực quan cho các cấp quản lý nghiệp vụ.
+
+---
+
 ### **3.3.2. Kiến trúc hệ thống thương mại điện tử**
+
+Phân hệ thương mại điện tử và điểm bán được kiến trúc theo mô hình phân tầng chặt chẽ (Layered Architecture), tách biệt rõ ràng giữa tầng giao diện hiển thị, tầng điều phối định tuyến, tầng logic nghiệp vụ cốt lõi và tầng quản lý giao dịch bền vững [docs/diagram/09-web-architecture.drawio](docs/diagram/09-web-architecture.drawio).
+
+![Kiến trúc website thương mại điện tử](docs/diagram/architecture-web.svg)
+*Hình 3.11: Thiết kế kiến trúc phân tầng hệ thống thương mại điện tử (docs/diagram/architecture-web.svg).*
+
+Chi tiết trách nhiệm và sự liên kết giữa các tầng thành phần:
+
+1. **Tầng Giao diện người dùng (Presentation Layer)**:
+   * Được xây dựng trên nền tảng Next.js 15 (React 19) [2] theo mô hình App Router, tối ưu hóa quá trình kết xuất phía máy chủ (Server-Side Rendering - SSR) cho các trang danh mục công khai và kết xuất phía máy khách (Client-Side Rendering - CSR) cho các trang giỏ hàng, đặt hàng và thanh toán tương tác cao.
+   * Phân tách hai giao diện độc lập: Storefront phục vụ người mua hàng trực tuyến và Admin/POS phục vụ nhân viên cửa hàng, quản trị viên vận hành và người dùng phân tích BI.
+   * Giao tiếp hoàn toàn với tầng ứng dụng Backend thông qua các HTTP API theo giao thức RESTful chuẩn hóa; không cho phép Client kết nối trực tiếp vào cơ sở dữ liệu MySQL hay các dịch vụ lưu trữ nội bộ.
+
+2. **Tầng Điều phối và Bảo mật (Router, Authentication & RBAC Layer)**:
+   * Triển khai bằng FastAPI [3], áp dụng cơ chế tiêm phụ thuộc (Dependency Injection) để thẩm định xác thực và kiểm soát quyền truy cập trước khi chuyển giao yêu cầu cho tầng nghiệp vụ:
+     * *Xác thực danh tính*: Sử dụng JSON Web Token (JWT) được bảo vệ trong HttpOnly Cookie nhằm triệt tiêu nguy cơ bị đánh cắp qua tấn công XSS [6].
+     * *Chống giả mạo yêu cầu (CSRF Protection)*: Triển khai kỹ thuật Double-Submit CSRF Cookie Token cho toàn bộ các phương thức thay đổi trạng thái (`POST`, `PUT`, `DELETE`, `PATCH`).
+     * *Phân quyền truy cập theo vai trò (RBAC)*: Bộ phụ thuộc `require_role` xác minh quyền hạn của tài khoản so với vai trò được định cấu hình cho endpoint nghiệp vụ (`admin`, `store_manager`, `inventory_manager`, `marketing_manager`, `operations_manager`).
+
+3. **Tầng Nghiệp vụ ứng dụng (Domain Service Layer)**:
+   * Các dịch vụ nghiệp vụ được module hóa theo từng phạm vi bài toán chuyên biệt: Quản lý danh mục & sản phẩm (`catalog`), Giỏ hàng & Danh sách yêu thích (`cart`, `wishlist`), Đặt hàng & Báo giá (`checkout`), Quản lý vòng đời đơn hàng (`orders`), Bán lẻ tại quầy (`pos`), Nhập kho & Giá vốn (`inbound`), Giao vận (`logistics`), Đổi trả hàng (`returns`), Khuyến mại (`coupons`), và Đánh giá sản phẩm (`reviews`).
+   * Tầng nghiệp vụ chứa toàn bộ các quy tắc logic trọng yếu: thuật toán tính giá vốn bình quân gia quyền di động, kiểm tra hạn mức và chặn phương thức COD khi số lần từ chối nhận hàng vượt ngưỡng ($count \ge 3$), kiểm tra cửa sổ trả hàng trong hạn 7 ngày, và kiểm tra tính hợp lệ của mã giảm giá.
+
+4. **Tầng Quản lý giao dịch và Lưu trữ (Persistence & Unit of Work Layer)**:
+   * Sử dụng SQLAlchemy 2.0 [5] làm công cụ ánh xạ quan hệ đối tượng (ORM) tương tác với cơ sở dữ liệu MySQL InnoDB.
+   * Áp dụng mẫu thiết kế Unit of Work thông qua hàm tiện ích `run_in_transaction` (`app/db/uow.py`). Toàn bộ các thao tác ghi dữ liệu đa bảng trong quy trình Đặt hàng, Bán hàng POS và Trả hàng đều được gói gọn trong một Transaction ngữ cảnh duy nhất:
+     * Thiết lập cơ chế tự động thử lại (Retry Mechanism) khi phát hiện tranh chấp khóa hoặc deadlock từ hệ thống cơ sở dữ liệu (`pymysql.constants.CR.CR_SERVER_LOST`, `1213 Deadlock`).
+     * Áp dụng câu lệnh khóa chọn lọc `SELECT ... FOR UPDATE` trên các bảng tài nguyên có tính tranh chấp cao như `customers`, `inventories` (kho tổng) và `store_inventories` (kho chi nhánh) nhằm loại trừ triệt để tình trạng Race Condition và bán vượt quá tồn kho (Overselling) [4].
+
+5. **Tích hợp Dữ liệu và Nhật ký truy cập (Event & Log Integration)**:
+   * *FastAPI Analytics Router*: Cung cấp các endpoint phục vụ dữ liệu báo cáo cho BI Hub (`/api/v1/admin/analytics/*`), thực hiện chuyển tiếp truy vấn tới Trino Engine và hỗ trợ dự phòng linh hoạt sang MySQL khi Trino bị suy giảm hiệu năng.
+   * *Access Log Middleware*: Bắt chặn các request HTTP đến hệ thống (loại bỏ các tuyến tĩnh và kiểm tra sức khỏe), trích xuất thông tin định danh phiên, IP, User-Agent, đường dẫn và thời gian phản hồi, sau đó đóng gói payload JSON và phát tán bất đồng bộ vào Kafka topic `ecommerce.access-logs`.
+
+---
 
 ### **3.3.3. Kiến trúc nền tảng Data Lakehouse và BI**
 
+Nền tảng Data Lakehouse được thiết kế dựa trên nguyên lý cốt lõi: **Tách biệt hoàn toàn giữa Năng lực tính toán (Compute) và Tầng lưu trữ (Storage)** [7], giải phóng hệ thống khỏi các rào cản về khả năng mở rộng độc lập và phụ thuộc công nghệ độc quyền (Vendor Lock-in) [docs/diagram/10-lakehouse-architecture.drawio](docs/diagram/10-lakehouse-architecture.drawio).
+
+![Kiến trúc nền tảng Lakehouse và BI](docs/diagram/architecture-lakehouse.svg)
+*Hình 3.12: Thiết kế kiến trúc nền tảng Data Lakehouse và phục vụ BI (docs/diagram/architecture-lakehouse.svg).*
+
+Chi tiết các thành phần hạ tầng và cơ chế tương tác:
+
+1. **Tầng Lưu trữ đối tượng tập trung (Object Storage Tier)**:
+   * Triển khai MinIO Object Storage [8] cung cấp hệ thống lưu trữ phân tán hiệu năng cao tương thích hoàn toàn chuẩn Amazon S3 API.
+   * Cấu trúc bucket `lakehouse` được tổ chức thành các không gian phân vùng rõ rệt:
+     * `s3://lakehouse/landing/`: Lưu trữ các tệp trích xuất Parquet thô từ MySQL và các tệp JSONL nhật ký truy cập lịch sử.
+     * `s3://lakehouse/warehouse/`: Không gian lưu trữ chính của định dạng bảng Apache Iceberg, bao gồm các tệp dữ liệu dạng cột Parquet (data files), tệp xóa vị trí/định danh (delete files), các tệp chỉ mục danh mục (manifest files), danh sách chỉ mục (manifest lists) và tệp mô tả siêu dữ liệu (metadata JSON files).
+     * `s3://lakehouse/cursors/`: Lưu trữ vị trí con trỏ đồng bộ dữ liệu tăng dần (Incremental Checkpoint Cursors) của các pipeline ETL/ELT.
+
+2. **Tầng Quản trị siêu dữ liệu mở (Open Metadata & REST Catalog Tier)**:
+   * **Apache Iceberg v2 [9]**: Cung cấp định dạng bảng phân tích mở hỗ trợ đầy đủ ngữ nghĩa giao dịch ACID ở cấp độ bảng thông qua kỹ thuật ghi nhận snapshot nguyên tử (Atomic Snapshot Isolation). Định dạng bảng này hỗ trợ các tính năng hiện đại: tiến hóa cấu trúc bảng an toàn (Schema Evolution mà không cần ghi lại dữ liệu cũ), phân vùng ẩn (Hidden Partitioning giúp loại trừ sai sót khi truy vấn), và truy vấn lịch sử dữ liệu (Time-Travel).
+   * **Apache Polaris Catalog [10]**: Đóng vai trò là Catalog điều phối trung tâm tuân theo đặc tả chuẩn mở Iceberg REST Catalog Specification. Polaris duy trì trạng thái siêu dữ liệu bảng trong cơ sở dữ liệu quan hệ PostgreSQL nội bộ, giúp các công cụ xử lý khác nhau (Spark, Flink, Trino) luôn nhìn thấy một trạng thái dữ liệu đồng nhất và tức thời.
+
+3. **Cơ chế Phân quyền danh tính Workload (Workload RBAC) trên Polaris**:
+   Hệ thống thiết lập các vai trò ủy quyền chi tiết (`infrastructure/polaris/rbac.yml`) nhằm phân lập ranh giới an toàn cho từng công cụ tính toán:
+   * `spark_writer`: Cấp phát quyền tạo bảng, cập nhật cấu trúc schema, ghi đè và commit snapshot cho các tiến trình xử lý mẻ Apache Spark [12].
+   * `flink_writer`: Cấp quyền ghi nối tiếp (append) liên tục các sự kiện theo luồng cho Apache Flink [15].
+   * `trino_reader`: Cấp quyền chỉ đọc (read-only) trên siêu dữ liệu và tệp dữ liệu, phục vụ các truy vấn phân tích SQL tương tác của người dùng cuối [18].
+   * `trino_admin`: Cấp quyền quản trị và thực thi các truy vấn đối soát nâng cao cho người quản trị hệ thống.
+
+4. **Tầng Động cơ tính toán phân tán (Compute Engines Tier)**:
+   * **Apache Airflow 2.10 [16]**: Đóng vai trò là bộ não điều phối lịch trình, quản lý luồng phụ thuộc DAG, kích hoạt các tiến trình Spark, theo dõi lỗi và kích hoạt cơ chế retry tự động.
+   * **Apache Spark 3.5 [12]**: Động cơ tính toán phân tán trên bộ nhớ RAM, đảm nhiệm các tác vụ Batch nặng: trích xuất dữ liệu mẻ, chuyển đổi dữ liệu phức tạp giữa các tầng Bronze/Silver/Gold, thực thi `MERGE INTO`, tính toán các bảng chiều (Dimensions), bảng sự kiện (Facts), tổng hợp Data Marts và thực thi bộ kiểm tra chất lượng dữ liệu (Quality Gates).
+   * **Apache Flink 1.19 [15]**: Động cơ tính toán luồng có trạng thái (Stateful Stream Processing), đảm nhiệm việc tiêu thụ liên tục các dòng sự kiện từ Kafka (CDC và Access Log), áp dụng cơ chế Checkpointing 10 giây để đảm bảo ngữ nghĩa xử lý chính xác một lần (Exactly-Once Semantics), và ghi trực tiếp vào các bảng Iceberg tương ứng.
+   * **Trino 483 [18]**: Động cơ truy vấn SQL phân tán kiến trúc MPP (Massively Parallel Processing). Trino kết nối trực tiếp với Polaris Catalog và MinIO, tối ưu hóa các kế hoạch truy vấn SQL phân tích, bỏ qua các tệp không chứa dữ liệu cần tìm thông qua chỉ mục min/max của Iceberg (Data Skipping), mang lại tốc độ truy vấn vượt trội cho các ứng dụng BI.
+
+5. **Tầng Phục vụ và Trực quan hóa dữ liệu (Serving & Visualization Tier)**:
+   * **FastAPI Analytics Service**: Đóng vai trò là tầng ngữ nghĩa trung gian (Semantic Layer). Thay vì để tầng Client kết nối trực tiếp vào Trino, API Service chịu trách nhiệm thẩm định vai trò người dùng (RBAC), gắn thêm các bộ lọc phạm vi chi nhánh (`store_id`), biên dịch yêu cầu thành các câu lệnh SQL tối ưu tới Trino, và định dạng kết quả trả về tương thích với biểu đồ hiển thị [19].
+   * **BI Hub (Apache ECharts)**: Ứng dụng bảng điều khiển quản trị trên Next.js [2], [20], trực quan hóa các bộ chỉ số kinh doanh thành các biểu đồ đường xu hướng doanh thu, biểu đồ cột so sánh kênh bán, phễu chuyển đổi giỏ hàng và bảng đối soát chất lượng dữ liệu.
+
+---
+
 ### **3.3.4. Luồng dữ liệu và tương tác giữa các thành phần**
+
+Nền tảng tích hợp ba luồng vận chuyển và tương tác dữ liệu độc lập nhưng bổ trợ chặt chẽ cho nhau: Luồng Batch OLTP, Luồng CDC OLTP và Luồng Access Log [docs/diagram/11-data-ingestion.drawio](docs/diagram/11-data-ingestion.drawio).
+
+#### **a. Luồng trích xuất và xử lý dữ liệu mẻ (Batch OLTP Ingestion Flow)**
+Luồng xử lý mẻ chịu trách nhiệm trích xuất định kỳ toàn bộ dữ liệu nghiệp vụ có cấu trúc từ 27 bảng quan hệ MySQL (loại trừ bảng nhạy cảm `customer_credentials`) để xây dựng kho dữ liệu phân tích chuẩn hóa theo kiến trúc Medallion [docs/diagram/11-data-ingestion.drawio](docs/diagram/flow-batch.svg).
+
+![Luồng Batch OLTP](docs/diagram/flow-batch.svg)
+*Hình 3.13: Luồng thu thập và xử lý dữ liệu mẻ Batch OLTP (docs/diagram/flow-batch.svg).*
+
+Quy trình thực thi chi tiết bao gồm 7 giai đoạn tuần tự:
+1. **Trích xuất tăng dần (Incremental Extraction)**: DAG `lakehouse_oltp_pipeline` trên Apache Airflow được kích hoạt định kỳ vào lúc 02:00 sáng hàng ngày (giờ Việt Nam). Tác vụ khởi động Spark Job đọc dữ liệu từ MySQL qua kết nối JDBC. Sử dụng cơ chế con trỏ tăng dần (Incremental Cursor) dựa trên mốc thời gian cập nhật `updated_at` hoặc `created_at` của từng bảng (với khoảng thời gian đối soát an toàn lookback window 3 ngày), chỉ trích xuất các bản ghi mới hoặc có biến động kể từ mốc commit trước đó [12], [16].
+2. **Ghi nhận vùng Landing**: Dữ liệu trích xuất từ MySQL được nạp nguyên trạng ra các tệp định dạng Parquet tại vùng lưu trữ tạm `s3://lakehouse/landing/oltp/<table>/<batch_id>/` trên MinIO. Đồng thời, một tệp mô tả manifest JSON được khởi tạo ghi nhận số lượng dòng dữ liệu, kích thước và mã băm kiểm tra (Checksum) nhằm đảm bảo tệp không bị lỗi trong quá trình truyền tải.
+3. **Nạp tầng Bronze (Raw Append)**: Spark đọc các tệp Parquet từ Landing và thực hiện thao tác nạp nối tiếp (Append-only) vào các bảng Bronze Iceberg tương ứng (`lakehouse.bronze.<table_name>`). Tại tầng này, cấu trúc bảng được giữ nguyên vẹn như nguồn, đồng thời bổ sung các trường siêu dữ liệu truy vết nguồn gốc (Data Lineage Metadata): `_ingested_at` (thời điểm nạp) và `_source_file` (đường dẫn tệp Landing nguồn) [9].
+4. **Cam kết con trỏ (Commit Cursor)**: Sau khi toàn bộ 27 bảng Bronze được ghi và commit snapshot thành công trên Iceberg, Airflow tiến hành lưu mốc con trỏ thời gian mới nhất vào MinIO (`s3://lakehouse/cursors/oltp/<table>.json`). Quy trình cam kết sau Bronze đảm bảo tính lũy kế vô hại (Idempotency): nếu tiến trình gặp sự cố ở các tầng sau, pipeline có thể phục hồi trực tiếp từ dữ liệu Bronze đã ghi mà không phải trích xuất lại từ cơ sở dữ liệu nguồn MySQL [16].
+5. **Làm sạch và Chuẩn hóa tầng Silver (Cleanse & MERGE)**: Spark thực thi các biến đổi nghiệp vụ trên dữ liệu Bronze:
+   * Khử trùng lặp bản ghi (Deduplication) dựa trên khóa chính nghiệp vụ và mốc thời gian cập nhật mới nhất.
+   * Chuẩn hóa múi giờ sang UTC, chuyển đổi các trường tiền tệ sang số nguyên `bigint` (đơn vị VNĐ), giải mã các trường bán cấu trúc JSON (như thuộc tính sản phẩm, hình ảnh).
+   * Mã hóa bảo vệ quyền riêng tư (PII Pseudonymization): Áp dụng thuật toán băm bảo mật SHA-256 có thêm chuỗi muối (Salt) cho số điện thoại và địa chỉ email khách hàng [6].
+   * Thực thi câu lệnh `MERGE INTO` để cập nhật trạng thái mới nhất của các thực thể vào bảng Silver (`SCD Type 1`).
+6. **Đối soát dữ liệu nguồn - đích (Reconciliation Gate)**: Spark tự động thực hiện phép kiểm tra đối soát chéo (Reconciliation Check) giữa dữ liệu gốc trên MySQL và dữ liệu tại tầng Silver: so sánh tổng số lượng bản ghi và tổng giá trị các trường tiền tệ trọng yếu (tổng tiền đơn hàng, giá trị thanh toán). Nếu tỷ lệ sai lệch vượt ngưỡng cho phép ($\text{variance} > 1\%$), pipeline lập tức phát tín hiệu cảnh báo và dừng tiến trình.
+7. **Mô hình hóa tầng Gold & Kiểm tra chất lượng (Gold Marts & Quality Gate)**:
+   * Spark thực hiện chuyển đổi dữ liệu từ Silver sang mô hình hình sao (Star Schema), xây dựng 6 bảng chiều (Conformed Dimensions) và 5 bảng sự kiện (Core Facts) [11].
+   * Từ các bảng Fact và Dimension, Spark tự động tổng hợp trước dữ liệu thành 4 bảng Data Mart phục vụ nghiệp vụ bán hàng, hiệu suất sản phẩm, tồn kho và hành vi khách hàng.
+   * Kích hoạt bộ kiểm định chất lượng dữ liệu tự động (Quality Gate) gồm 18 chỉ tiêu theo chuẩn ISO/IEC 25012 [17]. Kết quả kiểm tra được ghi vào bảng `lakehouse.system.data_quality_results`. Nếu phát hiện lỗi vi phạm nghiêm trọng (khóa chính trùng lặp, giá trị doanh thu âm bất thường), tác vụ sẽ đánh dấu thất bại và ngăn chặn việc công bố dữ liệu lên Dashboard.
+
+#### **b. Luồng thu thập dữ liệu thay đổi (CDC OLTP Ingestion Flow)**
+Luồng CDC được thiết kế nhằm bắt trọn vẹn toàn bộ lịch sử biến động dữ liệu giao dịch theo thời gian thực mà không gây ảnh hưởng đến hiệu năng truy vấn của MySQL [docs/diagram/11-data-ingestion.drawio](docs/diagram/flow-cdc.svg).
+
+![Luồng CDC OLTP](docs/diagram/flow-cdc.svg)
+*Hình 3.14: Luồng thu thập dữ liệu thay đổi CDC OLTP (docs/diagram/flow-cdc.svg).*
+
+Quy trình vận hành:
+1. **Lắng nghe Binary Log**: Cơ sở dữ liệu MySQL được cấu hình kích hoạt `binlog_format = ROW` và `binlog_row_image = FULL`. Debezium MySQL Connector [13] hoạt động như một máy khách sao chép (Replication Client), kết nối trực tiếp vào MySQL binlog và ghi nhận liên tục từng thao tác ghi dữ liệu (`INSERT`, `UPDATE`, `DELETE`) trên 27 bảng quan hệ.
+2. **Xuất bản vào Apache Kafka**: Debezium đóng gói mỗi thay đổi thành một thông điệp sự kiện JSON chuẩn hóa (chứa ảnh chụp trạng thái trước thay đổi `before`, trạng thái sau thay đổi `after`, loại thao tác `op`, và mốc thời gian giao dịch) và đẩy vào các topic tương ứng trên Apache Kafka (`cdc.ecommerce.<table>`) [14].
+3. **Tiêu thụ và Nạp bảng Iceberg qua Apache Flink**: Job xử lý luồng Flink CDC (`flink_cdc_stream`) liên tục tiêu thụ các thông điệp từ Kafka topics. Flink tiến hành chuẩn hóa cấu trúc dữ liệu và thực hiện ghi nối tiếp (append-only) vào bảng `lakehouse.bronze.oltp_cdc_events` trên Apache Iceberg [15].
+4. **Bảo toàn lịch sử giao dịch (Audit Trail & Replay)**: Bảng `bronze.oltp_cdc_events` đóng vai trò là kho lưu trữ lịch sử bất biến ghi nhận mọi diễn biến của dữ liệu giao dịch. Khác với luồng Batch (chỉ giữ trạng thái mới nhất tại Silver qua `MERGE`), luồng CDC bảo toàn toàn bộ các trạng thái trung gian, cho phép tái hiện lại chính xác lịch sử hệ thống tại bất kỳ thời điểm nào trong quá khứ phục vụ mục đích kiểm toán và đối soát dữ liệu.
+
+#### **c. Luồng thu thập và xử lý nhật ký truy cập (Access Log Streaming Ingestion Flow)**
+Luồng Access Log được thiết kế chuyên biệt để xử lý dữ liệu hành vi người dùng (clickstream, request HTTP) có tần suất phát sinh lớn và tính chất bán cấu trúc [docs/diagram/11-data-ingestion.drawio](docs/diagram/flow-access-log.svg).
+
+![Luồng Access Log](docs/diagram/flow-access-log.svg)
+*Hình 3.15: Luồng thu thập và xử lý dòng nhật ký truy cập Access Log (docs/diagram/flow-access-log.svg).*
+
+Quy trình xử lý theo thời gian thực và tổng hợp mẻ:
+1. **Bắt sự kiện tại tầng ứng dụng**: Middleware tùy biến gắn trên FastAPI tự động ghi nhận thông tin của mọi yêu cầu HTTP gửi đến Storefront: mã định danh phiên làm việc (Session ID), định danh khách hàng (nếu đã đăng nhập), địa chỉ IP, User-Agent, mã phản hồi HTTP, thời gian thực thi (Latency), và các tham số truy vấn tìm kiếm/sản phẩm.
+2. **Truyền dẫn qua Kafka**: Middleware đóng gói dữ liệu thành payload JSON tuân thủ chặt chẽ JSON Schema nghiệp vụ (`docs/contracts/ecommerce-access-v1.schema.json`) và gửi bất đồng bộ vào Apache Kafka topic `ecommerce.access-logs` [14].
+3. **Đa kênh ghi nhận đồng thời với Flink StatementSet**:
+   * Job Flink Streaming (`access_logs_stream`) sử dụng cơ chế `StatementSet` để đọc một lần từ Kafka topic và phân phối ghi đồng thời vào 4 bảng đích trên Apache Iceberg nhằm tối ưu tài nguyên [15]:
+     * `lakehouse.landing.access_logs`: Lưu trữ nguyên trạng thông điệp log thô (Raw JSON payload) phục vụ lưu trữ lưu trữ dài hạn.
+     * `lakehouse.bronze.web_events`: Bảng sự kiện thô có định dạng cột cơ bản.
+     * `lakehouse.silver.silver_logs`: Bảng sự kiện đã được làm sạch, chuẩn hóa múi giờ UTC, phân tích chi tiết thông tin thiết bị/trình duyệt từ User-Agent, và ẩn danh hóa địa chỉ IP khách hàng.
+     * `lakehouse.gold.fact_web_events`: Bảng sự kiện mức phân tích, đánh chỉ mục và phân vùng theo ngày và giờ (`event_date`, `event_hour`).
+   * Flink kích hoạt Checkpoint định kỳ 10 giây ghi nhận trạng thái vào MinIO, đảm bảo tính bền vững và khả năng phục hồi tức thì khi có lỗi gián đoạn mạng.
+4. **Tổng hợp dữ liệu mẻ (Spark Log Rollup)**:
+   * Định kỳ, Apache Spark thực thi các tác vụ tổng hợp mẻ từ bảng sự kiện `gold.fact_web_events` để tính toán các bảng Data Mart phục vụ báo cáo tiếp thị và phân tích hành vi:
+     * `mart_hourly_traffic`: Thống kê lưu lượng truy cập, số lượt xem trang và độ trễ phản hồi trung bình theo từng khung giờ trong ngày.
+     * `mart_cart_funnel`: Tổng hợp số lượng người dùng qua từng giai đoạn của phễu mua hàng (Duyệt trang $\rightarrow$ Xem sản phẩm $\rightarrow$ Thêm vào giỏ hàng $\rightarrow$ Bắt đầu thanh toán $\rightarrow$ Đặt hàng thành công), tính toán tỷ lệ rớt phễu (Drop-off Rate) và tỷ lệ chuyển đổi (Conversion Rate).
+     * `mart_top_viewed_products`: Thống kê tần suất xem và thời gian tương tác của khách hàng trên từng sản phẩm, cung cấp dữ liệu đầu vào cho đội ngũ kinh doanh và marketing đánh giá mức độ quan tâm của thị trường.
 
 ## **3.4. Thiết kế cơ sở dữ liệu giao dịch**
 
