@@ -1787,11 +1787,148 @@ Toàn bộ kết quả kiểm tra của cả hai cổng đối soát được gh
 
 ### **4.6.1. Kết nối Trino và xây dựng API phân tích**
 
+Hệ thống Business Intelligence (BI Hub) của D&K được thiết kế theo kiến trúc phi máy chủ trực tiếp từ phía giao diện, toàn bộ truy vấn phân tích được trung chuyển qua tầng API chuyên biệt nhằm kiểm soát bảo mật, tối ưu hóa bộ nhớ đệm và quản lý phân quyền truy cập [3], [18]:
+
+1. **Khách hàng kết nối Trino REST HTTP Client (`TrinoClient`)**:
+   * Được hiện thực hóa tại `services/ecommerce-api/app/modules/analytics/trino_client.py`.
+   * Lớp `TrinoClient` thực hiện giao tiếp với máy chủ điều phối Trino Coordinator qua giao thức chuẩn Trino REST API v1 (`http://trino:8080/v1/statement` nội bộ hoặc `http://localhost:8084` ngoài host).
+   * Mỗi truy vấn SQL phân tán được gửi kèm các tiêu đề HTTP xác thực theo quy chuẩn:
+     * `X-Trino-User = "admin"` (hoặc định danh tài khoản phân tích viên).
+     * `X-Trino-Catalog = "lakehouse"` (kết nối trực tiếp tới Apache Polaris REST Catalog).
+     * `X-Trino-Schema = "gold"` (không gian bảng phân tích Star Schema và Data Marts).
+   * Trình khách hỗ trợ cơ chế thăm dò trạng thái truy vấn không đồng bộ (Asynchronous Query Polling): tự động theo dõi URL trạng thái `nextUri` cho đến khi câu truy vấn phân tán hoàn tất tính toán và trả về toàn bộ dữ liệu kết quả dưới dạng JSON.
+
+2. **Hệ thống API phân tích chuyên biệt (`/api/v1/analytics/`)**:
+   * Được định nghĩa trong router `services/ecommerce-api/app/modules/analytics/router.py`:
+     * `GET /api/v1/analytics/overview`: Cung cấp các chỉ số tài chính và vận hành tổng quan toàn hệ thống (dành cho Ban Giám đốc).
+     * `GET /api/v1/analytics/role-metrics`: Tiếp nhận tham số `target_role` (1 trong 7 vai trò nghiệp vụ) và tùy chọn `store_id` (lọc theo chi nhánh cụ thể), trả về toàn bộ cấu trúc chỉ số KPI tương ứng.
+     * `GET /api/v1/analytics/sales-trend`: Trả về dữ liệu chuỗi thời gian doanh thu gộp, giá vốn snapshot (COGS) và lợi nhuận gộp theo từng ngày trong các khung 7, 30, 90 hoặc 365 ngày (`days = 30`).
+     * `GET /api/v1/analytics/stores`: Danh sách toàn bộ các chi nhánh cửa hàng kèm chỉ số doanh thu đóng góp để nạp vào bộ lọc chi nhánh trên giao diện người dùng.
+
+3. **Cơ chế suy thoái có kiểm soát (Bounded OLTP Fallback Mechanism)**:
+   * Nhằm đảm bảo tính sẵn sàng cao của hệ thống theo NFR-03, module `analytics/service.py` thiết kế cơ chế chuyển mạch dự phòng thông minh:
+   * Nếu động cơ Trino bị gián đoạn kết nối hoặc cụm Lakehouse đang trong chu kỳ bảo trì, hệ thống tự động suy thoái (fallback) an toàn: chuyển hướng câu truy vấn sang cơ sở dữ liệu quan hệ MySQL InnoDB với các giới hạn truy vấn thời gian ngắn (Bounded Query).
+   * Trong phản hồi JSON trả về giao diện, hệ thống luôn gắn cờ nguồn dữ liệu minh bạch:
+     * `data_source = "trino"`: Số liệu được tính toán từ các bảng phân tích Gold Data Marts trên Lakehouse.
+     * `data_source = "oltp_fallback"`: Số liệu tạm thời được tính toán trực tiếp từ các bảng giao dịch MySQL, kèm chú thích cảnh báo cho người dùng quản trị.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.22: Giao diện Trino Web UI giám sát các câu truy vấn phân tích SQL phân tán]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập Trino Web Console tại `http://localhost:8084`:
+>   * Đăng nhập với username `trino` (hoặc `admin`).
+>   * Cửa sổ hiển thị danh sách các câu lệnh truy vấn phân tán gần nhất vừa được API phân tích kích hoạt trên catalog `lakehouse.gold` (ví dụ: `SELECT * FROM lakehouse.gold.mart_sales_daily ...`).
+>   * Thể hiện rõ các thông số hiệu năng: Trạng thái truy vấn `FINISHED`, thời gian thực thi (Elapsed Time dưới $500\text{ms}$), số lượng Worker Nodes tham gia tính toán, và tỷ lệ đọc dữ liệu tối ưu nhờ phân vùng.
+
+---
+
 ### **4.6.2. Xây dựng Dashboard và trực quan hóa KPI**
+
+Giao diện Dashboard phân tích kinh doanh (BI Analytics Hub) được xây dựng tại tuyến đường `/admin/analytics` của ứng dụng Next.js 15, sử dụng thư viện trực quan hóa cao cấp **Apache ECharts v6.1.0** [20] kết hợp các thành phần tái sử dụng chuẩn hóa (`RoleDashboards.tsx`, `SalesTrendPanel.tsx`, `AnalyticsUI.tsx`):
+
+1. **Hiện thực hóa 7 bảng điều khiển theo vai trò nghiệp vụ (Role-Specific Dashboards)**:
+   * **Góc nhìn Ban Giám đốc (Executive Hub)**:
+     * 4 thẻ KPI nổi bật trên cùng: Doanh thu thuần (`net_revenue_vnd`), Lợi nhuận gộp danh nghĩa (`gross_profit_vnd`), Tổng đơn hàng (`total_orders`), và Giá trị đơn trung bình (`aov_vnd`).
+     * Biểu đồ xu hướng đa khung thời gian (`SalesTrendPanel`): Biểu đồ vùng kết hợp đường (Area / Line Chart) so sánh doanh thu và chi phí vốn.
+     * Biểu đồ cột đôi (`barOption`): Đối chiếu trực quan giữa Tỷ lệ giao thất bại (`boom_rate_percent`) và Tỷ lệ yêu cầu đổi trả hàng (`return_rate_percent`).
+     * Khối tín hiệu tài chính bổ sung: Theo dõi dòng tiền thu hộ COD đang trên đường giao (`cash_in_transit`).
+   * **Góc nhìn Kinh doanh & Bán lẻ (Sales Hub)**:
+     * Biểu đồ cơ cấu kênh bán lẻ: So sánh tỷ trọng doanh thu giữa Online Storefront và hệ thống các cửa hàng vật lý (`store_contributions`).
+     * Bảng xếp hạng Top sản phẩm bán chạy nhất (`top_selling_products`) kèm doanh thu và số lượng bán.
+     * Biểu đồ phân bổ doanh thu theo danh mục hàng hóa (`category_shares`).
+   * **Góc nhìn Tiếp thị & Chuyển đổi (Marketing Hub)**:
+     * Mô hình hóa trực quan Phễu chuyển đổi 4 giai đoạn (`FunnelChart` từ `mart_marketing_funnel_daily`): $\text{Xem sản phẩm} \rightarrow \text{Thêm vào giỏ} \rightarrow \text{Bắt đầu thanh toán} \rightarrow \text{Hoàn tất đặt hàng}$.
+     * Tỷ lệ rớt phễu (Drop-off Rate) qua từng bước và cảnh báo tốc độ sử dụng mã giảm giá (`VoucherBurnRateSignal`).
+   * **Góc nhìn Quản lý cửa hàng (Store Hub)**:
+     * Dành riêng cho từng chi nhánh cửa hàng: Doanh thu quầy POS theo ca, danh mục sản phẩm bán chạy tại quầy, và tín hiệu cảnh báo hết hàng tại điểm bán (`StoreStockoutSignal`).
+   * **Góc nhìn Quản trị kho (Inventory Hub)**:
+     * Đo lường chỉ số số ngày tồn kho bình quân (DIO) và tỷ lệ vòng quay kho (Inventory Turnover).
+     * Khối cảnh báo rủi ro hết hàng nghiêm trọng (`CriticalStockoutSignal`): Tự động phát hiện các SKU có nguy cơ hết hàng trong 7 ngày tới.
+     * Tín hiệu tốc độ suy giảm tồn kho (`DepletionVelocitySignal`) hỗ trợ lập kế hoạch đặt hàng bù kho.
+   * **Góc nhìn Giao nhận & Vận hành (Operations Hub)**:
+     * Tỷ lệ giao hàng thành công lần đầu, thời gian giao hàng trung bình (Lead Time) theo từng đối tác vận chuyển 3PL.
+     * Tín hiệu điểm nghẽn đóng gói xuất kho (`FulfillmentBottleneckSignal`) và cơ cấu lý do trả hàng (Hàng lỗi, sai cỡ, sai mô tả).
+   * **Góc nhìn Giám sát kỹ thuật (System Hub)**:
+     * Theo dõi độ tươi mới của dữ liệu so với cam kết SLA (15 phút cảnh báo, 60 phút nghiêm trọng).
+     * Bảng đối soát tỷ lệ sai lệch dữ liệu giữa MySQL và Silver (`ReconciliationVariance`).
+     * Trực quan hóa kết quả chạy của 18 chỉ tiêu Quality Gate tự động.
+
+2. **Cơ chế tự động làm mới số liệu (Smart Auto-Refresh)**:
+   * Triển khai qua module `lib/dashboard-refresh.ts` với chu kỳ $60.000\text{ ms}$ ($60\text{ giây}$).
+   * Ứng dụng kiểm tra sự kiện `document.visibilityState`: chỉ tự động gửi yêu cầu làm mới dữ liệu khi tab trình duyệt đang mở hoạt động và không có truy vấn nào đang chờ xử lý (`!inFlight.current`), ngăn ngừa lãng phí tài nguyên máy chủ khi người dùng chuyển sang ứng dụng khác.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.23: Bảng điều khiển BI Hub hoàn chỉnh với các biểu đồ ECharts và thẻ chỉ số KPI]**
+> * **Nội dung cần chụp**: Trình duyệt Web truy cập giao diện BI Hub tại `http://localhost:3000/admin/analytics`:
+>   * Chọn góc nhìn **Executive** hoặc **Sales**.
+>   * Hàng trên cùng hiển thị 4 thẻ KPI màu sắc rõ nét (Doanh thu thuần, Lợi nhuận gộp, Tổng đơn, AOV).
+>   * Khung giữa hiển thị biểu đồ ECharts biểu diễn xu hướng doanh thu & lợi nhuận 30 ngày (Sales Trend Area Chart) và biểu đồ phân bổ doanh số đa kênh.
+>   * Khung dưới cùng hiển thị danh sách các đề xuất hành động nghiệp vụ tiếp theo (Next Steps Panel) kèm liên kết điều hướng nhanh.
+
+---
 
 ### **4.6.3. Phân quyền truy cập Dashboard**
 
+Nhằm bảo đảm nguyên tắc phân quyền đặc quyền tối thiểu trong doanh nghiệp, quyền truy cập dữ liệu phân tích được kiểm soát nghiêm ngặt từ tầng Backend API thông qua hàm `validate_role_access` (`services/ecommerce-api/app/modules/analytics/service.py`) kết hợp giao diện động tại Frontend:
+
+1. **Ma trận kiểm soát truy cập phân tích (Analytics RBAC Matrix)**:
+   * **Tài khoản Quản trị viên (`admin`)**:
+     * Sở hữu toàn quyền chuyển đổi qua lại giữa tất cả 7 vai trò nghiệp vụ thông qua thanh chọn góc nhìn (Role Switcher).
+     * Được quyền lọc dữ liệu theo bất kỳ chi nhánh cửa hàng nào (`store_id`) hoặc xem dữ liệu tổng hợp toàn quốc.
+   * **Tài khoản Quản lý cửa hàng (`store_manager`)**:
+     * Bị giới hạn nghiêm ngặt chỉ được phép xem dữ liệu của vai trò `store`.
+     * Tham số `store_id` bị cưỡng chế khóa cứng theo chi nhánh mà tài khoản được phân công phụ trách (`resolve_effective_store_id`). Mọi hành vi cố tình thay đổi `store_id` trên URL đều bị hệ thống phát hiện và chặn đứng với lỗi HTTP 403 Forbidden.
+   * **Tài khoản Quản lý chuyên môn (`sales_manager`, `inventory_manager`, `operations_manager`, `marketing_manager`)**:
+     * Chỉ có quyền truy cập vào duy nhất góc nhìn chuyên môn thuộc phạm vi trách nhiệm (ví dụ: `inventory_manager` chỉ truy cập được góc nhìn `inventory`).
+   * **Tài khoản Khách hàng (`customer`) và Nhân viên quầy (`store_staff`)**:
+     * Tuyệt đối không có quyền truy cập vào không gian phân tích BI Hub.
+
+2. **Giao diện thích ứng theo vai trò (Dynamic Role-based UI)**:
+   * Tại frontend, danh sách các vai trò khả dụng trên menu điều hướng (`visibleRoles`) được lọc động: Quản trị viên nhìn thấy đầy đủ 7 nút vai trò, trong khi người quản lý chuyên môn chỉ nhìn thấy tab vai trò của chính mình, mang lại giao diện tinh gọn và loại trừ nguy cơ nhầm lẫn phân quyền.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.24: Giao diện chuyển đổi góc nhìn Dashboard theo vai trò quản trị (Role Switcher)]**
+> * **Nội dung cần chụp**: Ảnh chụp giao diện BI Hub khi đăng nhập bằng tài khoản Quản trị viên (`admin@web.local`):
+>   * Thanh chọn vai trò (Role Switcher Tab Bar) hiển thị đầy đủ danh sách 7 vai trò nghiệp vụ: *Executive*, *Sales*, *Marketing*, *Store*, *Inventory*, *Operations*, *System*.
+>   * Khi chọn vai trò *Store*, xuất hiện thêm thanh thả (Dropdown) cho phép chuyển đổi lọc dữ liệu giữa Cửa hàng Hà Nội và Cửa hàng TP.HCM.
+>   * (Tùy chọn): Ảnh chụp đối chiếu khi đăng nhập bằng tài khoản Quản lý kho, thanh điều hướng chỉ hiển thị duy nhất góc nhìn *Inventory*.
+
+---
+
 ## **4.7. Xây dựng dữ liệu mô phỏng phục vụ trình diễn và kiểm thử**
+
+Nhằm phục vụ công tác kiểm thử tính năng toàn diện (End-to-End Testing), đánh giá hiệu năng chịu tải của cụm Lakehouse và tạo lập dữ liệu minh họa sinh động cho các buổi trình diễn đồ án, hệ thống xây dựng gói công cụ sinh dữ liệu mô phỏng chuyên dụng **`data-generator`** (phiên bản v0.7.0 đặt tại thư mục `generator/`):
+
+1. **Mô hình hóa dữ liệu xác thực dựa trên đặc thù bán lẻ Việt Nam**:
+   * Kịch bản sinh dữ liệu không tạo số ngẫu nhiên đơn thuần mà mô phỏng các quy luật mua sắm và phân phối xác thực của thị trường bán lẻ thời trang Việt Nam:
+     * **Yếu tố mùa vụ và ngày lễ (Seasonality Patterns)**: Mô phỏng lưu lượng đơn hàng tăng đột biến trong các dịp lễ Tết, ngày siêu mua sắm Black Friday, các ngày hội giảm giá đôi (11/11, 12/12) và tuần lễ nhận lương đầu tháng.
+     * **Phân phối thời gian mua sắm theo khung giờ (Hourly Distribution)**: Tỷ lệ truy cập tăng vọt vào các khung giờ nghỉ trưa (11:30–13:30) và giờ giải trí buổi tối (20:00–22:30).
+     * **Phân khúc hành vi khách hàng**: Phân chia người dùng thành các nhóm hành vi điển hình (khách hàng săn sale, khách hàng trung thành mua thường xuyên, khách hàng vãng lai chỉ xem không mua).
+
+2. **Cấu hình quy mô dữ liệu linh hoạt (Multi-Scale Configs)**:
+   * Hệ thống cung cấp các tệp cấu hình tham số đặt tại `generator/configs/`:
+     * `small.yml`: Tạo tập dữ liệu nhỏ gọn (vài trăm đơn hàng) phục vụ kiểm thử nhanh các hàm nghiệp vụ cục bộ.
+     * `medium.yml`: Tạo tập dữ liệu trung bình (hàng nghìn đơn hàng, đầy đủ chu kỳ 90 ngày) phục vụ kiểm thử tích hợp toàn diện pipeline Lakehouse và trực quan hóa Dashboard.
+     * `large.yml`: Tạo tập dữ liệu lớn (hàng chục nghìn giao dịch và hàng triệu sự kiện log) phục vụ đo lường hiệu năng truy vấn phân tán của Apache Trino.
+
+3. **Sinh đồng bộ dữ liệu giao dịch quan hệ và nhật ký truy cập**:
+   * **Xuất dữ liệu quan hệ giao dịch (Relational SQL Export)**:
+     * Kịch bản `generator export-sql` tạo tệp chèn dữ liệu `small.sql` vào 28 bảng MySQL.
+     * Toàn bộ các bản ghi được sinh ra với tính toàn vẹn tham chiếu tuyệt đối (khóa ngoại nhất quán giữa khách hàng, đơn hàng, mặt hàng, giao vận, đổi trả và tồn kho), cho phép nạp trực tiếp vào MySQL bằng lệnh `./scripts/import_generated_sql.sh` trong một giao dịch duy nhất mà không cần tắt kiểm tra khóa ngoại (`FOREIGN_KEY_CHECKS = 1`).
+     * Tài khoản khách hàng giả lập được gán quy chuẩn `customer.<index>.<prefix>@web.local` với mật khẩu đồng nhất `Synthetic@12345`.
+   * **Xuất nhật ký truy cập tương ứng (Synthetic Access Log Export)**:
+     * Kịch bản `generator export-logs` sinh ra chuỗi sự kiện truy cập HTTP khớp chính xác với dòng thời gian của các giao dịch mua hàng đã sinh.
+     * Mỗi đơn hàng sinh ra đều có chuỗi sự kiện clickstream đi kèm: Tìm kiếm từ khóa $\rightarrow$ Xem chi tiết sản phẩm $\rightarrow$ Thêm giỏ hàng $\rightarrow$ Tiến hành thanh toán $\rightarrow$ Xác nhận đơn hàng.
+     * Dữ liệu log được xuất trực tiếp sang tầng Landing MinIO hoặc phát tán vào Kafka để kiểm thử năng lực xử lý luồng của Apache Flink.
+
+4. **Tự động hóa nạp dữ liệu một chạm (Zero-Footprint Backfill)**:
+   * Kịch bản `scripts/backfill_data.sh` cho phép tự động hóa toàn bộ quy trình: từ sinh dữ liệu mầm, nạp vào MySQL, đẩy log vào MinIO S3, đến kích hoạt kiểm thử xác nhận đường ống qua `scripts/verify_pipeline.py`, giúp thiết lập môi trường trình diễn hoàn chỉnh chỉ với một câu lệnh duy nhất.
+
+> [!TIP]
+> **Gợi ý ảnh chụp màn hình minh chứng — [Hình 4.25: Kết quả thực thi script sinh dữ liệu và nạp dữ liệu mô phỏng `backfill_data.sh`]**
+> * **Nội dung cần chụp**: Cửa sổ Terminal khi thực thi kịch bản nạp dữ liệu tự động `./scripts/backfill_data.sh` (hoặc lệnh `uv run --package data-generator -- generator export-sql`):
+>   * Hiển thị thông số cấu hình đang nạp (ví dụ `medium.yml`), thanh tiến trình sinh dữ liệu các đợt mua sắm theo mùa vụ.
+>   * Kết quả thông báo nạp thành công các câu lệnh SQL vào MySQL `ecommerce_db` và xuất tệp Access Logs vào MinIO S3 bucket `lakehouse`.
+>   * Các thông số dòng bản ghi được hiển thị rõ ràng: hàng nghìn đơn hàng (`orders`), chi tiết đơn (`order_items`), và các giao dịch tồn kho (`inventory_transactions`) được tạo lập thành công.
 
 
 # **TÀI LIỆU THAM KHẢO**
